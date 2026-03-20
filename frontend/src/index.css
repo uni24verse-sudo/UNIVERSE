@@ -156,6 +156,7 @@ p {
   font-size: 2rem;
   background: linear-gradient(135deg, #fff, #94A3B8);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
   margin-bottom: 0.5rem;
 }
@@ -175,4 +176,23 @@ p {
 
 .link-text:hover {
   text-decoration: underline;
+}
+
+/* Responsive Grids */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 2rem;
+}
+
+.manage-store-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.5fr;
+  gap: 2rem;
+}
+
+@media (max-width: 768px) {
+  .dashboard-grid, .manage-store-grid {
+    grid-template-columns: 1fr;
+  }
 }

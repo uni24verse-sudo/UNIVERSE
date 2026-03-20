@@ -97,7 +97,7 @@ const Dashboard = () => {
           </Link>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '2rem' }}>
+        <div className="dashboard-grid">
           {/* Store Info Sidebar */}
           <div className="glass-card" style={{ height: 'fit-content' }}>
             <h3>{store.name}</h3>
@@ -111,7 +111,7 @@ const Dashboard = () => {
 
             <div style={{ marginTop: '2rem', paddingTop: '1.5rem', borderTop: '1px solid var(--surface-border)' }}>
               <h4>Revenue Overview</h4>
-              <div style={{ display: 'flex', gap: '2rem', marginTop: '1rem' }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2rem', marginTop: '1rem' }}>
                 <div>
                   <p style={{ color: 'var(--secondary)', fontSize: '1.5rem', fontWeight: 'bold' }}>
                     ₹{orders.filter(o => o.status === 'Completed' && new Date(o.createdAt).setHours(0,0,0,0) === new Date().setHours(0,0,0,0)).reduce((acc, current) => acc + current.totalAmount, 0)}

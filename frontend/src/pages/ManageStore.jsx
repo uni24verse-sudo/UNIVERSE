@@ -118,7 +118,7 @@ const ManageStore = () => {
         <h1>Manage {store.name}</h1>
       </header>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr', gap: '2rem' }}>
+      <div className="manage-store-grid">
         {/* QR Code and Info */}
         <div className="glass-card" style={{ height: 'fit-content', textAlign: 'center' }}>
           <h3>Store QR Code</h3>
