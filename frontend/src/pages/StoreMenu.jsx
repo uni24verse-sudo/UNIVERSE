@@ -36,11 +36,11 @@ const StoreMenu = () => {
         <p>Order seamlessly directly from your phone!</p>
       </header>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem' }}>
+      <div className="store-menu-grid">
         {store.products.map(product => (
-          <div key={product._id} className="glass-card" style={{ display: 'flex', flexDirection: 'column', padding: '1.5rem' }}>
+          <div key={product._id} className="glass-card menu-product-card">
             {product.image && (
-               <img src={product.image} alt={product.name} onError={(e) => { e.target.style.display = 'none' }} style={{ width: '100%', height: '180px', objectFit: 'cover', borderRadius: '12px', marginBottom: '1rem' }} />
+               <img src={product.image} alt={product.name} className="menu-product-image" onError={(e) => { e.target.style.display = 'none' }} />
             )}
             <h3 style={{ margin: '0 0 0.5rem 0' }}>{product.name}</h3>
             <p style={{ color: 'var(--secondary)', fontWeight: 'bold', fontSize: '1.25rem', marginBottom: 'auto' }}>
