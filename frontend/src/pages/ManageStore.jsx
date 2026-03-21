@@ -65,7 +65,7 @@ const ManageStore = () => {
       }
     };
     fetchStore();
-  }, [token, navigate]);
+  }, [token, navigate, vendor]);
 
   const handleSaveProduct = async (e) => {
     e.preventDefault();
