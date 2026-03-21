@@ -96,13 +96,16 @@ const RecentOrders = () => {
             overflowY: 'auto',
             padding: '1.25rem',
             borderRadius: '24px',
-            boxShadow: '0 12px 48px rgba(0,0,0,0.3)',
-            animation: 'slideUp 0.3s ease-out'
+            background: '#1a1b2e', // More solid background
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            boxShadow: '0 20px 48px rgba(0,0,0,0.5)',
+            animation: 'slideUp 0.3s ease-out',
+            zIndex: 1001
           }}
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-            <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: '800' }}>Recent Orders</h3>
-            <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', background: 'rgba(255,255,255,0.05)', padding: '0.25rem 0.6rem', borderRadius: '8px' }}>Last 2h</span>
+            <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: '800', color: 'white' }}>Recent Orders</h3>
+            <span style={{ fontSize: '0.7rem', color: '#94a3b8', background: 'rgba(255,255,255,0.05)', padding: '0.25rem 0.6rem', borderRadius: '8px' }}>Last 2h</span>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
@@ -115,9 +118,9 @@ const RecentOrders = () => {
                 }}
                 style={{
                   padding: '1rem',
-                  background: 'rgba(255,255,255,0.03)',
+                  background: 'rgba(255,255,255,0.05)',
                   borderRadius: '16px',
-                  border: '1px solid var(--surface-border)',
+                  border: '1px solid rgba(255,255,255,0.05)',
                   cursor: 'pointer',
                   transition: 'all 0.2s ease'
                 }}
