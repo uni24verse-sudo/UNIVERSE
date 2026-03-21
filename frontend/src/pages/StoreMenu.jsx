@@ -190,7 +190,7 @@ const StoreMenu = () => {
                 <div style={{ position: 'absolute', bottom: '-10px', left: '50%', transform: 'translateX(-50%)', width: '90%' }}>
                   <button 
                     className="btn btn-primary" 
-                    onClick={() => addToCart(product)}
+                    onClick={() => addToCart(product, id)}
                     style={{ 
                       padding: '0.5rem', 
                       height: '36px', 

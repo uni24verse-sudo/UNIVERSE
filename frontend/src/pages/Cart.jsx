@@ -55,7 +55,9 @@ const Cart = () => {
       navigate(`/order/${newOrder._id}`);
       
     } catch (err) {
-      alert('Failed to place order: ' + err.message);
+      const msg = err.response?.data?.message || err.message;
+      alert('Failed to place order: ' + msg);
+      console.error('Checkout error:', err);
     } finally {
       setLoading(false);
     }
@@ -143,7 +145,7 @@ const Cart = () => {
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               {/* UPI Option */}
-              {store ? (
+              {storeId ? (
                 <div 
                   onClick={() => setPaymentMethod('UPI')}
                   style={{ 
@@ -168,17 +170,24 @@ const Cart = () => {
 
                   {paymentMethod === 'UPI' && (
                     <div style={{ marginTop: '1.5rem', padding: '1.5rem', background: 'white', borderRadius: '16px', textAlign: 'center' }}>
-                      {upiLink ? (
-                        <>
-                          <QRCodeSVG value={upiLink} size={160} />
-                          <p style={{ color: '#000', fontSize: '0.875rem', marginTop: '1rem' }}>
-                            Scan or <a href={upiLink} style={{ color: 'var(--primary)', fontWeight: 'bold', textDecoration: 'none' }}>Click to Pay Directly</a>
+                      {store ? (
+                        upiLink ? (
+                          <>
+                            <QRCodeSVG value={upiLink} size={160} />
+                            <p style={{ color: '#000', fontSize: '0.875rem', marginTop: '1rem' }}>
+                              Scan or <a href={upiLink} style={{ color: 'var(--primary)', fontWeight: 'bold', textDecoration: 'none' }}>Click to Pay Directly</a>
+                            </p>
+                          </>
+                        ) : (
+                          <p style={{ color: 'var(--error)', fontSize: '0.875rem' }}>
+                            Vendor UPI ID not set. Please inform the vendor or try another method.
                           </p>
-                        </>
+                        )
                       ) : (
-                        <p style={{ color: 'var(--error)', fontSize: '0.875rem' }}>
-                          Vendor UPI ID not set. Please inform the vendor or try another method.
-                        </p>
+                        <div style={{ color: '#666' }}>
+                           <p style={{ fontSize: '0.875rem', marginBottom: '0.5rem' }}>Fetching stall details...</p>
+                           <p style={{ fontSize: '0.75rem' }}>If this takes too long, check your connection.</p>
+                        </div>
                       )}
                     </div>
                   )}
