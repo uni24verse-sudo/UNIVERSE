@@ -64,6 +64,34 @@ const Home = () => {
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg-dark)' }}>
+      {/* Brand Header */}
+      <nav style={{ 
+        position: 'absolute', 
+        top: 0, 
+        left: 0, 
+        right: 0, 
+        padding: '2rem', 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'space-between',
+        zIndex: 50
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer' }} onClick={() => navigate('/')}>
+          <div style={{ width: '40px', height: '40px', background: 'var(--primary)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 16px rgba(99, 102, 241, 0.2)' }}>
+            <Store color="white" size={24} />
+          </div>
+          <span style={{ fontSize: '1.5rem', fontWeight: '900', letterSpacing: '-0.04em', color: 'white' }}>UniVerse</span>
+        </div>
+        
+        <button 
+          className="btn btn-secondary" 
+          onClick={() => navigate('/vendor/login')}
+          style={{ width: 'auto', padding: '0.6rem 1.5rem', borderRadius: '12px', fontSize: '0.875rem', fontWeight: '700' }}
+        >
+          Vendor Portal
+        </button>
+      </nav>
+
       {/* Hero Section */}
       <section style={{ 
         padding: '6rem 2rem 4rem 2rem', 

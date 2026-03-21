@@ -65,9 +65,12 @@ const StoreMenu = () => {
         marginTop: '-40px'
       }}>
         <div style={{ maxWidth: '800px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <button onClick={() => navigate('/')} style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer' }}>
-            <ArrowLeft size={24} />
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', cursor: 'pointer' }} onClick={() => navigate('/')}>
+            <div style={{ width: '32px', height: '32px', background: 'var(--primary)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Store color="white" size={18} />
+            </div>
+            <span style={{ fontSize: '1.25rem', fontWeight: '900', letterSpacing: '-0.04em', color: 'white' }}>UniVerse</span>
+          </div>
           <div style={{ textAlign: 'center' }}>
             <h1 style={{ fontSize: '1.25rem', margin: 0, fontWeight: '700' }}>{store.name}</h1>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', justifyContent: 'center', fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.1rem' }}>
@@ -76,7 +79,9 @@ const StoreMenu = () => {
               <span>20-30 mins</span>
             </div>
           </div>
-          <div style={{ width: '24px' }}></div> {/* Spacer */}
+          <button onClick={() => navigate(-1)} style={{ background: 'var(--glass-bg)', border: '1px solid var(--surface-border)', color: 'white', padding: '0.6rem', borderRadius: '12px', cursor: 'pointer' }}>
+            <ArrowLeft size={18} />
+          </button>
         </div>
       </div>
 
