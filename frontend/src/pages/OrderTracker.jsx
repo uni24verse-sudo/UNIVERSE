@@ -42,7 +42,28 @@ const OrderTracker = () => {
     { label: 'Completed', icon: PackageCheck, color: '#10b981', desc: 'Delicious! Collect your order now' }
   ];
 
-  const currentStepIndex = statusSteps.findIndex(s => s.label === order?.status);
+  const currentStepIndex = order ? statusSteps.findIndex(s => s.label === order.status) : -1;
+
+  if (loading) {
+    return (
+      <div className="auth-wrapper" style={{ flexDirection: 'column', gap: '1.5rem' }}>
+        <div className="pulse-circle" style={{ width: '80px', height: '80px', borderRadius: '50%', background: 'var(--glass-bg)', border: '2px solid var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <Clock size={32} color="var(--primary)" className="spin" />
+        </div>
+        <p style={{ color: 'var(--text-secondary)' }}>Retrieving your order details...</p>
+      </div>
+    );
+  }
+
+  if (!order) {
+    return (
+      <div className="auth-wrapper" style={{ flexDirection: 'column', gap: '1rem' }}>
+        <h2 style={{ fontSize: '1.5rem' }}>Order Not Found</h2>
+        <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem' }}>We couldn't find the order you're looking for.</p>
+        <button onClick={() => navigate('/')} className="btn btn-primary" style={{ width: 'auto', padding: '1rem 3rem' }}>Back to Home</button>
+      </div>
+    );
+  }
 
   return (
     <div style={{ minHeight: '100vh', padding: '2rem 1rem', maxWidth: '600px', margin: '0 auto' }}>

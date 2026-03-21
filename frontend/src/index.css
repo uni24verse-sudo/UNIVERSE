@@ -290,6 +290,10 @@ p {
   animation: spin 1s linear infinite;
 }
 
+.spin {
+  animation: spin 2s linear infinite;
+}
+
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
