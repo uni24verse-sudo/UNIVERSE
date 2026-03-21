@@ -50,6 +50,11 @@ const Home = () => {
       return aOpen ? -1 : 1;
     });
 
+  const getImageUrl = (img) => {
+    if (!img) return 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=500&q=60';
+    return img.startsWith('/uploads') ? `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${img}` : img;
+  };
+
   if (loading) return (
     <div className="auth-wrapper">
       <div className="pulse-container"><div className="pulse-dot"></div></div>
@@ -98,7 +103,7 @@ const Home = () => {
             <div style={{ padding: '0 1rem' }}><Search size={24} color="var(--primary)" /></div>
             <input 
               type="text" 
-              placeholder="Search for snacks, meals, or stalls..." 
+              placeholder="Search for stalls..." 
               style={{ flex: 1, background: 'transparent', border: 'none', color: 'white', padding: '1rem 0', fontSize: '1.1rem', outline: 'none' }}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -110,29 +115,29 @@ const Home = () => {
 
       <main style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 2rem 6rem 2rem' }}>
         {/* Category Navigation */}
-        <div style={{ display: 'flex', gap: '1rem', overflowX: 'auto', padding: '1rem 0', marginBottom: '3.5rem', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-           {categories.map(cat => (
-             <button 
-              key={cat}
-              onClick={() => setSelectedCategory(cat)}
-              style={{ 
-                padding: '0.75rem 1.75rem', 
-                borderRadius: '100px', 
-                background: selectedCategory === cat ? 'var(--primary)' : 'var(--glass-bg)', 
-                color: selectedCategory === cat ? 'white' : 'var(--text-secondary)',
-                border: `1px solid ${selectedCategory === cat ? 'var(--primary)' : 'var(--surface-border)'}`,
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-                fontWeight: '700',
-                fontSize: '0.9rem',
-                transition: 'var(--transition)',
-                boxShadow: selectedCategory === cat ? '0 10px 20px rgba(99, 102, 241, 0.2)' : 'none'
-              }}
-             >
-               {cat}
-             </button>
-           ))}
-        </div>
+        {/* <div style={{ display: 'flex', gap: '1rem', overflowX: 'auto', padding: '1rem 0', marginBottom: '3.5rem', scrollbarWidth: 'none', msOverflowStyle: 'none' }}> */}
+           {/* {categories.map(cat => ( */}
+             {/* <button  */}
+              {/* key={cat} */}
+              {/* onClick={() => setSelectedCategory(cat)} */}
+              {/* style={{  */}
+                {/* padding: '0.75rem 1.75rem',  */}
+                {/* borderRadius: '100px',  */}
+                {/* background: selectedCategory === cat ? 'var(--primary)' : 'var(--glass-bg)',  */}
+                {/* color: selectedCategory === cat ? 'white' : 'var(--text-secondary)', */}
+                {/* border: `1px solid ${selectedCategory === cat ? 'var(--primary)' : 'var(--surface-border)'}`, */}
+                {/* cursor: 'pointer', */}
+                {/* whiteSpace: 'nowrap', */}
+                {/* fontWeight: '700', */}
+                {/* fontSize: '0.9rem', */}
+                {/* transition: 'var(--transition)', */}
+                {/* boxShadow: selectedCategory === cat ? '0 10px 20px rgba(99, 102, 241, 0.2)' : 'none' */}
+              {/* }} */}
+             {/* > */}
+               {/* {cat} */}
+             {/* </button> */}
+           {/* ))} */}
+        {/* </div> */}
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3rem' }}>
           <div>
@@ -165,9 +170,10 @@ const Home = () => {
                   <div className="glass-card store-card" style={{ transition: 'var(--transition)', overflow: 'hidden', padding: '1.5rem', borderRadius: '32px', height: '100%', display: 'flex', flexDirection: 'column' }}>
                     <div style={{ position: 'relative', height: '200px', borderRadius: '24px', overflow: 'hidden', marginBottom: '1.5rem', background: 'rgba(15,23,42,0.8)' }}>
                       <img 
-                        src={`https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=500&q=60`} 
+                        src={getImageUrl(store.image)}
                         alt={store.name}
                         style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: isOpen ? 0.8 : 0.3 }}
+                        onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=500&q=60'; }}
                       />
                       {!isOpen && (
                         <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}>

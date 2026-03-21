@@ -59,7 +59,7 @@ router.get('/my-store', auth, async (req, res) => {
 // Get all stores (Public)
 router.get('/all/list', async (req, res) => {
   try {
-    const stores = await Store.find({}, 'name products admin category isOpen').populate('admin', 'name').exec();
+    const stores = await Store.find({}, 'name products admin category isOpen image').populate('admin', 'name').exec();
     res.json(stores);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -72,6 +72,34 @@ router.get('/:id', async (req, res) => {
     const store = await Store.findById(req.params.id).populate('admin', 'name upiId');
     if (!store) return res.status(404).json({ message: 'Store not found' });
     res.json(store);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// Update Store Image (Protected)
+router.put('/update-image', auth, upload.single('imageFile'), async (req, res) => {
+  try {
+    const store = await Store.findOne({ admin: req.admin._id });
+    if (!store) return res.status(404).json({ message: 'Store not found' });
+
+    if (req.file) {
+      const uploadResult = await new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+          { folder: 'universe_stores' },
+          (error, result) => {
+            if (result) resolve(result);
+            else reject(error);
+          }
+        );
+        bufferToStream(req.file.buffer).pipe(stream);
+      });
+      store.image = uploadResult.secure_url;
+      await store.save();
+      res.json(store);
+    } else {
+      res.status(400).json({ message: 'No image file provided' });
+    }
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

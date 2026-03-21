@@ -33,6 +33,9 @@ const ManageStore = () => {
   const [adminUpiId, setAdminUpiId] = useState('');
   const [isEditingStore, setIsEditingStore] = useState(false);
   const [updatingStore, setUpdatingStore] = useState(false);
+  const [storeImageFile, setStoreImageFile] = useState(null);
+  const [updatingImage, setUpdatingImage] = useState(false);
+  const storeImageInputRef = useRef(null);
 
   // New/Edit product form
   const [productForm, setProductForm] = useState({ _id: null, name: '', price: '', category: '', image: '', imageFile: null });
@@ -166,6 +169,30 @@ const ManageStore = () => {
     }
   };
 
+  const handleUpdateStoreImage = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setUpdatingImage(true);
+    try {
+      const formData = new FormData();
+      formData.append('imageFile', file);
+
+      const res = await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/store/update-image`, formData, {
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+      setStore(prev => ({ ...prev, image: res.data.image }));
+      alert('Store image updated successfully!');
+    } catch (err) {
+      alert('Failed to update store image');
+    } finally {
+      setUpdatingImage(false);
+    }
+  };
+
   const handleLogout = () => {
     logout();
     navigate('/vendor/login');
@@ -295,9 +322,26 @@ const ManageStore = () => {
               </div>
             </div>
 
-            <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '24px' }}>
+            <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '24px', overflow: 'hidden' }}>
+              <div style={{ position: 'relative', height: '180px', borderRadius: '16px', background: 'var(--surface-border)', marginBottom: '1.5rem', overflow: 'hidden' }}>
+                {store.image ? (
+                  <img src={getImageUrl(store.image)} alt={store.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                  <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, var(--primary), var(--secondary))', opacity: 0.2 }}>
+                    <Store size={48} color="white" />
+                  </div>
+                )}
+                <div 
+                  onClick={() => storeImageInputRef.current.click()}
+                  style={{ position: 'absolute', bottom: '12px', right: '12px', background: 'var(--primary)', padding: '0.6rem', borderRadius: '12px', cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem', fontWeight: '700', color: 'white' }}
+                >
+                  <LucideImage size={16} /> {updatingImage ? 'Uploading...' : 'Change Photo'}
+                </div>
+                <input type="file" ref={storeImageInputRef} hidden accept="image/*" onChange={handleUpdateStoreImage} />
+              </div>
+              
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-                <h4 style={{ margin: 0 }}>Account Details</h4>
+                <h4 style={{ margin: 0 }}>Stall Details</h4>
                 {!isEditingStore && (
                   <button onClick={() => setIsEditingStore(true)} style={{ background: 'transparent', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontSize: '0.875rem', fontWeight: '700' }}>
                     Edit

@@ -36,8 +36,23 @@ const StoreMenu = () => {
     activeCategory === 'All' || (p.category || 'Uncategorized') === activeCategory
   );
 
+  const getImageUrl = (img) => {
+    if (!img) return 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=1000&q=80';
+    return img.startsWith('/uploads') ? `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${img}` : img;
+  };
+
   return (
     <div style={{ minHeight: '100vh', paddingBottom: '120px' }}>
+      {/* Banner Image */}
+      <div style={{ position: 'relative', height: '240px', width: '100%', overflow: 'hidden' }}>
+        <img 
+          src={getImageUrl(store.image)} 
+          alt={store.name} 
+          style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+        />
+        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(11, 15, 26, 0.4) 0%, rgba(11, 15, 26, 1) 100%)' }}></div>
+      </div>
+
       {/* Sticky Header */}
       <div style={{ 
         position: 'sticky', 
@@ -46,7 +61,8 @@ const StoreMenu = () => {
         background: 'rgba(11, 15, 26, 0.8)', 
         backdropFilter: 'blur(20px)',
         borderBottom: '1px solid var(--surface-border)',
-        padding: '1rem'
+        padding: '1rem',
+        marginTop: '-40px'
       }}>
         <div style={{ maxWidth: '800px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <button onClick={() => navigate('/')} style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer' }}>

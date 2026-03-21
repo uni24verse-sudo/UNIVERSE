@@ -12,6 +12,7 @@ const StoreSchema = new mongoose.Schema({
   admin: { type: mongoose.Schema.Types.ObjectId, ref: 'Admin', required: true },
   name: { type: String, required: true },
   category: { type: String, default: 'General' },
+  image: { type: String },
   qrLink: { type: String },
   isOpen: { type: Boolean, default: true },
   products: [ProductSchema]
