@@ -3,6 +3,22 @@ import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
 import { io } from 'socket.io-client';
+import { 
+  LayoutDashboard, 
+  Store, 
+  LogOut, 
+  ShoppingBag, 
+  TrendingUp, 
+  Banknote, 
+  CreditCard, 
+  Bell, 
+  CheckCircle2, 
+  Clock, 
+  AlertCircle,
+  QrCode,
+  Globe,
+  Plus
+} from 'lucide-react';
 
 const Dashboard = () => {
   const { token, vendor, logout } = useContext(AuthContext);
@@ -25,14 +41,12 @@ const Dashboard = () => {
         });
         setStore(storeRes.data);
 
-        // Fetch orders
         const ordersRes = await axios.get((import.meta.env.VITE_API_URL || 'http://localhost:5000') + '/api/orders/vendor-orders', {
           headers: { Authorization: `Bearer ${token}` }
         });
         setOrders(ordersRes.data);
       } catch (err) {
         if (err.response?.status === 404) {
-          // Store not found, which is fine, they just need to create one.
           setStore(null);
         }
       } finally {
@@ -47,14 +61,10 @@ const Dashboard = () => {
     if (store) {
       const newSocket = io((import.meta.env.VITE_API_URL || 'http://localhost:5000') + '');
       setSocket(newSocket);
-
       newSocket.emit('join_store_room', store._id);
-
       newSocket.on('new_order', (order) => {
         setOrders(prev => [order, ...prev]);
-        // Play notification sound or show toast in a full app
       });
-
       return () => newSocket.close();
     }
   }, [store]);
@@ -76,140 +86,277 @@ const Dashboard = () => {
     navigate('/vendor/login');
   };
 
-  if (loading) return <div className="auth-wrapper">Loading Dashboard...</div>;
+  const toggleStoreStatus = async () => {
+    try {
+      const res = await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/store/toggle-status`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setStore(prev => ({ ...prev, isOpen: res.data.isOpen }));
+    } catch (err) {
+      alert('Failed to toggle status');
+    }
+  };
+
+  if (loading) return (
+    <div className="auth-wrapper">
+      <div className="pulse-container"><div className="pulse-dot"></div></div>
+      <p style={{ marginTop: '1rem' }}>Updating Dashboard...</p>
+    </div>
+  );
+
+  const todayRevenue = orders
+    .filter(o => o.status === 'Completed' && new Date(o.createdAt).toDateString() === new Date().toDateString())
+    .reduce((acc, curr) => acc + curr.totalAmount, 0);
+
+  const totalRevenue = orders
+    .filter(o => o.status === 'Completed')
+    .reduce((acc, curr) => acc + curr.totalAmount, 0);
+
+  const pendingOrders = orders.filter(o => o.status === 'Pending').length;
 
   return (
-    <div style={{ padding: '2rem', maxWidth: '1200px', margin: '0 auto' }}>
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-        <div>
-          <h1>Vendor Dashboard</h1>
-          <p>Welcome back, {vendor?.name}!</p>
+    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-dark)' }}>
+      {/* Sidebar */}
+      <aside style={{ width: '280px', background: 'rgba(15, 23, 42, 0.8)', borderRight: '1px solid var(--surface-border)', display: 'flex', flexDirection: 'column', position: 'fixed', height: '100vh', zIndex: 100 }}>
+        <div style={{ padding: '2rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <div style={{ width: '40px', height: '40px', background: 'var(--primary)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Store color="white" size={24} />
+          </div>
+          <span style={{ fontSize: '1.25rem', fontWeight: '800', letterSpacing: '-0.02em' }}>UniVerse <span style={{ color: 'var(--primary)', fontSize: '0.75rem', verticalAlign: 'top' }}>PRO</span></span>
         </div>
-        <button onClick={handleLogout} className="btn btn-secondary" style={{ width: 'auto' }}>Logout</button>
-      </header>
 
-      {!store ? (
-        <div className="glass-card" style={{ textAlign: 'center', padding: '4rem 2rem' }}>
-          <h2>You don't have a store yet.</h2>
-          <p style={{ marginBottom: '2rem' }}>Create your store to start receiving QR orders and managing products.</p>
-          <Link to="/vendor/store/create" className="btn btn-primary" style={{ width: 'auto' }}>
-            Create My Store
-          </Link>
+        <nav style={{ padding: '1rem', flex: 1 }}>
+          <div style={{ marginBottom: '2rem' }}>
+            <p style={{ padding: '0 1rem', fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '1rem' }}>Main Menu</p>
+            <Link to="/vendor/dashboard" style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem', borderRadius: '14px', background: 'rgba(99, 102, 241, 0.1)', color: 'var(--primary)', fontWeight: '700', textDecoration: 'none' }}>
+              <LayoutDashboard size={20} /> Dashboard
+            </Link>
+            <Link to="/vendor/store/manage" style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem', borderRadius: '14px', color: 'var(--text-secondary)', fontWeight: '500', textDecoration: 'none', transition: 'var(--transition)' }}>
+              <QrCode size={20} /> Store & Menu
+            </Link>
+          </div>
+
+          <div>
+            <p style={{ padding: '0 1rem', fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '1rem' }}>Support</p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem', borderRadius: '14px', color: 'var(--text-secondary)', fontWeight: '500', cursor: 'pointer' }}>
+               <AlertCircle size={20} /> Help Center
+            </div>
+          </div>
+        </nav>
+
+        <div style={{ padding: '1rem', borderTop: '1px solid var(--surface-border)' }}>
+          <button onClick={handleLogout} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem', borderRadius: '14px', color: 'var(--error)', background: 'transparent', border: 'none', cursor: 'pointer', fontWeight: '600' }}>
+            <LogOut size={20} /> Sign Out
+          </button>
         </div>
-      ) : (
-        <div className="dashboard-grid">
-          {/* Store Info Sidebar */}
-          <div className="glass-card" style={{ height: 'fit-content' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <h3>{store.name}</h3>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: store.isOpen ? '#10b981' : '#ef4444' }}></div>
-                <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: store.isOpen ? '#10b981' : '#ef4444' }}>
-                  {store.isOpen ? 'ONLINE' : 'OFFLINE'}
+      </aside>
+
+      {/* Main Content */}
+      <main style={{ marginLeft: '280px', flex: 1, padding: '2rem 3rem' }}>
+        <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3rem' }}>
+          <div>
+            <h1 style={{ fontSize: '1.75rem', fontWeight: '800', marginBottom: '0.25rem' }}>Dashboard Overview</h1>
+            <p style={{ color: 'var(--text-secondary)' }}>Hello {vendor?.name}, here's what's happening today.</p>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+            {store && (
+              <div 
+                onClick={toggleStoreStatus}
+                style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '0.75rem', 
+                  padding: '0.5rem 1rem', 
+                  background: store.isOpen ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)', 
+                  borderRadius: '100px',
+                  cursor: 'pointer',
+                  border: `1px solid ${store.isOpen ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)'}`
+                }}
+              >
+                <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: store.isOpen ? 'var(--secondary)' : 'var(--error)', boxShadow: store.isOpen ? '0 0 10px var(--secondary)' : 'none' }}></div>
+                <span style={{ fontSize: '0.875rem', fontWeight: '700', color: store.isOpen ? 'var(--secondary)' : 'var(--error)' }}>
+                   {store.isOpen ? 'STALL OPEN' : 'STALL CLOSED'}
                 </span>
               </div>
+            )}
+            <div style={{ width: '45px', height: '45px', borderRadius: '14px', background: 'var(--glass-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--surface-border)', cursor: 'pointer' }}>
+              <Bell size={20} color="var(--text-secondary)" />
             </div>
-            <p style={{ marginBottom: '1rem' }}>Products available: {store.products.length}</p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <Link to="/vendor/store/manage" className="btn btn-secondary">Manage Menu & QR Code</Link>
-              <button 
-                onClick={async () => {
-                  try {
-                    const res = await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/store/toggle-status`, {}, {
-                      headers: { Authorization: `Bearer ${token}` }
-                    });
-                    setStore(prev => ({ ...prev, isOpen: res.data.isOpen }));
-                  } catch (err) {
-                    alert('Failed to toggle status');
-                  }
-                }}
-                className={`btn ${store.isOpen ? 'btn-secondary' : 'btn-primary'}`}
-                style={{ background: store.isOpen ? 'rgba(239, 68, 68, 0.1)' : '', color: store.isOpen ? '#ef4444' : '', borderColor: store.isOpen ? '#ef4444' : '' }}
-              >
-                {store.isOpen ? 'Go Offline' : 'Go Online'}
-              </button>
-              <a href={`/store/${store._id}`} target="_blank" rel="noreferrer" className="btn btn-primary" style={{ textAlign: 'center', textDecoration: 'none' }}>
-                View Public Menu
-              </a>
+            <div style={{ width: '45px', height: '45px', borderRadius: '14px', background: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--surface-border)', cursor: 'pointer', fontWeight: '800' }}>
+              {vendor?.name?.charAt(0)}
+            </div>
+          </div>
+        </header>
+
+        {!store ? (
+          <div className="glass-card" style={{ padding: '5rem 2rem', textAlign: 'center', borderRadius: '40px' }}>
+            <div style={{ width: '100px', height: '100px', background: 'rgba(99, 102, 241, 0.1)', borderRadius: '30px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 2.5rem auto' }}>
+              <Plus size={48} color="var(--primary)" />
+            </div>
+            <h2 style={{ fontSize: '2rem', marginBottom: '1rem' }}>Launch Your Stall</h2>
+            <p style={{ color: 'var(--text-secondary)', maxWidth: '450px', margin: '0 auto 2.5rem auto', lineHeight: '1.6' }}>You haven't created a store yet. Set up your menu and generate your unique QR code to start receiving digital orders.</p>
+            <Link to="/vendor/store/create" className="btn btn-primary" style={{ width: 'auto', padding: '1rem 3rem', borderRadius: '16px' }}>
+              Create My Store Now
+            </Link>
+          </div>
+        ) : (
+          <>
+            {/* Stats Cards */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem', marginBottom: '3rem' }}>
+              <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '24px', position: 'relative', overflow: 'hidden' }}>
+                <div style={{ position: 'absolute', right: '-10px', bottom: '-10px', opacity: 0.05 }}><Banknote size={100} /></div>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: '600', marginBottom: '1rem' }}>Today's Revenue</p>
+                <h3 style={{ fontSize: '1.75rem', margin: 0 }}>₹{todayRevenue}</h3>
+                <div style={{ marginTop: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--secondary)', fontSize: '0.75rem', fontWeight: '700' }}>
+                  <TrendingUp size={14} /> Live Updates
+                </div>
+              </div>
+
+              <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '24px', position: 'relative', overflow: 'hidden' }}>
+                <div style={{ position: 'absolute', right: '-10px', bottom: '-10px', opacity: 0.05 }}><ShoppingBag size={100} /></div>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: '600', marginBottom: '1rem' }}>Active Orders</p>
+                <h3 style={{ fontSize: '1.75rem', margin: 0 }}>{pendingOrders}</h3>
+                <p style={{ marginTop: '0.75rem', color: 'var(--text-secondary)', fontSize: '0.75rem' }}>Waiting to be accepted</p>
+              </div>
+
+              <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '24px', position: 'relative', overflow: 'hidden' }}>
+                <div style={{ position: 'absolute', right: '-10px', bottom: '-10px', opacity: 0.05 }}><TrendingUp size={100} /></div>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: '600', marginBottom: '1rem' }}>Total Life-time</p>
+                <h3 style={{ fontSize: '1.75rem', margin: 0 }}>₹{totalRevenue}</h3>
+                <p style={{ marginTop: '0.75rem', color: 'var(--text-secondary)', fontSize: '0.75rem' }}>Across {orders.length} orders</p>
+              </div>
+
+              <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '24px', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '0.5rem', background: 'var(--primary)', color: 'white' }}>
+                 <p style={{ fontSize: '0.875rem', fontWeight: '600', opacity: 0.8 }}>Store Visibility</p>
+                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <Globe size={24} />
+                    <span style={{ fontSize: '1.25rem', fontWeight: '900' }}>ONLINE</span>
+                 </div>
+                 <Link to={`/store/${store._id}`} target="_blank" style={{ color: 'white', fontSize: '0.75rem', textDecoration: 'underline' }}>View Public Link</Link>
+              </div>
             </div>
 
-            <div style={{ marginTop: '2rem', paddingTop: '1.5rem', borderTop: '1px solid var(--surface-border)' }}>
-              <h4>Revenue Overview</h4>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2rem', marginTop: '1rem' }}>
-                <div>
-                  <p style={{ color: 'var(--secondary)', fontSize: '1.5rem', fontWeight: 'bold' }}>
-                    ₹{orders.filter(o => o.status === 'Completed' && new Date(o.createdAt).setHours(0,0,0,0) === new Date().setHours(0,0,0,0)).reduce((acc, current) => acc + current.totalAmount, 0)}
-                  </p>
-                  <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Today's Sales</p>
+            {/* Main Section: Orders & Info */}
+            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '2rem' }}>
+              {/* Live Orders Feed */}
+              <div className="glass-card" style={{ padding: '2rem', borderRadius: '32px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: '800' }}>Live Orders</h3>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <span style={{ fontSize: '0.75rem', padding: '0.3rem 0.8rem', borderRadius: '100px', background: 'var(--surface-border)', color: 'var(--text-secondary)' }}>All Orders</span>
+                  </div>
                 </div>
-                
-                <div>
-                  <p style={{ color: 'var(--text-primary)', fontSize: '1.5rem', fontWeight: 'bold' }}>
-                    ₹{orders.filter(o => o.status === 'Completed').reduce((acc, current) => acc + current.totalAmount, 0)}
-                  </p>
-                  <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Total Revenue</p>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  {orders.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '3rem 0' }}>
+                      <Clock size={40} style={{ opacity: 0.2, marginBottom: '1rem' }} />
+                      <p style={{ color: 'var(--text-secondary)' }}>Waiting for new orders...</p>
+                    </div>
+                  ) : (
+                    orders.map(order => (
+                      <div key={order._id} style={{ padding: '1.25rem', background: 'rgba(255,255,255,0.02)', borderRadius: '20px', border: '1px solid var(--surface-border)', transition: 'var(--transition)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+                          <div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.25rem' }}>
+                              <span style={{ fontWeight: '800', fontSize: '1.125rem' }}>Order #{order.orderNumber}</span>
+                              <span style={{ 
+                                padding: '0.25rem 0.75rem', 
+                                borderRadius: '8px', 
+                                fontSize: '0.65rem',
+                                fontWeight: '900',
+                                textTransform: 'uppercase',
+                                background: order.status === 'Pending' ? 'rgba(245, 158, 11, 0.1)' : order.status === 'Confirmed' ? 'rgba(59, 130, 246, 0.1)' : 'rgba(16, 185, 129, 0.1)',
+                                color: order.status === 'Pending' ? '#f59e0b' : order.status === 'Confirmed' ? '#3b82f6' : '#10b981',
+                                border: `1px solid ${order.status === 'Pending' ? '#f59e0b44' : order.status === 'Confirmed' ? '#3b82f644' : '#10b98144'}`
+                              }}>
+                                {order.status}
+                              </span>
+                            </div>
+                            <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{new Date(order.createdAt).toLocaleTimeString()} • {order.items.length} Items</p>
+                          </div>
+                          
+                          <div style={{ textAlign: 'right' }}>
+                            <p style={{ fontSize: '1.25rem', fontWeight: '800', margin: 0 }}>₹{order.totalAmount}</p>
+                            <p style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.25rem' }}>
+                              {order.paymentMethod === 'UPI' ? <CreditCard size={10} /> : <Banknote size={10} />} {order.paymentMethod}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div style={{ background: 'rgba(255,255,255,0.02)', padding: '0.75rem 1rem', borderRadius: '12px', marginBottom: '1.25rem' }}>
+                          {order.items.map((item, idx) => (
+                            <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem', marginBottom: idx === order.items.length - 1 ? 0 : '0.5rem' }}>
+                              <span>{item.quantity}x {item.name}</span>
+                              <span style={{ color: 'var(--text-secondary)' }}>₹{item.price * item.quantity}</span>
+                            </div>
+                          ))}
+                        </div>
+
+                        {order.status !== 'Completed' && order.status !== 'Cancelled' && (
+                          <div style={{ display: 'flex', gap: '0.75rem' }}>
+                            {order.status === 'Pending' && (
+                              <button 
+                                onClick={() => updateOrderStatus(order._id, 'Confirmed')} 
+                                className="btn btn-primary" 
+                                style={{ flex: 1, padding: '0.75rem', height: 'auto', borderRadius: '12px', fontSize: '0.875rem' }}
+                              >
+                                Accept Order
+                              </button>
+                            )}
+                            {order.status === 'Confirmed' && (
+                              <button 
+                                onClick={() => updateOrderStatus(order._id, 'Completed')} 
+                                className="btn btn-secondary" 
+                                style={{ flex: 1, padding: '0.75rem', height: 'auto', borderRadius: '12px', fontSize: '0.875rem', background: 'var(--secondary)', color: 'white', borderColor: 'var(--secondary)' }}
+                              >
+                                <CheckCircle2 size={18} style={{ marginRight: '0.5rem' }} /> Mark Ready
+                              </button>
+                            )}
+                            <button 
+                              onClick={() => updateOrderStatus(order._id, 'Cancelled')} 
+                              style={{ padding: '0.75rem 1.25rem', borderRadius: '12px', border: '1px solid rgba(239, 68, 68, 0.2)', background: 'transparent', color: 'var(--error)', cursor: 'pointer', fontSize: '0.875rem' }}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  ))}
+                </div>
+              </div>
+
+              {/* Quick Actions / Store Info */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '24px' }}>
+                  <h4 style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><QrCode size={18} /> Store QR</h4>
+                  <div style={{ background: 'white', padding: '1rem', borderRadius: '16px', textAlign: 'center', marginBottom: '1rem' }}>
+                    <img src={store.qrCode} alt="QR Code" style={{ width: '100%', borderRadius: '8px' }} />
+                  </div>
+                  <button onClick={() => navigate('/vendor/store/manage')} className="btn btn-secondary" style={{ width: '100%', borderRadius: '12px' }}>Download QR</button>
+                </div>
+
+                <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '24px' }}>
+                  <h4 style={{ marginBottom: '1rem' }}>Resources</h4>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                    <div style={{ padding: '1rem', background: 'rgba(255,255,255,0.03)', borderRadius: '14px', fontSize: '0.875rem', cursor: 'pointer' }}>
+                      📢 Promoting your stall
+                    </div>
+                    <div style={{ padding: '1rem', background: 'rgba(255,255,255,0.03)', borderRadius: '14px', fontSize: '0.875rem', cursor: 'pointer' }}>
+                      📈 Sales optimization
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-
-          {/* Orders Feed */}
-          <div className="glass-card">
-            <h3>Live Orders</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
-              {orders.length === 0 ? (
-                <p>No orders yet. They will appear here in real-time.</p>
-              ) : (
-                orders.map(order => (
-                  <div key={order._id} style={{ padding: '1rem', background: 'rgba(15,23,42,0.5)', borderRadius: '12px', border: '1px solid var(--surface-border)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                      <strong>Order #{order.orderNumber}</strong>
-                      <span style={{ 
-                        padding: '0.25rem 0.75rem', 
-                        borderRadius: '99px', 
-                        fontSize: '0.75rem',
-                        background: order.status === 'Pending' ? '#f59e0b' : order.status === 'Confirmed' ? '#3b82f6' : order.status === 'Completed' ? '#10b981' : '#ef4444'
-                      }}>
-                        {order.status}
-                      </span>
-                    </div>
-                    
-                    <p style={{ fontSize: '0.875rem', marginBottom: '0.5rem' }}>
-                      Payment: <strong>{order.paymentMethod}</strong> - Total: <strong>₹{order.totalAmount}</strong>
-                    </p>
-                    
-                    <ul style={{ fontSize: '0.875rem', marginLeft: '1.5rem', marginBottom: '1rem', color: 'var(--text-secondary)' }}>
-                      {order.items.map((item, idx) => (
-                        <li key={idx}>{item.quantity}x {item.name}</li>
-                      ))}
-                    </ul>
-
-                    {order.status !== 'Completed' && order.status !== 'Cancelled' && (
-                      <div style={{ display: 'flex', gap: '0.5rem' }}>
-                        {order.status === 'Pending' && (
-                          <button onClick={() => updateOrderStatus(order._id, 'Confirmed')} className="btn btn-primary" style={{ padding: '0.5rem 1rem', fontSize: '0.875rem', width: 'auto' }}>
-                            Accept Order
-                          </button>
-                        )}
-                        {order.status === 'Confirmed' && (
-                          <button onClick={() => updateOrderStatus(order._id, 'Completed')} className="btn btn-secondary" style={{ padding: '0.5rem 1rem', fontSize: '0.875rem', width: 'auto' }}>
-                            Mark Completed
-                          </button>
-                        )}
-                        <button onClick={() => updateOrderStatus(order._id, 'Cancelled')} className="btn btn-secondary" style={{ padding: '0.5rem 1rem', fontSize: '0.875rem', width: 'auto', background: 'transparent', color: 'var(--error)' }}>
-                          Cancel
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </main>
     </div>
   );
 };
 
 export default Dashboard;
+

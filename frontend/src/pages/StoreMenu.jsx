@@ -1,7 +1,8 @@
-import React, { useEffect, useState, useContext } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { CartContext } from '../context/CartContext';
+import { ArrowLeft, ShoppingBag, ChefHat, Info, Plus, Search, Star, Clock } from 'lucide-react';
 
 const StoreMenu = () => {
   const { id } = useParams();
@@ -36,98 +37,213 @@ const StoreMenu = () => {
   );
 
   return (
-    <div style={{ padding: '2rem 1rem', maxWidth: '800px', margin: '0 auto', paddingBottom: '100px' }}>
-      <header style={{ textAlign: 'center', marginBottom: '2rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-          <h1 style={{ fontSize: '2.5rem', margin: 0 }}>{store.name}</h1>
-          {!store.isOpen && (
-            <span style={{ background: '#ef4444', color: 'white', fontSize: '0.75rem', padding: '0.2rem 0.6rem', borderRadius: '4px', fontWeight: 'bold' }}>CLOSED</span>
-          )}
-        </div>
-        <p>Order seamlessly directly from your phone!</p>
-      </header>
-
-      {/* Category Navigation */}
+    <div style={{ minHeight: '100vh', paddingBottom: '120px' }}>
+      {/* Sticky Header */}
       <div style={{ 
-        display: 'flex', 
-        gap: '0.75rem', 
-        overflowX: 'auto', 
-        paddingBottom: '1.5rem', 
-        marginBottom: '1rem',
-        scrollbarWidth: 'none',
-        msOverflowStyle: 'none'
-      }} className="hide-scrollbar">
-        {categories.map(cat => (
-          <button
-            key={cat}
-            onClick={() => setActiveCategory(cat)}
-            style={{
-              padding: '0.6rem 1.25rem',
-              borderRadius: '99px',
-              border: 'none',
-              whiteSpace: 'nowrap',
-              fontSize: '0.875rem',
-              fontWeight: '600',
-              cursor: 'pointer',
-              background: activeCategory === cat ? 'var(--primary)' : 'rgba(255,255,255,0.05)',
-              color: activeCategory === cat ? 'white' : 'var(--text-secondary)',
-              transition: 'all 0.2s ease',
-              boxShadow: activeCategory === cat ? '0 4px 12px rgba(79, 70, 229, 0.4)' : 'none'
-            }}
-          >
-            {cat}
+        position: 'sticky', 
+        top: 0, 
+        zIndex: 100, 
+        background: 'rgba(11, 15, 26, 0.8)', 
+        backdropFilter: 'blur(20px)',
+        borderBottom: '1px solid var(--surface-border)',
+        padding: '1rem'
+      }}>
+        <div style={{ maxWidth: '800px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <button onClick={() => navigate('/')} style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer' }}>
+            <ArrowLeft size={24} />
           </button>
-        ))}
-      </div>
-
-      {!store.isOpen && (
-        <div className="glass-card" style={{ textAlign: 'center', padding: '2rem', marginBottom: '2rem', border: '1px solid #ef4444', background: 'rgba(239, 68, 68, 0.05)' }}>
-          <h3 style={{ color: '#ef4444', marginBottom: '0.5rem' }}>Currently Closed</h3>
-          <p>This store is not accepting orders right now. Please check back later!</p>
-        </div>
-      )}
-
-      <div className="store-menu-grid" style={{ opacity: store.isOpen ? 1 : 0.6, pointerEvents: store.isOpen ? 'auto' : 'none' }}>
-        {filteredProducts.map(product => (
-          <div key={product._id} className="glass-card menu-product-card">
-            {product.image && (
-               <img src={product.image} alt={product.name} className="menu-product-image" onError={(e) => { e.target.style.display = 'none' }} />
-            )}
-            <h3 style={{ margin: '0 0 0.5rem 0' }}>{product.name}</h3>
-            <p style={{ color: 'var(--secondary)', fontWeight: 'bold', fontSize: '1.25rem', marginBottom: 'auto' }}>
-              ₹{product.price}
-            </p>
-            
-            <button 
-              className={`btn ${!product.isAvailable ? 'btn-secondary' : 'btn-primary'}`}
-              style={{ marginTop: '1rem' }}
-              disabled={!product.isAvailable}
-              onClick={() => addToCart(product, store._id)}
-            >
-              {product.isAvailable ? 'Add to Cart' : 'Out of Stock'}
-            </button>
+          <div style={{ textAlign: 'center' }}>
+            <h1 style={{ fontSize: '1.25rem', margin: 0, fontWeight: '700' }}>{store.name}</h1>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', justifyContent: 'center', fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.1rem' }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}><Star size={10} fill="currentColor" /> 4.8</span>
+              <span>•</span>
+              <span>20-30 mins</span>
+            </div>
           </div>
-        ))}
+          <div style={{ width: '24px' }}></div> {/* Spacer */}
+        </div>
       </div>
 
-      {/* Floating Cart Button */}
+      <div style={{ padding: '2rem 1rem', maxWidth: '800px', margin: '0 auto' }}>
+        {/* Store Banner/Info */}
+        <div className="glass-card" style={{ padding: '1.5rem', marginBottom: '2.5rem', borderRadius: '24px' }}>
+           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div>
+                <h2 style={{ margin: '0 0 0.5rem 0', fontSize: '1.75rem' }}>Menu</h2>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', margin: 0 }}>Discover delicious items from {store.name}</p>
+              </div>
+              {store.isOpen === false && (
+                <div style={{ 
+                  background: 'rgba(239, 68, 68, 0.1)', 
+                  color: 'var(--error)', 
+                  fontSize: '0.7rem', 
+                  padding: '0.4rem 0.8rem', 
+                  borderRadius: '99px', 
+                  fontWeight: '800',
+                  border: '1px solid rgba(239, 68, 68, 0.2)'
+                }}>OFFLINE</div>
+              )}
+           </div>
+        </div>
+
+        {/* Category Navigation */}
+        <div style={{ 
+          display: 'flex', 
+          gap: '0.5rem', 
+          overflowX: 'auto', 
+          paddingBottom: '1.5rem', 
+          marginBottom: '1rem',
+          scrollbarWidth: 'none',
+          msOverflowStyle: 'none',
+          position: 'sticky',
+          top: '80px',
+          zIndex: 90
+        }} className="hide-scrollbar">
+          {categories.map(cat => (
+            <button
+              key={cat}
+              onClick={() => setActiveCategory(cat)}
+              style={{
+                padding: '0.75rem 1.5rem',
+                borderRadius: '16px',
+                border: '1px solid',
+                borderColor: activeCategory === cat ? 'var(--primary)' : 'var(--surface-border)',
+                whiteSpace: 'nowrap',
+                fontSize: '0.875rem',
+                fontWeight: '600',
+                cursor: 'pointer',
+                background: activeCategory === cat ? 'var(--primary)' : 'var(--glass-bg)',
+                color: activeCategory === cat ? 'white' : 'var(--text-secondary)',
+                transition: 'var(--transition)',
+                boxShadow: activeCategory === cat ? '0 10px 20px rgba(99, 102, 241, 0.2)' : 'none'
+              }}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+
+        {store.isOpen === false && (
+          <div style={{ 
+            textAlign: 'center', 
+            padding: '3rem 2rem', 
+            marginBottom: '3rem', 
+            borderRadius: '24px',
+            background: 'rgba(239, 68, 68, 0.03)',
+            border: '1px dashed rgba(239, 68, 68, 0.2)'
+          }}>
+            <Clock size={40} color="var(--error)" style={{ marginBottom: '1rem', opacity: 0.5 }} />
+            <h3 style={{ color: 'var(--error)', margin: '0 0 0.5rem 0' }}>Currently Closed</h3>
+            <p style={{ color: 'var(--text-secondary)', margin: 0 }}>This vendor is not accepting orders at the moment.</p>
+          </div>
+        )}
+
+        <div className="store-menu-grid" style={{ 
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(100%, 1fr))',
+          gap: '1.5rem',
+          opacity: store.isOpen !== false ? 1 : 0.6, 
+          pointerEvents: store.isOpen !== false ? 'auto' : 'none' 
+        }}>
+          {filteredProducts.map(product => (
+            <div key={product._id} className="glass-card" style={{ 
+              display: 'flex', 
+              padding: '1.25rem',
+              gap: '1.25rem',
+              borderRadius: '24px',
+              border: '1px solid var(--surface-border)'
+            }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                   <div style={{ width: '12px', height: '12px', border: '1px solid #10b981', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10b981' }}></div>
+                   </div>
+                   <span style={{ fontSize: '0.75rem', color: 'var(--secondary)', fontWeight: '600' }}>{product.category || 'Special'}</span>
+                </div>
+                <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.25rem', fontWeight: '700' }}>{product.name}</h3>
+                <p style={{ fontWeight: '700', fontSize: '1.125rem', marginBottom: '1rem' }}>₹{product.price}</p>
+                <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: '1rem' }}>
+                  Authentic flavor prepared with fresh ingredients. A favorite among locals.
+                </p>
+              </div>
+
+              <div style={{ width: '120px', position: 'relative', flexShrink: 0 }}>
+                {product.image ? (
+                   <img 
+                    src={product.image} 
+                    alt={product.name} 
+                    style={{ width: '120px', height: '120px', objectFit: 'cover', borderRadius: '16px', background: 'var(--glass-bg)' }}
+                    onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} 
+                   />
+                ) : null}
+                <div style={{ 
+                  display: product.image ? 'none' : 'flex', 
+                  width: '120px', 
+                  height: '120px', 
+                  background: 'var(--glass-bg)', 
+                  borderRadius: '16px', 
+                  alignItems: 'center', 
+                  justifyContent: 'center',
+                  fontSize: '2rem'
+                }}>🍲</div>
+
+                <div style={{ position: 'absolute', bottom: '-10px', left: '50%', transform: 'translateX(-50%)', width: '90%' }}>
+                  <button 
+                    className="btn btn-primary" 
+                    onClick={() => addToCart(product)}
+                    style={{ 
+                      padding: '0.5rem', 
+                      height: '36px', 
+                      fontSize: '0.875rem', 
+                      boxShadow: '0 8px 20px rgba(99, 102, 241, 0.4)',
+                      borderRadius: '8px'
+                    }}
+                  >
+                    <Plus size={14} /> ADD
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Cart Summary Bar Section */}
       {totalItems > 0 && (
-        <div style={{ position: 'fixed', bottom: '2rem', left: '0', right: '0', display: 'flex', justifyContent: 'center', pointerEvents: 'none' }}>
-          <button 
-            onClick={() => navigate('/cart')}
-            className="btn btn-primary" 
-            style={{ 
-              pointerEvents: 'auto', 
-              boxShadow: '0 10px 25px rgba(79, 70, 229, 0.6)', 
-              borderRadius: '99px',
-              padding: '1rem 3rem',
-              display: 'flex',
-              gap: '1rem'
-            }}
-          >
-            <span>Cart ({totalItems} items)</span>
-            <span>&rarr; Checkout</span>
-          </button>
+        <div style={{ 
+          position: 'fixed', 
+          bottom: '24px', 
+          left: '50%', 
+          transform: 'translateX(-50%)', 
+          width: '90%', 
+          maxWidth: '600px', 
+          zIndex: 1000 
+        }}>
+          <div onClick={() => navigate('/cart')} style={{ 
+            background: 'var(--primary)', 
+            color: 'white', 
+            padding: '1rem 1.5rem', 
+            borderRadius: '24px', 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center',
+            cursor: 'pointer',
+            boxShadow: '0 20px 40px rgba(99, 102, 241, 0.4)',
+            border: '1px solid rgba(255,255,255,0.1)'
+          }}>
+             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <div style={{ background: 'rgba(255,255,255,0.2)', padding: '0.5rem', borderRadius: '12px' }}>
+                  <ShoppingBag size={20} />
+                </div>
+                <div>
+                   <p style={{ margin: 0, fontWeight: '700', fontSize: '1rem' }}>{totalItems} Items</p>
+                   <p style={{ margin: 0, fontSize: '0.75rem', opacity: 0.8 }}>₹{cart.reduce((acc, item) => acc + (item.price * item.quantity), 0)} • View Cart</p>
+                </div>
+             </div>
+             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: '700' }}>
+                NEXT &rarr;
+             </div>
+          </div>
         </div>
       )}
     </div>

@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { io } from 'socket.io-client';
+import { CheckCircle2, Clock, ChefHat, PackageCheck, ArrowLeft, Home, ShoppingBag, Receipt } from 'lucide-react';
 
 const OrderTracker = () => {
   const { id } = useParams();
@@ -32,45 +33,110 @@ const OrderTracker = () => {
     return () => socket.close();
   }, [id]);
 
-  if (loading) return <div className="auth-wrapper">Loading Tracker...</div>;
-  if (!order) return <div className="auth-wrapper"><h3>Order not found.</h3></div>;
+  const navigate = useNavigate();
+  
+  // Status config
+  const statusSteps = [
+    { label: 'Pending', icon: Clock, color: '#f59e0b', desc: 'Vendor is reviewing your order' },
+    { label: 'Confirmed', icon: ChefHat, color: '#3b82f6', desc: 'Great! Chef is preparing your food' },
+    { label: 'Completed', icon: PackageCheck, color: '#10b981', desc: 'Delicious! Collect your order now' }
+  ];
+
+  const currentStepIndex = statusSteps.findIndex(s => s.label === order?.status);
 
   return (
-    <div style={{ padding: '2rem 1rem', maxWidth: '600px', margin: '0 auto', textAlign: 'center' }}>
-      <h1 style={{ marginBottom: '1rem' }}>Order #{order.orderNumber}</h1>
-      
-      <div className="glass-card" style={{ padding: '3rem 2rem', marginBottom: '2rem' }}>
-        <h2 style={{ fontSize: '2rem', marginBottom: '1rem', color: 
-          order.status === 'Pending' ? '#f59e0b' : 
-          order.status === 'Confirmed' ? '#3b82f6' : 
-          order.status === 'Completed' ? '#10b981' : '#ef4444' 
-        }}>
-          {order.status}
-        </h2>
+    <div style={{ minHeight: '100vh', padding: '2rem 1rem', maxWidth: '600px', margin: '0 auto' }}>
+      <header style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '2.5rem' }}>
+        <button onClick={() => navigate('/')} style={{ background: 'var(--glass-bg)', border: '1px solid var(--surface-border)', color: 'white', padding: '0.6rem', borderRadius: '12px', cursor: 'pointer' }}>
+           <ArrowLeft size={20} />
+        </button>
+        <h1 style={{ fontSize: '1.5rem', fontWeight: '800', margin: 0 }}>Track Order</h1>
+      </header>
 
-        {order.status === 'Pending' && <p>We've sent your order to the vendor. Waiting for confirmation...</p>}
-        {order.status === 'Confirmed' && <p>The vendor is preparing your items. Get ready!</p>}
-        {order.status === 'Completed' && <p>Your order is ready! Please collect it from the vendor.</p>}
-        {order.status === 'Cancelled' && <p>This order was cancelled.</p>}
+      <div className="glass-card" style={{ padding: '2rem', borderRadius: '28px', textAlign: 'center', marginBottom: '2rem' }}>
+        <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>Order #{order.orderNumber}</p>
+        
+        {/* Live Status Animation */}
+        <div style={{ margin: '2rem 0', position: 'relative', display: 'flex', justifyContent: 'center' }}>
+           <div className="pulse-circle" style={{ 
+             width: '100px', 
+             height: '100px', 
+             borderRadius: '50%', 
+             background: 'rgba(99, 102, 241, 0.1)', 
+             display: 'flex', 
+             alignItems: 'center', 
+             justifyContent: 'center',
+             color: 'var(--primary)',
+             border: '2px dashed var(--primary)'
+           }}>
+             {React.createElement(statusSteps[currentStepIndex >= 0 ? currentStepIndex : 0].icon, { size: 48 })}
+           </div>
+        </div>
 
-        <div style={{ marginTop: '3rem', textAlign: 'left', borderTop: '1px solid var(--surface-border)', paddingTop: '2rem' }}>
-          <h4>Order Summary</h4>
-          <ul style={{ listStyle: 'none', padding: 0, marginTop: '1rem' }}>
-            {order.items.map((item, idx) => (
-              <li key={idx} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                <span>{item.quantity}x {item.name}</span>
-                <span>₹{item.price * item.quantity}</span>
-              </li>
-            ))}
-          </ul>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '1rem', fontWeight: 'bold', fontSize: '1.25rem' }}>
-            <span>Total Paid ({order.paymentMethod})</span>
-            <span style={{ color: 'var(--secondary)' }}>₹{order.totalAmount}</span>
-          </div>
+        <h2 style={{ fontSize: '2rem', fontWeight: '800', marginBottom: '0.5rem' }}>{order.status}</h2>
+        <p style={{ color: 'var(--text-secondary)', fontSize: '1rem', marginBottom: '3rem' }}>
+          {statusSteps[currentStepIndex >= 0 ? currentStepIndex : 0].desc}
+        </p>
+
+        {/* Timeline */}
+        <div style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', marginBottom: '3rem', padding: '0 1rem' }}>
+           <div style={{ position: 'absolute', top: '24px', left: '10%', right: '10%', height: '2px', background: 'var(--surface-border)', zIndex: 0 }}></div>
+           <div style={{ position: 'absolute', top: '24px', left: '10%', width: currentStepIndex === 0 ? '0%' : currentStepIndex === 1 ? '40%' : '80%', height: '2px', background: 'var(--primary)', zIndex: 1, transition: 'width 1s ease' }}></div>
+           
+           {statusSteps.map((step, idx) => {
+             const Icon = step.icon;
+             const isCompleted = idx < currentStepIndex;
+             const isActive = idx === currentStepIndex;
+             
+             return (
+               <div key={idx} style={{ position: 'relative', zIndex: 10, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
+                  <div style={{ 
+                    width: '48px', 
+                    height: '48px', 
+                    borderRadius: '50%', 
+                    background: isCompleted || isActive ? 'var(--primary)' : 'var(--background)',
+                    border: '2px solid',
+                    borderColor: isCompleted || isActive ? 'var(--primary)' : 'var(--surface-border)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: isCompleted || isActive ? 'white' : 'var(--text-secondary)',
+                    boxShadow: isActive ? '0 0 20px rgba(99, 102, 241, 0.4)' : 'none'
+                  }}>
+                    {isCompleted ? <CheckCircle2 size={24} /> : <Icon size={20} />}
+                  </div>
+                  <span style={{ fontSize: '0.75rem', fontWeight: '600', color: isActive ? 'white' : 'var(--text-secondary)' }}>{step.label}</span>
+               </div>
+             );
+           })}
+        </div>
+
+        {/* Breakdown */}
+        <div style={{ textAlign: 'left', background: 'rgba(255,255,255,0.02)', padding: '1.5rem', borderRadius: '18px', border: '1px solid var(--surface-border)' }}>
+           <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '1.25rem' }}>
+              <Receipt size={18} color="var(--primary)" />
+              <h4 style={{ margin: 0 }}>Order Summary</h4>
+           </div>
+           
+           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+             {order.items.map((item, idx) => (
+               <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.95rem' }}>
+                 <span style={{ color: 'var(--text-secondary)' }}>{item.quantity}x {item.name}</span>
+                 <span>₹{item.price * item.quantity}</span>
+               </div>
+             ))}
+           </div>
+           
+           <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '1.5rem', paddingTop: '1.25rem', borderTop: '1px dashed var(--surface-border)', fontWeight: '800', fontSize: '1.25rem' }}>
+             <span>Paid via {order.paymentMethod}</span>
+             <span style={{ color: 'var(--secondary)' }}>₹{order.totalAmount}</span>
+           </div>
         </div>
       </div>
 
-      <Link to="/" className="btn btn-secondary">Go to Home</Link>
+      <button onClick={() => navigate('/')} className="btn btn-secondary" style={{ height: '60px', borderRadius: '16px' }}>
+         <Home size={20} /> Return to Home
+      </button>
     </div>
   );
 };

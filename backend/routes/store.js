@@ -25,7 +25,7 @@ const bufferToStream = (buffer) => {
 // Create a Store
 router.post('/create', auth, async (req, res) => {
   try {
-    const { name } = req.body;
+    const { name, category } = req.body;
     
     const existingStore = await Store.findOne({ admin: req.admin._id });
     if (existingStore) return res.status(400).json({ message: 'Store already exists for this vendor' });
@@ -33,13 +33,11 @@ router.post('/create', auth, async (req, res) => {
     const newStore = new Store({
       admin: req.admin._id,
       name,
+      category: category || 'General',
       products: []
     });
 
     const savedStore = await newStore.save();
-    
-    // Auto-generate QR code link based on the saved store's ID 
-    // Usually the frontend URL /store/:id
     res.status(201).json(savedStore);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -60,7 +58,7 @@ router.get('/my-store', auth, async (req, res) => {
 // Get all stores (Public)
 router.get('/all/list', async (req, res) => {
   try {
-    const stores = await Store.find({}, 'name products admin').populate('admin', 'name').exec();
+    const stores = await Store.find({}, 'name products admin category isOpen').populate('admin', 'name').exec();
     res.json(stores);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -177,6 +175,23 @@ router.put('/toggle-status', auth, async (req, res) => {
     await store.save();
 
     res.json({ message: `Store is now ${store.isOpen ? 'Open' : 'Closed'}`, isOpen: store.isOpen });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// Update Store Details
+router.put('/update-details', auth, async (req, res) => {
+  try {
+    const { name, category } = req.body;
+    const store = await Store.findOne({ admin: req.admin._id });
+    if (!store) return res.status(404).json({ message: 'Store not found' });
+
+    if (name) store.name = name;
+    if (category) store.category = category;
+    
+    await store.save();
+    res.json(store);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
