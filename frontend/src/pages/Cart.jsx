@@ -59,8 +59,22 @@ const Cart = () => {
       const res = await axios.post((import.meta.env.VITE_API_URL || 'http://localhost:5000') + '/api/orders/create', orderData);
       const newOrder = res.data;
       
+      // Save to Recent Orders in localStorage
+      const recentOrders = JSON.parse(localStorage.getItem('universe_recent_orders') || '[]');
+      const updatedOrders = [
+        { 
+          id: newOrder._id, 
+          orderNumber: newOrder.orderNumber, 
+          storeName: store.name, 
+          storeId: store._id,
+          timestamp: Date.now() 
+        },
+        ...recentOrders.filter(o => o.id !== newOrder._id)
+      ].slice(0, 10); // Keep last 10
+      localStorage.setItem('universe_recent_orders', JSON.stringify(updatedOrders));
+
       clearCart();
-      navigate(`/order/${newOrder._id}`);
+      navigate(`/order-tracker/${newOrder._id}`);
       
     } catch (err) {
       const msg = err.response?.data?.message || err.message;

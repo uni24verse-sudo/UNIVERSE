@@ -11,6 +11,7 @@ import StoreMenu from './pages/StoreMenu';
 import Cart from './pages/Cart';
 import OrderTracker from './pages/OrderTracker';
 import { CartProvider } from './context/CartContext';
+import RecentOrders from './components/RecentOrders';
 
 function App() {
   return (
@@ -18,6 +19,7 @@ function App() {
       <CartProvider>
         <Router>
           <div className="app-container">
+            <RecentOrders />
             <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/vendor/login" element={<Login />} />
@@ -27,7 +29,7 @@ function App() {
               <Route path="/vendor/store/manage" element={<ManageStore />} />
               <Route path="/store/:id" element={<StoreMenu />} />
               <Route path="/cart" element={<Cart />} />
-              <Route path="/order/:id" element={<OrderTracker />} />
+              <Route path="/order-tracker/:id" element={<OrderTracker />} />
               <Route path="*" element={<Navigate to="/" />} />
             </Routes>
           </div>
