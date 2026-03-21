@@ -28,6 +28,26 @@ const Dashboard = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [socket, setSocket] = useState(null);
+  const [soundEnabled, setSoundEnabled] = useState(localStorage.getItem('orderSoundEnabled') !== 'false'); // Default to true
+
+  useEffect(() => {
+    // Initialize sound preference
+    if (localStorage.getItem('orderSoundEnabled') === null) {
+      localStorage.setItem('orderSoundEnabled', 'true');
+    }
+  }, []);
+
+  const toggleSound = () => {
+    const newVal = !soundEnabled;
+    setSoundEnabled(newVal);
+    localStorage.setItem('orderSoundEnabled', newVal.toString());
+    
+    // Play a test sound to give feedback and satisfy browser interaction requirement
+    if (newVal) {
+      const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+      audio.play().catch(e => console.log('Audio blocked:', e));
+    }
+  };
 
   useEffect(() => {
     if (!token) {
@@ -65,6 +85,11 @@ const Dashboard = () => {
       newSocket.emit('join_store_room', store._id);
       newSocket.on('new_order', (order) => {
         setOrders(prev => [order, ...prev]);
+        // Play notification sound if enabled
+        if (localStorage.getItem('orderSoundEnabled') === 'true') {
+          const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+          audio.play().catch(e => console.log('Audio blocked:', e));
+        }
       });
       return () => newSocket.close();
     }
@@ -181,8 +206,12 @@ const Dashboard = () => {
                 </span>
               </div>
             )}
-            <div style={{ width: '45px', height: '45px', borderRadius: '14px', background: 'var(--glass-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--surface-border)', cursor: 'pointer' }}>
-              <Bell size={20} color="var(--text-secondary)" />
+            <div 
+              onClick={toggleSound}
+              title={soundEnabled ? 'Disable Sound' : 'Enable Sound'}
+              style={{ width: '45px', height: '45px', borderRadius: '14px', background: soundEnabled ? 'rgba(16, 185, 129, 0.1)' : 'var(--glass-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--surface-border)', cursor: 'pointer', transition: 'var(--transition)' }}
+            >
+              <Bell size={20} color={soundEnabled ? 'var(--secondary)' : 'var(--text-secondary)'} />
             </div>
             <div style={{ width: '45px', height: '45px', borderRadius: '14px', background: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--surface-border)', cursor: 'pointer', fontWeight: '800' }}>
               {vendor?.name?.charAt(0)}
