@@ -9,6 +9,7 @@ const StoreMenu = () => {
   const [loading, setLoading] = useState(true);
   const { cart, addToCart } = useContext(CartContext);
   const navigate = useNavigate();
+  const [activeCategory, setActiveCategory] = useState('All');
 
   useEffect(() => {
     const fetchStore = async () => {
@@ -28,16 +29,66 @@ const StoreMenu = () => {
   if (!store) return <div className="auth-wrapper"><h3>Store not found or unavailable.</h3></div>;
 
   const totalItems = cart.reduce((acc, item) => acc + item.quantity, 0);
+  const categories = store ? ['All', ...new Set(store.products.map(p => p.category || 'Uncategorized'))] : [];
+  
+  const filteredProducts = store?.products.filter(p => 
+    activeCategory === 'All' || (p.category || 'Uncategorized') === activeCategory
+  );
 
   return (
     <div style={{ padding: '2rem 1rem', maxWidth: '800px', margin: '0 auto', paddingBottom: '100px' }}>
-      <header style={{ textAlign: 'center', marginBottom: '3rem' }}>
-        <h1 style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>{store.name}</h1>
+      <header style={{ textAlign: 'center', marginBottom: '2rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+          <h1 style={{ fontSize: '2.5rem', margin: 0 }}>{store.name}</h1>
+          {!store.isOpen && (
+            <span style={{ background: '#ef4444', color: 'white', fontSize: '0.75rem', padding: '0.2rem 0.6rem', borderRadius: '4px', fontWeight: 'bold' }}>CLOSED</span>
+          )}
+        </div>
         <p>Order seamlessly directly from your phone!</p>
       </header>
 
-      <div className="store-menu-grid">
-        {store.products.map(product => (
+      {/* Category Navigation */}
+      <div style={{ 
+        display: 'flex', 
+        gap: '0.75rem', 
+        overflowX: 'auto', 
+        paddingBottom: '1.5rem', 
+        marginBottom: '1rem',
+        scrollbarWidth: 'none',
+        msOverflowStyle: 'none'
+      }} className="hide-scrollbar">
+        {categories.map(cat => (
+          <button
+            key={cat}
+            onClick={() => setActiveCategory(cat)}
+            style={{
+              padding: '0.6rem 1.25rem',
+              borderRadius: '99px',
+              border: 'none',
+              whiteSpace: 'nowrap',
+              fontSize: '0.875rem',
+              fontWeight: '600',
+              cursor: 'pointer',
+              background: activeCategory === cat ? 'var(--primary)' : 'rgba(255,255,255,0.05)',
+              color: activeCategory === cat ? 'white' : 'var(--text-secondary)',
+              transition: 'all 0.2s ease',
+              boxShadow: activeCategory === cat ? '0 4px 12px rgba(79, 70, 229, 0.4)' : 'none'
+            }}
+          >
+            {cat}
+          </button>
+        ))}
+      </div>
+
+      {!store.isOpen && (
+        <div className="glass-card" style={{ textAlign: 'center', padding: '2rem', marginBottom: '2rem', border: '1px solid #ef4444', background: 'rgba(239, 68, 68, 0.05)' }}>
+          <h3 style={{ color: '#ef4444', marginBottom: '0.5rem' }}>Currently Closed</h3>
+          <p>This store is not accepting orders right now. Please check back later!</p>
+        </div>
+      )}
+
+      <div className="store-menu-grid" style={{ opacity: store.isOpen ? 1 : 0.6, pointerEvents: store.isOpen ? 'auto' : 'none' }}>
+        {filteredProducts.map(product => (
           <div key={product._id} className="glass-card menu-product-card">
             {product.image && (
                <img src={product.image} alt={product.name} className="menu-product-image" onError={(e) => { e.target.style.display = 'none' }} />

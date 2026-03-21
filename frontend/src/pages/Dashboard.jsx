@@ -100,10 +100,34 @@ const Dashboard = () => {
         <div className="dashboard-grid">
           {/* Store Info Sidebar */}
           <div className="glass-card" style={{ height: 'fit-content' }}>
-            <h3>{store.name}</h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <h3>{store.name}</h3>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: store.isOpen ? '#10b981' : '#ef4444' }}></div>
+                <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: store.isOpen ? '#10b981' : '#ef4444' }}>
+                  {store.isOpen ? 'ONLINE' : 'OFFLINE'}
+                </span>
+              </div>
+            </div>
             <p style={{ marginBottom: '1rem' }}>Products available: {store.products.length}</p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <Link to="/vendor/store/manage" className="btn btn-secondary">Manage Menu & QR Code</Link>
+              <button 
+                onClick={async () => {
+                  try {
+                    const res = await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/store/toggle-status`, {}, {
+                      headers: { Authorization: `Bearer ${token}` }
+                    });
+                    setStore(prev => ({ ...prev, isOpen: res.data.isOpen }));
+                  } catch (err) {
+                    alert('Failed to toggle status');
+                  }
+                }}
+                className={`btn ${store.isOpen ? 'btn-secondary' : 'btn-primary'}`}
+                style={{ background: store.isOpen ? 'rgba(239, 68, 68, 0.1)' : '', color: store.isOpen ? '#ef4444' : '', borderColor: store.isOpen ? '#ef4444' : '' }}
+              >
+                {store.isOpen ? 'Go Offline' : 'Go Online'}
+              </button>
               <a href={`/store/${store._id}`} target="_blank" rel="noreferrer" className="btn btn-primary" style={{ textAlign: 'center', textDecoration: 'none' }}>
                 View Public Menu
               </a>

@@ -11,7 +11,7 @@ const ManageStore = () => {
   const [loading, setLoading] = useState(true);
 
   // New/Edit product form
-  const [productForm, setProductForm] = useState({ _id: null, name: '', price: '', image: '', imageFile: null });
+  const [productForm, setProductForm] = useState({ _id: null, name: '', price: '', category: '', image: '', imageFile: null });
   const [savingProduct, setSavingProduct] = useState(false);
   const formRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -44,6 +44,7 @@ const ManageStore = () => {
       const formData = new FormData();
       formData.append('name', productForm.name);
       formData.append('price', productForm.price);
+      formData.append('category', productForm.category || 'Uncategorized');
       if (productForm.image) formData.append('image', productForm.image);
       if (productForm.imageFile) formData.append('imageFile', productForm.imageFile);
 
@@ -66,7 +67,7 @@ const ManageStore = () => {
         });
         setStore(res.data);
       }
-      setProductForm({ _id: null, name: '', price: '', image: '', imageFile: null });
+      setProductForm({ _id: null, name: '', price: '', category: '', image: '', imageFile: null });
       if (fileInputRef.current) fileInputRef.current.value = "";
     } catch (err) {
       console.error(err);
@@ -78,13 +79,20 @@ const ManageStore = () => {
   };
 
   const editProduct = (product) => {
-    setProductForm({ _id: product._id, name: product.name, price: product.price, image: product.image || '', imageFile: null });
+    setProductForm({ 
+      _id: product._id, 
+      name: product.name, 
+      price: product.price, 
+      category: product.category || '', 
+      image: product.image || '', 
+      imageFile: null 
+    });
     if (fileInputRef.current) fileInputRef.current.value = "";
     if (formRef.current) formRef.current.scrollIntoView({ behavior: 'smooth' });
   };
 
   const cancelEdit = () => {
-    setProductForm({ _id: null, name: '', price: '', image: '', imageFile: null });
+    setProductForm({ _id: null, name: '', price: '', category: '', image: '', imageFile: null });
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
@@ -96,6 +104,17 @@ const ManageStore = () => {
       setStore(res.data.store);
     } catch (err) {
       alert('Failed to update product availability');
+    }
+  };
+
+  const toggleStoreStatus = async () => {
+    try {
+      const res = await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/store/toggle-status`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setStore(prev => ({ ...prev, isOpen: res.data.isOpen }));
+    } catch (err) {
+      alert('Failed to toggle store status');
     }
   };
 
@@ -115,7 +134,22 @@ const ManageStore = () => {
         <Link to="/vendor/dashboard" className="btn btn-secondary" style={{ width: 'auto', padding: '0.5rem 1rem' }}>
           &larr; Back
         </Link>
-        <h1>Manage {store.name}</h1>
+        <div style={{ flex: 1 }}>
+          <h1>Manage {store.name}</h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: store.isOpen ? '#10b981' : '#ef4444' }}></div>
+            <span style={{ fontSize: '0.875rem', fontWeight: '500', color: store.isOpen ? '#10b981' : '#ef4444' }}>
+              Store is {store.isOpen ? 'OPEN' : 'CLOSED'}
+            </span>
+          </div>
+        </div>
+        <button 
+          onClick={toggleStoreStatus} 
+          className={`btn ${store.isOpen ? 'btn-secondary' : 'btn-primary'}`}
+          style={{ width: 'auto', padding: '0.5rem 1.5rem', background: store.isOpen ? 'rgba(239, 68, 68, 0.15)' : '', color: store.isOpen ? '#ef4444' : '', borderColor: store.isOpen ? '#ef4444' : '' }}
+        >
+          {store.isOpen ? 'Close Store' : 'Open Store'}
+        </button>
       </header>
 
       <div className="manage-store-grid">
@@ -185,6 +219,15 @@ const ManageStore = () => {
                 min="0"
               />
             </div>
+            <div className="form-group" style={{ marginBottom: '0' }}>
+              <input 
+                type="text" 
+                placeholder="Category (e.g. Snacks, Drinks)" 
+                className="form-input" 
+                value={productForm.category} 
+                onChange={e => setProductForm({...productForm, category: e.target.value})}
+              />
+            </div>
             <div className="form-group" style={{ gridColumn: '1 / span 2', marginBottom: '0', display: 'flex', flexDirection: 'column' }}>
               <label className="form-label" style={{ marginBottom: '0.5rem' }}>Upload Image (Or leave blank to keep current)</label>
               <input 
@@ -232,7 +275,12 @@ const ManageStore = () => {
                     <div style={{ display: 'none', width: '40px', height: '40px', background: 'var(--primary)', borderRadius: '8px', alignItems:'center', justifyContent: 'center' }}>🍲</div>
                     <div>
                       <strong>{p.name}</strong>
-                      <p style={{ fontSize: '0.875rem' }}>₹{p.price}</p>
+                      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                        <p style={{ fontSize: '0.875rem', fontWeight: '600', color: 'var(--secondary)' }}>₹{p.price}</p>
+                        <span style={{ fontSize: '0.75rem', padding: '0.1rem 0.4rem', background: 'rgba(255,255,255,0.1)', borderRadius: '4px', color: 'var(--text-secondary)' }}>
+                          {p.category || 'Uncategorized'}
+                        </span>
+                      </div>
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: '0.5rem' }}>

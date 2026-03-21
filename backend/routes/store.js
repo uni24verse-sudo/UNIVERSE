@@ -81,7 +81,7 @@ router.get('/:id', async (req, res) => {
 // Add a Product to Store
 router.post('/product', auth, upload.single('imageFile'), async (req, res) => {
   try {
-    const { name, price, image } = req.body;
+    const { name, price, category, image } = req.body;
     let finalImage = image;
 
     if (req.file) {
@@ -101,7 +101,7 @@ router.post('/product', auth, upload.single('imageFile'), async (req, res) => {
     const store = await Store.findOne({ admin: req.admin._id });
     if (!store) return res.status(404).json({ message: 'Store not found' });
 
-    store.products.push({ name, price, image: finalImage });
+    store.products.push({ name, price, category: category || 'Uncategorized', image: finalImage });
     await store.save();
     
     res.status(201).json(store);
@@ -131,7 +131,7 @@ router.put('/product/:productId/toggle', auth, async (req, res) => {
 // Edit a Product in Store
 router.put('/product/:productId', auth, upload.single('imageFile'), async (req, res) => {
   try {
-    const { name, price, image } = req.body;
+    const { name, price, category, image } = req.body;
     
     const store = await Store.findOne({ admin: req.admin._id });
     if (!store) return res.status(404).json({ message: 'Store not found' });
@@ -141,6 +141,7 @@ router.put('/product/:productId', auth, upload.single('imageFile'), async (req, 
 
     if (name) product.name = name;
     if (price !== undefined) product.price = Number(price);
+    if (category) product.category = category;
     
     if (req.file) {
       const uploadResult = await new Promise((resolve, reject) => {
@@ -161,6 +162,21 @@ router.put('/product/:productId', auth, upload.single('imageFile'), async (req, 
     await store.save();
     
     res.json({ message: 'Product updated successfully', store });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// Toggle Store Open/Closed Status
+router.put('/toggle-status', auth, async (req, res) => {
+  try {
+    const store = await Store.findOne({ admin: req.admin._id });
+    if (!store) return res.status(404).json({ message: 'Store not found' });
+
+    store.isOpen = !store.isOpen;
+    await store.save();
+
+    res.json({ message: `Store is now ${store.isOpen ? 'Open' : 'Closed'}`, isOpen: store.isOpen });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
