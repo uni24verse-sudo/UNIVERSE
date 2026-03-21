@@ -2,7 +2,7 @@ import React, { useState, useEffect, useContext } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { CartContext } from '../context/CartContext';
-import { ArrowLeft, ShoppingBag, ChefHat, Info, Plus, Search, Star, Clock } from 'lucide-react';
+import { ArrowLeft, ShoppingBag, ChefHat, Info, Plus, Search, Star, Clock, Store } from 'lucide-react';
 
 const StoreMenu = () => {
   const { id } = useParams();

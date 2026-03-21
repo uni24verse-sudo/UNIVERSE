@@ -3,7 +3,7 @@ import { CartContext } from '../context/CartContext';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import { QRCodeSVG } from 'qrcode.react';
-import { Trash2, Plus, Minus, ArrowLeft, CreditCard, Coins, ShoppingBag, ChevronRight, ShieldCheck } from 'lucide-react';
+import { Trash2, Plus, Minus, ArrowLeft, CreditCard, Coins, ShoppingBag, ChevronRight, ShieldCheck, Store } from 'lucide-react';
 
 const Cart = () => {
   const { cart, storeId, updateQuantity, removeFromCart, total, clearCart } = useContext(CartContext);
