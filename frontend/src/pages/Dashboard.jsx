@@ -306,9 +306,20 @@ const Dashboard = () => {
                                 fontSize: '0.65rem',
                                 fontWeight: '900',
                                 textTransform: 'uppercase',
-                                background: order.status === 'Pending' ? 'rgba(245, 158, 11, 0.1)' : order.status === 'Confirmed' ? 'rgba(59, 130, 246, 0.2)' : 'rgba(16, 185, 129, 0.1)',
-                                color: order.status === 'Pending' ? '#f59e0b' : order.status === 'Confirmed' ? '#2563eb' : '#10b981',
-                                border: `1px solid ${order.status === 'Pending' ? '#f59e0b44' : order.status === 'Confirmed' ? '#2563eb66' : '#10b98144'}`
+                                background: order.status === 'Pending' ? 'rgba(245, 158, 11, 0.1)' : 
+                                            order.status === 'Confirmed' ? 'rgba(59, 130, 246, 0.2)' : 
+                                            order.status === 'Cancelled' ? 'rgba(239, 68, 68, 0.1)' :
+                                            'rgba(16, 185, 129, 0.1)',
+                                color: order.status === 'Pending' ? '#f59e0b' : 
+                                       order.status === 'Confirmed' ? '#2563eb' : 
+                                       order.status === 'Cancelled' ? '#ef4444' :
+                                       '#10b981',
+                                border: `1px solid ${
+                                  order.status === 'Pending' ? '#f59e0b44' : 
+                                  order.status === 'Confirmed' ? '#2563eb66' : 
+                                  order.status === 'Cancelled' ? '#ef444444' :
+                                  '#10b98144'
+                                }`
                               }}>
                                 {order.status === 'Confirmed' && order.paymentMethod === 'UPI' ? 'UPI PAID' : order.status}
                               </span>
@@ -395,7 +406,7 @@ const Dashboard = () => {
                               <div>
                                 <span style={{ fontSize: '0.75rem', fontWeight: '800', color: '#ef4444', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Refund Requested</span>
                                 <p style={{ margin: '0.25rem 0 0 0', fontSize: '1rem', fontWeight: '800', color: 'white', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                  <Phone size={16} color="#94a3b8" /> {order.customerPhone || 'No Phone Number'}
+                                  <Phone size={16} color="#94a3b8" /> <span>Customer Phone:</span> {order.customerPhone || 'Not Provided'}
                                 </p>
                               </div>
                               <div style={{ textAlign: 'right' }}>
