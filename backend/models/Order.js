@@ -18,7 +18,7 @@ const OrderSchema = new mongoose.Schema({
     enum: ['Pending', 'Verification Requested', 'Confirmed', 'Refund Requested', 'Refunded'], 
     default: 'Pending' 
   },
-  customerUpiId: { type: String }
+  customerPhone: { type: String }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Order', OrderSchema);

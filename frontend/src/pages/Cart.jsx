@@ -33,7 +33,7 @@ const Cart = () => {
     );
   }
 
-  const [customerUpiId, setCustomerUpiId] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
 
   const handleCheckout = async () => {
     if (!paymentMethod) {
@@ -41,8 +41,8 @@ const Cart = () => {
       return;
     }
 
-    if (paymentMethod === 'UPI' && !customerUpiId) {
-      alert("Please enter your UPI ID for potential refunds.");
+    if (paymentMethod === 'UPI' && !customerPhone) {
+      alert("Please enter your Phone Number for potential refunds.");
       return;
     }
 
@@ -53,7 +53,7 @@ const Cart = () => {
         items: cart.map(item => ({ name: item.name, price: item.price, quantity: item.quantity })),
         totalAmount: total,
         paymentMethod,
-        customerUpiId
+        customerPhone
       };
 
       const res = await axios.post((import.meta.env.VITE_API_URL || 'http://localhost:5000') + '/api/orders/create', orderData);
@@ -193,24 +193,40 @@ const Cart = () => {
                       {store ? (
                         upiLink ? (
                           <div style={{ textAlign: 'center', padding: '0.5rem' }}>
-                            <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: 'rgba(99, 102, 241, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem auto' }}>
-                              <CreditCard size={28} color="var(--primary)" />
-                            </div>
-                            <p style={{ color: '#000', fontWeight: '800', fontSize: '1.1rem', marginBottom: '0.5rem' }}>Direct UPI Sync</p>
-                            <p style={{ color: '#666', fontSize: '0.85rem', lineHeight: '1.5' }}>
-                              Your order will be sent to the vendor as **Paid**. You'll see the payment QR code on the next screen.
-                            </p>
-                            
-                            <div style={{ marginTop: '1.5rem', textAlign: 'left' }}>
-                               <label style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-secondary)', marginBottom: '0.5rem', display: 'block' }}>YOUR UPI ID (FOR REFUNDS)</label>
+                            <div style={{ 
+                              background: 'rgba(99, 102, 241, 0.05)', 
+                              padding: '1.5rem', 
+                              borderRadius: '20px', 
+                              border: '1px solid rgba(99, 102, 241, 0.1)',
+                              textAlign: 'left'
+                            }}>
+                               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+                                 <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                    <CreditCard size={20} color="white" />
+                                 </div>
+                                 <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: '800' }}>Refund Protection</h4>
+                               </div>
+                               
+                               <label style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-secondary)', marginBottom: '0.5rem', display: 'block' }}>PHONE NUMBER (LINKED TO UPI)</label>
                                <input 
-                                 type="text" 
-                                 placeholder="e.g. yourname@okaxis" 
-                                 value={customerUpiId}
-                                 onChange={(e) => setCustomerUpiId(e.target.value)}
-                                 style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', border: '1px solid var(--surface-border)', background: '#f8fafc', fontSize: '0.875rem' }}
+                                 type="tel" 
+                                 placeholder="Enter your 10-digit number" 
+                                 value={customerPhone}
+                                 onChange={(e) => setCustomerPhone(e.target.value)}
+                                 style={{ 
+                                   width: '100%', 
+                                   padding: '1rem', 
+                                   borderRadius: '12px', 
+                                   border: '2px solid var(--surface-border)', 
+                                   background: 'white', 
+                                   fontSize: '1rem',
+                                   fontWeight: '600',
+                                   color: '#0f172a'
+                                 }}
                                />
-                               <p style={{ fontSize: '0.65rem', color: '#94a3b8', marginTop: '0.4rem' }}>Required to send money back if you cancel.</p>
+                               <p style={{ fontSize: '0.7rem', color: '#64748b', marginTop: '0.75rem', fontStyle: 'italic', lineHeight: '1.4' }}>
+                                 Providing your number ensures the vendor can refund you instantly if the order is cancelled.
+                               </p>
                             </div>
                           </div>
                         ) : (

@@ -10,7 +10,7 @@ const generateOrderNumber = () => Math.floor(1000 + Math.random() * 9000).toStri
 // Create a new Order (Public Customer endpoint)
 router.post('/create', async (req, res) => {
   try {
-    const { storeId, items, totalAmount, paymentMethod, customerUpiId } = req.body;
+    const { storeId, items, totalAmount, paymentMethod, customerPhone } = req.body;
 
     const store = await Store.findById(storeId);
     if (!store) return res.status(404).json({ message: 'Store not found' });
@@ -21,7 +21,7 @@ router.post('/create', async (req, res) => {
       items,
       totalAmount,
       paymentMethod,
-      customerUpiId,
+      customerPhone,
       status: 'Pending',
       paymentStatus: 'Pending'
     });
