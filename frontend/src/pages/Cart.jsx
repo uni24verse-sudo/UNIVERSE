@@ -64,7 +64,7 @@ const Cart = () => {
   };
 
   const upiLink = store?.admin?.upiId 
-    ? `upi://pay?pa=${store.admin.upiId}&pn=${store.name}&am=${total}&cu=INR`
+    ? `upi://pay?pa=${store.admin.upiId}&pn=${store.name.replace(/ /g, '%20')}&am=${total}&cu=INR&tn=Order%20from%20UniVerse&tr=${Math.random().toString(36).substring(7)}`
     : null;
 
   return (
@@ -188,6 +188,9 @@ const Cart = () => {
                             <QRCodeSVG value={upiLink} size={160} />
                             <p style={{ color: '#000', fontSize: '0.875rem', marginTop: '1rem' }}>
                               Scan or <a href={upiLink} style={{ color: 'var(--primary)', fontWeight: 'bold', textDecoration: 'none' }}>Click to Pay Directly</a>
+                            </p>
+                            <p style={{ color: '#666', fontSize: '0.7rem', marginTop: '0.5rem', fontStyle: 'italic' }}>
+                              Tip: If Paytm/PhonePe blocks the direct link, simply **Scan the QR Code** above. It's safe and verified!
                             </p>
                           </>
                         ) : (
