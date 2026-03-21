@@ -21,7 +21,8 @@ router.post('/create', async (req, res) => {
       items,
       totalAmount,
       paymentMethod,
-      status: paymentMethod === 'UPI' ? 'Confirmed' : 'Pending'
+      status: 'Pending',
+      paymentStatus: 'Pending'
     });
 
     const savedOrder = await newOrder.save();
@@ -69,6 +70,89 @@ router.put('/:id/status', auth, async (req, res) => {
     io.to(updatedOrder._id.toString()).emit('order_status_update', updatedOrder);
 
     res.json(updatedOrder);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// Request Payment Verification (Customer)
+router.put('/:id/request-verification', async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id);
+    if (!order) return res.status(404).json({ message: 'Order not found' });
+    
+    order.paymentStatus = 'Verification Requested';
+    const savedOrder = await order.save();
+    
+    // Notify vendor
+    const io = req.app.get('io');
+    io.to(order.store.toString()).emit('new_order', savedOrder); // Resend as update
+    
+    res.json(savedOrder);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// Verify Payment (Vendor)
+router.put('/:id/verify-payment', auth, async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id).populate('store');
+    if (!order) return res.status(404).json({ message: 'Order not found' });
+    if (order.store.admin.toString() !== req.admin._id) return res.status(403).json({ message: 'Unauthorized' });
+    
+    order.paymentStatus = 'Confirmed';
+    order.status = 'Confirmed';
+    const savedOrder = await order.save();
+    
+    // Notify customer
+    const io = req.app.get('io');
+    io.to(order._id.toString()).emit('order_status_update', savedOrder);
+    
+    res.json(savedOrder);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// Request Refund (Customer)
+router.put('/:id/request-refund', async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id);
+    if (!order) return res.status(404).json({ message: 'Order not found' });
+    
+    // Can only refund if not already completed
+    if (order.status === 'Completed') return res.status(400).json({ message: 'Cannot refund completed order' });
+    
+    order.paymentStatus = 'Refund Requested';
+    order.status = 'Cancelled';
+    const savedOrder = await order.save();
+    
+    // Notify vendor
+    const io = req.app.get('io');
+    io.to(order.store.toString()).emit('new_order', savedOrder);
+    
+    res.json(savedOrder);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// Process Refund (Vendor)
+router.put('/:id/process-refund', auth, async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id).populate('store');
+    if (!order) return res.status(404).json({ message: 'Order not found' });
+    if (order.store.admin.toString() !== req.admin._id) return res.status(403).json({ message: 'Unauthorized' });
+    
+    order.paymentStatus = 'Refunded';
+    const savedOrder = await order.save();
+    
+    // Notify customer
+    const io = req.app.get('io');
+    io.to(order._id.toString()).emit('order_status_update', savedOrder);
+    
+    res.json(savedOrder);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

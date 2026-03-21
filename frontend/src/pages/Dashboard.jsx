@@ -333,16 +333,34 @@ const Dashboard = () => {
                         </div>
 
                         {order.status !== 'Completed' && order.status !== 'Cancelled' && (
-                          <div style={{ display: 'flex', gap: '0.75rem' }}>
-                            {order.status === 'Pending' && (
+                          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                            {order.paymentMethod === 'Cash' && order.status === 'Pending' && (
                               <button 
                                 onClick={() => updateOrderStatus(order._id, 'Confirmed')} 
                                 className="btn btn-primary" 
                                 style={{ flex: 1, padding: '0.75rem', height: 'auto', borderRadius: '12px', fontSize: '0.875rem' }}
                               >
-                                Accept Order
+                                Accept Order (Cash)
                               </button>
                             )}
+                            
+                            {order.paymentMethod === 'UPI' && order.paymentStatus === 'Verification Requested' && (
+                              <button 
+                                onClick={async () => {
+                                  try {
+                                    const res = await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/orders/${order._id}/verify-payment`, {}, {
+                                      headers: { Authorization: `Bearer ${token}` }
+                                    });
+                                    setOrders(orders.map(o => o._id === order._id ? res.data : o));
+                                  } catch (err) { alert('Verification failed'); }
+                                }}
+                                className="btn btn-primary" 
+                                style={{ flex: 1, padding: '0.75rem', height: 'auto', borderRadius: '12px', fontSize: '0.875rem', background: '#2563eb', borderColor: '#2563eb' }}
+                              >
+                                Confirm Payment Received
+                              </button>
+                            )}
+
                             {order.status === 'Confirmed' && (
                               <button 
                                 onClick={() => updateOrderStatus(order._id, 'Completed')} 
@@ -352,11 +370,33 @@ const Dashboard = () => {
                                 <CheckCircle2 size={18} style={{ marginRight: '0.5rem' }} /> Mark Ready
                               </button>
                             )}
+                            
                             <button 
                               onClick={() => updateOrderStatus(order._id, 'Cancelled')} 
                               style={{ padding: '0.75rem 1.25rem', borderRadius: '12px', border: '1px solid rgba(239, 68, 68, 0.2)', background: 'transparent', color: 'var(--error)', cursor: 'pointer', fontSize: '0.875rem' }}
                             >
                               Cancel
+                            </button>
+                          </div>
+                        )}
+
+                        {order.paymentStatus === 'Refund Requested' && (
+                          <div style={{ marginTop: '1rem', padding: '1rem', background: 'rgba(239, 68, 68, 0.05)', borderRadius: '12px', border: '1px solid rgba(239, 68, 68, 0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontSize: '0.875rem', color: '#ef4444', fontWeight: '700' }}>Refund Requested</span>
+                            <button 
+                              onClick={async () => {
+                                if (window.confirm("Mark as refund processed? (You should have sent the money back already)")) {
+                                  try {
+                                    const res = await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/orders/${order._id}/process-refund`, {}, {
+                                      headers: { Authorization: `Bearer ${token}` }
+                                    });
+                                    setOrders(orders.map(o => o._id === order._id ? res.data : o));
+                                  } catch (err) { alert('Action failed'); }
+                                }
+                              }}
+                              style={{ padding: '0.5rem 1rem', borderRadius: '8px', background: '#ef4444', color: 'white', border: 'none', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '700' }}
+                            >
+                              Mark Refund Done
                             </button>
                           </div>
                         )}

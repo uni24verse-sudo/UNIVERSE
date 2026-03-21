@@ -134,40 +134,72 @@ const OrderTracker = () => {
         </div>
 
         {/* UPI Payment Section (Conditional) */}
-        {order.paymentMethod === 'UPI' && order.status === 'Confirmed' && order.store?.admin?.upiId && (
+        {order.paymentMethod === 'UPI' && order.store?.admin?.upiId && (
           <div style={{ background: 'white', padding: '2rem', borderRadius: '24px', marginBottom: '2rem', boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', justifyContent: 'center', marginBottom: '1.25rem' }}>
               <CreditCard size={20} color="var(--primary)" />
-              <h3 style={{ margin: 0, color: '#0f172a', fontWeight: '800' }}>Complete Your Payment</h3>
+              <h3 style={{ margin: 0, color: '#0f172a', fontWeight: '800' }}>UPI Payment</h3>
             </div>
             
-            <div style={{ display: 'inline-block', padding: '1rem', background: '#f8fafc', borderRadius: '16px', marginBottom: '1rem' }}>
-              <QRCodeSVG 
-                value={`upi://pay?pa=${order.store.admin.upiId}&pn=${order.store.name.replace(/ /g, '%20')}&am=${order.totalAmount}&cu=INR&tn=Order%20${order.orderNumber}&tr=${order._id}`} 
-                size={180} 
-              />
-            </div>
-            
-            <p style={{ color: '#64748b', fontSize: '0.875rem', marginBottom: '1.5rem', lineHeight: '1.5' }}>
-              Scan this QR with any app (Paytm, GPay, PhonePe) or click the button below to pay **₹{order.totalAmount}**.
-            </p>
-            
-            <a 
-              href={`upi://pay?pa=${order.store.admin.upiId}&pn=${order.store.name.replace(/ /g, '%20')}&am=${order.totalAmount}&cu=INR&tn=Order%20${order.orderNumber}&tr=${order._id}`}
-              className="btn btn-primary"
-              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', textDecoration: 'none', borderRadius: '12px', height: '54px' }}
-            >
-              Pay Now Directly
-            </a>
-            
-            <p style={{ color: '#94a3b8', fontSize: '0.7rem', marginTop: '1rem', fontStyle: 'italic' }}>
-              Note: The vendor has already received your order. Please pay immediately to avoid delays.
-            </p>
+            {order.paymentStatus === 'Pending' ? (
+              <>
+                <div style={{ display: 'inline-block', padding: '1rem', background: '#f8fafc', borderRadius: '16px', marginBottom: '1rem' }}>
+                  <QRCodeSVG 
+                    value={`upi://pay?pa=${order.store.admin.upiId}&pn=${order.store.name.replace(/ /g, '%20')}&am=${order.totalAmount}&cu=INR&tn=Order%20${order.orderNumber}&tr=${order._id}`} 
+                    size={180} 
+                  />
+                </div>
+                <p style={{ color: '#64748b', fontSize: '0.875rem', marginBottom: '1.5rem', lineHeight: '1.5' }}>
+                  Scan this QR to pay **₹{order.totalAmount}**. Once done, click the button below.
+                </p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                   <a 
+                    href={`upi://pay?pa=${order.store.admin.upiId}&pn=${order.store.name.replace(/ /g, '%20')}&am=${order.totalAmount}&cu=INR&tn=Order%20${order.orderNumber}&tr=${order._id}`}
+                    className="btn btn-secondary"
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', textDecoration: 'none', borderRadius: '12px', height: '54px' }}
+                  >
+                    Pay Now Directly
+                  </a>
+                  <button 
+                    onClick={async () => {
+                      try {
+                        const res = await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/orders/${order._id}/request-verification`);
+                        setOrder(res.data);
+                      } catch (err) { alert('Request failed'); }
+                    }}
+                    className="btn btn-primary"
+                    style={{ borderRadius: '12px', height: '54px', fontWeight: '800' }}
+                  >
+                    I've Made the Payment
+                  </button>
+                </div>
+              </>
+            ) : order.paymentStatus === 'Verification Requested' ? (
+              <div style={{ padding: '1rem', background: 'rgba(59, 130, 246, 0.05)', borderRadius: '16px', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
+                 <p style={{ color: '#2563eb', fontWeight: '700', margin: 0 }}>Payment Reported</p>
+                 <p style={{ color: '#64748b', fontSize: '0.8rem', marginTop: '0.5rem' }}>The vendor is verifying your transaction. Please stay on this page.</p>
+              </div>
+            ) : order.paymentStatus === 'Confirmed' ? (
+              <div style={{ padding: '1rem', background: 'rgba(16, 185, 129, 0.05)', borderRadius: '16px', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
+                 <p style={{ color: '#10b981', fontWeight: '700', margin: 0 }}>Payment Verified ✅</p>
+                 <p style={{ color: '#64748b', fontSize: '0.8rem', marginTop: '0.4rem' }}>Your payment of ₹{order.totalAmount} has been confirmed by the vendor.</p>
+              </div>
+            ) : order.paymentStatus === 'Refund Requested' ? (
+              <div style={{ padding: '1rem', background: 'rgba(239, 68, 68, 0.05)', borderRadius: '16px', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
+                 <p style={{ color: '#ef4444', fontWeight: '700', margin: 0 }}>Refund Requested</p>
+                 <p style={{ color: '#64748b', fontSize: '0.8rem', marginTop: '0.4rem' }}>You have cancelled this order. The vendor will process your refund manually.</p>
+              </div>
+            ) : (
+              <div style={{ padding: '1rem', background: 'rgba(0, 0, 0, 0.05)', borderRadius: '16px' }}>
+                 <p style={{ fontWeight: '700', margin: 0 }}>Refunded</p>
+                 <p style={{ color: '#64748b', fontSize: '0.8rem', marginTop: '0.4rem' }}>The vendor has processed your refund.</p>
+              </div>
+            )}
           </div>
         )}
 
         {/* Breakdown */}
-        <div style={{ textAlign: 'left', background: 'rgba(255,255,255,0.02)', padding: '1.5rem', borderRadius: '18px', border: '1px solid var(--surface-border)' }}>
+        <div style={{ textAlign: 'left', background: 'rgba(255,255,255,0.02)', padding: '1.5rem', borderRadius: '18px', border: '1px solid var(--surface-border)', marginBottom: '2rem' }}>
            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '1.25rem' }}>
               <Receipt size={18} color="var(--primary)" />
               <h4 style={{ margin: 0 }}>Order Summary</h4>
@@ -183,15 +215,32 @@ const OrderTracker = () => {
            </div>
            
            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '1.5rem', paddingTop: '1.25rem', borderTop: '1px dashed var(--surface-border)', fontWeight: '800', fontSize: '1.25rem' }}>
-             <span>Paid via {order.paymentMethod}</span>
+             <span>{order.paymentMethod === 'UPI' ? 'Total' : 'Pay via Cash'}</span>
              <span style={{ color: 'var(--secondary)' }}>₹{order.totalAmount}</span>
            </div>
         </div>
-      </div>
+        
+        {/* Refund Button */}
+        {order.status !== 'Completed' && order.status !== 'Cancelled' && (
+          <button 
+            onClick={async () => {
+              if (window.confirm("Are you sure you want to cancel and request a refund?")) {
+                try {
+                  const res = await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/orders/${order._id}/request-refund`);
+                  setOrder(res.data);
+                } catch (err) { alert('Refund request failed'); }
+              }
+            }}
+            style={{ width: '100%', padding: '1rem', borderRadius: '16px', background: 'transparent', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#ef4444', fontWeight: '600', cursor: 'pointer', marginBottom: '1rem' }}
+          >
+            Cancel Order & Request Refund
+          </button>
+        )}
 
-      <button onClick={() => navigate('/')} className="btn btn-secondary" style={{ height: '60px', borderRadius: '16px' }}>
-         <Home size={20} /> Return to Home
-      </button>
+        <button onClick={() => navigate('/')} className="btn btn-secondary" style={{ height: '60px', borderRadius: '16px', width: '100%' }}>
+           <Home size={20} /> Return to Home
+        </button>
+      </div>
     </div>
   );
 };
