@@ -2,7 +2,7 @@ import React, { useState, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
-import { Rocket, Sparkles, Store, ArrowRight, ShieldCheck } from 'lucide-react';
+import { Rocket, Sparkles, Store, ArrowRight, ShieldCheck, Tag } from 'lucide-react';
 
 const CreateStore = () => {
   const [name, setName] = useState('');
