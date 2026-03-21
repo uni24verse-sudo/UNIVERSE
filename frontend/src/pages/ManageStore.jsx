@@ -24,12 +24,13 @@ import {
 } from 'lucide-react';
 
 const ManageStore = () => {
-  const { token, vendor, logout } = useContext(AuthContext);
+  const { token, vendor, logout, updateVendor } = useContext(AuthContext);
   const navigate = useNavigate();
   const [store, setStore] = useState(null);
   const [loading, setLoading] = useState(true);
   const [storeName, setStoreName] = useState('');
   const [storeCategory, setStoreCategory] = useState('');
+  const [adminUpiId, setAdminUpiId] = useState('');
   const [isEditingStore, setIsEditingStore] = useState(false);
   const [updatingStore, setUpdatingStore] = useState(false);
 
@@ -53,6 +54,7 @@ const ManageStore = () => {
         setStore(res.data);
         setStoreName(res.data.name);
         setStoreCategory(res.data.category || 'General');
+        setAdminUpiId(vendor?.upiId || '');
       } catch (err) {
         if (err.response?.status === 404) navigate('/vendor/store/create');
       } finally {
@@ -142,14 +144,23 @@ const ManageStore = () => {
     e.preventDefault();
     setUpdatingStore(true);
     try {
-      const res = await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/store/update-details`, 
+      // Update Store Details
+      const storeRes = await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/store/update-details`, 
         { name: storeName, category: storeCategory },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      setStore(prev => ({ ...prev, name: res.data.name, category: res.data.category }));
+      
+      // Update Admin Profile (UPI ID)
+      const adminRes = await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/auth/update-profile`,
+        { name: vendor.name, upiId: adminUpiId },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      setStore(prev => ({ ...prev, name: storeRes.data.name, category: storeRes.data.category }));
+      updateVendor(adminRes.data.admin);
       setIsEditingStore(false);
     } catch (err) {
-      alert('Failed to update store details');
+      alert('Failed to update details');
     } finally {
       setUpdatingStore(false);
     }
@@ -320,6 +331,17 @@ const ManageStore = () => {
                       <option value="Desserts">Desserts & Sweets</option>
                       <option value="Other">Other</option>
                     </select>
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label" style={{ fontSize: '0.75rem' }}>UPI ID (for payments)</label>
+                    <input 
+                      type="text" 
+                      className="form-input" 
+                      placeholder="name@upi"
+                      value={adminUpiId} 
+                      onChange={e => setAdminUpiId(e.target.value)}
+                      style={{ height: '40px', borderRadius: '10px', fontSize: '0.875rem' }}
+                    />
                   </div>
                   <div style={{ display: 'flex', gap: '0.5rem' }}>
                     <button type="submit" className="btn btn-primary" style={{ padding: '0.5rem', height: 'auto', borderRadius: '10px', fontSize: '0.875rem', flex: 1 }}>

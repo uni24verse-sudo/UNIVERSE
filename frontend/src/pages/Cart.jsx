@@ -143,7 +143,7 @@ const Cart = () => {
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               {/* UPI Option */}
-              {store && store.admin?.upiId ? (
+              {store ? (
                 <div 
                   onClick={() => setPaymentMethod('UPI')}
                   style={{ 
@@ -168,10 +168,18 @@ const Cart = () => {
 
                   {paymentMethod === 'UPI' && (
                     <div style={{ marginTop: '1.5rem', padding: '1.5rem', background: 'white', borderRadius: '16px', textAlign: 'center' }}>
-                      <QRCodeSVG value={upiLink} size={160} />
-                      <p style={{ color: '#000', fontSize: '0.875rem', marginTop: '1rem' }}>
-                        Scan or <a href={upiLink} style={{ color: 'var(--primary)', fontWeight: 'bold', textDecoration: 'none' }}>Click to Pay</a>
-                      </p>
+                      {upiLink ? (
+                        <>
+                          <QRCodeSVG value={upiLink} size={160} />
+                          <p style={{ color: '#000', fontSize: '0.875rem', marginTop: '1rem' }}>
+                            Scan or <a href={upiLink} style={{ color: 'var(--primary)', fontWeight: 'bold', textDecoration: 'none' }}>Click to Pay Directly</a>
+                          </p>
+                        </>
+                      ) : (
+                        <p style={{ color: 'var(--error)', fontSize: '0.875rem' }}>
+                          Vendor UPI ID not set. Please inform the vendor or try another method.
+                        </p>
+                      )}
                     </div>
                   )}
                 </div>

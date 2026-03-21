@@ -3,6 +3,7 @@ const router = express.Router();
 const Admin = require('../models/Admin');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const auth = require('../middleware/auth');
 
 // Register
 router.post('/register', async (req, res) => {
@@ -43,6 +44,23 @@ router.post('/login', async (req, res) => {
     // Create and assign token
     const token = jwt.sign({ _id: admin._id, name: admin.name }, process.env.JWT_SECRET, { expiresIn: '1d' });
     res.header('Authorization', token).json({ token, admin: { id: admin._id, name: admin.name, email: admin.email, upiId: admin.upiId } });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// Update Profile
+router.put('/update-profile', auth, async (req, res) => {
+  try {
+    const { name, upiId } = req.body;
+    const admin = await Admin.findById(req.admin._id);
+    if (!admin) return res.status(404).json({ message: 'Vendor not found' });
+
+    if (name) admin.name = name;
+    if (upiId !== undefined) admin.upiId = upiId;
+
+    await admin.save();
+    res.json({ message: 'Profile updated successfully', admin: { id: admin._id, name: admin.name, email: admin.email, upiId: admin.upiId } });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
 import { io } from 'socket.io-client';
+import { QRCodeSVG } from 'qrcode.react';
 import { 
   LayoutDashboard, 
   Store, 
@@ -333,7 +334,7 @@ const Dashboard = () => {
                 <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '24px' }}>
                   <h4 style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><QrCode size={18} /> Store QR</h4>
                   <div style={{ background: 'white', padding: '1rem', borderRadius: '16px', textAlign: 'center', marginBottom: '1rem' }}>
-                    <img src={store.qrCode} alt="QR Code" style={{ width: '100%', borderRadius: '8px' }} />
+                    <QRCodeSVG value={`${window.location.origin}/store/${store._id}`} size={160} level="H" />
                   </div>
                   <button onClick={() => navigate('/vendor/store/manage')} className="btn btn-secondary" style={{ width: '100%', borderRadius: '12px' }}>Download QR</button>
                 </div>

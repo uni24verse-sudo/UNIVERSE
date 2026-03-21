@@ -27,6 +27,11 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem('vendor', JSON.stringify(vendorData));
   };
 
+  const updateVendor = (vendorData) => {
+    setVendor(vendorData);
+    localStorage.setItem('vendor', JSON.stringify(vendorData));
+  };
+
   const logout = () => {
     setToken(null);
     setVendor(null);
