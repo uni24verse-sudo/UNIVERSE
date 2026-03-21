@@ -184,15 +184,15 @@ const Cart = () => {
                     <div style={{ marginTop: '1.5rem', padding: '1.5rem', background: 'white', borderRadius: '16px', textAlign: 'center' }}>
                       {store ? (
                         upiLink ? (
-                          <>
-                            <QRCodeSVG value={upiLink} size={160} />
-                            <p style={{ color: '#000', fontSize: '0.875rem', marginTop: '1rem' }}>
-                              Scan or <a href={upiLink} style={{ color: 'var(--primary)', fontWeight: 'bold', textDecoration: 'none' }}>Click to Pay Directly</a>
+                          <div style={{ textAlign: 'center', padding: '0.5rem' }}>
+                            <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: 'rgba(99, 102, 241, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem auto' }}>
+                              <CreditCard size={28} color="var(--primary)" />
+                            </div>
+                            <p style={{ color: '#000', fontWeight: '800', fontSize: '1.1rem', marginBottom: '0.5rem' }}>Direct UPI Sync</p>
+                            <p style={{ color: '#666', fontSize: '0.85rem', lineHeight: '1.5' }}>
+                              Your order will be sent to the vendor as **Paid**. You'll see the payment QR code on the next screen.
                             </p>
-                            <p style={{ color: '#666', fontSize: '0.7rem', marginTop: '0.5rem', fontStyle: 'italic' }}>
-                              Tip: If Paytm/PhonePe blocks the direct link, simply **Scan the QR Code** above. It's safe and verified!
-                            </p>
-                          </>
+                          </div>
                         ) : (
                           <p style={{ color: 'var(--error)', fontSize: '0.875rem' }}>
                             Vendor UPI ID not set. Please inform the vendor or try another method.

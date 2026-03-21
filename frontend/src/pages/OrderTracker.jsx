@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { io } from 'socket.io-client';
-import { CheckCircle2, Clock, ChefHat, PackageCheck, ArrowLeft, Home, ShoppingBag, Receipt } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
+import { CheckCircle2, Clock, ChefHat, PackageCheck, ArrowLeft, Home, ShoppingBag, Receipt, CreditCard } from 'lucide-react';
 
 const OrderTracker = () => {
   const { id } = useParams();
@@ -131,6 +132,39 @@ const OrderTracker = () => {
              );
            })}
         </div>
+
+        {/* UPI Payment Section (Conditional) */}
+        {order.paymentMethod === 'UPI' && order.status === 'Confirmed' && order.store?.admin?.upiId && (
+          <div style={{ background: 'white', padding: '2rem', borderRadius: '24px', marginBottom: '2rem', boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', justifyContent: 'center', marginBottom: '1.25rem' }}>
+              <CreditCard size={20} color="var(--primary)" />
+              <h3 style={{ margin: 0, color: '#0f172a', fontWeight: '800' }}>Complete Your Payment</h3>
+            </div>
+            
+            <div style={{ display: 'inline-block', padding: '1rem', background: '#f8fafc', borderRadius: '16px', marginBottom: '1rem' }}>
+              <QRCodeSVG 
+                value={`upi://pay?pa=${order.store.admin.upiId}&pn=${order.store.name.replace(/ /g, '%20')}&am=${order.totalAmount}&cu=INR&tn=Order%20${order.orderNumber}&tr=${order._id}`} 
+                size={180} 
+              />
+            </div>
+            
+            <p style={{ color: '#64748b', fontSize: '0.875rem', marginBottom: '1.5rem', lineHeight: '1.5' }}>
+              Scan this QR with any app (Paytm, GPay, PhonePe) or click the button below to pay **₹{order.totalAmount}**.
+            </p>
+            
+            <a 
+              href={`upi://pay?pa=${order.store.admin.upiId}&pn=${order.store.name.replace(/ /g, '%20')}&am=${order.totalAmount}&cu=INR&tn=Order%20${order.orderNumber}&tr=${order._id}`}
+              className="btn btn-primary"
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', textDecoration: 'none', borderRadius: '12px', height: '54px' }}
+            >
+              Pay Now Directly
+            </a>
+            
+            <p style={{ color: '#94a3b8', fontSize: '0.7rem', marginTop: '1rem', fontStyle: 'italic' }}>
+              Note: The vendor has already received your order. Please pay immediately to avoid delays.
+            </p>
+          </div>
+        )}
 
         {/* Breakdown */}
         <div style={{ textAlign: 'left', background: 'rgba(255,255,255,0.02)', padding: '1.5rem', borderRadius: '18px', border: '1px solid var(--surface-border)' }}>

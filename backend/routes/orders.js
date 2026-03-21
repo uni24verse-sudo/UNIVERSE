@@ -21,7 +21,7 @@ router.post('/create', async (req, res) => {
       items,
       totalAmount,
       paymentMethod,
-      status: 'Pending'
+      status: paymentMethod === 'UPI' ? 'Confirmed' : 'Pending'
     });
 
     const savedOrder = await newOrder.save();
@@ -77,7 +77,10 @@ router.put('/:id/status', auth, async (req, res) => {
 // Get Single Order Status (Public, for customer tracking)
 router.get('/:id', async (req, res) => {
   try {
-    const order = await Order.findById(req.params.id);
+    const order = await Order.findById(req.params.id).populate({
+      path: 'store',
+      populate: { path: 'admin', select: 'upiId name' }
+    });
     if (!order) return res.status(404).json({ message: 'Order not found' });
     res.json(order);
   } catch (err) {

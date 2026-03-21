@@ -297,11 +297,11 @@ const Dashboard = () => {
                                 fontSize: '0.65rem',
                                 fontWeight: '900',
                                 textTransform: 'uppercase',
-                                background: order.status === 'Pending' ? 'rgba(245, 158, 11, 0.1)' : order.status === 'Confirmed' ? 'rgba(59, 130, 246, 0.1)' : 'rgba(16, 185, 129, 0.1)',
-                                color: order.status === 'Pending' ? '#f59e0b' : order.status === 'Confirmed' ? '#3b82f6' : '#10b981',
-                                border: `1px solid ${order.status === 'Pending' ? '#f59e0b44' : order.status === 'Confirmed' ? '#3b82f644' : '#10b98144'}`
+                                background: order.status === 'Pending' ? 'rgba(245, 158, 11, 0.1)' : order.status === 'Confirmed' ? 'rgba(59, 130, 246, 0.2)' : 'rgba(16, 185, 129, 0.1)',
+                                color: order.status === 'Pending' ? '#f59e0b' : order.status === 'Confirmed' ? '#2563eb' : '#10b981',
+                                border: `1px solid ${order.status === 'Pending' ? '#f59e0b44' : order.status === 'Confirmed' ? '#2563eb66' : '#10b98144'}`
                               }}>
-                                {order.status}
+                                {order.status === 'Confirmed' && order.paymentMethod === 'UPI' ? 'UPI PAID' : order.status}
                               </span>
                             </div>
                             <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{new Date(order.createdAt).toLocaleTimeString()} • {order.items.length} Items</p>
@@ -309,7 +309,15 @@ const Dashboard = () => {
                           
                           <div style={{ textAlign: 'right' }}>
                             <p style={{ fontSize: '1.25rem', fontWeight: '800', margin: 0 }}>₹{order.totalAmount}</p>
-                            <p style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.25rem' }}>
+                            <p style={{ 
+                              fontSize: '0.65rem', 
+                              fontWeight: '700',
+                              color: order.paymentMethod === 'UPI' ? '#3b82f6' : 'var(--text-secondary)', 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              justifyContent: 'flex-end', 
+                              gap: '0.25rem' 
+                            }}>
                               {order.paymentMethod === 'UPI' ? <CreditCard size={10} /> : <Banknote size={10} />} {order.paymentMethod}
                             </p>
                           </div>
