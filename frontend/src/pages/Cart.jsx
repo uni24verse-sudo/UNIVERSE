@@ -33,9 +33,16 @@ const Cart = () => {
     );
   }
 
+  const [customerUpiId, setCustomerUpiId] = useState('');
+
   const handleCheckout = async () => {
     if (!paymentMethod) {
       alert("Please select a payment method.");
+      return;
+    }
+
+    if (paymentMethod === 'UPI' && !customerUpiId) {
+      alert("Please enter your UPI ID for potential refunds.");
       return;
     }
 
@@ -45,7 +52,8 @@ const Cart = () => {
         storeId,
         items: cart.map(item => ({ name: item.name, price: item.price, quantity: item.quantity })),
         totalAmount: total,
-        paymentMethod
+        paymentMethod,
+        customerUpiId
       };
 
       const res = await axios.post((import.meta.env.VITE_API_URL || 'http://localhost:5000') + '/api/orders/create', orderData);
@@ -192,6 +200,18 @@ const Cart = () => {
                             <p style={{ color: '#666', fontSize: '0.85rem', lineHeight: '1.5' }}>
                               Your order will be sent to the vendor as **Paid**. You'll see the payment QR code on the next screen.
                             </p>
+                            
+                            <div style={{ marginTop: '1.5rem', textAlign: 'left' }}>
+                               <label style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-secondary)', marginBottom: '0.5rem', display: 'block' }}>YOUR UPI ID (FOR REFUNDS)</label>
+                               <input 
+                                 type="text" 
+                                 placeholder="e.g. yourname@okaxis" 
+                                 value={customerUpiId}
+                                 onChange={(e) => setCustomerUpiId(e.target.value)}
+                                 style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', border: '1px solid var(--surface-border)', background: '#f8fafc', fontSize: '0.875rem' }}
+                               />
+                               <p style={{ fontSize: '0.65rem', color: '#94a3b8', marginTop: '0.4rem' }}>Required to send money back if you cancel.</p>
+                            </div>
                           </div>
                         ) : (
                           <p style={{ color: 'var(--error)', fontSize: '0.875rem' }}>

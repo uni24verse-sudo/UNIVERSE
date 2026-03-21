@@ -390,23 +390,48 @@ const Dashboard = () => {
                         )}
 
                         {order.paymentStatus === 'Refund Requested' && (
-                          <div style={{ marginTop: '1rem', padding: '1rem', background: 'rgba(239, 68, 68, 0.05)', borderRadius: '12px', border: '1px solid rgba(239, 68, 68, 0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ fontSize: '0.875rem', color: '#ef4444', fontWeight: '700' }}>Refund Requested</span>
-                            <button 
-                              onClick={async () => {
-                                if (window.confirm("Mark as refund processed? (You should have sent the money back already)")) {
-                                  try {
-                                    const res = await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/orders/${order._id}/process-refund`, {}, {
-                                      headers: { Authorization: `Bearer ${token}` }
-                                    });
-                                    setOrders(orders.map(o => o._id === order._id ? res.data : o));
-                                  } catch (err) { alert('Action failed'); }
-                                }
-                              }}
-                              style={{ padding: '0.5rem 1rem', borderRadius: '8px', background: '#ef4444', color: 'white', border: 'none', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '700' }}
-                            >
-                              Mark Refund Done
-                            </button>
+                          <div style={{ marginTop: '1rem', padding: '1.25rem', background: 'rgba(239, 68, 68, 0.05)', borderRadius: '16px', border: '1px solid rgba(239, 68, 68, 0.1)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+                              <div>
+                                <span style={{ fontSize: '0.75rem', fontWeight: '800', color: '#ef4444', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Refund Requested</span>
+                                <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.875rem', fontWeight: '600', color: 'white' }}>
+                                  Customer UPI: <span style={{ color: '#94a3b8' }}>{order.customerUpiId || 'Not Provided'}</span>
+                                </p>
+                              </div>
+                              <div style={{ textAlign: 'right' }}>
+                                <p style={{ margin: 0, fontSize: '1rem', fontWeight: '800', color: '#ef4444' }}>₹{order.totalAmount}</p>
+                              </div>
+                            </div>
+
+                            <div style={{ display: 'flex', gap: '0.75rem' }}>
+                              {order.customerUpiId && (
+                                <a 
+                                  href={`upi://pay?pa=${order.customerUpiId}&pn=UniVerse%20Refund&am=${order.totalAmount}&cu=INR&tn=Refund%20Order%20${order.orderNumber}&tr=${order._id}`}
+                                  className="btn btn-primary"
+                                  style={{ flex: 2, background: '#ef4444', borderColor: '#ef4444', height: '44px', textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.875rem' }}
+                                >
+                                  Pay Refund via UPI
+                                </a>
+                              )}
+                              <button 
+                                onClick={async () => {
+                                  if (window.confirm("Mark as refund processed? (Only do this after you have sent the money back)")) {
+                                    try {
+                                      const res = await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/orders/${order._id}/process-refund`, {}, {
+                                        headers: { Authorization: `Bearer ${token}` }
+                                      });
+                                      setOrders(orders.map(o => o._id === order._id ? res.data : o));
+                                    } catch (err) { alert('Action failed'); }
+                                  }
+                                }}
+                                style={{ flex: 1, padding: '0.5rem 1rem', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid rgba(255,255,255,0.1)', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '700' }}
+                              >
+                                Mark Done
+                              </button>
+                            </div>
+                            {!order.customerUpiId && (
+                               <p style={{ margin: '0.75rem 0 0 0', fontSize: '0.7rem', color: '#94a3b8', fontStyle: 'italic' }}>Note: Customer did not provide a UPI ID. You may need to contact them.</p>
+                            )}
                           </div>
                         )}
                       </div>
