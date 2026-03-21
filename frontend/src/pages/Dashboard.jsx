@@ -84,12 +84,21 @@ const Dashboard = () => {
       setSocket(newSocket);
       newSocket.emit('join_store_room', store._id);
       newSocket.on('new_order', (order) => {
-        setOrders(prev => [order, ...prev]);
-        // Play notification sound if enabled
-        if (localStorage.getItem('orderSoundEnabled') === 'true') {
-          const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
-          audio.play().catch(e => console.log('Audio blocked:', e));
-        }
+        setOrders(prev => {
+          const exists = prev.find(o => o._id === order._id);
+          if (exists) {
+            // Update existing order (e.g., payment verification request)
+            return prev.map(o => o._id === order._id ? order : o);
+          }
+          
+          // Truly new order
+          // Play notification sound if enabled
+          if (localStorage.getItem('orderSoundEnabled') === 'true') {
+            const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+            audio.play().catch(e => console.log('Audio blocked:', e));
+          }
+          return [order, ...prev];
+        });
       });
       return () => newSocket.close();
     }
