@@ -62,7 +62,11 @@ router.post('/scan', upload.single('menuImage'), async (req, res) => {
 
   } catch (err) {
     console.error('Menu Scan Error:', err);
-    res.status(500).json({ message: 'Internal server error during scan' });
+    res.status(500).json({ 
+      message: 'Internal server error during scan', 
+      error: err.message,
+      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined 
+    });
   }
 });
 
