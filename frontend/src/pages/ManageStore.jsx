@@ -20,7 +20,10 @@ import {
   Download,
   ExternalLink,
   ShoppingBag,
-  Tag
+  Tag,
+  Sparkles,
+  Loader2,
+  Check
 } from 'lucide-react';
 
 const ManageStore = () => {
@@ -36,6 +39,13 @@ const ManageStore = () => {
   const [storeImageFile, setStoreImageFile] = useState(null);
   const [updatingImage, setUpdatingImage] = useState(false);
   const storeImageInputRef = useRef(null);
+
+  // AI Scan States
+  const [isScanning, setIsScanning] = useState(false);
+  const [showScanModal, setShowScanModal] = useState(false);
+  const [scannedItems, setScannedItems] = useState([]);
+  const [scanFile, setScanFile] = useState(null);
+  const [scanError, setScanError] = useState('');
 
   // New/Edit product form
   const [productForm, setProductForm] = useState({ _id: null, name: '', price: '', category: '', image: '', imageFile: null });
@@ -236,6 +246,60 @@ const ManageStore = () => {
     img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
   };
 
+  const handleScanMenu = async (e) => {
+    e.preventDefault();
+    if (!scanFile) return;
+
+    setIsScanning(true);
+    setScanError('');
+    try {
+      const formData = new FormData();
+      formData.append('menuImage', scanFile);
+
+      const res = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/scan-menu/scan`, formData, {
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+      
+      setScannedItems(res.data.map((item, idx) => ({ ...item, tempId: idx, selected: true })));
+      setShowScanModal(false);
+    } catch (err) {
+      console.error(err);
+      setScanError(err.response?.data?.message || 'Failed to scan menu. Ensure API key is set.');
+    } finally {
+      setIsScanning(false);
+    }
+  };
+
+  const handleImportScannedItems = async () => {
+    const itemsToImport = scannedItems.filter(item => item.selected);
+    if (itemsToImport.length === 0) return;
+
+    setLoading(true); // Reuse loading for mass import
+    try {
+      // We'll call the store update or multiple product creations. 
+      // For simplicity and to reuse backend logic, we'll send them to a new dedicated batch-add endpoint
+      await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/store/products/batch`, 
+        { products: itemsToImport },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      // Refresh store data
+      const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/store/manage`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setStore(res.data);
+      setScannedItems([]);
+      alert(`Successfully imported ${itemsToImport.length} items!`);
+    } catch (err) {
+      alert('Failed to import items');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (loading) return (
     <div className="auth-wrapper">
       <div className="pulse-container"><div className="pulse-dot"></div></div>
@@ -417,10 +481,93 @@ const ManageStore = () => {
 
           {/* Right Column: Menu Management */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+            
+            {/* AI Scanned Items Review Section */}
+            {scannedItems.length > 0 && (
+              <div className="glass-card" style={{ padding: '2rem', borderRadius: '32px', border: '2px solid var(--primary)', animation: 'pulse-border 2s infinite' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <div style={{ background: 'var(--primary)', padding: '0.6rem', borderRadius: '12px' }}>
+                      <Sparkles size={20} color="white" />
+                    </div>
+                    <div>
+                      <h3 style={{ margin: 0 }}>Review AI Scan</h3>
+                      <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>We found {scannedItems.length} items. Select which to import.</p>
+                    </div>
+                  </div>
+                  <button onClick={() => setScannedItems([])} className="btn btn-secondary" style={{ width: 'auto', padding: '0.5rem 1rem', fontSize: '0.8rem' }}>Cancel</button>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1.5rem', maxHeight: '300px', overflowY: 'auto', paddingRight: '0.5rem' }} className="hide-scrollbar">
+                  {scannedItems.map((item, idx) => (
+                    <div key={idx} style={{ display: 'flex', gap: '1rem', alignItems: 'center', padding: '1rem', background: 'rgba(255,255,255,0.03)', borderRadius: '16px', border: '1px solid var(--surface-border)' }}>
+                      <input 
+                        type="checkbox" 
+                        checked={item.selected} 
+                        onChange={() => setScannedItems(prev => prev.map((it, i) => i === idx ? { ...it, selected: !it.selected } : it))}
+                        style={{ width: '20px', height: '20px', accentColor: 'var(--primary)' }}
+                      />
+                      <div style={{ flex: 1 }}>
+                        <input 
+                          value={item.name} 
+                          onChange={(e) => setScannedItems(prev => prev.map((it, i) => i === idx ? { ...it, name: e.target.value } : it))}
+                          style={{ background: 'transparent', border: 'none', color: 'white', fontWeight: '600', width: '100%', outline: 'none' }}
+                        />
+                        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.25rem' }}>
+                          <input 
+                            value={item.category} 
+                            onChange={(e) => setScannedItems(prev => prev.map((it, i) => i === idx ? { ...it, category: e.target.value } : it))}
+                            style={{ background: 'rgba(99, 102, 241, 0.1)', border: 'none', color: 'var(--primary)', fontSize: '0.7rem', padding: '0.1rem 0.4rem', borderRadius: '4px', width: '80px' }}
+                          />
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                        <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>₹</span>
+                        <input 
+                          type="number"
+                          value={item.price} 
+                          onChange={(e) => setScannedItems(prev => prev.map((it, i) => i === idx ? { ...it, price: e.target.value } : it))}
+                          style={{ background: 'transparent', border: 'none', color: 'var(--secondary)', fontWeight: '700', width: '60px', textAlign: 'right', outline: 'none' }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <button 
+                  onClick={handleImportScannedItems}
+                  className="btn btn-primary" 
+                  style={{ width: '100%', height: '54px', borderRadius: '16px', gap: '0.75rem' }}
+                >
+                  <Check size={20} /> Confirm & Add {scannedItems.filter(i => i.selected).length} Items
+                </button>
+              </div>
+            )}
+
             <div className="glass-card" style={{ padding: '2rem', borderRadius: '32px' }} ref={formRef}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '1.5rem' }}>
-                {productForm._id ? <Pencil size={20} color="var(--primary)" /> : <Plus size={20} color="var(--primary)" />}
-                <h3 style={{ margin: 0 }}>{productForm._id ? 'Edit Product' : 'Add New Item'}</h3>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  {productForm._id ? <Pencil size={20} color="var(--primary)" /> : <Plus size={20} color="var(--primary)" />}
+                  <h3 style={{ margin: 0 }}>{productForm._id ? 'Edit Product' : 'Add New Item'}</h3>
+                </div>
+                
+                {!productForm._id && (
+                  <button 
+                    onClick={() => setShowScanModal(true)}
+                    className="btn btn-secondary" 
+                    style={{ 
+                      width: 'auto', 
+                      padding: '0.6rem 1.2rem', 
+                      borderRadius: '14px', 
+                      background: 'rgba(99, 102, 241, 0.1)', 
+                      borderColor: 'rgba(99, 102, 241, 0.2)',
+                      color: 'var(--primary)',
+                      gap: '0.5rem'
+                    }}
+                  >
+                    <Sparkles size={18} /> AI Magic Scan
+                  </button>
+                )}
               </div>
 
               <form onSubmit={handleSaveProduct} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem' }}>
@@ -594,6 +741,87 @@ const ManageStore = () => {
           </div>
         </div>
       </main>
+
+      {/* AI Scan Modal */}
+      {showScanModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+          <div className="glass-card" style={{ width: '100%', maxWidth: '500px', padding: '2.5rem', position: 'relative' }}>
+            <button onClick={() => setShowScanModal(false)} style={{ position: 'absolute', top: '1.5rem', right: '1.5rem', background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}>
+              <X size={24} />
+            </button>
+            <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+              <div style={{ width: '80px', height: '80px', borderRadius: '50%', background: 'rgba(99, 102, 241, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem' }}>
+                <Sparkles size={40} color="var(--primary)" />
+              </div>
+              <h2 style={{ fontSize: '1.75rem', fontWeight: '800', marginBottom: '0.5rem' }}>AI Menu Magic</h2>
+              <p style={{ color: 'var(--text-secondary)' }}>Upload a photo of your physical menu. We'll extract the items and prices for you!</p>
+            </div>
+
+            <form onSubmit={handleScanMenu}>
+              <div 
+                style={{ 
+                  height: '200px', 
+                  borderRadius: '24px', 
+                  border: '2px dashed var(--surface-border)', 
+                  display: 'flex', 
+                  flexDirection: 'column',
+                  alignItems: 'center', 
+                  justifyContent: 'center', 
+                  cursor: 'pointer',
+                  background: scanFile ? 'rgba(16, 185, 129, 0.05)' : 'transparent',
+                  borderColor: scanFile ? 'var(--secondary)' : 'var(--surface-border)',
+                  transition: 'all 0.3s ease'
+                }}
+                onClick={() => document.getElementById('scan-input').click()}
+              >
+                {scanFile ? (
+                  <>
+                    <Check size={40} color="var(--secondary)" />
+                    <p style={{ color: 'white', fontWeight: '700', marginTop: '1rem' }}>{scanFile.name}</p>
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Click to change</p>
+                  </>
+                ) : (
+                  <>
+                    <LucideImage size={40} color="var(--text-secondary)" />
+                    <p style={{ color: 'var(--text-secondary)', marginTop: '1rem' }}>Click to select menu photo</p>
+                  </>
+                )}
+                <input id="scan-input" type="file" hidden accept="image/*" onChange={(e) => setScanFile(e.target.files[0])} />
+              </div>
+
+              {scanError && <p style={{ color: 'var(--error)', fontSize: '0.875rem', textAlign: 'center', marginTop: '1rem' }}>{scanError}</p>}
+
+              <button 
+                type="submit" 
+                className="btn btn-primary" 
+                disabled={!scanFile || isScanning}
+                style={{ marginTop: '2rem', height: '60px', borderRadius: '18px', gap: '0.75rem' }}
+              >
+                {isScanning ? <><Loader2 size={24} className="spin" /> Magic is happening...</> : <><Sparkles size={20} /> Start Magic Scan</>}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Scanning Overlay (Deeper focus) */}
+      {isScanning && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', zIndex: 3000, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '1.5rem' }}>
+          <div className="pulse-circle" style={{ width: '120px', height: '120px', borderRadius: '50%', background: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 50px rgba(99, 102, 241, 0.5)' }}>
+            <Sparkles size={60} color="white" />
+          </div>
+          <h2 style={{ fontSize: '1.5rem', fontWeight: '800', color: 'white' }}>Scanning Your Menu...</h2>
+          <p style={{ color: 'rgba(255,255,255,0.7)', maxWidth: '300px', textAlign: 'center' }}>Our AI is extracting items, categories, and prices just for you.</p>
+        </div>
+      )}
+
+      <style>{`
+        @keyframes pulse-border {
+          0% { border-color: rgba(99, 102, 241, 0.2); box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.1); }
+          50% { border-color: rgba(99, 102, 241, 1); box-shadow: 0 0 30px rgba(99, 102, 241, 0.2); }
+          100% { border-color: rgba(99, 102, 241, 0.2); box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.1); }
+        }
+      `}</style>
     </div>
   );
 }

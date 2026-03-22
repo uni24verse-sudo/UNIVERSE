@@ -33,6 +33,7 @@ mongoose.connect(process.env.MONGODB_URI)
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/store', require('./routes/store'));
 app.use('/api/orders', require('./routes/orders'));
+app.use('/api/scan-menu', require('./routes/menuScanner'));
 
 // Socket.io connection handling
 io.on('connection', (socket) => {

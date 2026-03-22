@@ -137,6 +137,31 @@ router.post('/product', auth, upload.single('imageFile'), async (req, res) => {
   }
 });
 
+// Batch Add Products (Protected)
+router.post('/products/batch', auth, async (req, res) => {
+  try {
+    const { products } = req.body;
+    if (!Array.isArray(products)) return res.status(400).json({ message: 'Products must be an array' });
+
+    const store = await Store.findOne({ admin: req.admin._id });
+    if (!store) return res.status(404).json({ message: 'Store not found' });
+
+    products.forEach(p => {
+      store.products.push({
+        name: p.name,
+        price: Number(p.price) || 0,
+        category: p.category || 'General',
+        image: '' // AI scan doesn't provide images yet
+      });
+    });
+
+    await store.save();
+    res.status(201).json(store);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 // Toggle Product Availability
 router.put('/product/:productId/toggle', auth, async (req, res) => {
   try {
