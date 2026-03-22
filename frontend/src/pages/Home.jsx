@@ -63,7 +63,6 @@ const Home = () => {
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg-dark)' }}>
-      <Navbar />
 
       {/* Hero Section */}
       <section style={{ 

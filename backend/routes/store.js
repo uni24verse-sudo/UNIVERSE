@@ -75,20 +75,15 @@ router.get('/global/search', async (req, res) => {
                adminName: store.admin?.name
            });
        }
-       store.products.forEach(p => {
-           if (regex.test(p.name) || regex.test(p.category)) {
-               matchedDishes.push({
-                   _id: p._id,
-                   name: p.name,
-                   price: p.price,
-                   category: p.category,
-                   image: p.image,
-                   storeId: store._id,
-                   storeName: store.name,
-                   isAvailable: p.isAvailable && store.isOpen
-               });
-           }
-       });
+       
+       const matchingProducts = store.products.filter(p => regex.test(p.name) || regex.test(p.category));
+       if (matchingProducts.length > 0) {
+           matchedDishes.push({
+               _id: store._id,
+               name: store.name,
+               matchedProducts: matchingProducts.map(p => ({ name: p.name, price: p.price, _id: p._id }))
+           });
+       }
     });
 
     res.json({ stores: matchedStores, dishes: matchedDishes });
