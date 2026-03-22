@@ -34,6 +34,7 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/store', require('./routes/store'));
 app.use('/api/orders', require('./routes/orders'));
 app.use('/api/scan-menu', require('./routes/menuScanner'));
+app.use('/api/super-admin', require('./routes/superAdmin'));
 
 // Socket.io connection handling
 io.on('connection', (socket) => {
