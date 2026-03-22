@@ -48,20 +48,28 @@ const SuperAdminLogin = () => {
         {error && <div className="error-message" style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', color: '#ef4444' }}>{error}</div>}
 
         <form onSubmit={handleSubmit}>
-          <div className="input-group">
-            <label style={{ color: 'var(--text-secondary)' }}>Admin ID</label>
+          <div className="input-group" style={{ marginBottom: '1.5rem', textAlign: 'left' }}>
+            <label style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: '600', marginBottom: '0.5rem', display: 'block' }}>Admin ID</label>
             <input 
               type="email" 
               placeholder="superadmin@universe.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              style={{ background: 'rgba(255,255,255,0.03)', borderColor: 'var(--surface-border)' }}
+              style={{ 
+                width: '100%',
+                padding: '1rem',
+                background: 'rgba(255,255,255,0.03)', 
+                border: '1px solid rgba(255,255,255,0.1)',
+                borderRadius: '12px',
+                color: 'white',
+                fontSize: '1rem'
+              }}
             />
           </div>
 
-          <div className="input-group" style={{ marginBottom: '2rem' }}>
-            <label style={{ color: 'var(--text-secondary)' }}>Security Key</label>
+          <div className="input-group" style={{ marginBottom: '2.5rem', textAlign: 'left' }}>
+            <label style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: '600', marginBottom: '0.5rem', display: 'block' }}>Security Key</label>
             <div className="password-input" style={{ position: 'relative' }}>
               <Lock size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
               <input 
@@ -70,7 +78,15 @@ const SuperAdminLogin = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                style={{ paddingLeft: '3rem', background: 'rgba(255,255,255,0.03)', borderColor: 'var(--surface-border)' }}
+                style={{ 
+                  width: '100%',
+                  padding: '1rem 1rem 1rem 3rem',
+                  background: 'rgba(255,255,255,0.03)', 
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  borderRadius: '12px',
+                  color: 'white',
+                  fontSize: '1rem'
+                }}
               />
             </div>
           </div>
