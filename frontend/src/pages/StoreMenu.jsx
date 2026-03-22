@@ -53,11 +53,10 @@ const StoreMenu = () => {
         <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(11, 15, 26, 0.4) 0%, rgba(11, 15, 26, 1) 100%)' }}></div>
       </div>
 
-      {/* Sticky Header */}
+      {/* Store Info Subheader */}
       <div style={{ 
-        position: 'sticky', 
-        top: 0, 
-        zIndex: 100, 
+        position: 'relative', 
+        zIndex: 90, 
         background: 'rgba(11, 15, 26, 0.8)', 
         backdropFilter: 'blur(20px)',
         borderBottom: '1px solid var(--surface-border)',
@@ -65,13 +64,11 @@ const StoreMenu = () => {
         marginTop: '-40px'
       }}>
         <div style={{ maxWidth: '800px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', cursor: 'pointer' }} onClick={() => navigate('/')}>
-            <div style={{ width: '32px', height: '32px', background: 'var(--primary)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Store color="white" size={18} />
-            </div>
-            <span style={{ fontSize: '1.25rem', fontWeight: '900', letterSpacing: '-0.04em', color: 'white' }}>UniVerse</span>
-          </div>
-          <div style={{ textAlign: 'center' }}>
+          <button onClick={() => navigate(-1)} style={{ background: 'var(--glass-bg)', border: '1px solid var(--surface-border)', color: 'white', padding: '0.6rem', borderRadius: '12px', cursor: 'pointer' }}>
+            <ArrowLeft size={18} />
+          </button>
+          
+          <div style={{ textAlign: 'center', flex: 1 }}>
             <h1 style={{ fontSize: '1.25rem', margin: 0, fontWeight: '700' }}>{store.name}</h1>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', justifyContent: 'center', fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.1rem' }}>
               <span style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}><Star size={10} fill="currentColor" /> 4.8</span>
@@ -79,9 +76,7 @@ const StoreMenu = () => {
               <span>20-30 mins</span>
             </div>
           </div>
-          <button onClick={() => navigate(-1)} style={{ background: 'var(--glass-bg)', border: '1px solid var(--surface-border)', color: 'white', padding: '0.6rem', borderRadius: '12px', cursor: 'pointer' }}>
-            <ArrowLeft size={18} />
-          </button>
+          <div style={{ width: '42px' }}></div> {/* Spacer for symmetry */}
         </div>
       </div>
 

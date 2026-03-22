@@ -14,10 +14,10 @@ import {
   ChevronRight,
   Star
 } from 'lucide-react';
+import Navbar from '../components/Navbar';
 
 const Home = () => {
   const [stores, setStores] = useState([]);
-  const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState('All');
   const navigate = useNavigate();
@@ -40,8 +40,7 @@ const Home = () => {
 
   const filteredStores = stores
     .filter(store => 
-      (selectedCategory === 'All' || store.category === selectedCategory) &&
-      store.name.toLowerCase().includes(search.toLowerCase())
+      (selectedCategory === 'All' || store.category === selectedCategory)
     )
     .sort((a, b) => {
       const aOpen = a.isOpen !== false;
@@ -64,33 +63,7 @@ const Home = () => {
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg-dark)' }}>
-      {/* Brand Header */}
-      <nav style={{ 
-        position: 'absolute', 
-        top: 0, 
-        left: 0, 
-        right: 0, 
-        padding: '2rem', 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'space-between',
-        zIndex: 50
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer' }} onClick={() => navigate('/')}>
-          <div style={{ width: '40px', height: '40px', background: 'var(--primary)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 16px rgba(99, 102, 241, 0.2)' }}>
-            <Store color="white" size={24} />
-          </div>
-          <span style={{ fontSize: '1.5rem', fontWeight: '900', letterSpacing: '-0.04em', color: 'white' }}>UniVerse</span>
-        </div>
-        
-        <button 
-          className="btn btn-secondary" 
-          onClick={() => navigate('/vendor/login')}
-          style={{ width: 'auto', padding: '0.6rem 1.5rem', borderRadius: '12px', fontSize: '0.875rem', fontWeight: '700' }}
-        >
-          Vendor Portal
-        </button>
-      </nav>
+      <Navbar />
 
       {/* Hero Section */}
       <section style={{ 
@@ -122,23 +95,9 @@ const Home = () => {
         <h1 style={{ fontSize: 'clamp(2.5rem, 8vw, 4.5rem)', fontWeight: '900', letterSpacing: '-0.04em', marginBottom: '1.5rem', lineHeight: '1.1' }}>
           Your Campus, <span style={{ color: 'var(--primary)' }}>Digitized.</span>
         </h1>
-        <p style={{ color: 'var(--text-secondary)', fontSize: '1.25rem', maxWidth: '600px', margin: '0 auto 3.5rem auto', lineHeight: '1.6' }}>
+        <p style={{ color: 'var(--text-secondary)', fontSize: '1.25rem', maxWidth: '600px', margin: '0 auto', lineHeight: '1.6' }}>
           Browse fresh menus, skip the queue, and pay seamlessly. The smarter way to support your local stalls.
         </p>
-
-        <div style={{ maxWidth: '700px', margin: '0 auto', position: 'relative' }}>
-          <div className="glass-card" style={{ padding: '0.5rem', borderRadius: '24px', display: 'flex', alignItems: 'center', gap: '0.5rem', border: '1px solid var(--surface-border)', boxShadow: '0 20px 40px rgba(0,0,0,0.3)' }}>
-            <div style={{ padding: '0 1rem' }}><Search size={24} color="var(--primary)" /></div>
-            <input 
-              type="text" 
-              placeholder="Search for stalls..." 
-              style={{ flex: 1, background: 'transparent', border: 'none', color: 'white', padding: '1rem 0', fontSize: '1.1rem', outline: 'none' }}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-            <button className="btn btn-primary" style={{ width: 'auto', borderRadius: '18px', padding: '0.8rem 2rem' }}>Explore</button>
-          </div>
-        </div>
       </section>
 
       <main style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 2rem 6rem 2rem' }}>
@@ -181,9 +140,9 @@ const Home = () => {
 
         {filteredStores.length === 0 ? (
           <div className="glass-card" style={{ padding: '6rem 2rem', textAlign: 'center', borderRadius: '40px', background: 'rgba(255,255,255,0.01)' }}>
-             <Search size={48} color="var(--text-secondary)" style={{ opacity: 0.2, marginBottom: '1.5rem' }} />
+             <Store size={48} color="var(--text-secondary)" style={{ opacity: 0.2, marginBottom: '1.5rem' }} />
              <p style={{ color: 'var(--text-secondary)', fontSize: '1.25rem' }}>No stalls found matching your criteria.</p>
-             <button onClick={() => { setSearch(''); setSelectedCategory('All'); }} style={{ background: 'transparent', border: 'none', color: 'var(--primary)', fontWeight: '700', marginTop: '1rem', cursor: 'pointer' }}>Clear all filters</button>
+             <button onClick={() => { setSelectedCategory('All'); }} style={{ background: 'transparent', border: 'none', color: 'var(--primary)', fontWeight: '700', marginTop: '1rem', cursor: 'pointer' }}>Clear all filters</button>
           </div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '2.5rem' }}>

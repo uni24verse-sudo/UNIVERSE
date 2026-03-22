@@ -18,6 +18,8 @@ const OrderSchema = new mongoose.Schema({
     enum: ['Pending', 'Verification Requested', 'Confirmed', 'Refund Requested', 'Refunded'], 
     default: 'Pending' 
   },
+  orderType: { type: String, enum: ['Dine In', 'Take Away'], default: 'Dine In' },
+  packagingChargeApplied: { type: Number, default: 0 },
   customerPhone: { type: String }
 }, { timestamps: true });
 

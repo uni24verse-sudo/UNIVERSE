@@ -27,9 +27,6 @@ const bufferToStream = (buffer) => {
 router.post('/create', auth, async (req, res) => {
   try {
     const { name, category } = req.body;
-    
-    const existingStore = await Store.findOne({ admin: req.admin._id });
-    if (existingStore) return res.status(400).json({ message: 'Store already exists for this vendor' });
 
     const newStore = new Store({
       admin: req.admin._id,
@@ -45,12 +42,56 @@ router.post('/create', auth, async (req, res) => {
   }
 });
 
-// Get Vendor's own store
-router.get('/my-store', auth, async (req, res) => {
+// Get Vendor's own stores (Multiple)
+router.get('/my-stores', auth, async (req, res) => {
   try {
-    const store = await Store.findOne({ admin: req.admin._id });
-    if (!store) return res.status(404).json({ message: 'Store not found' });
-    res.json(store);
+    const stores = await Store.find({ admin: req.admin._id });
+    res.json(stores);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// Global Search (Public) - searches stores and items
+router.get('/global/search', async (req, res) => {
+  try {
+    const { q } = req.query;
+    if (!q) return res.json({ stores: [], dishes: [] });
+
+    const regex = new RegExp(q, 'i');
+
+    const stores = await Store.find({}, 'name category products _id isOpen image').populate('admin', 'name');
+    const matchedStores = [];
+    const matchedDishes = [];
+
+    stores.forEach(store => {
+       if (regex.test(store.name) || regex.test(store.category)) {
+           matchedStores.push({
+               _id: store._id,
+               name: store.name,
+               category: store.category,
+               image: store.image,
+               isOpen: store.isOpen,
+               adminName: store.admin?.name
+           });
+       }
+       store.products.forEach(p => {
+           if (regex.test(p.name) || regex.test(p.category)) {
+               matchedDishes.push({
+                   _id: p._id,
+                   name: p.name,
+                   price: p.price,
+                   category: p.category,
+                   image: p.image,
+                   storeId: store._id,
+                   storeName: store.name,
+                   isAvailable: p.isAvailable && store.isOpen
+               });
+           }
+       });
+    });
+
+    res.json({ stores: matchedStores, dishes: matchedDishes });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -78,10 +119,10 @@ router.get('/:id', async (req, res) => {
 });
 
 // Update Store Image (Protected)
-router.put('/update-image', auth, upload.single('imageFile'), async (req, res) => {
+router.put('/:storeId/update-image', auth, upload.single('imageFile'), async (req, res) => {
   try {
-    const store = await Store.findOne({ admin: req.admin._id });
-    if (!store) return res.status(404).json({ message: 'Store not found' });
+    const store = await Store.findOne({ _id: req.params.storeId, admin: req.admin._id });
+    if (!store) return res.status(404).json({ message: 'Store not found or unauthorized' });
 
     if (req.file) {
       const uploadResult = await new Promise((resolve, reject) => {
@@ -106,7 +147,7 @@ router.put('/update-image', auth, upload.single('imageFile'), async (req, res) =
 });
 
 // Add a Product to Store
-router.post('/product', auth, upload.single('imageFile'), async (req, res) => {
+router.post('/:storeId/product', auth, upload.single('imageFile'), async (req, res) => {
   try {
     const { name, price, category, image } = req.body;
     let finalImage = image;
@@ -125,8 +166,8 @@ router.post('/product', auth, upload.single('imageFile'), async (req, res) => {
       finalImage = uploadResult.secure_url;
     }
     
-    const store = await Store.findOne({ admin: req.admin._id });
-    if (!store) return res.status(404).json({ message: 'Store not found' });
+    const store = await Store.findOne({ _id: req.params.storeId, admin: req.admin._id });
+    if (!store) return res.status(404).json({ message: 'Store not found or unauthorized' });
 
     store.products.push({ name, price, category: category || 'Uncategorized', image: finalImage });
     await store.save();
@@ -138,13 +179,13 @@ router.post('/product', auth, upload.single('imageFile'), async (req, res) => {
 });
 
 // Batch Add Products (Protected)
-router.post('/products/batch', auth, async (req, res) => {
+router.post('/:storeId/products/batch', auth, async (req, res) => {
   try {
     const { products } = req.body;
     if (!Array.isArray(products)) return res.status(400).json({ message: 'Products must be an array' });
 
-    const store = await Store.findOne({ admin: req.admin._id });
-    if (!store) return res.status(404).json({ message: 'Store not found' });
+    const store = await Store.findOne({ _id: req.params.storeId, admin: req.admin._id });
+    if (!store) return res.status(404).json({ message: 'Store not found or unauthorized' });
 
     products.forEach(p => {
       store.products.push({
@@ -163,10 +204,10 @@ router.post('/products/batch', auth, async (req, res) => {
 });
 
 // Delete a Product (Protected)
-router.delete('/product/:productId', auth, async (req, res) => {
+router.delete('/:storeId/product/:productId', auth, async (req, res) => {
   try {
-    const store = await Store.findOne({ admin: req.admin._id });
-    if (!store) return res.status(404).json({ message: 'Store not found' });
+    const store = await Store.findOne({ _id: req.params.storeId, admin: req.admin._id });
+    if (!store) return res.status(404).json({ message: 'Store not found or unauthorized' });
 
     const productIndex = store.products.findIndex(p => p._id.toString() === req.params.productId);
     if (productIndex === -1) return res.status(404).json({ message: 'Product not found' });
@@ -180,10 +221,10 @@ router.delete('/product/:productId', auth, async (req, res) => {
 });
 
 // Toggle Product Availability
-router.put('/product/:productId/toggle', auth, async (req, res) => {
+router.put('/:storeId/product/:productId/toggle', auth, async (req, res) => {
   try {
-    const store = await Store.findOne({ admin: req.admin._id });
-    if (!store) return res.status(404).json({ message: 'Store not found' });
+    const store = await Store.findOne({ _id: req.params.storeId, admin: req.admin._id });
+    if (!store) return res.status(404).json({ message: 'Store not found or unauthorized' });
 
     const product = store.products.id(req.params.productId);
     if (!product) return res.status(404).json({ message: 'Product not found' });
@@ -198,12 +239,12 @@ router.put('/product/:productId/toggle', auth, async (req, res) => {
 });
 
 // Edit a Product in Store
-router.put('/product/:productId', auth, upload.single('imageFile'), async (req, res) => {
+router.put('/:storeId/product/:productId', auth, upload.single('imageFile'), async (req, res) => {
   try {
     const { name, price, category, image } = req.body;
     
-    const store = await Store.findOne({ admin: req.admin._id });
-    if (!store) return res.status(404).json({ message: 'Store not found' });
+    const store = await Store.findOne({ _id: req.params.storeId, admin: req.admin._id });
+    if (!store) return res.status(404).json({ message: 'Store not found or unauthorized' });
 
     const product = store.products.id(req.params.productId);
     if (!product) return res.status(404).json({ message: 'Product not found' });
@@ -237,9 +278,9 @@ router.put('/product/:productId', auth, upload.single('imageFile'), async (req, 
 });
 
 // Toggle Store Open/Closed Status
-router.put('/toggle-status', auth, async (req, res) => {
+router.put('/:storeId/toggle-status', auth, async (req, res) => {
   try {
-    const store = await Store.findOne({ admin: req.admin._id });
+    const store = await Store.findOne({ _id: req.params.storeId, admin: req.admin._id });
     if (!store) return res.status(404).json({ message: 'Store not found' });
 
     store.isOpen = !store.isOpen;
@@ -252,14 +293,15 @@ router.put('/toggle-status', auth, async (req, res) => {
 });
 
 // Update Store Details
-router.put('/update-details', auth, async (req, res) => {
+router.put('/:storeId/update-details', auth, async (req, res) => {
   try {
-    const { name, category } = req.body;
-    const store = await Store.findOne({ admin: req.admin._id });
+    const { name, category, packagingCharge } = req.body;
+    const store = await Store.findOne({ _id: req.params.storeId, admin: req.admin._id });
     if (!store) return res.status(404).json({ message: 'Store not found' });
 
     if (name) store.name = name;
     if (category) store.category = category;
+    if (packagingCharge !== undefined) store.packagingCharge = Number(packagingCharge);
     
     await store.save();
     res.json(store);

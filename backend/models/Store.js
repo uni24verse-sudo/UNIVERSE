@@ -15,6 +15,7 @@ const StoreSchema = new mongoose.Schema({
   image: { type: String },
   qrLink: { type: String },
   isOpen: { type: Boolean, default: true },
+  packagingCharge: { type: Number, default: 0 },
   products: [ProductSchema]
 }, { timestamps: true });
 

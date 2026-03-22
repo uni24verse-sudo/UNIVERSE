@@ -38,11 +38,11 @@ router.post('/create', async (req, res) => {
   }
 });
 
-// Get Vendor's Orders (Protected)
-router.get('/vendor-orders', auth, async (req, res) => {
+// Get Vendor's Orders (Protected, Store Specific)
+router.get('/:storeId/vendor-orders', auth, async (req, res) => {
   try {
-    const store = await Store.findOne({ admin: req.admin._id });
-    if (!store) return res.status(404).json({ message: 'Store not found' });
+    const store = await Store.findOne({ _id: req.params.storeId, admin: req.admin._id });
+    if (!store) return res.status(404).json({ message: 'Store not found or unauthorized' });
 
     const orders = await Order.find({ store: store._id }).sort({ createdAt: -1 });
     res.json(orders);

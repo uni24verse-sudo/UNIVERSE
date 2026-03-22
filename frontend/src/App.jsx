@@ -14,6 +14,7 @@ import { CartProvider } from './context/CartContext';
 import RecentOrders from './components/RecentOrders';
 import SuperAdminLogin from './pages/SuperAdminLogin';
 import SuperAdminPanel from './pages/SuperAdminPanel';
+import Navbar from './components/Navbar';
 
 function App() {
   return (
@@ -21,6 +22,7 @@ function App() {
       <CartProvider>
         <Router>
           <div className="app-container">
+            <Navbar />
             <RecentOrders />
             <Routes>
               <Route path="/" element={<Home />} />

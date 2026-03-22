@@ -29,10 +29,12 @@ import {
 const ManageStore = () => {
   const { token, vendor, logout, updateVendor } = useContext(AuthContext);
   const navigate = useNavigate();
+  const [stores, setStores] = useState([]);
   const [store, setStore] = useState(null);
   const [loading, setLoading] = useState(true);
   const [storeName, setStoreName] = useState('');
   const [storeCategory, setStoreCategory] = useState('');
+  const [storePackagingCharge, setStorePackagingCharge] = useState(0);
   const [adminUpiId, setAdminUpiId] = useState('');
   const [isEditingStore, setIsEditingStore] = useState(false);
   const [updatingStore, setUpdatingStore] = useState(false);
@@ -59,23 +61,41 @@ const ManageStore = () => {
       return;
     }
 
-    const fetchStore = async () => {
+    const fetchStores = async () => {
       try {
-        const res = await axios.get((import.meta.env.VITE_API_URL || 'http://localhost:5000') + '/api/store/my-store', {
+        const res = await axios.get((import.meta.env.VITE_API_URL || 'http://localhost:5000') + '/api/store/my-stores', {
           headers: { Authorization: `Bearer ${token}` }
         });
-        setStore(res.data);
-        setStoreName(res.data.name);
-        setStoreCategory(res.data.category || 'General');
-        setAdminUpiId(vendor?.upiId || '');
+        setStores(res.data);
+        if (res.data.length > 0) {
+          const defaultStore = res.data[0];
+          setStore(defaultStore);
+          setStoreName(defaultStore.name);
+          setStoreCategory(defaultStore.category || 'General');
+          setStorePackagingCharge(defaultStore.packagingCharge || 0);
+          setAdminUpiId(vendor?.upiId || '');
+        } else {
+          navigate('/vendor/store/create');
+        }
       } catch (err) {
-        if (err.response?.status === 404) navigate('/vendor/store/create');
+        console.error('Failed to fetch stores', err);
       } finally {
         setLoading(false);
       }
     };
-    fetchStore();
+    fetchStores();
   }, [token, navigate, vendor]);
+
+  const changeStore = (storeId) => {
+    const selected = stores.find(s => s._id === storeId);
+    if (selected) {
+      setStore(selected);
+      setStoreName(selected.name);
+      setStoreCategory(selected.category || 'General');
+      setStorePackagingCharge(selected.packagingCharge || 0);
+      setIsEditingStore(false);
+    }
+  };
 
   const handleSaveProduct = async (e) => {
     e.preventDefault();
@@ -89,7 +109,7 @@ const ManageStore = () => {
       if (productForm.imageFile) formData.append('imageFile', productForm.imageFile);
 
       if (productForm._id) {
-        const res = await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/store/product/${productForm._id}`, formData, {
+        const res = await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/store/${store._id}/product/${productForm._id}`, formData, {
           headers: { 
             Authorization: `Bearer ${token}`,
             'Content-Type': 'multipart/form-data'
@@ -97,7 +117,7 @@ const ManageStore = () => {
         });
         setStore(res.data.store);
       } else {
-        const res = await axios.post((import.meta.env.VITE_API_URL || 'http://localhost:5000') + '/api/store/product', formData, {
+        const res = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/store/${store._id}/product`, formData, {
           headers: { 
             Authorization: `Bearer ${token}`,
             'Content-Type': 'multipart/form-data'
@@ -133,7 +153,7 @@ const ManageStore = () => {
 
   const toggleAvailability = async (productId) => {
     try {
-      const res = await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/store/product/${productId}/toggle`, {}, {
+      const res = await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/store/${store._id}/product/${productId}/toggle`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setStore(res.data.store);
@@ -144,10 +164,11 @@ const ManageStore = () => {
 
   const toggleStoreStatus = async () => {
     try {
-      const res = await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/store/toggle-status`, {}, {
+      const res = await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/store/${store._id}/toggle-status`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setStore(prev => ({ ...prev, isOpen: res.data.isOpen }));
+      setStores(prev => prev.map(s => s._id === store._id ? { ...s, isOpen: res.data.isOpen } : s));
     } catch (err) {
       alert('Failed to toggle status');
     }
@@ -158,8 +179,8 @@ const ManageStore = () => {
     setUpdatingStore(true);
     try {
       // Update Store Details
-      const storeRes = await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/store/update-details`, 
-        { name: storeName, category: storeCategory },
+      const storeRes = await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/store/${store._id}/update-details`, 
+        { name: storeName, category: storeCategory, packagingCharge: storePackagingCharge },
         { headers: { Authorization: `Bearer ${token}` } }
       );
       
@@ -169,7 +190,8 @@ const ManageStore = () => {
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      setStore(prev => ({ ...prev, name: storeRes.data.name, category: storeRes.data.category }));
+      setStore(prev => ({ ...prev, name: storeRes.data.name, category: storeRes.data.category, packagingCharge: storeRes.data.packagingCharge }));
+      setStores(prev => prev.map(s => s._id === store._id ? { ...s, name: storeRes.data.name, category: storeRes.data.category, packagingCharge: storeRes.data.packagingCharge } : s));
       updateVendor(adminRes.data.admin);
       setIsEditingStore(false);
     } catch (err) {
@@ -188,13 +210,14 @@ const ManageStore = () => {
       const formData = new FormData();
       formData.append('imageFile', file);
 
-      const res = await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/store/update-image`, formData, {
+      const res = await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/store/${store._id}/update-image`, formData, {
         headers: { 
           Authorization: `Bearer ${token}`,
           'Content-Type': 'multipart/form-data'
         }
       });
       setStore(prev => ({ ...prev, image: res.data.image }));
+      setStores(prev => prev.map(s => s._id === store._id ? { ...s, image: res.data.image } : s));
       alert('Store image updated successfully!');
     } catch (err) {
       alert('Failed to update store image');
@@ -285,16 +308,18 @@ const ManageStore = () => {
 
     setLoading(true);
     try {
-      await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/store/products/batch`, 
+      await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/store/${store._id}/products/batch`, 
         { products: itemsToImport },
         { headers: { Authorization: `Bearer ${token}` } }
       );
       
       // Refresh store data
-      const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/store/my-store`, {
+      const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/store/my-stores`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setStore(res.data);
+      setStores(res.data);
+      const updatedStore = res.data.find(s => s._id === store._id);
+      if (updatedStore) setStore(updatedStore);
       setScannedItems([]);
       alert(`Successfully imported ${itemsToImport.length} items!`);
     } catch (err) {
@@ -308,7 +333,7 @@ const ManageStore = () => {
   const deleteProduct = async (productId, productName) => {
     if (!window.confirm(`Are you sure you want to delete "${productName}"? This cannot be undone.`)) return;
     try {
-      const res = await axios.delete(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/store/product/${productId}`, {
+      const res = await axios.delete(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/store/${store._id}/product/${productId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setStore(res.data);
@@ -369,14 +394,39 @@ const ManageStore = () => {
               <p style={{ color: 'var(--text-secondary)' }}>Manage your digital menu and QR availability</p>
             </div>
           </div>
+          
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            {stores.length > 0 && (
+              <select 
+                value={store?._id || ''} 
+                onChange={(e) => changeStore(e.target.value)}
+                style={{
+                  padding: '0.6rem 1.2rem',
+                  borderRadius: '12px',
+                  background: 'var(--glass-bg)',
+                  color: 'white',
+                  border: '1px solid var(--surface-border)',
+                  fontWeight: '700',
+                  outline: 'none',
+                  cursor: 'pointer',
+                  appearance: 'none',
+                  height: '46px'
+                }}
+              >
+                {stores.map(s => (
+                  <option key={s._id} value={s._id}>{s.name} {s.category ? `(${s.category})` : ''}</option>
+                ))}
+              </select>
+            )}
 
-          <button 
-            onClick={toggleStoreStatus} 
-            className={`btn ${store.isOpen ? 'btn-secondary' : 'btn-primary'}`}
-            style={{ width: 'auto', padding: '0.75rem 1.5rem', borderRadius: '14px', background: store.isOpen ? 'rgba(239, 68, 68, 0.1)' : '', color: store.isOpen ? '#ef4444' : '', borderColor: store.isOpen ? '#ef4444' : '' }}
-          >
-            {store.isOpen ? 'Close Stall' : 'Open Stall'}
-          </button>
+            <button 
+              onClick={toggleStoreStatus} 
+              className={`btn ${store.isOpen ? 'btn-secondary' : 'btn-primary'}`}
+              style={{ width: 'auto', padding: '0 1.5rem', height: '46px', borderRadius: '14px', background: store.isOpen ? 'rgba(239, 68, 68, 0.1)' : '', color: store.isOpen ? '#ef4444' : '', borderColor: store.isOpen ? '#ef4444' : '' }}
+            >
+              {store.isOpen ? 'Close Stall' : 'Open Stall'}
+            </button>
+          </div>
         </header>
 
         <div className="manage-store-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '2rem' }}>
@@ -457,16 +507,30 @@ const ManageStore = () => {
                       <option value="Other">Other</option>
                     </select>
                   </div>
-                  <div className="form-group">
-                    <label className="form-label" style={{ fontSize: '0.75rem' }}>UPI ID (for payments)</label>
-                    <input 
-                      type="text" 
-                      className="form-input" 
-                      placeholder="name@upi"
-                      value={adminUpiId} 
-                      onChange={e => setAdminUpiId(e.target.value)}
-                      style={{ height: '40px', borderRadius: '10px', fontSize: '0.875rem' }}
-                    />
+                  <div className="form-group" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    <div>
+                      <label className="form-label" style={{ fontSize: '0.75rem' }}>UPI ID (for payments)</label>
+                      <input 
+                        type="text" 
+                        className="form-input" 
+                        placeholder="name@upi"
+                        value={adminUpiId} 
+                        onChange={e => setAdminUpiId(e.target.value)}
+                        style={{ height: '40px', borderRadius: '10px', fontSize: '0.875rem' }}
+                      />
+                    </div>
+                    <div>
+                      <label className="form-label" style={{ fontSize: '0.75rem' }}>Packaging Charge (Takeaway) ₹</label>
+                      <input 
+                        type="number" 
+                        className="form-input" 
+                        placeholder="0"
+                        min="0"
+                        value={storePackagingCharge} 
+                        onChange={e => setStorePackagingCharge(e.target.value)}
+                        style={{ height: '40px', borderRadius: '10px', fontSize: '0.875rem' }}
+                      />
+                    </div>
                   </div>
                   <div style={{ display: 'flex', gap: '0.5rem' }}>
                     <button type="submit" className="btn btn-primary" style={{ padding: '0.5rem', height: 'auto', borderRadius: '10px', fontSize: '0.875rem', flex: 1 }}>
@@ -487,9 +551,15 @@ const ManageStore = () => {
                     <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Category</p>
                     <p style={{ fontWeight: '700' }}>{store.category || 'General'}</p>
                   </div>
-                  <div style={{ padding: '1rem', background: 'rgba(255,255,255,0.03)', borderRadius: '14px' }}>
-                    <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>UPI ID</p>
-                    <p style={{ fontWeight: '700' }}>{vendor?.upiId || 'Not Set'}</p>
+                  <div style={{ padding: '1rem', background: 'rgba(255,255,255,0.03)', borderRadius: '14px', display: 'flex', justifyContent: 'space-between' }}>
+                    <div>
+                      <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>UPI ID</p>
+                      <p style={{ fontWeight: '700' }}>{vendor?.upiId || 'Not Set'}</p>
+                    </div>
+                    <div>
+                      <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Packaging Fee</p>
+                      <p style={{ fontWeight: '700', color: 'var(--secondary)' }}>₹{store.packagingCharge || 0}</p>
+                    </div>
                   </div>
                 </div>
               )}

@@ -11,6 +11,8 @@ const Cart = () => {
   const [store, setStore] = useState(null);
   const [loading, setLoading] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState(''); // 'Cash' or 'UPI'
+  const [orderType, setOrderType] = useState('Dine In');
+  const [customerPhone, setCustomerPhone] = useState('');
 
   useEffect(() => {
     if (storeId) {
@@ -33,7 +35,8 @@ const Cart = () => {
     );
   }
 
-  const [customerPhone, setCustomerPhone] = useState('');
+  const packagingFee = orderType === 'Take Away' ? (store?.packagingCharge || 0) : 0;
+  const finalTotal = total + packagingFee;
 
   const handleCheckout = async () => {
     if (!paymentMethod) {
@@ -51,9 +54,11 @@ const Cart = () => {
       const orderData = {
         storeId,
         items: cart.map(item => ({ name: item.name, price: item.price, quantity: item.quantity })),
-        totalAmount: total,
+        totalAmount: finalTotal,
         paymentMethod,
-        customerPhone
+        customerPhone,
+        orderType,
+        packagingChargeApplied: packagingFee
       };
 
       const res = await axios.post((import.meta.env.VITE_API_URL || 'http://localhost:5000') + '/api/orders/create', orderData);
@@ -86,22 +91,16 @@ const Cart = () => {
   };
 
   const upiLink = store?.admin?.upiId 
-    ? `upi://pay?pa=${store.admin.upiId}&pn=${store.name.replace(/ /g, '%20')}&am=${total}&cu=INR&tn=Order%20from%20UniVerse&tr=${Math.random().toString(36).substring(7)}`
+    ? `upi://pay?pa=${store.admin.upiId}&pn=${store.name.replace(/ /g, '%20')}&am=${finalTotal}&cu=INR&tn=Order%20from%20UniVerse&tr=${Math.random().toString(36).substring(7)}`
     : null;
 
   return (
     <div style={{ minHeight: '100vh', padding: '2rem 1rem', maxWidth: '1000px', margin: '0 auto' }}>
-      <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '3rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer' }} onClick={() => navigate('/')}>
-          <div style={{ width: '32px', height: '32px', background: 'var(--primary)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Store color="white" size={18} />
-          </div>
-          <span style={{ fontSize: '1.25rem', fontWeight: '900', letterSpacing: '-0.04em', color: 'white' }}>UniVerse</span>
-        </div>
-        <div style={{ padding: '0.5rem 1rem', background: 'rgba(99, 102, 241, 0.1)', borderRadius: '12px', fontSize: '0.75rem', fontWeight: '700', color: 'var(--primary)' }}>
+      <div style={{ textAlign: 'right', marginBottom: '2rem' }}>
+        <div style={{ display: 'inline-block', padding: '0.5rem 1rem', background: 'rgba(99, 102, 241, 0.1)', borderRadius: '12px', fontSize: '0.75rem', fontWeight: '700', color: 'var(--primary)' }}>
           Secure Checkout
         </div>
-      </header>
+      </div>
 
       <header style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '2rem' }}>
         <button onClick={() => navigate(-1)} style={{ background: 'var(--glass-bg)', border: '1px solid var(--surface-border)', color: 'white', padding: '0.6rem', borderRadius: '12px', cursor: 'pointer' }}>
@@ -157,16 +156,22 @@ const Cart = () => {
 
             <div style={{ marginTop: '2rem', padding: '1.25rem', background: 'rgba(99, 102, 241, 0.05)', borderRadius: '16px', border: '1px solid rgba(99, 102, 241, 0.1)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>Subtotal</span>
+                <span style={{ color: 'var(--text-secondary)' }}>Item Total</span>
                 <span>₹{total}</span>
               </div>
+              {orderType === 'Take Away' && packagingFee > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                  <span style={{ color: 'var(--text-secondary)' }}>Packaging Fee</span>
+                  <span style={{ color: 'var(--text-secondary)' }}>₹{packagingFee}</span>
+                </div>
+              )}
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
                 <span style={{ color: 'var(--text-secondary)' }}>Platform Fee</span>
                 <span style={{ color: 'var(--secondary)' }}>FREE</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.25rem', fontWeight: '800', borderTop: '1px dashed var(--surface-border)', paddingTop: '1rem' }}>
                 <span>To Pay</span>
-                <span>₹{total}</span>
+                <span>₹{finalTotal}</span>
               </div>
             </div>
           </div>
@@ -174,6 +179,37 @@ const Cart = () => {
 
         {/* Right: Payment */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          
+          <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '24px' }}>
+            <h3 style={{ marginBottom: '1.5rem' }}>Dining Preference</h3>
+            <div style={{ display: 'flex', gap: '1rem' }}>
+              <button 
+                onClick={() => setOrderType('Dine In')}
+                style={{
+                  flex: 1, padding: '1rem', borderRadius: '16px', fontWeight: '700', fontSize: '1rem',
+                  background: orderType === 'Dine In' ? 'rgba(99, 102, 241, 0.1)' : 'rgba(255,255,255,0.03)',
+                  border: `2px solid ${orderType === 'Dine In' ? 'var(--primary)' : 'transparent'}`,
+                  color: orderType === 'Dine In' ? 'white' : 'var(--text-secondary)',
+                  cursor: 'pointer', transition: 'all 0.2s'
+                }}
+              >
+                🍽️ Dine In
+              </button>
+              <button 
+                onClick={() => setOrderType('Take Away')}
+                style={{
+                  flex: 1, padding: '1rem', borderRadius: '16px', fontWeight: '700', fontSize: '1rem',
+                  background: orderType === 'Take Away' ? 'rgba(99, 102, 241, 0.1)' : 'rgba(255,255,255,0.03)',
+                  border: `2px solid ${orderType === 'Take Away' ? 'var(--primary)' : 'transparent'}`,
+                  color: orderType === 'Take Away' ? 'white' : 'var(--text-secondary)',
+                  cursor: 'pointer', transition: 'all 0.2s'
+                }}
+              >
+                🛍️ Take Away
+              </button>
+            </div>
+          </div>
+
           <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '24px' }}>
             <h3 style={{ marginBottom: '1.5rem' }}>Payment Method</h3>
             

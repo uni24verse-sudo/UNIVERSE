@@ -25,6 +25,7 @@ import {
 const Dashboard = () => {
   const { token, vendor, logout } = useContext(AuthContext);
   const navigate = useNavigate();
+  const [stores, setStores] = useState([]);
   const [store, setStore] = useState(null);
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -59,19 +60,20 @@ const Dashboard = () => {
 
     const fetchDashboardData = async () => {
       try {
-        const storeRes = await axios.get((import.meta.env.VITE_API_URL || 'http://localhost:5000') + '/api/store/my-store', {
+        const storesRes = await axios.get((import.meta.env.VITE_API_URL || 'http://localhost:5000') + '/api/store/my-stores', {
           headers: { Authorization: `Bearer ${token}` }
         });
-        setStore(storeRes.data);
-
-        const ordersRes = await axios.get((import.meta.env.VITE_API_URL || 'http://localhost:5000') + '/api/orders/vendor-orders', {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        setOrders(ordersRes.data);
-      } catch (err) {
-        if (err.response?.status === 404) {
+        
+        setStores(storesRes.data);
+        if (storesRes.data.length > 0) {
+          // Default to first store or keep previously selected
+          setStore(storesRes.data[0]);
+        } else {
           setStore(null);
         }
+      } catch (err) {
+        console.error('Failed to fetch stores', err);
+        setStore(null);
       } finally {
         setLoading(false);
       }
@@ -79,6 +81,22 @@ const Dashboard = () => {
 
     fetchDashboardData();
   }, [token, navigate]);
+
+  useEffect(() => {
+    if (!store) return;
+    
+    const fetchStoreOrders = async () => {
+      try {
+        const ordersRes = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/orders/${store._id}/vendor-orders`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setOrders(ordersRes.data);
+      } catch (err) {
+        console.error('Failed to fetch orders', err);
+      }
+    };
+    fetchStoreOrders();
+  }, [store, token]);
 
   useEffect(() => {
     if (store) {
@@ -124,11 +142,14 @@ const Dashboard = () => {
   };
 
   const toggleStoreStatus = async () => {
+    if (!store) return;
     try {
-      const res = await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/store/toggle-status`, {}, {
+      const res = await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/store/${store._id}/toggle-status`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setStore(prev => ({ ...prev, isOpen: res.data.isOpen }));
+      // Also update the store in the stores array so it persists on switch
+      setStores(prev => prev.map(s => s._id === store._id ? { ...s, isOpen: res.data.isOpen } : s));
     } catch (err) {
       alert('Failed to toggle status');
     }
@@ -252,6 +273,30 @@ const Dashboard = () => {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+            {stores.length > 0 && (
+              <select 
+                value={store?._id || ''} 
+                onChange={(e) => {
+                  const selected = stores.find(s => s._id === e.target.value);
+                  setStore(selected);
+                }}
+                style={{
+                  padding: '0.6rem 1.2rem',
+                  borderRadius: '12px',
+                  background: 'var(--glass-bg)',
+                  color: 'white',
+                  border: '1px solid var(--surface-border)',
+                  fontWeight: '700',
+                  outline: 'none',
+                  cursor: 'pointer',
+                  appearance: 'none'
+                }}
+              >
+                {stores.map(s => (
+                  <option key={s._id} value={s._id}>{s.name} {s.category ? `(${s.category})` : ''}</option>
+                ))}
+              </select>
+            )}
             {store && (
               <div 
                 onClick={toggleStoreStatus}
