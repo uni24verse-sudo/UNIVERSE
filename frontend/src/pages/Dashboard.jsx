@@ -293,7 +293,7 @@ const Dashboard = () => {
                 }}
               >
                 {stores.map(s => (
-                  <option key={s._id} value={s._id}>{s.name} {s.category ? `(${s.category})` : ''}</option>
+                  <option key={s._id} value={s._id}>{s.name} ({s.market || 'BH1 Market'})</option>
                 ))}
               </select>
             )}

@@ -185,9 +185,14 @@ const Home = () => {
                         <h3 style={{ fontSize: '1.25rem', fontWeight: '900', margin: 0 }}>{store.name}</h3>
                         {isOpen && <CheckCircle2 size={18} color="var(--secondary)" />}
                       </div>
-                      <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>
-                         By {store.admin?.name || 'Academic Plaza'}
-                      </p>
+                      <div style={{ marginBottom: '1.5rem' }}>
+                        <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', margin: 0 }}>
+                           By {store.admin?.name || 'Academic Plaza'}
+                        </p>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--primary)', fontSize: '0.75rem', marginTop: '0.4rem', fontWeight: '800' }}>
+                          <MapPin size={12} /> {store.market || 'BH1 Market'}
+                        </div>
+                      </div>
                       
                       <div style={{ marginTop: 'auto', paddingTop: '1.25rem', borderTop: '1px solid var(--surface-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                          <div style={{ display: 'flex', gap: '1rem', color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: '700' }}>
