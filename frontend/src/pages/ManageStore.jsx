@@ -267,7 +267,10 @@ const ManageStore = () => {
       setShowScanModal(false);
     } catch (err) {
       console.error(err);
-      setScanError(err.response?.data?.message || 'Failed to scan menu. Ensure API key is set.');
+      const serverMsg = err.response?.data?.message;
+      const rawText = err.response?.data?.raw;
+      setScanError(serverMsg || 'Failed to scan menu. Ensure API key is set.');
+      if (rawText) console.warn('AI Raw Error Part:', rawText);
     } finally {
       setIsScanning(false);
     }
