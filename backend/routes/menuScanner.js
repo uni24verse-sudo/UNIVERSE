@@ -43,15 +43,21 @@ router.post('/scan', upload.single('menuImage'), async (req, res) => {
     const response = await result.response;
     const text = response.text();
     
-    // Clean potential markdown code blocks
-    const cleanJson = text.replace(/```json|```/gi, '').trim();
+    // Improved JSON Extraction: Find the search for the first [ and last ]
+    const jsonMatch = text.match(/\[[\s\S]*\]/);
+    const cleanJson = jsonMatch ? jsonMatch[0] : text.replace(/```json|```/gi, '').trim();
     
     try {
       const items = JSON.parse(cleanJson);
       res.json(items);
     } catch (parseErr) {
-      console.error('Scan Parse Error:', text);
-      res.status(500).json({ message: 'Failed to parse AI response', raw: text });
+      console.error('--- AI Response Parsing Error ---');
+      console.error('Raw Text:', text);
+      console.error('Cleaned JSON:', cleanJson);
+      res.status(500).json({ 
+        message: 'Failed to parse AI response. See server logs for details.',
+        raw: text.substring(0, 100) + '...' 
+      });
     }
 
   } catch (err) {
