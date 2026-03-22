@@ -29,6 +29,7 @@ const Dashboard = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [socket, setSocket] = useState(null);
+  const [orderFilter, setOrderFilter] = useState('Active');
   const [soundEnabled, setSoundEnabled] = useState(localStorage.getItem('orderSoundEnabled') !== 'false'); // Default to true
 
   useEffect(() => {
@@ -149,6 +150,61 @@ const Dashboard = () => {
     .reduce((acc, curr) => acc + curr.totalAmount, 0);
 
   const pendingOrders = orders.filter(o => o.status === 'Pending').length;
+  const confirmedOrders = orders.filter(o => o.status === 'Confirmed').length;
+  const completedOrders = orders.filter(o => o.status === 'Completed').length;
+  const cancelledOrders = orders.filter(o => o.status === 'Cancelled').length;
+
+  // Smart filtering
+  const getFilteredOrders = () => {
+    let filtered;
+    switch (orderFilter) {
+      case 'Active':
+        filtered = orders.filter(o => o.status === 'Pending' || o.status === 'Confirmed');
+        break;
+      case 'Pending':
+        filtered = orders.filter(o => o.status === 'Pending');
+        break;
+      case 'Confirmed':
+        filtered = orders.filter(o => o.status === 'Confirmed');
+        break;
+      case 'Completed':
+        filtered = orders.filter(o => o.status === 'Completed');
+        break;
+      case 'Cancelled':
+        filtered = orders.filter(o => o.status === 'Cancelled');
+        break;
+      default:
+        filtered = orders;
+    }
+    // Sort: Pending first, then Confirmed, then by newest
+    return filtered.sort((a, b) => {
+      const priority = { 'Pending': 0, 'Confirmed': 1, 'Completed': 2, 'Cancelled': 3 };
+      if (priority[a.status] !== priority[b.status]) return priority[a.status] - priority[b.status];
+      return new Date(b.createdAt) - new Date(a.createdAt);
+    });
+  };
+
+  const filteredOrders = getFilteredOrders();
+
+  const getTimeAgo = (date) => {
+    const seconds = Math.floor((new Date() - new Date(date)) / 1000);
+    if (seconds < 60) return 'Just now';
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+    return `${Math.floor(hours / 24)}d ago`;
+  };
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'Pending': return '#f59e0b';
+      case 'Confirmed': return '#3b82f6';
+      case 'Completed': return '#10b981';
+      case 'Cancelled': return '#ef4444';
+      default: return '#94a3b8';
+    }
+  };
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-dark)' }}>
@@ -281,22 +337,84 @@ const Dashboard = () => {
             <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '2rem' }}>
               {/* Live Orders Feed */}
               <div className="glass-card" style={{ padding: '2rem', borderRadius: '32px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-                  <h3 style={{ fontSize: '1.25rem', fontWeight: '800' }}>Live Orders</h3>
-                  <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    <span style={{ fontSize: '0.75rem', padding: '0.3rem 0.8rem', borderRadius: '100px', background: 'var(--surface-border)', color: 'var(--text-secondary)' }}>All Orders</span>
-                  </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    Live Orders
+                    {(pendingOrders + confirmedOrders) > 0 && (
+                      <span style={{ 
+                        width: '28px', height: '28px', borderRadius: '50%', 
+                        background: 'var(--error)', color: 'white', 
+                        fontSize: '0.75rem', fontWeight: '900',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        boxShadow: '0 0 12px rgba(239, 68, 68, 0.4)',
+                        animation: 'pulse-border 2s infinite'
+                      }}>
+                        {pendingOrders + confirmedOrders}
+                      </span>
+                    )}
+                  </h3>
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                  {orders.length === 0 ? (
+                {/* Filter Tabs */}
+                <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+                  {[
+                    { label: 'Active', count: pendingOrders + confirmedOrders, color: '#f59e0b' },
+                    { label: 'Pending', count: pendingOrders, color: '#f59e0b' },
+                    { label: 'Confirmed', count: confirmedOrders, color: '#3b82f6' },
+                    { label: 'Completed', count: completedOrders, color: '#10b981' },
+                    { label: 'Cancelled', count: cancelledOrders, color: '#ef4444' },
+                    { label: 'All', count: orders.length, color: '#94a3b8' },
+                  ].map(tab => (
+                    <button
+                      key={tab.label}
+                      onClick={() => setOrderFilter(tab.label)}
+                      style={{
+                        padding: '0.4rem 1rem',
+                        borderRadius: '100px',
+                        border: orderFilter === tab.label ? `1px solid ${tab.color}` : '1px solid var(--surface-border)',
+                        background: orderFilter === tab.label ? `${tab.color}15` : 'transparent',
+                        color: orderFilter === tab.label ? tab.color : 'var(--text-secondary)',
+                        cursor: 'pointer',
+                        fontSize: '0.8rem',
+                        fontWeight: '700',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.4rem',
+                        transition: 'all 0.2s ease'
+                      }}
+                    >
+                      {tab.label}
+                      <span style={{
+                        fontSize: '0.65rem',
+                        padding: '0.1rem 0.4rem',
+                        borderRadius: '6px',
+                        background: orderFilter === tab.label ? `${tab.color}25` : 'rgba(255,255,255,0.05)',
+                        fontWeight: '900'
+                      }}>
+                        {tab.count}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxHeight: '65vh', overflowY: 'auto', paddingRight: '0.5rem' }}>
+                  {filteredOrders.length === 0 ? (
                     <div style={{ textAlign: 'center', padding: '3rem 0' }}>
                       <Clock size={40} style={{ opacity: 0.2, marginBottom: '1rem' }} />
-                      <p style={{ color: 'var(--text-secondary)' }}>Waiting for new orders...</p>
+                      <p style={{ color: 'var(--text-secondary)' }}>{orderFilter === 'Active' ? 'No active orders right now.' : `No ${orderFilter.toLowerCase()} orders.`}</p>
                     </div>
                   ) : (
-                    orders.map(order => (
-                      <div key={order._id} style={{ padding: '1.25rem', background: 'rgba(255,255,255,0.02)', borderRadius: '20px', border: '1px solid var(--surface-border)', transition: 'var(--transition)' }}>
+                    filteredOrders.map(order => (
+                      <div key={order._id} style={{ 
+                        padding: '1.25rem', 
+                        paddingLeft: '1.5rem',
+                        background: order.status === 'Pending' ? 'rgba(245, 158, 11, 0.03)' : 'rgba(255,255,255,0.02)', 
+                        borderRadius: '20px', 
+                        border: '1px solid var(--surface-border)', 
+                        borderLeft: `4px solid ${getStatusColor(order.status)}`,
+                        transition: 'all 0.2s ease',
+                        position: 'relative'
+                      }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
                           <div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.25rem' }}>
@@ -325,7 +443,7 @@ const Dashboard = () => {
                                 {order.status === 'Confirmed' && order.paymentMethod === 'UPI' ? 'UPI PAID' : order.status}
                               </span>
                             </div>
-                            <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{new Date(order.createdAt).toLocaleTimeString()} • {order.items.length} Items</p>
+                            <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{getTimeAgo(order.createdAt)} • {new Date(order.createdAt).toLocaleTimeString()} • {order.items.length} Items</p>
                           </div>
                           
                           <div style={{ textAlign: 'right' }}>
