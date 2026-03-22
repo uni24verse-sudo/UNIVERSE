@@ -12,10 +12,12 @@ router.post('/scan', upload.single('menuImage'), async (req, res) => {
     }
 
     const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      return res.status(500).json({ message: 'Gemini API Key not configured on server' });
+    if (!apiKey || apiKey === 'your_gemini_api_key_here') {
+      console.error('GEMINI_API_KEY is missing or placeholder');
+      return res.status(401).json({ message: 'Gemini API Key is missing on the server settings (Render)' });
     }
 
+    console.log('Starting AI Scan for file:', req.file.originalname);
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
@@ -53,18 +55,18 @@ router.post('/scan', upload.single('menuImage'), async (req, res) => {
     } catch (parseErr) {
       console.error('--- AI Response Parsing Error ---');
       console.error('Raw Text:', text);
-      console.error('Cleaned JSON:', cleanJson);
       res.status(500).json({ 
-        message: 'Failed to parse AI response. See server logs for details.',
-        raw: text.substring(0, 100) + '...' 
+        message: 'AI Scan Parsing Failed',
+        error: parseErr.message,
+        rawPart: text.substring(0, 100) 
       });
     }
 
   } catch (err) {
-    console.error('Menu Scan Error:', err);
+    console.error('Menu Scan Final Catch:', err);
     res.status(500).json({ 
-      message: 'Internal server error during scan', 
-      error: err.message,
+      message: 'AI Scan Server Error', 
+      error: err.message || 'Unknown error occurred',
       stack: process.env.NODE_ENV === 'development' ? err.stack : undefined 
     });
   }
