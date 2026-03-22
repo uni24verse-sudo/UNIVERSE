@@ -101,34 +101,55 @@ const Home = () => {
 
       <main style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 2rem 6rem 2rem' }}>
         {/* Market Navigation */}
-        <div style={{ 
-          display: 'grid', 
-          gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', 
-          gap: '1rem', 
+        <div className="market-grid" style={{ 
           marginBottom: '3.5rem' 
         }}>
            {['All', 'BH1 Market', 'Block34 Market', 'Hospital Market', 'BH6 Market', 'Apartment Market'].map(market => (
              <button
               key={market}
               onClick={() => setSelectedMarket(market)}
+              className="market-btn"
               style={{
-                padding: '0.75rem 1.75rem',
-                borderRadius: '100px',
+                width: '100%',
+                padding: '0.75rem 0',
+                borderRadius: '16px',
                 background: selectedMarket === market ? 'var(--primary)' : 'var(--glass-bg)',
                 color: selectedMarket === market ? 'white' : 'var(--text-secondary)',
                 border: `1px solid ${selectedMarket === market ? 'var(--primary)' : 'var(--surface-border)'}`,
                 cursor: 'pointer',
-                whiteSpace: 'nowrap',
                 fontWeight: '700',
-                fontSize: '0.9rem',
+                fontSize: '0.8rem',
                 transition: 'var(--transition)',
-                boxShadow: selectedMarket === market ? '0 10px 20px rgba(99, 102, 241, 0.2)' : 'none'
+                boxShadow: selectedMarket === market ? '0 10px 20px rgba(99, 102, 241, 0.2)' : 'none',
+                textAlign: 'center'
               }}
              >
-               {market === 'All' ? 'All Markets' : market}
+               {market === 'All' ? 'All' : market.replace(' Market', '')}
              </button>
            ))}
         </div>
+
+        <style>{`
+          .market-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 1rem;
+          }
+          @media (max-width: 900px) {
+            .market-grid {
+              grid-template-columns: repeat(3, 1fr);
+            }
+          }
+           @media (max-width: 600px) {
+            .market-grid {
+              gap: 0.5rem;
+            }
+            .market-btn {
+              font-size: 0.75rem !important;
+              padding: 0.6rem 0 !important;
+            }
+          }
+        `}</style>
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3rem' }}>
           <div>

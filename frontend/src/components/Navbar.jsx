@@ -259,21 +259,6 @@ const Navbar = () => {
       {/* Right Icons */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexShrink: 0 }}>
         <button 
-          onClick={() => navigate('/cart')} 
-          style={{ position: 'relative', background: 'var(--glass-bg)', border: '1px solid var(--surface-border)', width: '46px', height: '46px', borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'white' }}
-        >
-          <ShoppingBag size={20} />
-          {cartItemsCount > 0 && (
-            <span style={{
-              position: 'absolute', top: '-5px', right: '-5px', background: 'var(--secondary)', color: 'white', fontSize: '0.75rem', fontWeight: '800', width: '22px', height: '22px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid var(--bg-dark)'
-            }}>
-              {cartItemsCount}
-            </span>
-          )}
-        </button>
-        
-        <button 
-          className="hide-on-mobile"
           onClick={() => navigate('/vendor/login')}
           style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--surface-border)', padding: '0.6rem 1.25rem', borderRadius: '14px', fontSize: '0.875rem', fontWeight: '700', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
         >

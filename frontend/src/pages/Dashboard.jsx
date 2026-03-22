@@ -478,6 +478,17 @@ const Dashboard = () => {
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.25rem' }}>
                               <span style={{ fontWeight: '800', fontSize: '1.125rem' }}>Order #{order.orderNumber}</span>
                               <span style={{ 
+                                padding: '0.2rem 0.6rem', 
+                                background: 'rgba(99, 102, 241, 0.1)', 
+                                color: 'var(--primary)', 
+                                borderRadius: '6px', 
+                                fontSize: '0.65rem', 
+                                fontWeight: '800',
+                                border: '1px solid rgba(99, 102, 241, 0.2)'
+                              }}>
+                                {store?.market || 'BH1 Market'}
+                              </span>
+                              <span style={{ 
                                 padding: '0.25rem 0.75rem', 
                                 borderRadius: '8px', 
                                 fontSize: '0.65rem',

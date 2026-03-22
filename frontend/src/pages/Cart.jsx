@@ -71,6 +71,7 @@ const Cart = () => {
           id: newOrder._id, 
           orderNumber: newOrder.orderNumber, 
           storeName: store.name, 
+          market: store.market,
           storeId: store._id,
           timestamp: Date.now() 
         },

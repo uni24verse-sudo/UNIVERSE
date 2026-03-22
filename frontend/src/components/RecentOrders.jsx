@@ -127,7 +127,10 @@ const RecentOrders = () => {
                 className="hover-scale"
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
-                  <span style={{ fontSize: '0.875rem', fontWeight: '700', color: 'white' }}>{order.storeName}</span>
+                  <div>
+                    <span style={{ fontSize: '0.875rem', fontWeight: '700', color: 'white', display: 'block' }}>{order.storeName}</span>
+                    <span style={{ fontSize: '0.65rem', color: 'var(--primary)', fontWeight: '700' }}>{order.market || 'Campus'}</span>
+                  </div>
                   <ExternalLink size={14} color="var(--primary)" />
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
