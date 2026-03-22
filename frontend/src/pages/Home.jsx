@@ -19,7 +19,7 @@ import Navbar from '../components/Navbar';
 const Home = () => {
   const [stores, setStores] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedCategory, setSelectedCategory] = useState('All');
+  const [selectedMarket, setSelectedMarket] = useState('All');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -40,7 +40,7 @@ const Home = () => {
 
   const filteredStores = stores
     .filter(store => 
-      (selectedCategory === 'All' || store.category === selectedCategory)
+      (selectedMarket === 'All' || (store.market || 'BH1 Market') === selectedMarket)
     )
     .sort((a, b) => {
       const aOpen = a.isOpen !== false;
@@ -100,40 +100,37 @@ const Home = () => {
       </section>
 
       <main style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 2rem 6rem 2rem' }}>
-        {/* Category Navigation */}
-        {/* <div style={{ display: 'flex', gap: '1rem', overflowX: 'auto', padding: '1rem 0', marginBottom: '3.5rem', scrollbarWidth: 'none', msOverflowStyle: 'none' }}> */}
-           {/* {categories.map(cat => ( */}
-             {/* <button  */}
-              {/* key={cat} */}
-              {/* onClick={() => setSelectedCategory(cat)} */}
-              {/* style={{  */}
-                {/* padding: '0.75rem 1.75rem',  */}
-                {/* borderRadius: '100px',  */}
-                {/* background: selectedCategory === cat ? 'var(--primary)' : 'var(--glass-bg)',  */}
-                {/* color: selectedCategory === cat ? 'white' : 'var(--text-secondary)', */}
-                {/* border: `1px solid ${selectedCategory === cat ? 'var(--primary)' : 'var(--surface-border)'}`, */}
-                {/* cursor: 'pointer', */}
-                {/* whiteSpace: 'nowrap', */}
-                {/* fontWeight: '700', */}
-                {/* fontSize: '0.9rem', */}
-                {/* transition: 'var(--transition)', */}
-                {/* boxShadow: selectedCategory === cat ? '0 10px 20px rgba(99, 102, 241, 0.2)' : 'none' */}
-              {/* }} */}
-             {/* > */}
-               {/* {cat} */}
-             {/* </button> */}
-           {/* ))} */}
-        {/* </div> */}
+        {/* Market Navigation */}
+        <div style={{ display: 'flex', gap: '1rem', overflowX: 'auto', padding: '1rem 0', marginBottom: '3.5rem', scrollbarWidth: 'none', msOverflowStyle: 'none' }} className="hide-scrollbar">
+           {['All', 'BH1 Market', 'Block34 Market', 'Hospital Market', 'BH6 Market', 'Apartment Market'].map(market => (
+             <button
+              key={market}
+              onClick={() => setSelectedMarket(market)}
+              style={{
+                padding: '0.75rem 1.75rem',
+                borderRadius: '100px',
+                background: selectedMarket === market ? 'var(--primary)' : 'var(--glass-bg)',
+                color: selectedMarket === market ? 'white' : 'var(--text-secondary)',
+                border: `1px solid ${selectedMarket === market ? 'var(--primary)' : 'var(--surface-border)'}`,
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                fontWeight: '700',
+                fontSize: '0.9rem',
+                transition: 'var(--transition)',
+                boxShadow: selectedMarket === market ? '0 10px 20px rgba(99, 102, 241, 0.2)' : 'none'
+              }}
+             >
+               {market === 'All' ? 'All Markets' : market}
+             </button>
+           ))}
+        </div>
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3rem' }}>
           <div>
             <h2 style={{ fontSize: '2rem', fontWeight: '900', margin: 0 }}>
-              {selectedCategory === 'All' ? 'Available Stalls' : `${selectedCategory}`}
+              {selectedMarket === 'All' ? 'Campus Stalls' : `${selectedMarket} Stalls`}
             </h2>
             <p style={{ color: 'var(--text-secondary)', marginTop: '0.5rem' }}>Discover unique tastes across the campus</p>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: '600' }}>
-            <MapPin size={16} color="var(--primary)" /> Campus Common
           </div>
         </div>
 
@@ -141,7 +138,7 @@ const Home = () => {
           <div className="glass-card" style={{ padding: '6rem 2rem', textAlign: 'center', borderRadius: '40px', background: 'rgba(255,255,255,0.01)' }}>
              <Store size={48} color="var(--text-secondary)" style={{ opacity: 0.2, marginBottom: '1.5rem' }} />
              <p style={{ color: 'var(--text-secondary)', fontSize: '1.25rem' }}>No stalls found matching your criteria.</p>
-             <button onClick={() => { setSelectedCategory('All'); }} style={{ background: 'transparent', border: 'none', color: 'var(--primary)', fontWeight: '700', marginTop: '1rem', cursor: 'pointer' }}>Clear all filters</button>
+             <button onClick={() => { setSelectedMarket('All'); }} style={{ background: 'transparent', border: 'none', color: 'var(--primary)', fontWeight: '700', marginTop: '1rem', cursor: 'pointer' }}>Clear all filters</button>
           </div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '2.5rem' }}>
@@ -186,9 +183,6 @@ const Home = () => {
                         {isOpen && <CheckCircle2 size={18} color="var(--secondary)" />}
                       </div>
                       <div style={{ marginBottom: '1.5rem' }}>
-                        <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', margin: 0 }}>
-                           By {store.admin?.name || 'Academic Plaza'}
-                        </p>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--primary)', fontSize: '0.75rem', marginTop: '0.4rem', fontWeight: '800' }}>
                           <MapPin size={12} /> {store.market || 'BH1 Market'}
                         </div>
