@@ -62,6 +62,7 @@ router.get('/vendors', async (req, res) => {
         store: store ? {
             id: store._id,
             name: store.name,
+            market: store.market,
             isOpen: store.isOpen,
             productCount: store.products.length
         } : null,
@@ -83,7 +84,7 @@ router.get('/orders', async (req, res) => {
     try {
         const orders = await Order.find()
             .sort({ createdAt: -1 })
-            .populate({ path: 'store', select: 'name' })
+            .populate({ path: 'store', select: 'name market' })
             .limit(100); // Limit to 100 recent for performance
         res.json(orders);
     } catch (err) {

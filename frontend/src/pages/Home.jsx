@@ -94,14 +94,19 @@ const Home = () => {
         <h1 style={{ fontSize: 'clamp(2.5rem, 8vw, 4.5rem)', fontWeight: '900', letterSpacing: '-0.04em', marginBottom: '1.5rem', lineHeight: '1.1' }}>
           Your Campus, <span style={{ color: 'var(--primary)' }}>Digitized.</span>
         </h1>
-        <p style={{ color: 'var(--text-secondary)', fontSize: '1.25rem', maxWidth: '600px', margin: '0 auto', lineHeight: '1.6' }}>
+        {/* <p style={{ color: 'var(--text-secondary)', fontSize: '1.25rem', maxWidth: '600px', margin: '0 auto', lineHeight: '1.6' }}>
           Browse fresh menus, skip the queue, and pay seamlessly. The smarter way to support your local stalls.
-        </p>
+        </p> */}
       </section>
 
       <main style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 2rem 6rem 2rem' }}>
         {/* Market Navigation */}
-        <div style={{ display: 'flex', gap: '1rem', overflowX: 'auto', padding: '1rem 0', marginBottom: '3.5rem', scrollbarWidth: 'none', msOverflowStyle: 'none' }} className="hide-scrollbar">
+        <div style={{ 
+          display: 'grid', 
+          gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', 
+          gap: '1rem', 
+          marginBottom: '3.5rem' 
+        }}>
            {['All', 'BH1 Market', 'Block34 Market', 'Hospital Market', 'BH6 Market', 'Apartment Market'].map(market => (
              <button
               key={market}
@@ -168,13 +173,12 @@ const Home = () => {
                          <Star size={14} color="#fbbf24" fill="#fbbf24" />
                          <span style={{ fontSize: '0.8rem', fontWeight: '800', color: 'white' }}>4.8</span>
                       </div>
-
-                      {store.category && (
-                        <div style={{ position: 'absolute', bottom: '1rem', left: '1rem', background: 'var(--primary)', padding: '0.5rem 1rem', borderRadius: '14px', display: 'flex', alignItems: 'center', gap: '0.4rem', boxShadow: '0 10px 20px rgba(0,0,0,0.2)' }}>
-                          <Tag size={14} color="white" />
-                          <span style={{ fontSize: '0.75rem', fontWeight: '800', color: 'white' }}>{store.category}</span>
-                        </div>
-                      )}
+                      
+                      {/* Market Highlight Badge */}
+                      <div style={{ position: 'absolute', bottom: '1rem', left: '1rem', background: 'rgba(99, 102, 241, 0.9)', backdropFilter: 'blur(8px)', padding: '0.5rem 1rem', borderRadius: '14px', display: 'flex', alignItems: 'center', gap: '0.4rem', boxShadow: '0 10px 20px rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.2)' }}>
+                        <MapPin size={12} color="white" />
+                        <span style={{ fontSize: '0.75rem', fontWeight: '900', color: 'white' }}>{store.market || 'BH1 Market'}</span>
+                      </div>
                     </div>
 
                     <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
@@ -183,8 +187,8 @@ const Home = () => {
                         {isOpen && <CheckCircle2 size={18} color="var(--secondary)" />}
                       </div>
                       <div style={{ marginBottom: '1.5rem' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--primary)', fontSize: '0.75rem', marginTop: '0.4rem', fontWeight: '800' }}>
-                          <MapPin size={12} /> {store.market || 'BH1 Market'}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--secondary)', fontSize: '0.8rem', marginTop: '0.4rem', fontWeight: '800', background: 'rgba(16,185,129,0.1)', width: 'fit-content', padding: '0.3rem 0.8rem', borderRadius: '8px' }}>
+                           {store.category || 'General'}
                         </div>
                       </div>
                       

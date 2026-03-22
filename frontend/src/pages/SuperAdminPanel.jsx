@@ -196,8 +196,9 @@ const SuperAdminPanel = () => {
                         {v.store ? (
                           <>
                             <div style={{ fontWeight: '600' }}>{v.store.name}</div>
-                            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
-                              <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{v.store.productCount} Menu Items</span>
+                            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
+                              <span style={{ fontSize: '0.75rem', background: 'rgba(99, 102, 241, 0.1)', color: 'var(--primary)', padding: '0.1rem 0.4rem', borderRadius: '4px', fontWeight: '700' }}>{v.store.market || 'BH1 Market'}</span>
+                              <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{v.store.productCount} Items</span>
                               <span style={{ fontSize: '0.75rem', color: v.store.isOpen ? '#10b981' : '#ef4444' }}>• {v.store.isOpen ? 'ONLINE' : 'OFFLINE'}</span>
                             </div>
                           </>
@@ -276,8 +277,9 @@ const SuperAdminPanel = () => {
                     </div>
                   </div>
                   
-                  <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem' }}>
+                  <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
                     <span style={{ fontSize: '0.75rem', padding: '0.2rem 0.6rem', background: 'rgba(99, 102, 241, 0.1)', color: 'var(--primary)', borderRadius: '6px', fontWeight: '700' }}>{store.category}</span>
+                    <span style={{ fontSize: '0.75rem', padding: '0.2rem 0.6rem', background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', borderRadius: '6px', fontWeight: '700' }}>{store.market || 'BH1 Market'}</span>
                     <span style={{ fontSize: '0.75rem', padding: '0.2rem 0.6rem', background: '#222', color: 'var(--text-secondary)', borderRadius: '6px', fontWeight: '600' }}>{store.productCount} SKUs</span>
                   </div>
 
@@ -317,8 +319,9 @@ const SuperAdminPanel = () => {
                         <div style={{ fontWeight: '700', fontFamily: 'monospace', color: 'white' }}>#{o.orderNumber}</div>
                         <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', marginTop: '0.25rem' }}>{new Date(o.createdAt).toLocaleString()}</div>
                       </td>
-                      <td style={{ padding: '1.25rem', fontWeight: '600', color: 'var(--primary)' }}>
-                        {o.store?.name || 'Deleted Store'}
+                      <td style={{ padding: '1.25rem' }}>
+                        <div style={{ fontWeight: '600', color: 'var(--primary)' }}>{o.store?.name || 'Deleted Store'}</div>
+                        <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>{o.store?.market || 'Unknown Market'}</div>
                       </td>
                       <td style={{ padding: '1.25rem' }}>
                         <div style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
