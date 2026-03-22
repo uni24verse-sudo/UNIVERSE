@@ -65,7 +65,7 @@ const Home = () => {
     <div style={{ minHeight: '100vh', background: 'var(--bg-dark)' }}>
 
       {/* Hero Section */}
-      <section style={{ 
+      <section className="hero-section" style={{ 
         padding: '6rem 2rem 4rem 2rem', 
         textAlign: 'center', 
         background: 'linear-gradient(180deg, rgba(99, 102, 241, 0.1) 0%, rgba(15, 23, 42, 0) 100%)',
@@ -75,7 +75,7 @@ const Home = () => {
         <div style={{ position: 'absolute', top: '-10%', left: '-10%', width: '40%', height: '40%', background: 'radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, transparent 70%)', filter: 'blur(60px)' }}></div>
         <div style={{ position: 'absolute', bottom: '-10%', right: '-10%', width: '30%', height: '30%', background: 'radial-gradient(circle, rgba(16, 185, 129, 0.1) 0%, transparent 70%)', filter: 'blur(60px)' }}></div>
         
-        <div style={{ 
+        <div className="hero-badge" style={{ 
           display: 'inline-flex', 
           alignItems: 'center', 
           gap: '0.75rem', 
@@ -91,7 +91,7 @@ const Home = () => {
           <ChefHat size={16} /> Campus Favorites Delivered
         </div>
 
-        <h1 style={{ fontSize: 'clamp(2.5rem, 8vw, 4.5rem)', fontWeight: '900', letterSpacing: '-0.04em', marginBottom: '1.5rem', lineHeight: '1.1' }}>
+        <h1 className="hero-title" style={{ fontSize: 'clamp(2.5rem, 8vw, 4.5rem)', fontWeight: '900', letterSpacing: '-0.04em', marginBottom: '1.5rem', lineHeight: '1.1' }}>
           Your Campus, <span style={{ color: 'var(--primary)' }}>Digitized.</span>
         </h1>
         {/* <p style={{ color: 'var(--text-secondary)', fontSize: '1.25rem', maxWidth: '600px', margin: '0 auto', lineHeight: '1.6' }}>
@@ -147,6 +147,17 @@ const Home = () => {
             .market-btn {
               font-size: 0.75rem !important;
               padding: 0.6rem 0 !important;
+            }
+          }
+          @media (max-width: 600px) {
+            .hero-section {
+              padding: 3rem 1rem 2rem 1rem !important;
+            }
+            .hero-badge {
+              margin-bottom: 1rem !important;
+            }
+            .hero-title {
+              margin-bottom: 1rem !important;
             }
           }
         `}</style>

@@ -59,7 +59,9 @@ router.get('/global/search', async (req, res) => {
     const { q } = req.query;
     if (!q) return res.json({ stores: [], dishes: [] });
 
-    const regex = new RegExp(q, 'i');
+    // Escape special regex characters
+    const escapedQuery = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(escapedQuery, 'i');
 
     const stores = await Store.find({}, 'name category products _id isOpen image').populate('admin', 'name');
     const matchedStores = [];

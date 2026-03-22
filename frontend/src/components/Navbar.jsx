@@ -100,13 +100,14 @@ const Navbar = () => {
         <div style={{
           display: 'flex',
           alignItems: 'center',
-          background: 'rgba(255, 255, 255, 0.05)',
+          background: 'rgba(15, 23, 42, 0.9)',
           border: '1px solid var(--surface-border)',
           borderRadius: '99px',
           padding: '0.5rem 1.25rem',
           transition: 'all 0.3s ease',
+          backdropFilter: 'blur(10px)',
           boxShadow: showDropdown ? '0 10px 30px rgba(0,0,0,0.5)' : 'none',
-          borderColor: showDropdown ? 'var(--primary)' : 'var(--surface-border)'
+          borderColor: showDropdown ? 'var(--primary)' : 'rgba(255,255,255,0.2)'
         }}>
           <Search size={20} color={showDropdown ? 'var(--primary)' : 'var(--text-secondary)'} style={{ minWidth: '20px' }} />
           <input 
@@ -240,9 +241,13 @@ const Navbar = () => {
                             <h5 style={{ margin: 0, fontSize: '0.95rem', fontWeight: '700', color: 'white' }}>
                               Found matching items in <span style={{ color: 'var(--primary)' }}>{store.name}</span>
                             </h5>
-                            <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                              Includes: {store.matchedProducts.map(p => p.name).join(', ')}
-                            </p>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.4rem' }}>
+                              {store.matchedProducts.map((p, pIdx) => (
+                                <span key={pIdx} style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', background: 'rgba(255,255,255,0.05)', padding: '0.2rem 0.5rem', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                                  {p.name} <span style={{ color: 'var(--secondary)', fontWeight: '800' }}>₹{p.price}</span>
+                                </span>
+                              ))}
+                            </div>
                           </div>
                           <ChevronRight size={18} color="var(--primary)" />
                         </div>
