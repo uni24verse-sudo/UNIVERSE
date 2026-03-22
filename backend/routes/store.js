@@ -26,12 +26,13 @@ const bufferToStream = (buffer) => {
 // Create a Store
 router.post('/create', auth, async (req, res) => {
   try {
-    const { name, category } = req.body;
+    const { name, category, market } = req.body;
 
     const newStore = new Store({
       admin: req.admin._id,
       name,
       category: category || 'General',
+      market: market || 'BH1 Market',
       products: []
     });
 
@@ -95,7 +96,7 @@ router.get('/global/search', async (req, res) => {
 // Get all stores (Public)
 router.get('/all/list', async (req, res) => {
   try {
-    const stores = await Store.find({}, 'name products admin category isOpen image').populate('admin', 'name').exec();
+    const stores = await Store.find({}, 'name market products admin category isOpen image').populate('admin', 'name').exec();
     res.json(stores);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -290,13 +291,14 @@ router.put('/:storeId/toggle-status', auth, async (req, res) => {
 // Update Store Details
 router.put('/:storeId/update-details', auth, async (req, res) => {
   try {
-    const { name, category, packagingCharge } = req.body;
+    const { name, category, packagingCharge, market } = req.body;
     const store = await Store.findOne({ _id: req.params.storeId, admin: req.admin._id });
     if (!store) return res.status(404).json({ message: 'Store not found' });
 
     if (name) store.name = name;
     if (category) store.category = category;
     if (packagingCharge !== undefined) store.packagingCharge = Number(packagingCharge);
+    if (market) store.market = market;
     
     await store.save();
     res.json(store);

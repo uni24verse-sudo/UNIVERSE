@@ -297,6 +297,19 @@ const Dashboard = () => {
                 ))}
               </select>
             )}
+            
+            <Link 
+              to="/vendor/store/create" 
+              style={{ 
+                display: 'flex', alignItems: 'center', gap: '0.4rem', 
+                padding: '0 1rem', height: '46px',
+                background: 'rgba(99, 102, 241, 0.1)', color: 'var(--primary)', 
+                borderRadius: '12px', fontWeight: '700', textDecoration: 'none', 
+                border: '1px solid rgba(99, 102, 241, 0.2)' 
+              }}
+            >
+              <Plus size={16} /> New Stall
+            </Link>
             {store && (
               <div 
                 onClick={toggleStoreStatus}

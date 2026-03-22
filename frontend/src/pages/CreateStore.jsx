@@ -7,6 +7,7 @@ import { Rocket, Sparkles, Store, ArrowRight, ShieldCheck, Tag } from 'lucide-re
 const CreateStore = () => {
   const [name, setName] = useState('');
   const [category, setCategory] = useState('');
+  const [market, setMarket] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { token, vendor } = useContext(AuthContext);
@@ -18,7 +19,7 @@ const CreateStore = () => {
     setError('');
 
     try {
-      await axios.post((import.meta.env.VITE_API_URL || 'http://localhost:5000') + '/api/store/create', { name, category }, {
+      await axios.post((import.meta.env.VITE_API_URL || 'http://localhost:5000') + '/api/store/create', { name, category, market }, {
         headers: { Authorization: `Bearer ${token}` }
       });
       navigate('/vendor/dashboard');
@@ -78,6 +79,26 @@ const CreateStore = () => {
               <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                 <Sparkles size={12} color="var(--secondary)" /> This helps customers find you easily.
               </p>
+            </div>
+
+            <div className="form-group" style={{ marginBottom: '1.5rem' }}>
+              <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem', fontWeight: '700' }}>
+                <Store size={18} color="var(--primary)" /> Market Location
+              </label>
+              <select 
+                className="form-input" 
+                value={market}
+                onChange={(e) => setMarket(e.target.value)}
+                style={{ height: '58px', borderRadius: '16px', fontSize: '1.125rem', appearance: 'none', background: 'var(--glass-bg)', border: '1px solid var(--surface-border)', color: 'white', padding: '0 1rem' }}
+                required
+              >
+                <option value="" disabled style={{ background: '#1e1b4b' }}>Select Market</option>
+                <option value="BH1 Market" style={{ background: '#1e1b4b' }}>BH1 Market</option>
+                <option value="Block34 Market" style={{ background: '#1e1b4b' }}>Block34 Market</option>
+                <option value="Hospital Market" style={{ background: '#1e1b4b' }}>Hospital Market</option>
+                <option value="BH6 Market" style={{ background: '#1e1b4b' }}>BH6 Market</option>
+                <option value="Apartment Market" style={{ background: '#1e1b4b' }}>Apartment Market</option>
+              </select>
             </div>
 
             {error && (

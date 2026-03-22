@@ -74,6 +74,8 @@ const StoreMenu = () => {
               <span style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}><Star size={10} fill="currentColor" /> 4.8</span>
               <span>•</span>
               <span>20-30 mins</span>
+              <span>•</span>
+              <span style={{ color: 'var(--primary)', fontWeight: '600' }}>{store.market || 'BH1 Market'}</span>
             </div>
           </div>
           <div style={{ width: '42px' }}></div> {/* Spacer for symmetry */}

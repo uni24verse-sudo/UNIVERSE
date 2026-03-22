@@ -34,6 +34,7 @@ const ManageStore = () => {
   const [loading, setLoading] = useState(true);
   const [storeName, setStoreName] = useState('');
   const [storeCategory, setStoreCategory] = useState('');
+  const [storeMarket, setStoreMarket] = useState('');
   const [storePackagingCharge, setStorePackagingCharge] = useState(0);
   const [adminUpiId, setAdminUpiId] = useState('');
   const [isEditingStore, setIsEditingStore] = useState(false);
@@ -72,6 +73,7 @@ const ManageStore = () => {
           setStore(defaultStore);
           setStoreName(defaultStore.name);
           setStoreCategory(defaultStore.category || 'General');
+          setStoreMarket(defaultStore.market || 'BH1 Market');
           setStorePackagingCharge(defaultStore.packagingCharge || 0);
           setAdminUpiId(vendor?.upiId || '');
         } else {
@@ -92,6 +94,7 @@ const ManageStore = () => {
       setStore(selected);
       setStoreName(selected.name);
       setStoreCategory(selected.category || 'General');
+      setStoreMarket(selected.market || 'BH1 Market');
       setStorePackagingCharge(selected.packagingCharge || 0);
       setIsEditingStore(false);
     }
@@ -180,7 +183,7 @@ const ManageStore = () => {
     try {
       // Update Store Details
       const storeRes = await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/store/${store._id}/update-details`, 
-        { name: storeName, category: storeCategory, packagingCharge: storePackagingCharge },
+        { name: storeName, category: storeCategory, packagingCharge: storePackagingCharge, market: storeMarket },
         { headers: { Authorization: `Bearer ${token}` } }
       );
       
@@ -190,8 +193,8 @@ const ManageStore = () => {
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      setStore(prev => ({ ...prev, name: storeRes.data.name, category: storeRes.data.category, packagingCharge: storeRes.data.packagingCharge }));
-      setStores(prev => prev.map(s => s._id === store._id ? { ...s, name: storeRes.data.name, category: storeRes.data.category, packagingCharge: storeRes.data.packagingCharge } : s));
+      setStore(prev => ({ ...prev, name: storeRes.data.name, category: storeRes.data.category, packagingCharge: storeRes.data.packagingCharge, market: storeRes.data.market }));
+      setStores(prev => prev.map(s => s._id === store._id ? { ...s, name: storeRes.data.name, category: storeRes.data.category, packagingCharge: storeRes.data.packagingCharge, market: storeRes.data.market } : s));
       updateVendor(adminRes.data.admin);
       setIsEditingStore(false);
     } catch (err) {
@@ -419,6 +422,19 @@ const ManageStore = () => {
               </select>
             )}
 
+            <Link 
+              to="/vendor/store/create" 
+              style={{ 
+                display: 'flex', alignItems: 'center', gap: '0.4rem', 
+                padding: '0 1rem', height: '46px',
+                background: 'rgba(99, 102, 241, 0.1)', color: 'var(--primary)', 
+                borderRadius: '12px', fontWeight: '700', textDecoration: 'none', 
+                border: '1px solid rgba(99, 102, 241, 0.2)' 
+              }}
+            >
+              <Plus size={16} /> New Stall
+            </Link>
+
             <button 
               onClick={toggleStoreStatus} 
               className={`btn ${store.isOpen ? 'btn-secondary' : 'btn-primary'}`}
@@ -507,6 +523,21 @@ const ManageStore = () => {
                       <option value="Other">Other</option>
                     </select>
                   </div>
+                  <div className="form-group">
+                    <label className="form-label" style={{ fontSize: '0.75rem' }}>Market Location</label>
+                    <select 
+                      className="form-input" 
+                      value={storeMarket} 
+                      onChange={e => setStoreMarket(e.target.value)}
+                      style={{ height: '40px', borderRadius: '10px', fontSize: '0.875rem', background: 'var(--glass-bg)', color: 'white' }}
+                    >
+                      <option value="BH1 Market">BH1 Market</option>
+                      <option value="Block34 Market">Block34 Market</option>
+                      <option value="Hospital Market">Hospital Market</option>
+                      <option value="BH6 Market">BH6 Market</option>
+                      <option value="Apartment Market">Apartment Market</option>
+                    </select>
+                  </div>
                   <div className="form-group" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                     <div>
                       <label className="form-label" style={{ fontSize: '0.75rem' }}>UPI ID (for payments)</label>
@@ -547,9 +578,15 @@ const ManageStore = () => {
                     <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Stall Name</p>
                     <p style={{ fontWeight: '700' }}>{store.name}</p>
                   </div>
-                  <div style={{ padding: '1rem', background: 'rgba(255,255,255,0.03)', borderRadius: '14px' }}>
-                    <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Category</p>
-                    <p style={{ fontWeight: '700' }}>{store.category || 'General'}</p>
+                  <div style={{ padding: '1rem', background: 'rgba(255,255,255,0.03)', borderRadius: '14px', display: 'flex', justifyContent: 'space-between' }}>
+                    <div>
+                      <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Category</p>
+                      <p style={{ fontWeight: '700' }}>{store.category || 'General'}</p>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Market Location</p>
+                      <p style={{ fontWeight: '700' }}>{store.market || 'BH1 Market'}</p>
+                    </div>
                   </div>
                   <div style={{ padding: '1rem', background: 'rgba(255,255,255,0.03)', borderRadius: '14px', display: 'flex', justifyContent: 'space-between' }}>
                     <div>
