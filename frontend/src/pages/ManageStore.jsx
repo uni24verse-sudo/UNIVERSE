@@ -305,6 +305,18 @@ const ManageStore = () => {
     }
   };
 
+  const deleteProduct = async (productId, productName) => {
+    if (!window.confirm(`Are you sure you want to delete "${productName}"? This cannot be undone.`)) return;
+    try {
+      const res = await axios.delete(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/store/product/${productId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setStore(res.data);
+    } catch (err) {
+      alert('Failed to delete product: ' + (err.response?.data?.message || err.message));
+    }
+  };
+
   if (loading) return (
     <div className="auth-wrapper">
       <div className="pulse-container"><div className="pulse-dot"></div></div>
@@ -736,6 +748,28 @@ const ManageStore = () => {
                           }}
                         >
                           {p.isAvailable ? <><Eye size={14} /> Available</> : <><EyeOff size={14} /> Hidden</>}
+                        </button>
+                        <button 
+                          onClick={() => deleteProduct(p._id, p.name)}
+                          style={{ 
+                            padding: '0.6rem', 
+                            borderRadius: '12px', 
+                            border: '1px solid transparent', 
+                            background: 'rgba(239, 68, 68, 0.1)', 
+                            color: 'var(--error)', 
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '0.4rem',
+                            fontWeight: '600',
+                            transition: 'all 0.2s ease'
+                          }}
+                          onMouseEnter={(e) => { e.target.style.background = 'rgba(239, 68, 68, 0.25)'; }}
+                          onMouseLeave={(e) => { e.target.style.background = 'rgba(239, 68, 68, 0.1)'; }}
+                          title="Delete product"
+                        >
+                          <Trash2 size={14} />
                         </button>
                       </div>
                     </div>

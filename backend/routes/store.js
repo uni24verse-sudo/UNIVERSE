@@ -162,6 +162,23 @@ router.post('/products/batch', auth, async (req, res) => {
   }
 });
 
+// Delete a Product (Protected)
+router.delete('/product/:productId', auth, async (req, res) => {
+  try {
+    const store = await Store.findOne({ admin: req.admin._id });
+    if (!store) return res.status(404).json({ message: 'Store not found' });
+
+    const productIndex = store.products.findIndex(p => p._id.toString() === req.params.productId);
+    if (productIndex === -1) return res.status(404).json({ message: 'Product not found' });
+
+    store.products.splice(productIndex, 1);
+    await store.save();
+    res.json(store);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 // Toggle Product Availability
 router.put('/product/:productId/toggle', auth, async (req, res) => {
   try {
