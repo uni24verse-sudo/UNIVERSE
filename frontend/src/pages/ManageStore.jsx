@@ -278,13 +278,13 @@ const ManageStore = () => {
   };
 
   const handleImportScannedItems = async () => {
-    const itemsToImport = scannedItems.filter(item => item.selected);
+    const itemsToImport = scannedItems
+      .filter(item => item.selected)
+      .map(({ name, category, price }) => ({ name, category, price: Number(price) || 0 }));
     if (itemsToImport.length === 0) return;
 
-    setLoading(true); // Reuse loading for mass import
+    setLoading(true);
     try {
-      // We'll call the store update or multiple product creations. 
-      // For simplicity and to reuse backend logic, we'll send them to a new dedicated batch-add endpoint
       await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/store/products/batch`, 
         { products: itemsToImport },
         { headers: { Authorization: `Bearer ${token}` } }
@@ -298,7 +298,8 @@ const ManageStore = () => {
       setScannedItems([]);
       alert(`Successfully imported ${itemsToImport.length} items!`);
     } catch (err) {
-      alert('Failed to import items');
+      console.error('Import Error:', err.response?.data || err.message);
+      alert('Failed to import items: ' + (err.response?.data?.message || err.message));
     } finally {
       setLoading(false);
     }
