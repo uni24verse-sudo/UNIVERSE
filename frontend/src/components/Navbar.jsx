@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useContext } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import axios from 'axios';
-import { Store, Search, User, ShoppingBag, X, ChefHat, MapPin, ChevronRight } from 'lucide-react';
+import { Store, Search, User, ShoppingBag, X, ChefHat, MapPin, ChevronRight, ArrowLeft } from 'lucide-react';
 import { CartContext } from '../context/CartContext';
 
 const Navbar = () => {
@@ -12,7 +12,9 @@ const Navbar = () => {
   const [searchResults, setSearchResults] = useState({ stores: [], dishes: [] });
   const [isSearching, setIsSearching] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
   const dropdownRef = useRef(null);
+  const searchInputRef = useRef(null);
 
   // Hide Navbar on vendor and super-admin routes
   if (location.pathname.startsWith('/vendor') || location.pathname.startsWith('/super-admin')) {
@@ -61,8 +63,15 @@ const Navbar = () => {
 
   const handleResultClick = (storeId) => {
     setShowDropdown(false);
+    setIsSearchFocused(false);
     setSearchQuery('');
     navigate(`/store/${storeId}`);
+  };
+
+  const closeSearch = () => {
+    setIsSearchFocused(false);
+    setShowDropdown(false);
+    setSearchQuery('');
   };
 
   const getImageUrl = (img) => {
@@ -84,38 +93,63 @@ const Navbar = () => {
       justifyContent: 'space-between',
       gap: '2rem'
     }}>
-      {/* Brand Logo */}
-      <div 
-        onClick={() => navigate('/')}
-        style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', flexShrink: 0 }}
-      >
-        <div style={{ width: '40px', height: '40px', background: 'var(--primary)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 16px rgba(99, 102, 241, 0.2)' }}>
-          <Store color="white" size={24} />
+      {/* Brand Logo - Hidden when searching on mobile */}
+      {(!isSearchFocused || window.innerWidth > 600) && (
+        <div 
+          onClick={() => navigate('/')}
+          style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', flexShrink: 0 }}
+        >
+          <div style={{ width: '40px', height: '40px', background: 'var(--primary)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 16px rgba(99, 102, 241, 0.2)' }}>
+            <Store color="white" size={24} />
+          </div>
+          <span className="hide-on-mobile" style={{ fontSize: '1.5rem', fontWeight: '900', letterSpacing: '-0.04em', color: 'white' }}>UniVerse</span>
         </div>
-        <span className="hide-on-mobile" style={{ fontSize: '1.5rem', fontWeight: '900', letterSpacing: '-0.04em', color: 'white' }}>UniVerse</span>
-      </div>
+      )}
 
       {/* Global Search Bar */}
-      <div style={{ flex: 1, maxWidth: '600px', position: 'relative' }} ref={dropdownRef}>
+      <div 
+        className={`search-container ${isSearchFocused ? 'focused' : ''}`}
+        style={{ 
+          flex: 1, 
+          maxWidth: isSearchFocused ? '800px' : '600px', 
+          position: window.innerWidth <= 600 && isSearchFocused ? 'absolute' : 'relative',
+          left: window.innerWidth <= 600 && isSearchFocused ? '1rem' : 'auto',
+          right: window.innerWidth <= 600 && isSearchFocused ? '1rem' : 'auto',
+          zIndex: 1002,
+          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+        }} 
+        ref={dropdownRef}
+      >
         <div style={{
           display: 'flex',
           alignItems: 'center',
-          background: 'rgba(15, 23, 42, 0.9)',
+          background: 'rgba(15, 23, 42, 0.95)',
           border: '1px solid var(--surface-border)',
           borderRadius: '99px',
           padding: '0.5rem 1.25rem',
           transition: 'all 0.3s ease',
-          backdropFilter: 'blur(10px)',
-          boxShadow: showDropdown ? '0 10px 30px rgba(0,0,0,0.5)' : 'none',
-          borderColor: showDropdown ? 'var(--primary)' : 'rgba(255,255,255,0.2)'
+          backdropFilter: 'blur(20px)',
+          boxShadow: isSearchFocused ? '0 10px 40px rgba(0,0,0,0.6)' : 'none',
+          borderColor: isSearchFocused ? 'var(--primary)' : 'rgba(255,255,255,0.15)'
         }}>
-          <Search size={20} color={showDropdown ? 'var(--primary)' : 'var(--text-secondary)'} style={{ minWidth: '20px' }} />
+          {window.innerWidth <= 600 && isSearchFocused ? (
+            <button onClick={closeSearch} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', padding: '0.25rem', cursor: 'pointer', marginRight: '0.5rem' }}>
+              <ArrowLeft size={20} />
+            </button>
+          ) : (
+            <Search size={20} color={isSearchFocused ? 'var(--primary)' : 'var(--text-secondary)'} style={{ minWidth: '20px' }} />
+          )}
+          
           <input 
+            ref={searchInputRef}
             type="text"
-            placeholder="Search stores, cravings, specialties..."
+            placeholder={window.innerWidth <= 600 ? "Search..." : "Search stores, cravings, specialties..."}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            onFocus={() => { if (searchQuery.trim().length > 0) setShowDropdown(true); }}
+            onFocus={() => { 
+                setIsSearchFocused(true); 
+                if (searchQuery.trim().length > 0) setShowDropdown(true); 
+            }}
             style={{
               flex: 1,
               background: 'transparent',
@@ -129,7 +163,7 @@ const Navbar = () => {
           />
           {searchQuery && (
             <button 
-              onClick={() => { setSearchQuery(''); setShowDropdown(false); }}
+              onClick={() => { setSearchQuery(''); setShowDropdown(false); searchInputRef.current?.focus(); }}
               style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.2rem', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)' }}
             >
               <X size={18} />
@@ -137,23 +171,29 @@ const Navbar = () => {
           )}
         </div>
 
-        {/* Global Search Results Dropdown */}
+        {/* Global Search Results Dropdown/Overlay */}
         {showDropdown && (
-          <div style={{
-            position: 'absolute',
-            top: 'calc(100% + 10px)',
-            left: 0,
-            right: 0,
-            background: 'var(--bg-dark)',
-            border: '1px solid var(--surface-border)',
-            borderRadius: '24px',
-            boxShadow: '0 20px 40px rgba(0,0,0,0.4)',
-            maxHeight: '400px',
-            overflowY: 'auto',
-            zIndex: 1001,
-            display: 'flex',
-            flexDirection: 'column'
-          }} className="hide-scrollbar">
+          <div 
+            className="search-results-overlay"
+            style={{
+              position: window.innerWidth <= 600 ? 'fixed' : 'absolute',
+              top: window.innerWidth <= 600 ? '70px' : 'calc(100% + 10px)',
+              left: window.innerWidth <= 600 ? 0 : 0,
+              right: window.innerWidth <= 600 ? 0 : 0,
+              bottom: window.innerWidth <= 600 ? 0 : 'auto',
+              background: 'rgba(15, 23, 42, 0.98)',
+              border: window.innerWidth <= 600 ? 'none' : '1px solid var(--surface-border)',
+              borderRadius: window.innerWidth <= 600 ? 0 : '24px',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.6)',
+              maxHeight: window.innerWidth <= 600 ? 'none' : '500px',
+              overflowY: 'auto',
+              zIndex: 1001,
+              display: 'flex',
+              flexDirection: 'column',
+              backdropFilter: 'blur(20px)',
+              animation: 'dropdownFade 0.2s ease-out'
+            }}
+          >
             
             {isSearching ? (
               <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
@@ -261,21 +301,35 @@ const Navbar = () => {
         )}
       </div>
 
-      {/* Right Icons */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexShrink: 0 }}>
-        <button 
-          onClick={() => navigate('/vendor/login')}
-          style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--surface-border)', padding: '0.6rem 1.25rem', borderRadius: '14px', fontSize: '0.875rem', fontWeight: '700', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
-        >
-          <User size={16} /> Vendor
-        </button>
-      </div>
+      {/* Right Icons - Hidden when searching on mobile */}
+      {(!isSearchFocused || window.innerWidth > 600) && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexShrink: 0 }}>
+          <button 
+            onClick={() => navigate('/vendor/login')}
+            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--surface-border)', padding: '0.6rem 1.25rem', borderRadius: '14px', fontSize: '0.875rem', fontWeight: '700', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+          >
+            <User size={16} /> Vendor
+          </button>
+        </div>
+      )}
 
       {/* Responsive Styles embedded for Navbar */}
       <style>{`
+        @keyframes dropdownFade {
+          from { opacity: 0; transform: translateY(-10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
         @media (max-width: 600px) {
           .hide-on-mobile {
             display: none !important;
+          }
+          .search-result-item {
+            padding: 1rem !important;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            border-radius: 0 !important;
+          }
+          .search-result-item:last-child {
+            border-bottom: none;
           }
         }
       `}</style>
