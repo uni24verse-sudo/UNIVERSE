@@ -49,7 +49,7 @@ router.post('/scan', upload.single('menuImage'), async (req, res) => {
           ],
         },
       ],
-      model: "llama-3.2-90b-vision-preview",
+      model: "llama-3.2-11b-vision-preview",
       temperature: 0.1,
       max_tokens: 1024,
       top_p: 1,
@@ -58,17 +58,17 @@ router.post('/scan', upload.single('menuImage'), async (req, res) => {
     });
 
     const text = chatCompletion.choices[0].message.content;
-    
+
     // Clean potential markdown if the model ignores the "ONLY JSON" rule
     const jsonMatch = text.match(/\[[\s\S]*\]/);
     const cleanJson = jsonMatch ? jsonMatch[0] : text.trim();
-    
+
     try {
       const items = JSON.parse(cleanJson);
       res.json(items);
     } catch (parseErr) {
       console.error('Groq Parse Error:', text);
-      res.status(500).json({ 
+      res.status(500).json({
         message: 'AI Scan Parsing Failed',
         error: parseErr.message,
         rawPart: text.substring(0, 100)
@@ -77,8 +77,8 @@ router.post('/scan', upload.single('menuImage'), async (req, res) => {
 
   } catch (err) {
     console.error('Groq Scan Error:', err);
-    res.status(500).json({ 
-      message: 'Groq Scan Server Error', 
+    res.status(500).json({
+      message: 'Groq Scan Server Error',
       error: err.message || 'Unknown error occurred'
     });
   }
