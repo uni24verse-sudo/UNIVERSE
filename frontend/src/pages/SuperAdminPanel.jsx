@@ -185,7 +185,10 @@ const SuperAdminPanel = () => {
                   {vendors.map(v => (
                     <tr key={v._id} style={{ borderBottom: '1px solid #222' }}>
                       <td style={{ padding: '1.25rem' }}>
-                        <div style={{ fontWeight: '700', fontSize: '1rem', color: 'white' }}>{v.name}</div>
+                        <div style={{ fontWeight: '700', fontSize: '1rem', color: 'white', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          {v.name}
+                          {v.isBanned && <span style={{ fontSize: '0.65rem', padding: '0.1rem 0.4rem', background: '#ef4444', color: 'white', borderRadius: '4px', fontWeight: '900', letterSpacing: '0.05em' }}>SUSPENDED</span>}
+                        </div>
                         <div style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: '0.25rem' }}>{v.email}</div>
                         {v.upiId && <div style={{ color: '#3b82f6', fontSize: '0.75rem', marginTop: '0.25rem', padding: '0.1rem 0.4rem', background: 'rgba(59, 130, 246, 0.1)', borderRadius: '4px', display: 'inline-block' }}>{v.upiId}</div>}
                       </td>
@@ -207,14 +210,27 @@ const SuperAdminPanel = () => {
                         <div style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: '0.25rem' }}>Across {v.stats.orderCount} total orders</div>
                       </td>
                       <td style={{ padding: '1.25rem', textAlign: 'right' }}>
-                        <button 
-                          onClick={() => deleteVendor(v._id, v.name)}
-                          style={{ padding: '0.5rem 1rem', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.2)', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', transition: 'all 0.2s' }}
-                          onMouseEnter={(e) => { e.target.style.background = '#ef4444'; e.target.style.color = 'white'; }}
-                          onMouseLeave={(e) => { e.target.style.background = 'rgba(239, 68, 68, 0.1)'; e.target.style.color = '#ef4444'; }}
-                        >
-                          <Trash2 size={16} /> Terminate
-                        </button>
+                        <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                          <button 
+                            onClick={async () => {
+                              try {
+                                await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/super-admin/vendor/${v._id}/suspend`, {}, { headers: { Authorization: `Bearer ${token}` } });
+                                fetchDashboardData();
+                              } catch(err) { alert('Action failed'); }
+                            }}
+                            style={{ padding: '0.5rem 1rem', background: v.isBanned ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)', color: v.isBanned ? '#10b981' : '#f59e0b', border: `1px solid ${v.isBanned ? 'rgba(16, 185, 129, 0.2)' : 'rgba(245, 158, 11, 0.2)'}`, borderRadius: '8px', cursor: 'pointer', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                          >
+                            <Ban size={16} /> {v.isBanned ? 'Unban' : 'Suspend'}
+                          </button>
+                          <button 
+                            onClick={() => deleteVendor(v._id, v.name)}
+                            style={{ padding: '0.5rem 1rem', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.2)', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', transition: 'all 0.2s' }}
+                            onMouseEnter={(e) => { e.target.style.background = '#ef4444'; e.target.style.color = 'white'; }}
+                            onMouseLeave={(e) => { e.target.style.background = 'rgba(239, 68, 68, 0.1)'; e.target.style.color = '#ef4444'; }}
+                          >
+                            <Trash2 size={16} /> Terminate
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -244,7 +260,20 @@ const SuperAdminPanel = () => {
                         Managed by: <span style={{ color: 'white' }}>{store.admin?.name || 'Unknown'}</span>
                       </p>
                     </div>
-                    <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: store.isOpen ? '#10b981' : '#ef4444', boxShadow: store.isOpen ? '0 0 10px rgba(16, 185, 129, 0.5)' : 'none' }}></div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                      <button 
+                         onClick={async () => {
+                           try {
+                             await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/super-admin/store/${store._id}/toggle-status`, {}, { headers: { Authorization: `Bearer ${token}` } });
+                             fetchDashboardData();
+                           } catch(err) { alert('Action failed'); }
+                         }}
+                         style={{ padding: '0.25rem 0.5rem', fontSize: '0.7rem', textTransform: 'uppercase', fontWeight: '800', background: 'rgba(255,255,255,0.05)', color: store.isOpen ? '#ef4444' : '#10b981', border: `1px solid ${store.isOpen ? 'rgba(239, 68, 68, 0.3)' : 'rgba(16, 185, 129, 0.3)'}`, borderRadius: '6px', cursor: 'pointer' }}
+                      >
+                         Force {store.isOpen ? 'Offline' : 'Online'}
+                      </button>
+                      <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: store.isOpen ? '#10b981' : '#ef4444', boxShadow: store.isOpen ? '0 0 10px rgba(16, 185, 129, 0.5)' : 'none' }}></div>
+                    </div>
                   </div>
                   
                   <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem' }}>
@@ -320,6 +349,24 @@ const SuperAdminPanel = () => {
                         }}>
                           {o.status}
                         </span>
+                        
+                        {(o.status === 'Pending' || o.status === 'Confirmed') && (
+                          <div style={{ marginTop: '0.75rem' }}>
+                            <button
+                              onClick={async () => {
+                                if(window.confirm('Abort this order globally? The vendor and customer will see it as cancelled instantly.')) {
+                                  try {
+                                    await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/super-admin/order/${o._id}/cancel`, {}, { headers: { Authorization: `Bearer ${token}` } });
+                                    fetchDashboardData();
+                                  } catch(err) { alert('Action failed'); }
+                                }
+                              }}
+                              style={{ padding: '0.3rem 0.6rem', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', color: '#ef4444', fontSize: '0.7rem', borderRadius: '6px', cursor: 'pointer', fontWeight: '800', textTransform: 'uppercase' }}
+                            >
+                              Abort Order
+                            </button>
+                          </div>
+                        )}
                       </td>
                     </tr>
                   ))}

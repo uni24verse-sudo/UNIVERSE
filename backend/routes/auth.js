@@ -37,6 +37,11 @@ router.post('/login', async (req, res) => {
     const admin = await Admin.findOne({ email });
     if (!admin) return res.status(400).json({ message: 'Invalid email or password' });
 
+    // Check if banned
+    if (admin.isBanned) {
+      return res.status(403).json({ message: 'Your account has been suspended by the Super Admin.' });
+    }
+
     // Check password
     const validPassword = await bcrypt.compare(password, admin.password);
     if (!validPassword) return res.status(400).json({ message: 'Invalid email or password' });

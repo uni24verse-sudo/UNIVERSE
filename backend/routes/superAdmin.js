@@ -124,6 +124,24 @@ router.delete('/vendor/:id', async (req, res) => {
     }
 });
 
+// 4b. Suspend/Unban Vendor
+router.put('/vendor/:id/suspend', async (req, res) => {
+    try {
+        const vendorId = req.params.id;
+        const vendor = await Admin.findById(vendorId);
+        
+        if (!vendor) return res.status(404).json({ message: 'Vendor not found' });
+        if (vendor.role === 'superadmin') return res.status(403).json({ message: 'Cannot suspend super admins' });
+
+        vendor.isBanned = !vendor.isBanned;
+        await vendor.save();
+
+        res.json({ message: `Vendor ${vendor.isBanned ? 'suspended' : 'unbanned'} successfully`, isBanned: vendor.isBanned });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
 // 5. Get All Stores Overview
 router.get('/stores', async (req, res) => {
     try {
@@ -142,6 +160,40 @@ router.get('/stores', async (req, res) => {
         }));
         
         res.json(storesWithRevenue);
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+// 5b. Force Toggle Store Status
+router.put('/store/:id/toggle-status', async (req, res) => {
+    try {
+        const store = await Store.findById(req.params.id);
+        if (!store) return res.status(404).json({ message: 'Store not found' });
+
+        store.isOpen = !store.isOpen;
+        await store.save();
+
+        res.json({ message: `Store forcefully ${store.isOpen ? 'opened' : 'closed'}`, isOpen: store.isOpen });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+// 6. Global Order Abort
+router.put('/order/:id/cancel', async (req, res) => {
+    try {
+        const order = await Order.findById(req.params.id);
+        if (!order) return res.status(404).json({ message: 'Order not found' });
+
+        if (order.status === 'Completed' || order.status === 'Cancelled') {
+            return res.status(400).json({ message: 'Cannot abort completed or already cancelled orders' });
+        }
+
+        order.status = 'Cancelled';
+        await order.save();
+
+        res.json({ message: 'Order globally aborted', order });
     } catch (err) {
         res.status(500).json({ message: err.message });
     }
