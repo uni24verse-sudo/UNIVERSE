@@ -18,8 +18,9 @@ router.post('/scan', upload.single('menuImage'), async (req, res) => {
     }
 
     console.log('Starting AI Scan for file:', req.file.originalname);
+    console.log('Initializing Gemini API with model: gemini-1.5-pro');
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
 
     // Convert buffer to generative part
     const imagePart = {
