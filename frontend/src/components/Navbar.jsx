@@ -13,8 +13,18 @@ const Navbar = () => {
   const [isSearching, setIsSearching] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
   const dropdownRef = useRef(null);
   const searchInputRef = useRef(null);
+
+  // Track window width for reactivity
+  useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const isMobile = windowWidth <= 600;
 
   // Hide Navbar on vendor and super-admin routes
   if (location.pathname.startsWith('/vendor') || location.pathname.startsWith('/super-admin')) {
@@ -94,7 +104,7 @@ const Navbar = () => {
       gap: '2rem'
     }}>
       {/* Brand Logo - Hidden when searching on mobile */}
-      {(!isSearchFocused || window.innerWidth > 600) && (
+      {(!isSearchFocused || !isMobile) && (
         <div 
           onClick={() => navigate('/')}
           style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', flexShrink: 0 }}
@@ -112,9 +122,9 @@ const Navbar = () => {
         style={{ 
           flex: 1, 
           maxWidth: isSearchFocused ? '800px' : '600px', 
-          position: window.innerWidth <= 600 && isSearchFocused ? 'absolute' : 'relative',
-          left: window.innerWidth <= 600 && isSearchFocused ? '1rem' : 'auto',
-          right: window.innerWidth <= 600 && isSearchFocused ? '1rem' : 'auto',
+          position: isMobile && isSearchFocused ? 'absolute' : 'relative',
+          left: isMobile && isSearchFocused ? '1rem' : 'auto',
+          right: isMobile && isSearchFocused ? '1rem' : 'auto',
           zIndex: 1002,
           transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
         }} 
@@ -132,8 +142,8 @@ const Navbar = () => {
           boxShadow: isSearchFocused ? '0 10px 40px rgba(0,0,0,0.6)' : 'none',
           borderColor: isSearchFocused ? 'var(--primary)' : 'rgba(255,255,255,0.15)'
         }}>
-          {window.innerWidth <= 600 && isSearchFocused ? (
-            <button onClick={closeSearch} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', padding: '0.25rem', cursor: 'pointer', marginRight: '0.5rem' }}>
+          {isMobile && isSearchFocused ? (
+            <button onClick={closeSearch} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', padding: '0.25rem', cursor: 'pointer', marginRight: '0.5rem', display: 'flex', alignItems: 'center' }}>
               <ArrowLeft size={20} />
             </button>
           ) : (
@@ -143,7 +153,7 @@ const Navbar = () => {
           <input 
             ref={searchInputRef}
             type="text"
-            placeholder={window.innerWidth <= 600 ? "Search..." : "Search stores, cravings, specialties..."}
+            placeholder={isMobile ? "Search campus..." : "Search stores, cravings, specialties..."}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onFocus={() => { 
@@ -176,21 +186,21 @@ const Navbar = () => {
           <div 
             className="search-results-overlay"
             style={{
-              position: window.innerWidth <= 600 ? 'fixed' : 'absolute',
-              top: window.innerWidth <= 600 ? '70px' : 'calc(100% + 10px)',
-              left: window.innerWidth <= 600 ? 0 : 0,
-              right: window.innerWidth <= 600 ? 0 : 0,
-              bottom: window.innerWidth <= 600 ? 0 : 'auto',
-              background: 'rgba(15, 23, 42, 0.98)',
-              border: window.innerWidth <= 600 ? 'none' : '1px solid var(--surface-border)',
-              borderRadius: window.innerWidth <= 600 ? 0 : '24px',
-              boxShadow: '0 20px 60px rgba(0,0,0,0.6)',
-              maxHeight: window.innerWidth <= 600 ? 'none' : '500px',
+              position: isMobile ? 'fixed' : 'absolute',
+              top: isMobile ? '70px' : 'calc(100% + 10px)',
+              left: isMobile ? 0 : 0,
+              right: isMobile ? 0 : 0,
+              bottom: isMobile ? 0 : 'auto',
+              background: 'rgba(11, 15, 26, 0.99)',
+              border: isMobile ? 'none' : '1px solid var(--surface-border)',
+              borderRadius: isMobile ? 0 : '24px',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.8)',
+              maxHeight: isMobile ? 'none' : '500px',
               overflowY: 'auto',
               zIndex: 1001,
               display: 'flex',
               flexDirection: 'column',
-              backdropFilter: 'blur(20px)',
+              backdropFilter: 'blur(30px)',
               animation: 'dropdownFade 0.2s ease-out'
             }}
           >
@@ -235,9 +245,9 @@ const Navbar = () => {
                           </div>
                           <div style={{ flex: 1 }}>
                             <h5 style={{ margin: 0, fontSize: '1rem', fontWeight: '700', color: 'white' }}>{store.name}</h5>
-                            <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                              <MapPin size={12} color="var(--primary)" /> {store.category || 'General'}
-                            </p>
+                             <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                               <MapPin size={12} color="var(--primary)" /> {store.category || 'General'} • <span style={{ color: 'var(--primary)', fontWeight: '600' }}>{store.market}</span>
+                             </p>
                           </div>
                           <ChevronRight size={18} color="var(--surface-border)" />
                         </div>
@@ -279,7 +289,10 @@ const Navbar = () => {
                           </div>
                           <div style={{ flex: 1 }}>
                             <h5 style={{ margin: 0, fontSize: '0.95rem', fontWeight: '700', color: 'white' }}>
-                              Found matching items in <span style={{ color: 'var(--primary)' }}>{store.name}</span>
+                              Found in <span style={{ color: 'var(--primary)' }}>{store.name}</span>
+                              <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginLeft: '0.6rem', fontWeight: '600', background: 'rgba(99, 102, 241, 0.1)', padding: '0.2rem 0.5rem', borderRadius: '6px', border: '1px solid rgba(99, 102, 241, 0.2)' }}>
+                                {store.market}
+                              </span>
                             </h5>
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.4rem' }}>
                               {store.matchedProducts.map((p, pIdx) => (
@@ -302,7 +315,7 @@ const Navbar = () => {
       </div>
 
       {/* Right Icons - Hidden when searching on mobile */}
-      {(!isSearchFocused || window.innerWidth > 600) && (
+      {(!isSearchFocused || !isMobile) && (
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexShrink: 0 }}>
           <button 
             onClick={() => navigate('/vendor/login')}

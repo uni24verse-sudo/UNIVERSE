@@ -63,7 +63,7 @@ router.get('/global/search', async (req, res) => {
     const escapedQuery = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const regex = new RegExp(escapedQuery, 'i');
 
-    const stores = await Store.find({}, 'name category products _id isOpen image').populate('admin', 'name');
+    const stores = await Store.find({}, 'name category products _id isOpen image market').populate('admin', 'name');
     const matchedStores = [];
     const matchedDishes = [];
 
@@ -75,6 +75,7 @@ router.get('/global/search', async (req, res) => {
                category: store.category,
                image: store.image,
                isOpen: store.isOpen,
+               market: store.market,
                adminName: store.admin?.name
            });
        }
@@ -84,6 +85,7 @@ router.get('/global/search', async (req, res) => {
            matchedDishes.push({
                _id: store._id,
                name: store.name,
+               market: store.market,
                matchedProducts: matchingProducts.map(p => ({ name: p.name, price: p.price, _id: p._id }))
            });
        }
