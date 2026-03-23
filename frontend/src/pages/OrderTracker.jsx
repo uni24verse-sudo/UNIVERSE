@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { io } from 'socket.io-client';
 import { QRCodeSVG } from 'qrcode.react';
-import { CheckCircle2, Clock, ChefHat, PackageCheck, ArrowLeft, Home, ShoppingBag, Receipt, CreditCard } from 'lucide-react';
+import { CheckCircle2, Clock, ChefHat, PackageCheck, ArrowLeft, Home, ShoppingBag, Receipt, CreditCard, X, AlertCircle } from 'lucide-react';
 
 const OrderTracker = () => {
   const { id } = useParams();
@@ -28,7 +28,17 @@ const OrderTracker = () => {
     socket.emit('join_order_room', id);
 
     socket.on('order_status_update', (updatedOrder) => {
-      setOrder(updatedOrder);
+      setOrder(prev => {
+        if (prev && prev.status !== updatedOrder.status) {
+          // Play Sound
+          if (updatedOrder.status === 'Confirmed') {
+            new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3').play().catch(() => {});
+          } else if (updatedOrder.status === 'Completed') {
+            new Audio('https://assets.mixkit.co/active_storage/sfx/1003/1003-preview.mp3').play().catch(() => {});
+          }
+        }
+        return updatedOrder;
+      });
     });
 
     return () => socket.close();
@@ -80,19 +90,25 @@ const OrderTracker = () => {
         
         {/* Live Status Animation */}
         <div style={{ margin: '2rem 0', position: 'relative', display: 'flex', justifyContent: 'center' }}>
-           <div className="pulse-circle" style={{ 
-             width: '100px', 
-             height: '100px', 
-             borderRadius: '50%', 
-             background: 'rgba(99, 102, 241, 0.1)', 
-             display: 'flex', 
-             alignItems: 'center', 
-             justifyContent: 'center',
-             color: 'var(--primary)',
-             border: '2px dashed var(--primary)'
-           }}>
-             {React.createElement(statusSteps[currentStepIndex >= 0 ? currentStepIndex : 0].icon, { size: 48 })}
-           </div>
+            <div className="pulse-circle" style={{ 
+              width: '100px', 
+              height: '100px', 
+              borderRadius: '50%', 
+              background: 'rgba(99, 102, 241, 0.1)', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              color: 'var(--primary)',
+              border: '2px dashed var(--primary)'
+            }}>
+              {order.status === 'Completed' ? (
+                 <CheckCircle2 size={48} color="#10b981" />
+              ) : order.status === 'Cancelled' ? (
+                 <X size={48} color="#ef4444" />
+              ) : (
+                 React.createElement(statusSteps[currentStepIndex >= 0 ? currentStepIndex : 0].icon, { size: 48 })
+              )}
+            </div>
         </div>
 
         <h2 style={{ fontSize: '2rem', fontWeight: '800', marginBottom: '0.5rem' }}>{order.status}</h2>

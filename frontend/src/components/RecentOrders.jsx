@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { ShoppingBag, X, ExternalLink, Clock } from 'lucide-react';
+import { ShoppingBag, X, ExternalLink, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
+import { io } from 'socket.io-client';
 
 const RecentOrders = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -16,23 +17,50 @@ const RecentOrders = () => {
     const loadOrders = () => {
       const stored = JSON.parse(localStorage.getItem('universe_recent_orders') || '[]');
       const twoHoursAgo = Date.now() - 2 * 60 * 60 * 1000;
-      
-      // Filter orders from the last 2 hours
       const active = stored.filter(o => o.timestamp > twoHoursAgo);
-      
-      // Update storage if some were expired
       if (active.length !== stored.length) {
         localStorage.setItem('universe_recent_orders', JSON.stringify(active));
       }
-      
       setOrders(active);
     };
 
     if (!shouldHide) {
       loadOrders();
-      // Refresh every minute to check for expiration
       const interval = setInterval(loadOrders, 60000);
-      return () => clearInterval(interval);
+      
+      // Socket Setup for live updates
+      const socket = io((import.meta.env.VITE_API_URL || 'http://localhost:5000') + '');
+      
+      // Join rooms for all recent orders
+      const stored = JSON.parse(localStorage.getItem('universe_recent_orders') || '[]');
+      stored.forEach(order => socket.emit('join_order_room', order.id));
+
+      socket.on('order_status_update', (updatedOrder) => {
+        setOrders(prev => {
+          const existing = prev.find(o => o.id === updatedOrder._id);
+          if (existing && existing.status !== updatedOrder.status) {
+            // Play Sound
+            if (updatedOrder.status === 'Confirmed') {
+              new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3').play().catch(() => {});
+            } else if (updatedOrder.status === 'Completed') {
+              new Audio('https://assets.mixkit.co/active_storage/sfx/1003/1003-preview.mp3').play().catch(() => {});
+            }
+
+            // Update Local Storage
+            const stored = JSON.parse(localStorage.getItem('universe_recent_orders') || '[]');
+            const updated = stored.map(o => o.id === updatedOrder._id ? { ...o, status: updatedOrder.status } : o);
+            localStorage.setItem('universe_recent_orders', JSON.stringify(updated));
+            
+            return prev.map(o => o.id === updatedOrder._id ? { ...o, status: updatedOrder.status } : o);
+          }
+          return prev;
+        });
+      });
+
+      return () => {
+        clearInterval(interval);
+        socket.close();
+      };
     }
   }, [location.pathname, shouldHide]);
 
@@ -126,18 +154,30 @@ const RecentOrders = () => {
                 }}
                 className="hover-scale"
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
-                  <div>
-                    <span style={{ fontSize: '0.875rem', fontWeight: '700', color: 'white', display: 'block' }}>{order.storeName}</span>
-                    <span style={{ fontSize: '0.65rem', color: 'var(--primary)', fontWeight: '700' }}>{order.market || 'Campus'}</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <div style={{ flex: 1 }}>
+                    <span style={{ fontSize: '0.875rem', fontWeight: '700', color: 'white', display: 'block', marginBottom: '0.2rem' }}>{order.storeName}</span>
+                    <span style={{ fontSize: '0.65rem', color: 'var(--primary)', fontWeight: '700' }}>{order.market || 'Campus Market'}</span>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                       <Clock size={12} /> {new Date(order.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </div>
                   </div>
-                  <ExternalLink size={14} color="var(--primary)" />
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Order #{order.orderNumber}</span>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.65rem', color: 'var(--text-secondary)' }}>
-                    <Clock size={12} />
-                    {new Date(order.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.5rem' }}>
+                    <ExternalLink size={14} color="var(--primary)" />
+                    {order.status === 'Completed' ? (
+                       <span style={{ fontSize: '0.65rem', color: '#10b981', fontWeight: '800', background: 'rgba(16, 185, 129, 0.1)', padding: '0.2rem 0.5rem', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
+                         <CheckCircle2 size={10} /> READY
+                       </span>
+                    ) : order.status === 'Cancelled' ? (
+                       <span style={{ fontSize: '0.65rem', color: '#ef4444', fontWeight: '800', background: 'rgba(239, 68, 68, 0.1)', padding: '0.2rem 0.5rem', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
+                         <AlertCircle size={10} /> CANCELLED
+                       </span>
+                    ) : (
+                       <span style={{ fontSize: '0.65rem', color: order.status === 'Confirmed' ? '#3b82f6' : '#f59e0b', fontWeight: '800', opacity: 0.8 }}>
+                         {order.status?.toUpperCase() || 'PENDING'}
+                       </span>
+                    )}
                   </div>
                 </div>
               </div>
