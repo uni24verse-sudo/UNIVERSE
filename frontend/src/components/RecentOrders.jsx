@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ShoppingBag, X, ExternalLink, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
 import { io } from 'socket.io-client';
+import axios from 'axios';
 
 const RecentOrders = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -14,14 +15,26 @@ const RecentOrders = () => {
   const shouldHide = hideOnPaths.some(path => location.pathname.startsWith(path));
 
   useEffect(() => {
-    const loadOrders = () => {
+    const loadOrders = async () => {
       const stored = JSON.parse(localStorage.getItem('universe_recent_orders') || '[]');
       const twoHoursAgo = Date.now() - 2 * 60 * 60 * 1000;
       const active = stored.filter(o => o.timestamp > twoHoursAgo);
-      if (active.length !== stored.length) {
-        localStorage.setItem('universe_recent_orders', JSON.stringify(active));
+      
+      // Rehydrate: Fetch latest status for active orders
+      const rehydrated = await Promise.all(active.map(async (order) => {
+        try {
+          const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/orders/${order.id}`);
+          return { ...order, status: res.data.status };
+        } catch (err) {
+          console.error(`Failed to refresh status for ${order.id}`, err);
+          return order;
+        }
+      }));
+
+      if (JSON.stringify(rehydrated) !== JSON.stringify(stored)) {
+        localStorage.setItem('universe_recent_orders', JSON.stringify(rehydrated));
       }
-      setOrders(active);
+      setOrders(rehydrated);
     };
 
     if (!shouldHide) {

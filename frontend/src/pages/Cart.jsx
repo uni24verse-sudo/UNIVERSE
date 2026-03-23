@@ -73,6 +73,7 @@ const Cart = () => {
           storeName: store.name, 
           market: store.market,
           storeId: store._id,
+          status: newOrder.status || 'Pending',
           timestamp: Date.now() 
         },
         ...recentOrders.filter(o => o.id !== newOrder._id)
