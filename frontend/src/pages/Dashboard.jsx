@@ -18,7 +18,10 @@ import {
   Plus,
   Phone,
   X,
-  Menu
+  Menu,
+  QrCode,
+  Globe,
+  AlertCircle
 } from 'lucide-react';
 
 const Dashboard = () => {
