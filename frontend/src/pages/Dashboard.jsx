@@ -540,9 +540,34 @@ const Dashboard = () => {
 
                         <div style={{ background: 'rgba(255,255,255,0.02)', padding: '0.75rem 1rem', borderRadius: '12px', marginBottom: '1.25rem' }}>
                           {order.items.map((item, idx) => (
-                            <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem', marginBottom: idx === order.items.length - 1 ? 0 : '0.5rem' }}>
-                              <span>{item.quantity}x {item.name} {item.variant && <span style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>({item.variant})</span>}</span>
-                              <span style={{ color: 'var(--text-secondary)' }}>₹{item.price * item.quantity}</span>
+                            <div key={idx} style={{ marginBottom: idx === order.items.length - 1 ? 0 : '1rem' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem' }}>
+                                <span style={{ fontWeight: '700' }}>
+                                  {item.quantity}x {item.name} 
+                                  {item.variant && <span style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', marginLeft: '0.4rem' }}>({item.variant})</span>}
+                                  {item.isCombo && <span style={{ fontSize: '0.65rem', padding: '0.1rem 0.4rem', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', borderRadius: '4px', fontWeight: '800', marginLeft: '0.5rem' }}>COMBO</span>}
+                                </span>
+                                <span style={{ color: 'var(--text-secondary)' }}>₹{item.price * item.quantity}</span>
+                              </div>
+                              
+                              {item.isCombo && (
+                                <div style={{ marginTop: '0.4rem', paddingLeft: '1.5rem', borderLeft: '2px solid var(--surface-border)' }}>
+                                  {item.comboItems && item.comboItems.length > 0 && (
+                                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                                      {item.comboItems.map((ci, cidx) => (
+                                        <div key={cidx}>• {ci.quantity} {ci.name}</div>
+                                      ))}
+                                    </div>
+                                  )}
+                                  {item.freeItems && item.freeItems.length > 0 && (
+                                    <div style={{ fontSize: '0.75rem', color: '#10b981', marginTop: '0.2rem', fontWeight: '600' }}>
+                                      {item.freeItems.map((fi, fidx) => (
+                                        <div key={fidx}>+ Free {fi.quantity} {fi.name}</div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
                             </div>
                           ))}
                         </div>

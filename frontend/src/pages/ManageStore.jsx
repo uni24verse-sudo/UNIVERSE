@@ -51,8 +51,9 @@ const ManageStore = () => {
   const [scanError, setScanError] = useState('');
 
   // New/Edit product form
-  const [productForm, setProductForm] = useState({ _id: null, name: '', price: '', category: '', image: '', imageFile: null, variants: [] });
+  const [productForm, setProductForm] = useState({ _id: null, name: '', price: '', category: '', image: '', imageFile: null, variants: [], comboItems: [], freeItems: [] });
   const [hasVariants, setHasVariants] = useState(false);
+  const [isComboDeal, setIsComboDeal] = useState(false);
   const [savingProduct, setSavingProduct] = useState(false);
   const formRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -116,6 +117,14 @@ const ManageStore = () => {
       } else {
         formData.append('variants', JSON.stringify([]));
       }
+      formData.append('isCombo', isComboDeal);
+      if (isComboDeal) {
+        formData.append('comboItems', JSON.stringify(productForm.comboItems || []));
+        formData.append('freeItems', JSON.stringify(productForm.freeItems || []));
+      } else {
+        formData.append('comboItems', JSON.stringify([]));
+        formData.append('freeItems', JSON.stringify([]));
+      }
 
       if (productForm._id) {
         const res = await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/store/${store._id}/product/${productForm._id}`, formData, {
@@ -150,16 +159,20 @@ const ManageStore = () => {
       category: product.category || '', 
       image: product.image || '', 
       imageFile: null,
-      variants: product.variants || []
+      variants: product.variants || [],
+      comboItems: product.comboItems || [],
+      freeItems: product.freeItems || []
     });
     setHasVariants(product.variants && product.variants.length > 0);
+    setIsComboDeal(product.isCombo || false);
     if (fileInputRef.current) fileInputRef.current.value = "";
     if (formRef.current) formRef.current.scrollIntoView({ behavior: 'smooth' });
   };
 
   const cancelEdit = () => {
-    setProductForm({ _id: null, name: '', price: '', category: '', image: '', imageFile: null, variants: [] });
+    setProductForm({ _id: null, name: '', price: '', category: '', image: '', imageFile: null, variants: [], comboItems: [], freeItems: [] });
     setHasVariants(false);
+    setIsComboDeal(false);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
@@ -817,6 +830,71 @@ const ManageStore = () => {
                   )}
                 </div>
 
+                <div style={{ gridColumn: '1 / span 2', background: 'rgba(255,255,255,0.02)', padding: '1rem', borderRadius: '14px', border: '1px solid var(--surface-border)' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', marginBottom: isComboDeal ? '1rem' : '0' }}>
+                    <input type="checkbox" checked={isComboDeal} onChange={(e) => setIsComboDeal(e.target.checked)} style={{ width: '20px', height: '20px', accentColor: 'var(--primary)' }} />
+                    <span style={{ fontWeight: '700' }}>🎁 Is this a Combo / Meal Deal?</span>
+                  </label>
+                  
+                  {isComboDeal && (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginTop: '1rem' }}>
+                       {/* Combo Items */}
+                       <div style={{ background: 'rgba(0,0,0,0.2)', padding: '1rem', borderRadius: '12px' }}>
+                          <h4 style={{ margin: '0 0 1rem 0', fontSize: '0.875rem' }}>Items in Combo</h4>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                            {(productForm.comboItems || []).map((ci, i) => (
+                              <div key={`ci-${i}`} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                                <input type="text" placeholder="Item Name" value={ci.name} onChange={e => {
+                                  const newCI = [...(productForm.comboItems || [])];
+                                  newCI[i].name = e.target.value;
+                                  setProductForm({...productForm, comboItems: newCI});
+                                }} className="form-input" style={{ flex: 2, height: '36px' }} required />
+                                <input type="text" placeholder="Qty (e.g. 1 pcs)" value={ci.quantity} onChange={e => {
+                                  const newCI = [...(productForm.comboItems || [])];
+                                  newCI[i].quantity = e.target.value;
+                                  setProductForm({...productForm, comboItems: newCI});
+                                }} className="form-input" style={{ flex: 1, height: '36px' }} required />
+                                <button type="button" onClick={() => setProductForm({...productForm, comboItems: productForm.comboItems.filter((_, idx) => idx !== i)})} style={{ background: 'rgba(239, 68, 68, 0.1)', color: 'var(--error)', border: 'none', borderRadius: '8px', height: '36px', width: '36px', cursor: 'pointer', display: 'flex' }}>
+                                  <Trash2 size={14} style={{ margin: 'auto' }} />
+                                </button>
+                              </div>
+                            ))}
+                            <button type="button" onClick={() => setProductForm({...productForm, comboItems: [...(productForm.comboItems || []), { name: '', quantity: '' }]})} style={{ background: 'transparent', border: 'none', color: 'var(--primary)', fontWeight: '700', cursor: 'pointer', textAlign: 'left', marginTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                              <Plus size={16} /> Add Item
+                            </button>
+                          </div>
+                       </div>
+                       
+                       {/* Free Items */}
+                       <div style={{ background: 'rgba(16, 185, 129, 0.05)', padding: '1rem', borderRadius: '12px', border: '1px dashed rgba(16, 185, 129, 0.3)' }}>
+                          <h4 style={{ margin: '0 0 1rem 0', fontSize: '0.875rem', color: '#10b981' }}>Free Included Items</h4>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                            {(productForm.freeItems || []).map((fi, i) => (
+                              <div key={`fi-${i}`} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                                <input type="text" placeholder="Item Name" value={fi.name} onChange={e => {
+                                  const newFI = [...(productForm.freeItems || [])];
+                                  newFI[i].name = e.target.value;
+                                  setProductForm({...productForm, freeItems: newFI});
+                                }} className="form-input" style={{ flex: 2, height: '36px' }} required />
+                                <input type="text" placeholder="Qty" value={fi.quantity} onChange={e => {
+                                  const newFI = [...(productForm.freeItems || [])];
+                                  newFI[i].quantity = e.target.value;
+                                  setProductForm({...productForm, freeItems: newFI});
+                                }} className="form-input" style={{ flex: 1, height: '36px' }} required />
+                                <button type="button" onClick={() => setProductForm({...productForm, freeItems: productForm.freeItems.filter((_, idx) => idx !== i)})} style={{ background: 'rgba(239, 68, 68, 0.1)', color: 'var(--error)', border: 'none', borderRadius: '8px', height: '36px', width: '36px', cursor: 'pointer', display: 'flex' }}>
+                                  <Trash2 size={14} style={{ margin: 'auto' }} />
+                                </button>
+                              </div>
+                            ))}
+                            <button type="button" onClick={() => setProductForm({...productForm, freeItems: [...(productForm.freeItems || []), { name: '', quantity: '' }]})} style={{ background: 'transparent', border: 'none', color: '#10b981', fontWeight: '700', cursor: 'pointer', textAlign: 'left', marginTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                              <Plus size={16} /> Add Free Item
+                            </button>
+                          </div>
+                       </div>
+                    </div>
+                  )}
+                </div>
+
                 <div style={{ gridColumn: '1 / span 2', display: 'flex', gap: '1rem', marginTop: '1rem' }}>
                   <button type="submit" className="btn btn-primary" disabled={savingProduct} style={{ height: '54px', borderRadius: '14px', flex: 2 }}>
                     {savingProduct ? 'Processing...' : (productForm._id ? <><Save size={18} /> Update Item</> : <><Plus size={18} /> Add to Menu</>)}
@@ -863,7 +941,10 @@ const ManageStore = () => {
                           <div style={{ display: 'none', width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' }}><ShoppingBag size={20} color="var(--text-secondary)" /></div>
                         </div>
                         <div style={{ flex: 1 }}>
-                          <h4 style={{ margin: '0 0 0.25rem 0', fontSize: '1rem', fontWeight: '800' }}>{p.name}</h4>
+                          <h4 style={{ margin: '0 0 0.25rem 0', fontSize: '1rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            {p.name} 
+                            {p.isCombo && <span style={{ fontSize: '0.65rem', padding: '0.15rem 0.5rem', background: 'rgba(239, 68, 68, 0.1)', color: 'var(--error)', borderRadius: '6px', fontWeight: '800' }}>🎁 COMBO</span>}
+                          </h4>
                           <div style={{ display: 'flex', alignItems: 'flex-start', flexDirection: 'column', gap: '0.2rem' }}>
                              {p.variants && p.variants.length > 0 ? (
                                <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginTop: '0.25rem', marginBottom: '0.25rem' }}>
@@ -874,7 +955,25 @@ const ManageStore = () => {
                              ) : (
                                <span style={{ fontWeight: '700', color: 'var(--secondary)', fontSize: '0.9rem' }}>₹{p.price}</span>
                              )}
-                             <span style={{ fontSize: '0.65rem', padding: '0.15rem 0.5rem', background: 'rgba(99, 102, 241, 0.1)', borderRadius: '6px', color: 'var(--primary)', fontWeight: '700' }}>{p.category}</span>
+                             
+                             {p.isCombo && p.comboItems && p.comboItems.length > 0 && (
+                               <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.2rem', paddingLeft: '0.5rem', borderLeft: '2px solid var(--surface-border)' }}>
+                                 <p style={{ margin: '0 0 0.2rem 0', color: 'white', fontWeight: '600' }}>Includes:</p>
+                                 {p.comboItems.map((ci, idx) => (
+                                   <div key={idx} style={{ marginBottom: '0.1rem' }}>• {ci.quantity} {ci.name}</div>
+                                 ))}
+                               </div>
+                             )}
+                             {p.isCombo && p.freeItems && p.freeItems.length > 0 && (
+                               <div style={{ fontSize: '0.75rem', color: '#10b981', marginTop: '0.2rem', paddingLeft: '0.5rem', borderLeft: '2px dashed rgba(16, 185, 129, 0.4)' }}>
+                                 <p style={{ margin: '0 0 0.2rem 0', fontWeight: '600' }}>Free Items:</p>
+                                 {p.freeItems.map((fi, idx) => (
+                                   <div key={idx} style={{ marginBottom: '0.1rem' }}>• {fi.quantity} {fi.name}</div>
+                                 ))}
+                               </div>
+                             )}
+
+                             <span style={{ fontSize: '0.65rem', padding: '0.15rem 0.5rem', background: 'rgba(99, 102, 241, 0.1)', borderRadius: '6px', color: 'var(--primary)', fontWeight: '700', marginTop: '0.2rem' }}>{p.category}</span>
                           </div>
                         </div>
                       </div>

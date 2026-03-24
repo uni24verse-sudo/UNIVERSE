@@ -53,7 +53,15 @@ const Cart = () => {
     try {
       const orderData = {
         storeId,
-        items: cart.map(item => ({ name: item.name, price: item.price, quantity: item.quantity, variant: item.variant })),
+        items: cart.map(item => ({ 
+          name: item.name, 
+          price: item.price, 
+          quantity: item.quantity, 
+          variant: item.variant,
+          isCombo: item.isCombo || false,
+          comboItems: item.comboItems || [],
+          freeItems: item.freeItems || []
+        })),
         totalAmount: finalTotal,
         paymentMethod,
         customerPhone,
@@ -126,10 +134,23 @@ const Cart = () => {
               {cart.map(item => (
                 <div key={item.cartItemId || item._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '1.5rem', borderBottom: '1px solid var(--surface-border)' }}>
                   <div style={{ flex: 1 }}>
-                    <h4 style={{ margin: '0 0 0.25rem 0', fontSize: '1.125rem' }}>
-                      {item.name} {item.variant && <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', fontWeight: '600' }}>({item.variant})</span>}
+                    <h4 style={{ margin: '0 0 0.25rem 0', fontSize: '1.125rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      {item.name} 
+                      {item.variant && <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', fontWeight: '600' }}>({item.variant})</span>}
+                      {item.isCombo && <span style={{ fontSize: '0.65rem', padding: '0.15rem 0.5rem', background: 'rgba(239, 68, 68, 0.1)', color: 'var(--error)', borderRadius: '6px', fontWeight: '800' }}>COMBO</span>}
                     </h4>
-                    <p style={{ fontSize: '0.95rem', fontWeight: '700', color: 'var(--secondary)' }}>₹{item.price * item.quantity}</p>
+                    <p style={{ fontSize: '0.95rem', fontWeight: '700', color: 'var(--secondary)', marginBottom: item.isCombo ? '0.5rem' : '0' }}>₹{item.price * item.quantity}</p>
+                    
+                    {item.isCombo && (
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', borderLeft: '2px solid var(--surface-border)', paddingLeft: '0.5rem' }}>
+                        {item.comboItems && item.comboItems.length > 0 && item.comboItems.map((ci, idx) => (
+                          <div key={`ci-${idx}`} style={{ marginBottom: '0.1rem' }}>• {ci.quantity} {ci.name}</div>
+                        ))}
+                        {item.freeItems && item.freeItems.length > 0 && item.freeItems.map((fi, idx) => (
+                          <div key={`fi-${idx}`} style={{ color: '#10b981', marginTop: '0.2rem' }}>+ Free {fi.quantity} {fi.name}</div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', background: 'rgba(255,255,255,0.05)', padding: '0.4rem', borderRadius: '12px' }}>

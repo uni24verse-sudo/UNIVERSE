@@ -149,10 +149,18 @@ router.put('/:storeId/update-image', auth, upload.single('imageFile'), async (re
 // Add a Product to Store
 router.post('/:storeId/product', auth, upload.single('imageFile'), async (req, res) => {
   try {
-    const { name, price, category, image, variants } = req.body;
+    const { name, price, category, image, variants, isCombo, comboItems, freeItems } = req.body;
     let parsedVariants = [];
     if (variants) {
       try { parsedVariants = JSON.parse(variants); } catch (e) {}
+    }
+    let parsedComboItems = [];
+    if (comboItems) {
+      try { parsedComboItems = JSON.parse(comboItems); } catch(e) {}
+    }
+    let parsedFreeItems = [];
+    if (freeItems) {
+      try { parsedFreeItems = JSON.parse(freeItems); } catch(e) {}
     }
     
     let finalImage = image;
@@ -174,7 +182,16 @@ router.post('/:storeId/product', auth, upload.single('imageFile'), async (req, r
     const store = await Store.findOne({ _id: req.params.storeId, admin: req.admin._id });
     if (!store) return res.status(404).json({ message: 'Store not found or unauthorized' });
 
-    store.products.push({ name, price, category: category || 'Uncategorized', image: finalImage, variants: parsedVariants });
+    store.products.push({ 
+      name, 
+      price, 
+      category: category || 'Uncategorized', 
+      image: finalImage, 
+      variants: parsedVariants,
+      isCombo: isCombo === 'true' || isCombo === true,
+      comboItems: parsedComboItems,
+      freeItems: parsedFreeItems
+    });
     await store.save();
     
     res.status(201).json(store);
@@ -246,7 +263,7 @@ router.put('/:storeId/product/:productId/toggle', auth, async (req, res) => {
 // Edit a Product in Store
 router.put('/:storeId/product/:productId', auth, upload.single('imageFile'), async (req, res) => {
   try {
-    const { name, price, category, image, variants } = req.body;
+    const { name, price, category, image, variants, isCombo, comboItems, freeItems } = req.body;
     
     const store = await Store.findOne({ _id: req.params.storeId, admin: req.admin._id });
     if (!store) return res.status(404).json({ message: 'Store not found or unauthorized' });
@@ -259,6 +276,15 @@ router.put('/:storeId/product/:productId', auth, upload.single('imageFile'), asy
     if (category) product.category = category;
     if (variants) {
       try { product.variants = JSON.parse(variants); } catch (e) {}
+    }
+    if (isCombo !== undefined) {
+      product.isCombo = isCombo === 'true' || isCombo === true;
+    }
+    if (comboItems) {
+      try { product.comboItems = JSON.parse(comboItems); } catch (e) {}
+    }
+    if (freeItems) {
+      try { product.freeItems = JSON.parse(freeItems); } catch (e) {}
     }
     
     if (req.file) {

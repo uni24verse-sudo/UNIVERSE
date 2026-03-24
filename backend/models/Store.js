@@ -9,6 +9,15 @@ const ProductSchema = new mongoose.Schema({
   variants: [{
     name: { type: String, required: true },
     price: { type: Number, required: true }
+  }],
+  isCombo: { type: Boolean, default: false },
+  comboItems: [{
+    name: { type: String, required: true },
+    quantity: { type: String, required: true }
+  }],
+  freeItems: [{
+    name: { type: String, required: true },
+    quantity: { type: String, required: true }
   }]
 });
 

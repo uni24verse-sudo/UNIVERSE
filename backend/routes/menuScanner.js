@@ -51,13 +51,13 @@ router.post('/scan', upload.single('menuImage'), async (req, res) => {
       ],
       model: "meta-llama/llama-4-scout-17b-16e-instruct",
       temperature: 0.1,
-      max_tokens: 2048,
+      max_tokens: 8192,
       top_p: 1,
       stream: false,
       stop: null,
     });
 
-    const text = chatCompletion.choices[0].message.content;
+    let text = chatCompletion.choices[0].message.content;
 
     // Clean potential markdown if the model ignores the "ONLY JSON" rule
     const jsonMatch = text.match(/\[[\s\S]*\]/);

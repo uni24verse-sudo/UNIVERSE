@@ -236,16 +236,41 @@ const StoreMenu = () => {
                       <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10b981' }}></div>
                    </div>
                    <span style={{ fontSize: '0.75rem', color: 'var(--secondary)', fontWeight: '600' }}>{product.category || 'Special'}</span>
+                   {product.isCombo && <span style={{ fontSize: '0.65rem', padding: '0.15rem 0.5rem', background: 'rgba(239, 68, 68, 0.1)', color: 'var(--error)', borderRadius: '6px', fontWeight: '800', marginLeft: 'auto' }}>🎁 COMBO DEAL</span>}
                 </div>
                 <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.25rem', fontWeight: '700' }}>{product.name}</h3>
                 {product.variants && product.variants.length > 0 ? (
-                  <p style={{ fontWeight: '700', fontSize: '1.125rem', marginBottom: '1rem', color: 'var(--text-secondary)' }}>From ₹{Math.min(...product.variants.map(v => v.price))}</p>
+                  <p style={{ fontWeight: '700', fontSize: '1.125rem', marginBottom: product.isCombo ? '0.5rem' : '1rem', color: 'var(--text-secondary)' }}>From ₹{Math.min(...product.variants.map(v => v.price))}</p>
                 ) : (
-                  <p style={{ fontWeight: '700', fontSize: '1.125rem', marginBottom: '1rem' }}>₹{product.price}</p>
+                  <p style={{ fontWeight: '700', fontSize: '1.125rem', marginBottom: product.isCombo ? '0.5rem' : '1rem' }}>₹{product.price}</p>
                 )}
-                <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: '1rem' }}>
-                  Authentic flavor prepared with fresh ingredients. A favorite among locals.
-                </p>
+                
+                {product.isCombo && (
+                  <div style={{ marginBottom: '1rem', background: 'rgba(0,0,0,0.2)', padding: '0.75rem', borderRadius: '12px' }}>
+                    {product.comboItems && product.comboItems.length > 0 && (
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                        <span style={{ color: 'white', fontWeight: '600', display: 'block', marginBottom: '0.25rem' }}>Includes:</span>
+                        {product.comboItems.map((ci, idx) => (
+                          <div key={idx} style={{ marginBottom: '0.2rem' }}>• {ci.quantity} {ci.name}</div>
+                        ))}
+                      </div>
+                    )}
+                    {product.freeItems && product.freeItems.length > 0 && (
+                      <div style={{ fontSize: '0.8rem', color: '#10b981', marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid rgba(16, 185, 129, 0.2)' }}>
+                        <span style={{ fontWeight: '700', display: 'block', marginBottom: '0.25rem' }}>+ Free:</span>
+                        {product.freeItems.map((fi, idx) => (
+                          <div key={idx} style={{ marginBottom: '0.2rem' }}>• {fi.quantity} {fi.name}</div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+                
+                {!product.isCombo && (
+                  <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: '1rem' }}>
+                    Authentic flavor prepared with fresh ingredients. A favorite among locals.
+                  </p>
+                )}
               </div>
 
               <div style={{ width: '120px', position: 'relative', flexShrink: 0 }}>
