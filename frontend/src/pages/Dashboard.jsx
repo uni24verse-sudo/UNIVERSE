@@ -695,13 +695,15 @@ const Dashboard = () => {
 
               {/* Quick Actions / Store Info */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '24px' }}>
-                  <h4 style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><QrCode size={18} /> Store QR</h4>
-                  <div style={{ background: 'white', padding: '1rem', borderRadius: '16px', textAlign: 'center', marginBottom: '1rem' }}>
-                    <QRCodeSVG value={`${window.location.origin}/store/${store._id}`} size={160} level="H" />
+                {store && (
+                  <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '24px' }}>
+                    <h4 style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><QrCode size={18} /> Store QR</h4>
+                    <div style={{ background: 'white', padding: '1rem', borderRadius: '16px', textAlign: 'center', marginBottom: '1rem' }}>
+                      <QRCodeSVG value={`${window.location.origin}/store/${store._id}`} size={160} level="H" />
+                    </div>
+                    <button onClick={() => navigate('/vendor/store/manage')} className="btn btn-secondary" style={{ width: '100%', borderRadius: '12px' }}>Download QR</button>
                   </div>
-                  <button onClick={() => navigate('/vendor/store/manage')} className="btn btn-secondary" style={{ width: '100%', borderRadius: '12px' }}>Download QR</button>
-                </div>
+                )}
 
                 <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '24px' }}>
                   <h4 style={{ marginBottom: '1rem' }}>Resources</h4>
