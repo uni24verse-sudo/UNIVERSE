@@ -116,20 +116,19 @@ const Navbar = () => {
         </div>
       )}
 
-      {/* Global Search Bar */}
-      <div 
-        className={`search-container ${isSearchFocused ? 'focused' : ''}`}
-        style={{ 
-          flex: 1, 
-          maxWidth: isSearchFocused ? '800px' : '600px', 
-          position: isMobile && isSearchFocused ? 'absolute' : 'relative',
-          left: isMobile && isSearchFocused ? '1rem' : 'auto',
-          right: isMobile && isSearchFocused ? '1rem' : 'auto',
-          zIndex: 1002,
-          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
-        }} 
-        ref={dropdownRef}
-      >
+      {/* Global Search Bar - Hidden on Store Pages */}
+      {!location.pathname.startsWith('/store/') && (
+        <div 
+          className={`search-container ${isSearchFocused ? 'focused' : ''}`}
+          style={{ 
+            flex: 1, 
+            maxWidth: isSearchFocused ? '800px' : '600px', 
+            position: 'relative',
+            zIndex: 1002,
+            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+          }} 
+          ref={dropdownRef}
+        >
         <div style={{
           display: 'flex',
           alignItems: 'center',
@@ -186,22 +185,22 @@ const Navbar = () => {
           <div 
             className="search-results-overlay"
             style={{
-              position: isMobile ? 'fixed' : 'absolute',
-              top: isMobile ? '70px' : 'calc(100% + 10px)',
-              left: isMobile ? 0 : 0,
-              right: isMobile ? 0 : 0,
-              bottom: isMobile ? 0 : 'auto',
+              position: 'absolute',
+              top: 'calc(100% + 15px)',
+              left: isMobile ? '-1rem' : 0,
+              right: isMobile ? '-1rem' : 0,
               background: 'rgba(11, 15, 26, 0.99)',
               border: isMobile ? 'none' : '1px solid var(--surface-border)',
               borderRadius: isMobile ? 0 : '24px',
               boxShadow: '0 20px 60px rgba(0,0,0,0.8)',
-              maxHeight: isMobile ? 'none' : '500px',
+              maxHeight: isMobile ? 'calc(100vh - 100px)' : '500px',
               overflowY: 'auto',
               zIndex: 1001,
               display: 'flex',
               flexDirection: 'column',
               backdropFilter: 'blur(30px)',
-              animation: 'dropdownFade 0.2s ease-out'
+              animation: 'dropdownFade 0.2s ease-out',
+              paddingBottom: isMobile ? '2rem' : 0
             }}
           >
             
@@ -313,6 +312,7 @@ const Navbar = () => {
           </div>
         )}
       </div>
+      )}
 
       {/* Right Icons - Hidden when searching on mobile */}
       {(!isSearchFocused || !isMobile) && (

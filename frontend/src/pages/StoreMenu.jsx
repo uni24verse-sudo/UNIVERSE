@@ -2,7 +2,7 @@ import React, { useState, useEffect, useContext } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { CartContext } from '../context/CartContext';
-import { ArrowLeft, ShoppingBag, ChefHat, Info, Plus, Search, Star, Clock, Store } from 'lucide-react';
+import { ArrowLeft, ShoppingBag, ChefHat, Info, Plus, Search, Star, Clock, Store, X } from 'lucide-react';
 
 const StoreMenu = () => {
   const { id } = useParams();
@@ -11,6 +11,7 @@ const StoreMenu = () => {
   const { cart, addToCart } = useContext(CartContext);
   const navigate = useNavigate();
   const [activeCategory, setActiveCategory] = useState('All');
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     const fetchStore = async () => {
@@ -33,7 +34,8 @@ const StoreMenu = () => {
   const categories = store ? ['All', ...new Set(store.products.map(p => p.category || 'Uncategorized'))] : [];
   
   const filteredProducts = store?.products.filter(p => 
-    activeCategory === 'All' || (p.category || 'Uncategorized') === activeCategory
+    (activeCategory === 'All' || (p.category || 'Uncategorized') === activeCategory) &&
+    p.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const getImageUrl = (img) => {
@@ -102,6 +104,49 @@ const StoreMenu = () => {
                 }}>OFFLINE</div>
               )}
            </div>
+        </div>
+
+        {/* Local Store Search Bar */}
+        <div style={{ marginBottom: '1.5rem', position: 'relative' }}>
+          <div style={{ position: 'absolute', top: '50%', left: '1.25rem', transform: 'translateY(-50%)', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center' }}>
+            <Search size={20} />
+          </div>
+          <input 
+            type="text" 
+            placeholder={`Search ${store.name}'s menu...`} 
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{ 
+              width: '100%', 
+              padding: '1.25rem 1.25rem 1.25rem 3.5rem', 
+              borderRadius: '20px', 
+              background: 'rgba(255,255,255,0.03)', 
+              border: '1px solid var(--surface-border)', 
+              color: 'white', 
+              fontSize: '1rem',
+              outline: 'none',
+              boxShadow: '0 10px 30px rgba(0,0,0,0.2)',
+              transition: 'all 0.3s ease'
+            }} 
+            onFocus={(e) => {
+               e.target.style.background = 'rgba(15, 23, 42, 0.8)';
+               e.target.style.borderColor = 'var(--primary)';
+               e.target.style.boxShadow = '0 10px 40px rgba(99, 102, 241, 0.2)';
+            }}
+            onBlur={(e) => {
+               e.target.style.background = 'rgba(255,255,255,0.03)';
+               e.target.style.borderColor = 'var(--surface-border)';
+               e.target.style.boxShadow = '0 10px 30px rgba(0,0,0,0.2)';
+            }}
+          />
+          {searchQuery && (
+            <button 
+              onClick={() => setSearchQuery('')}
+              style={{ position: 'absolute', top: '50%', right: '1.25rem', transform: 'translateY(-50%)', background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', cursor: 'pointer', padding: '0.4rem', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            >
+              <X size={14} strokeWidth={3} />
+            </button>
+          )}
         </div>
 
         {/* Category Navigation */}
