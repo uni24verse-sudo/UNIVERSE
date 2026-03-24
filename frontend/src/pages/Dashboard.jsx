@@ -19,7 +19,8 @@ import {
   QrCode,
   Globe,
   Plus,
-  Phone
+  Phone,
+  X
 } from 'lucide-react';
 
 const Dashboard = () => {
