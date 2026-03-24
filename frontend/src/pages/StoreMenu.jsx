@@ -35,12 +35,15 @@ const StoreMenu = () => {
   if (!store) return <div className="auth-wrapper"><h3>Store not found or unavailable.</h3></div>;
 
   const totalItems = cart.reduce((acc, item) => acc + item.quantity, 0);
-  const categories = store ? ['All', ...new Set(store.products.map(p => p.category || 'Uncategorized'))] : [];
+  const comboExists = store?.products.some(p => p.isCombo);
+  const categories = store ? ['All', ...(comboExists ? ['Combos'] : []), ...new Set(store.products.map(p => p.category || 'Uncategorized'))] : [];
   
-  const filteredProducts = store?.products.filter(p => 
-    (activeCategory === 'All' || (p.category || 'Uncategorized') === activeCategory) &&
-    p.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredProducts = store?.products.filter(p => {
+    const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase());
+    if (activeCategory === 'All') return matchesSearch;
+    if (activeCategory === 'Combos') return p.isCombo && matchesSearch;
+    return (p.category || 'Uncategorized') === activeCategory && matchesSearch;
+  });
 
   const getImageUrl = (img) => {
     if (!img) return 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=1000&q=80';
@@ -222,6 +225,47 @@ const StoreMenu = () => {
           opacity: store.isOpen !== false ? 1 : 0.6, 
           pointerEvents: store.isOpen !== false ? 'auto' : 'none' 
         }}>
+          {activeCategory === 'All' && comboExists && !searchQuery && (
+            <div 
+              onClick={() => setActiveCategory('Combos')}
+              style={{ 
+                gridColumn: '1 / -1', 
+                background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(16, 185, 129, 0.1) 100%)',
+                padding: '1.5rem',
+                borderRadius: '24px',
+                border: '1px solid rgba(99, 102, 241, 0.3)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                cursor: 'pointer',
+                transition: 'transform 0.2s',
+                overflow: 'hidden',
+                position: 'relative'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
+              onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+            >
+              <div style={{ position: 'relative', zIndex: 1 }}>
+                <h4 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                  🎁 Meal Bundles & Combos
+                </h4>
+                <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Save more with our curated combo deals!</p>
+              </div>
+              <div style={{ 
+                background: 'var(--primary)', 
+                color: 'white', 
+                padding: '0.6rem 1.25rem', 
+                borderRadius: '12px', 
+                fontWeight: '800', 
+                fontSize: '0.875rem',
+                boxShadow: '0 8px 20px rgba(99, 102, 241, 0.3)' 
+              }}>
+                VIEW ALL &rarr;
+              </div>
+              <div style={{ position: 'absolute', right: '-20px', top: '-10px', fontSize: '5rem', opacity: 0.1, pointerEvents: 'none' }}>🎁</div>
+            </div>
+          )}
+
           {filteredProducts.map(product => (
             <div key={product._id} className="glass-card" style={{ 
               display: 'flex', 
