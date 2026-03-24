@@ -31,7 +31,15 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [socket, setSocket] = useState(null);
   const [orderFilter, setOrderFilter] = useState('Active');
-  const [soundEnabled, setSoundEnabled] = useState(localStorage.getItem('orderSoundEnabled') !== 'false'); // Default to true
+  const [soundEnabled, setSoundEnabled] = useState(localStorage.getItem('orderSoundEnabled') !== 'false');
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
+  const [showSidebar, setShowSidebar] = useState(false);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 1024);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     // Initialize sound preference
@@ -229,8 +237,28 @@ const Dashboard = () => {
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-dark)' }}>
-      {/* Sidebar */}
-      <aside style={{ width: '280px', background: 'rgba(15, 23, 42, 0.8)', borderRight: '1px solid var(--surface-border)', display: 'flex', flexDirection: 'column', position: 'fixed', height: '100vh', zIndex: 100 }}>
+      {/* Sidebar - Hidden on mobile, or shown as overlay */}
+      <aside style={{ 
+        width: '280px', 
+        background: 'rgba(15, 23, 42, 0.95)', 
+        borderRight: '1px solid var(--surface-border)', 
+        display: isMobile ? (showSidebar ? 'flex' : 'none') : 'flex', 
+        flexDirection: 'column', 
+        position: 'fixed', 
+        height: '100vh', 
+        zIndex: 1000,
+        backdropFilter: 'blur(20px)',
+        transition: 'transform 0.3s ease',
+        transform: isMobile && !showSidebar ? 'translateX(-100%)' : 'translateX(0)'
+      }}>
+        {isMobile && (
+          <button 
+            onClick={() => setShowSidebar(false)}
+            style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'none', border: 'none', color: 'white' }}
+          >
+            <X size={24} />
+          </button>
+        )}
         <div style={{ padding: '2rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           <div style={{ width: '40px', height: '40px', background: 'var(--primary)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Store color="white" size={24} />
@@ -265,14 +293,50 @@ const Dashboard = () => {
       </aside>
 
       {/* Main Content */}
-      <main style={{ marginLeft: '280px', flex: 1, padding: '2rem 3rem' }}>
-        <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3rem' }}>
-          <div>
-            <h1 style={{ fontSize: '1.75rem', fontWeight: '800', marginBottom: '0.25rem' }}>Dashboard Overview</h1>
-            <p style={{ color: 'var(--text-secondary)' }}>Hello {vendor?.name}, here's what's happening today.</p>
+      <main style={{ 
+        marginLeft: isMobile ? '0' : '280px', 
+        flex: 1, 
+        padding: isMobile ? '1.5rem 1rem' : '2rem 3rem',
+        paddingBottom: isMobile ? '100px' : '2rem'
+      }}>
+        <header style={{ 
+          display: 'flex', 
+          flexDirection: isMobile ? 'column' : 'row',
+          justifyContent: 'space-between', 
+          alignItems: isMobile ? 'flex-start' : 'center', 
+          gap: isMobile ? '1.5rem' : 0,
+          marginBottom: isMobile ? '2rem' : '3rem' 
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', width: '100%' }}>
+            {isMobile && (
+              <button 
+                onClick={() => setShowSidebar(true)}
+                style={{ background: 'var(--glass-bg)', border: '1px solid var(--surface-border)', color: 'white', padding: '0.6rem', borderRadius: '12px' }}
+              >
+                <LayoutDashboard size={20} />
+              </button>
+            )}
+            <div style={{ flex: 1 }}>
+              <h1 style={{ fontSize: isMobile ? '1.5rem' : '1.75rem', fontWeight: '800', marginBottom: '0.25rem' }}>Dashboard</h1>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>{vendor?.name}</p>
+            </div>
+            {isMobile && (
+              <div 
+                onClick={toggleSound}
+                style={{ width: '40px', height: '40px', borderRadius: '12px', background: soundEnabled ? 'rgba(16, 185, 129, 0.1)' : 'var(--glass-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--surface-border)' }}
+              >
+                <Bell size={18} color={soundEnabled ? 'var(--secondary)' : 'var(--text-secondary)'} />
+              </div>
+            )}
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+          <div style={{ 
+            display: 'flex', 
+            flexWrap: 'wrap',
+            alignItems: 'center', 
+            gap: isMobile ? '0.75rem' : '1.5rem',
+            width: isMobile ? '100%' : 'auto'
+          }}>
             {stores.length > 0 && (
               <select 
                 value={store?._id || ''} 
@@ -281,36 +345,23 @@ const Dashboard = () => {
                   setStore(selected);
                 }}
                 style={{
-                  padding: '0.6rem 1.2rem',
+                  padding: '0.6rem 1rem',
                   borderRadius: '12px',
                   background: 'var(--glass-bg)',
                   color: 'white',
                   border: '1px solid var(--surface-border)',
                   fontWeight: '700',
                   outline: 'none',
-                  cursor: 'pointer',
-                  appearance: 'none'
+                  flex: isMobile ? 1 : 'none'
                 }}
               >
                 {stores.map(s => (
-                  <option key={s._id} value={s._id}>{s.name} ({s.market || 'BH1 Market'})</option>
+                  <option key={s._id} value={s._id}>{s.name}</option>
                 ))}
               </select>
             )}
             
-            <Link 
-              to="/vendor/store/create" 
-              style={{ 
-                display: 'flex', alignItems: 'center', gap: '0.4rem', 
-                padding: '0 1rem', height: '46px',
-                background: 'rgba(99, 102, 241, 0.1)', color: 'var(--primary)', 
-                borderRadius: '12px', fontWeight: '700', textDecoration: 'none', 
-                border: '1px solid rgba(99, 102, 241, 0.2)' 
-              }}
-            >
-              <Plus size={16} /> New Stall
-            </Link>
-            {store && (
+            {store && !isMobile && (
               <div 
                 onClick={toggleStoreStatus}
                 style={{ 
@@ -324,20 +375,36 @@ const Dashboard = () => {
                   border: `1px solid ${store.isOpen ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)'}`
                 }}
               >
-                <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: store.isOpen ? 'var(--secondary)' : 'var(--error)', boxShadow: store.isOpen ? '0 0 10px var(--secondary)' : 'none' }}></div>
+                <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: store.isOpen ? 'var(--secondary)' : 'var(--error)' }}></div>
                 <span style={{ fontSize: '0.875rem', fontWeight: '700', color: store.isOpen ? 'var(--secondary)' : 'var(--error)' }}>
-                   {store.isOpen ? 'STALL OPEN' : 'STALL CLOSED'}
+                   {store.isOpen ? 'OPEN' : 'CLOSED'}
                 </span>
               </div>
             )}
-            <div 
-              onClick={toggleSound}
-              title={soundEnabled ? 'Disable Sound' : 'Enable Sound'}
-              style={{ width: '45px', height: '45px', borderRadius: '14px', background: soundEnabled ? 'rgba(16, 185, 129, 0.1)' : 'var(--glass-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--surface-border)', cursor: 'pointer', transition: 'var(--transition)' }}
-            >
-              <Bell size={20} color={soundEnabled ? 'var(--secondary)' : 'var(--text-secondary)'} />
-            </div>
-            <div style={{ width: '45px', height: '45px', borderRadius: '14px', background: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--surface-border)', cursor: 'pointer', fontWeight: '800' }}>
+            
+            {!isMobile && (
+              <>
+                <Link 
+                  to="/vendor/store/create" 
+                  style={{ 
+                    display: 'flex', alignItems: 'center', gap: '0.4rem', 
+                    padding: '0 1rem', height: '46px',
+                    background: 'rgba(99, 102, 241, 0.1)', color: 'var(--primary)', 
+                    borderRadius: '12px', fontWeight: '700', textDecoration: 'none', 
+                    border: '1px solid rgba(99, 102, 241, 0.2)' 
+                  }}
+                >
+                  <Plus size={16} /> New Stall
+                </Link>
+                <div 
+                  onClick={toggleSound}
+                  style={{ width: '45px', height: '45px', borderRadius: '14px', background: soundEnabled ? 'rgba(16, 185, 129, 0.1)' : 'var(--glass-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--surface-border)', cursor: 'pointer' }}
+                >
+                  <Bell size={20} color={soundEnabled ? 'var(--secondary)' : 'var(--text-secondary)'} />
+                </div>
+              </>
+            )}
+            <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--surface-border)', fontWeight: '800' }}>
               {vendor?.name?.charAt(0)}
             </div>
           </div>
@@ -392,7 +459,7 @@ const Dashboard = () => {
             </div>
 
             {/* Main Section: Orders & Info */}
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '2rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '2fr 1fr', gap: '2rem' }}>
               {/* Live Orders Feed */}
               <div className="glass-card" style={{ padding: '2rem', borderRadius: '32px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
@@ -652,6 +719,46 @@ const Dashboard = () => {
           </>
         )}
       </main>
+
+      {/* Mobile Bottom Navigation */}
+      {isMobile && (
+        <div style={{ 
+          position: 'fixed', 
+          bottom: 0, 
+          left: 0, 
+          right: 0, 
+          background: 'rgba(15, 23, 42, 0.95)', 
+          backdropFilter: 'blur(20px)', 
+          borderTop: '1px solid var(--surface-border)', 
+          padding: '0.75rem 0.5rem', 
+          display: 'flex', 
+          justifyContent: 'space-around', 
+          zIndex: 2000 
+        }}>
+          <Link to="/vendor/dashboard" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25rem', color: 'var(--primary)', textDecoration: 'none', flex: 1 }}>
+            <LayoutDashboard size={20} />
+            <span style={{ fontSize: '0.65rem', fontWeight: '700' }}>Home</span>
+          </Link>
+          <Link to="/vendor/store/manage" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25rem', color: 'var(--text-secondary)', textDecoration: 'none', flex: 1 }}>
+            <QrCode size={20} />
+            <span style={{ fontSize: '0.65rem', fontWeight: '500' }}>Store</span>
+          </Link>
+          <div 
+            onClick={toggleStoreStatus}
+            style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25rem', color: store?.isOpen ? 'var(--secondary)' : 'var(--error)', cursor: 'pointer', flex: 1 }}
+          >
+            <Globe size={20} />
+            <span style={{ fontSize: '0.65rem', fontWeight: '800' }}>{store?.isOpen ? 'Online' : 'Offline'}</span>
+          </div>
+          <div 
+            onClick={handleLogout}
+            style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25rem', color: 'var(--text-secondary)', cursor: 'pointer', flex: 1 }}
+          >
+            <LogOut size={20} />
+            <span style={{ fontSize: '0.65rem', fontWeight: '500' }}>Exit</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

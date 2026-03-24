@@ -15,6 +15,13 @@ const OrderTracker = () => {
       try {
         const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/orders/${id}`);
         setOrder(res.data);
+        
+        // OneSignal Tagging for targeted notifications
+        if (window.OneSignalDeferred) {
+          window.OneSignalDeferred.push(function(OneSignal) {
+            OneSignal.User.addTag("orderId", id);
+          });
+        }
       } catch (err) {
         console.error(err);
       } finally {
@@ -34,7 +41,7 @@ const OrderTracker = () => {
           if (updatedOrder.status === 'Confirmed') {
             new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3').play().catch(() => {});
           } else if (updatedOrder.status === 'Completed') {
-            new Audio('https://assets.mixkit.co/active_storage/sfx/1003/1003-preview.mp3').play().catch(() => {});
+            new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3').play().catch(() => {});
           }
         }
         return updatedOrder;

@@ -66,9 +66,41 @@ router.put('/:id/status', auth, async (req, res) => {
     order.status = status;
     const updatedOrder = await order.save();
 
-    // Notify customer about status update using order ID as room
+    // Notify customer about status update using Socket.io
     const io = req.app.get('io');
     io.to(updatedOrder._id.toString()).emit('order_status_update', updatedOrder);
+
+    // ONE SIGNAL PUSH NOTIFICATION
+    try {
+      if (process.env.ONESIGNAL_APP_ID && process.env.ONESIGNAL_REST_API_KEY) {
+        const https = require('https');
+        const data = JSON.stringify({
+          app_id: process.env.ONESIGNAL_APP_ID,
+          filters: [{ field: "tag", key: "orderId", relation: "=", value: order._id.toString() }],
+          contents: { en: `Your order #${order.orderNumber} is now ${status}!` },
+          headings: { en: "Order Update" },
+          url: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/order-tracker/${order._id}`
+        });
+
+        const options = {
+          hostname: 'onesignal.com',
+          port: 443,
+          path: '/api/v1/notifications',
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json; charset=utf-8',
+            'Authorization': `Basic ${process.env.ONESIGNAL_REST_API_KEY}`
+          }
+        };
+
+        const reqPush = https.request(options, (resPush) => {});
+        reqPush.on('error', (e) => console.error('OneSignal Error:', e));
+        reqPush.write(data);
+        reqPush.end();
+      }
+    } catch (pushErr) {
+      console.error('Push Error:', pushErr);
+    }
 
     res.json(updatedOrder);
   } catch (err) {
