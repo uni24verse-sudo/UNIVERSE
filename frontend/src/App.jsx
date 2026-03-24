@@ -24,20 +24,22 @@ function App() {
           <div className="app-container">
             <Navbar />
             <RecentOrders />
-            <Routes>
-              <Route path="/" element={<Home />} />
-              <Route path="/vendor/login" element={<Login />} />
-              <Route path="/vendor/register" element={<Register />} />
-              <Route path="/vendor/dashboard" element={<Dashboard />} />
-              <Route path="/vendor/store/create" element={<CreateStore />} />
-              <Route path="/vendor/store/manage" element={<ManageStore />} />
-              <Route path="/super-admin/login" element={<SuperAdminLogin />} />
-              <Route path="/super-admin/panel" element={<SuperAdminPanel />} />
-              <Route path="/store/:id" element={<StoreMenu />} />
-              <Route path="/cart" element={<Cart />} />
-              <Route path="/order-tracker/:id" element={<OrderTracker />} />
-              <Route path="*" element={<Navigate to="/" />} />
-            </Routes>
+            <React.Suspense fallback={<div className="auth-wrapper"><div className="pulse-container"><div className="pulse-dot"></div></div></div>}>
+              <Routes>
+                <Route path="/" element={<Home />} />
+                <Route path="/vendor/login" element={<Login />} />
+                <Route path="/vendor/register" element={<Register />} />
+                <Route path="/vendor/dashboard" element={<Dashboard />} />
+                <Route path="/vendor/store/create" element={<CreateStore />} />
+                <Route path="/vendor/store/manage" element={<ManageStore />} />
+                <Route path="/super-admin/login" element={<SuperAdminLogin />} />
+                <Route path="/super-admin/panel" element={<SuperAdminPanel />} />
+                <Route path="/store/:id" element={<StoreMenu />} />
+                <Route path="/cart" element={<Cart />} />
+                <Route path="/order-tracker/:id" element={<OrderTracker />} />
+                <Route path="*" element={<Navigate to="/" />} />
+              </Routes>
+            </React.Suspense>
           </div>
         </Router>
       </CartProvider>
