@@ -315,16 +315,16 @@ const Navbar = () => {
       )}
 
       {/* Right Icons - Hidden when searching on mobile */}
-      {(!isSearchFocused || !isMobile) && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexShrink: 0 }}>
-          <button 
-            onClick={() => navigate('/vendor/login')}
-            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--surface-border)', padding: '0.6rem 1.25rem', borderRadius: '14px', fontSize: '0.875rem', fontWeight: '700', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
-          >
-            <User size={16} /> Vendor
-          </button>
-        </div>
-      )}
+      {/* /* {(!isSearchFocused || !isMobile) && ( */}
+        {/* // <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexShrink: 0 }}> */}
+          {/* <button  */}
+            {/* onClick={() => navigate('/vendor/login')} */}
+            {/* style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--surface-border)', padding: '0.6rem 1.25rem', borderRadius: '14px', fontSize: '0.875rem', fontWeight: '700', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }} */}
+          {/* > */}
+            {/* <User size={16} /> Vendor */}
+          {/* </button> */}
+        {/* </div> */}
+      {/* )} */ */}
 
       {/* Responsive Styles embedded for Navbar */}
       <style>{`
