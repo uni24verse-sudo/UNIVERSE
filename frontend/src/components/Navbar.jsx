@@ -316,14 +316,14 @@ const Navbar = () => {
       </div>
       )}
 
-      {/* Right Icons - Hidden when searching on mobile */}
-      {(!isSearchFocused || !isMobile) && (
+      {/* Right Icons - Only show Dashboard button if vendor is logged in */}
+      {(!isSearchFocused || !isMobile) && token && (
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexShrink: 0 }}>
           <button 
-            onClick={() => navigate(token ? '/vendor/dashboard' : '/vendor/login')}
+            onClick={() => navigate('/vendor/dashboard')}
             style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--surface-border)', padding: '0.6rem 1.25rem', borderRadius: '14px', fontSize: '0.875rem', fontWeight: '700', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
           >
-            <User size={16} /> {token ? 'Dashboard' : 'Vendor'}
+            <User size={16} /> Dashboard
           </button>
         </div>
       )}
