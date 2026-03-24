@@ -12,6 +12,10 @@ const StoreMenu = () => {
   const navigate = useNavigate();
   const [activeCategory, setActiveCategory] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
+  
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [showVariantModal, setShowVariantModal] = useState(false);
+  const [selectedVariant, setSelectedVariant] = useState(null);
 
   useEffect(() => {
     const fetchStore = async () => {
@@ -41,6 +45,16 @@ const StoreMenu = () => {
   const getImageUrl = (img) => {
     if (!img) return 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=1000&q=80';
     return img.startsWith('/uploads') ? `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${img}` : img;
+  };
+
+  const handleAddToCartClick = (product) => {
+    if (product.variants && product.variants.length > 0) {
+      setSelectedProduct(product);
+      setSelectedVariant(product.variants[0]); // Default to first
+      setShowVariantModal(true);
+    } else {
+      addToCart(product, id);
+    }
   };
 
   return (
@@ -224,7 +238,11 @@ const StoreMenu = () => {
                    <span style={{ fontSize: '0.75rem', color: 'var(--secondary)', fontWeight: '600' }}>{product.category || 'Special'}</span>
                 </div>
                 <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.25rem', fontWeight: '700' }}>{product.name}</h3>
-                <p style={{ fontWeight: '700', fontSize: '1.125rem', marginBottom: '1rem' }}>₹{product.price}</p>
+                {product.variants && product.variants.length > 0 ? (
+                  <p style={{ fontWeight: '700', fontSize: '1.125rem', marginBottom: '1rem', color: 'var(--text-secondary)' }}>From ₹{Math.min(...product.variants.map(v => v.price))}</p>
+                ) : (
+                  <p style={{ fontWeight: '700', fontSize: '1.125rem', marginBottom: '1rem' }}>₹{product.price}</p>
+                )}
                 <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: '1rem' }}>
                   Authentic flavor prepared with fresh ingredients. A favorite among locals.
                 </p>
@@ -253,7 +271,7 @@ const StoreMenu = () => {
                 <div style={{ position: 'absolute', bottom: '-10px', left: '50%', transform: 'translateX(-50%)', width: '90%' }}>
                   <button 
                     className="btn btn-primary" 
-                    onClick={() => addToCart(product, id)}
+                    onClick={() => handleAddToCartClick(product)}
                     style={{ 
                       padding: '0.5rem', 
                       height: '36px', 
@@ -262,7 +280,7 @@ const StoreMenu = () => {
                       borderRadius: '8px'
                     }}
                   >
-                    <Plus size={14} /> ADD
+                    {product.variants && product.variants.length > 0 ? 'OPTIONS +' : <><Plus size={14} /> ADD</>}
                   </button>
                 </div>
               </div>
@@ -306,6 +324,49 @@ const StoreMenu = () => {
              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: '700' }}>
                 NEXT &rarr;
              </div>
+          </div>
+        </div>
+      )}
+
+      {/* Variant Selection Modal */}
+      {showVariantModal && selectedProduct && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)', zIndex: 2000, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
+          <div className="glass-card" style={{ width: '100%', maxWidth: '600px', background: '#0f172a', padding: '2rem', borderTopLeftRadius: '32px', borderTopRightRadius: '32px', animation: 'slideUp 0.3s ease-out' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <div>
+                <h3 style={{ margin: '0 0 0.25rem 0', fontSize: '1.5rem', fontWeight: '800' }}>Customize Size</h3>
+                <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.875rem' }}>{selectedProduct.name}</p>
+              </div>
+              <button onClick={() => setShowVariantModal(false)} style={{ background: 'var(--glass-bg)', border: 'none', color: 'white', padding: '0.5rem', borderRadius: '50%', cursor: 'pointer' }}>
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '2rem' }}>
+              {selectedProduct.variants.map((v, i) => (
+                <label key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', background: selectedVariant === v ? 'rgba(99, 102, 241, 0.1)' : 'rgba(255,255,255,0.03)', border: `2px solid ${selectedVariant === v ? 'var(--primary)' : 'transparent'}`, borderRadius: '16px', cursor: 'pointer', transition: 'all 0.2s ease' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                    <div style={{ width: '20px', height: '20px', borderRadius: '50%', border: `2px solid ${selectedVariant === v ? 'var(--primary)' : 'var(--text-secondary)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                       {selectedVariant === v && <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'var(--primary)' }}></div>}
+                    </div>
+                    <span style={{ fontWeight: '700', fontSize: '1.125rem' }}>{v.name}</span>
+                  </div>
+                  <span style={{ fontWeight: '800', color: 'var(--secondary)', fontSize: '1.125rem' }}>₹{v.price}</span>
+                  <input type="radio" hidden checked={selectedVariant === v} onChange={() => setSelectedVariant(v)} />
+                </label>
+              ))}
+            </div>
+            
+            <button 
+              className="btn btn-primary" 
+              onClick={() => {
+                addToCart(selectedProduct, id, selectedVariant);
+                setShowVariantModal(false);
+              }}
+              style={{ width: '100%', height: '54px', borderRadius: '16px', fontSize: '1.125rem' }}
+            >
+              Add to Cart - ₹{selectedVariant?.price}
+            </button>
           </div>
         </div>
       )}

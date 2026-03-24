@@ -6,11 +6,12 @@ export const CartProvider = ({ children }) => {
   const [cart, setCart] = useState([]);
   const [storeId, setStoreId] = useState(null);
 
-  const addToCart = (product, currentStoreId) => {
+  const addToCart = (product, currentStoreId, variant = null) => {
     // If adding from a different store, clear cart
     if (storeId && storeId !== currentStoreId) {
       if (window.confirm("Adding items from another store will clear your current cart. Continue?")) {
-        setCart([{ ...product, quantity: 1 }]);
+        const newCartItemId = `${product._id}${variant ? '-' + variant.name : ''}`;
+        setCart([{ ...product, quantity: 1, variant: variant?.name, price: variant ? variant.price : product.price, cartItemId: newCartItemId }]);
         setStoreId(currentStoreId);
       }
       return;
@@ -18,22 +19,25 @@ export const CartProvider = ({ children }) => {
 
     setStoreId(currentStoreId);
     setCart((prev) => {
-      const existing = prev.find(item => item._id === product._id);
+      const targetId = `${product._id}${variant ? '-' + variant.name : ''}`;
+      const existing = prev.find(item => (item.cartItemId || item._id) === targetId || (item._id === product._id && !item.variant && !variant));
+      
       if (existing) {
-        return prev.map(item => item._id === product._id ? { ...item, quantity: item.quantity + 1 } : item);
+        return prev.map(item => ((item.cartItemId || item._id) === targetId || (item._id === product._id && !item.variant && !variant))
+          ? { ...item, quantity: item.quantity + 1 } : item);
       }
-      return [...prev, { ...product, quantity: 1 }];
+      return [...prev, { ...product, quantity: 1, variant: variant?.name, price: variant ? variant.price : product.price, cartItemId: targetId }];
     });
   };
 
-  const removeFromCart = (productId) => {
-    setCart((prev) => prev.filter(item => item._id !== productId));
+  const removeFromCart = (targetId) => {
+    setCart((prev) => prev.filter(item => (item.cartItemId || item._id) !== targetId));
     if (cart.length === 1) setStoreId(null); // Clear store attachment if cart empties
   };
 
-  const updateQuantity = (productId, delta) => {
+  const updateQuantity = (targetId, delta) => {
     setCart((prev) => prev.map(item => {
-      if (item._id === productId) {
+      if ((item.cartItemId || item._id) === targetId) {
         const newQ = item.quantity + delta;
         return newQ > 0 ? { ...item, quantity: newQ } : item;
       }

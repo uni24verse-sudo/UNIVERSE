@@ -541,7 +541,7 @@ const Dashboard = () => {
                         <div style={{ background: 'rgba(255,255,255,0.02)', padding: '0.75rem 1rem', borderRadius: '12px', marginBottom: '1.25rem' }}>
                           {order.items.map((item, idx) => (
                             <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem', marginBottom: idx === order.items.length - 1 ? 0 : '0.5rem' }}>
-                              <span>{item.quantity}x {item.name}</span>
+                              <span>{item.quantity}x {item.name} {item.variant && <span style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>({item.variant})</span>}</span>
                               <span style={{ color: 'var(--text-secondary)' }}>₹{item.price * item.quantity}</span>
                             </div>
                           ))}

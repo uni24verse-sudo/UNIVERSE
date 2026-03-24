@@ -5,7 +5,11 @@ const ProductSchema = new mongoose.Schema({
   price: { type: Number, required: true },
   category: { type: String, default: 'Uncategorized' },
   image: { type: String },
-  isAvailable: { type: Boolean, default: true }
+  isAvailable: { type: Boolean, default: true },
+  variants: [{
+    name: { type: String, required: true },
+    price: { type: Number, required: true }
+  }]
 });
 
 const StoreSchema = new mongoose.Schema({

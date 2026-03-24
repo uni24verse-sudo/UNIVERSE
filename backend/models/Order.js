@@ -3,7 +3,8 @@ const mongoose = require('mongoose');
 const OrderItemSchema = new mongoose.Schema({
   name: { type: String, required: true },
   price: { type: Number, required: true },
-  quantity: { type: Number, required: true }
+  quantity: { type: Number, required: true },
+  variant: { type: String }
 });
 
 const OrderSchema = new mongoose.Schema({

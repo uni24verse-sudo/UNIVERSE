@@ -214,7 +214,9 @@ const OrderTracker = () => {
            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
              {order.items.map((item, idx) => (
                <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.95rem' }}>
-                 <span style={{ color: 'var(--text-secondary)' }}>{item.quantity}x {item.name}</span>
+                 <span style={{ color: 'var(--text-secondary)' }}>
+                   {item.quantity}x {item.name} {item.variant && <span style={{ fontSize: '0.8rem', fontWeight: '600' }}>({item.variant})</span>}
+                 </span>
                  <span>₹{item.price * item.quantity}</span>
                </div>
              ))}

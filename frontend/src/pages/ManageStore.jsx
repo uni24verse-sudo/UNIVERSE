@@ -51,7 +51,8 @@ const ManageStore = () => {
   const [scanError, setScanError] = useState('');
 
   // New/Edit product form
-  const [productForm, setProductForm] = useState({ _id: null, name: '', price: '', category: '', image: '', imageFile: null });
+  const [productForm, setProductForm] = useState({ _id: null, name: '', price: '', category: '', image: '', imageFile: null, variants: [] });
+  const [hasVariants, setHasVariants] = useState(false);
   const [savingProduct, setSavingProduct] = useState(false);
   const formRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -110,6 +111,11 @@ const ManageStore = () => {
       formData.append('category', productForm.category || 'Uncategorized');
       if (productForm.image) formData.append('image', productForm.image);
       if (productForm.imageFile) formData.append('imageFile', productForm.imageFile);
+      if (hasVariants && productForm.variants.length > 0) {
+        formData.append('variants', JSON.stringify(productForm.variants));
+      } else {
+        formData.append('variants', JSON.stringify([]));
+      }
 
       if (productForm._id) {
         const res = await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/store/${store._id}/product/${productForm._id}`, formData, {
@@ -143,14 +149,17 @@ const ManageStore = () => {
       price: product.price, 
       category: product.category || '', 
       image: product.image || '', 
-      imageFile: null 
+      imageFile: null,
+      variants: product.variants || []
     });
+    setHasVariants(product.variants && product.variants.length > 0);
     if (fileInputRef.current) fileInputRef.current.value = "";
     if (formRef.current) formRef.current.scrollIntoView({ behavior: 'smooth' });
   };
 
   const cancelEdit = () => {
-    setProductForm({ _id: null, name: '', price: '', category: '', image: '', imageFile: null });
+    setProductForm({ _id: null, name: '', price: '', category: '', image: '', imageFile: null, variants: [] });
+    setHasVariants(false);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
@@ -776,6 +785,38 @@ const ManageStore = () => {
                   </div>
                 </div>
 
+                <div style={{ gridColumn: '1 / span 2', background: 'rgba(255,255,255,0.02)', padding: '1rem', borderRadius: '14px', border: '1px solid var(--surface-border)' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', marginBottom: hasVariants ? '1rem' : '0' }}>
+                    <input type="checkbox" checked={hasVariants} onChange={(e) => setHasVariants(e.target.checked)} style={{ width: '20px', height: '20px', accentColor: 'var(--primary)' }} />
+                    <span style={{ fontWeight: '700' }}>This product has multiple sizes/variants</span>
+                  </label>
+                  
+                  {hasVariants && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                      {productForm.variants.map((v, i) => (
+                        <div key={i} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                          <input type="text" placeholder="Size (e.g., Small)" value={v.name} onChange={e => {
+                            const newV = [...productForm.variants];
+                            newV[i].name = e.target.value;
+                            setProductForm({...productForm, variants: newV});
+                          }} className="form-input" style={{ flex: 2, height: '40px' }} required />
+                          <input type="number" placeholder="Price (₹)" value={v.price} onChange={e => {
+                            const newV = [...productForm.variants];
+                            newV[i].price = e.target.value;
+                            setProductForm({...productForm, variants: newV});
+                          }} className="form-input" style={{ flex: 1, height: '40px' }} min="0" required />
+                          <button type="button" onClick={() => setProductForm({...productForm, variants: productForm.variants.filter((_, idx) => idx !== i)})} style={{ background: 'rgba(239, 68, 68, 0.1)', color: 'var(--error)', border: 'none', borderRadius: '10px', height: '40px', width: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      ))}
+                      <button type="button" onClick={() => setProductForm({...productForm, variants: [...productForm.variants, { name: '', price: '' }]})} style={{ alignSelf: 'flex-start', background: 'transparent', border: 'none', color: 'var(--primary)', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.5rem' }}>
+                        <Plus size={16} /> Add Variant
+                      </button>
+                    </div>
+                  )}
+                </div>
+
                 <div style={{ gridColumn: '1 / span 2', display: 'flex', gap: '1rem', marginTop: '1rem' }}>
                   <button type="submit" className="btn btn-primary" disabled={savingProduct} style={{ height: '54px', borderRadius: '14px', flex: 2 }}>
                     {savingProduct ? 'Processing...' : (productForm._id ? <><Save size={18} /> Update Item</> : <><Plus size={18} /> Add to Menu</>)}
@@ -823,8 +864,16 @@ const ManageStore = () => {
                         </div>
                         <div style={{ flex: 1 }}>
                           <h4 style={{ margin: '0 0 0.25rem 0', fontSize: '1rem', fontWeight: '800' }}>{p.name}</h4>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                             <span style={{ fontWeight: '700', color: 'var(--secondary)', fontSize: '0.9rem' }}>₹{p.price}</span>
+                          <div style={{ display: 'flex', alignItems: 'flex-start', flexDirection: 'column', gap: '0.2rem' }}>
+                             {p.variants && p.variants.length > 0 ? (
+                               <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginTop: '0.25rem', marginBottom: '0.25rem' }}>
+                                 {p.variants.map((v, i) => (
+                                   <span key={i} style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem', background: 'rgba(255,255,255,0.05)', borderRadius: '6px', color: 'white', fontWeight: '600' }}>{v.name}: ₹{v.price}</span>
+                                 ))}
+                               </div>
+                             ) : (
+                               <span style={{ fontWeight: '700', color: 'var(--secondary)', fontSize: '0.9rem' }}>₹{p.price}</span>
+                             )}
                              <span style={{ fontSize: '0.65rem', padding: '0.15rem 0.5rem', background: 'rgba(99, 102, 241, 0.1)', borderRadius: '6px', color: 'var(--primary)', fontWeight: '700' }}>{p.category}</span>
                           </div>
                         </div>

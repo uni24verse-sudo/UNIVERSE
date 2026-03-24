@@ -149,7 +149,12 @@ router.put('/:storeId/update-image', auth, upload.single('imageFile'), async (re
 // Add a Product to Store
 router.post('/:storeId/product', auth, upload.single('imageFile'), async (req, res) => {
   try {
-    const { name, price, category, image } = req.body;
+    const { name, price, category, image, variants } = req.body;
+    let parsedVariants = [];
+    if (variants) {
+      try { parsedVariants = JSON.parse(variants); } catch (e) {}
+    }
+    
     let finalImage = image;
 
     if (req.file) {
@@ -169,7 +174,7 @@ router.post('/:storeId/product', auth, upload.single('imageFile'), async (req, r
     const store = await Store.findOne({ _id: req.params.storeId, admin: req.admin._id });
     if (!store) return res.status(404).json({ message: 'Store not found or unauthorized' });
 
-    store.products.push({ name, price, category: category || 'Uncategorized', image: finalImage });
+    store.products.push({ name, price, category: category || 'Uncategorized', image: finalImage, variants: parsedVariants });
     await store.save();
     
     res.status(201).json(store);
@@ -241,7 +246,7 @@ router.put('/:storeId/product/:productId/toggle', auth, async (req, res) => {
 // Edit a Product in Store
 router.put('/:storeId/product/:productId', auth, upload.single('imageFile'), async (req, res) => {
   try {
-    const { name, price, category, image } = req.body;
+    const { name, price, category, image, variants } = req.body;
     
     const store = await Store.findOne({ _id: req.params.storeId, admin: req.admin._id });
     if (!store) return res.status(404).json({ message: 'Store not found or unauthorized' });
@@ -252,6 +257,9 @@ router.put('/:storeId/product/:productId', auth, upload.single('imageFile'), asy
     if (name) product.name = name;
     if (price !== undefined) product.price = Number(price);
     if (category) product.category = category;
+    if (variants) {
+      try { product.variants = JSON.parse(variants); } catch (e) {}
+    }
     
     if (req.file) {
       const uploadResult = await new Promise((resolve, reject) => {

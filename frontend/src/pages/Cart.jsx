@@ -53,7 +53,7 @@ const Cart = () => {
     try {
       const orderData = {
         storeId,
-        items: cart.map(item => ({ name: item.name, price: item.price, quantity: item.quantity })),
+        items: cart.map(item => ({ name: item.name, price: item.price, quantity: item.quantity, variant: item.variant })),
         totalAmount: finalTotal,
         paymentMethod,
         customerPhone,
@@ -124,22 +124,24 @@ const Cart = () => {
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
               {cart.map(item => (
-                <div key={item._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '1.5rem', borderBottom: '1px solid var(--surface-border)' }}>
+                <div key={item.cartItemId || item._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '1.5rem', borderBottom: '1px solid var(--surface-border)' }}>
                   <div style={{ flex: 1 }}>
-                    <h4 style={{ margin: '0 0 0.25rem 0', fontSize: '1.125rem' }}>{item.name}</h4>
+                    <h4 style={{ margin: '0 0 0.25rem 0', fontSize: '1.125rem' }}>
+                      {item.name} {item.variant && <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', fontWeight: '600' }}>({item.variant})</span>}
+                    </h4>
                     <p style={{ fontSize: '0.95rem', fontWeight: '700', color: 'var(--secondary)' }}>₹{item.price * item.quantity}</p>
                   </div>
                   
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', background: 'rgba(255,255,255,0.05)', padding: '0.4rem', borderRadius: '12px' }}>
                     <button 
-                      onClick={() => updateQuantity(item._id, -1)} 
+                      onClick={() => updateQuantity(item.cartItemId || item._id, -1)} 
                       style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', padding: '0.25rem' }}
                     >
                       <Minus size={16} />
                     </button>
                     <span style={{ minWidth: '20px', textAlign: 'center', fontWeight: '700' }}>{item.quantity}</span>
                     <button 
-                      onClick={() => updateQuantity(item._id, 1)} 
+                      onClick={() => updateQuantity(item.cartItemId || item._id, 1)} 
                       style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', padding: '0.25rem' }}
                     >
                       <Plus size={16} />
@@ -147,7 +149,7 @@ const Cart = () => {
                   </div>
 
                   <button 
-                    onClick={() => removeFromCart(item._id)} 
+                    onClick={() => removeFromCart(item.cartItemId || item._id)} 
                     style={{ marginLeft: '1rem', background: 'none', border: 'none', color: 'var(--error)', cursor: 'pointer', opacity: 0.6 }}
                   >
                     <Trash2 size={18} />
