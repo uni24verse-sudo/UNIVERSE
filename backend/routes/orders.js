@@ -116,49 +116,6 @@ router.put('/:id/verify-payment', auth, async (req, res) => {
   }
 });
 
-// Request Refund (Customer)
-router.put('/:id/request-refund', async (req, res) => {
-  try {
-    const order = await Order.findById(req.params.id);
-    if (!order) return res.status(404).json({ message: 'Order not found' });
-    
-    // Can only refund if not already completed
-    if (order.status === 'Completed') return res.status(400).json({ message: 'Cannot refund completed order' });
-    
-    order.paymentStatus = 'Refund Requested';
-    order.status = 'Cancelled';
-    const savedOrder = await order.save();
-    
-    // Notify vendor
-    const io = req.app.get('io');
-    io.to(order.store.toString()).emit('new_order', savedOrder);
-    
-    res.json(savedOrder);
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-});
-
-// Process Refund (Vendor)
-router.put('/:id/process-refund', auth, async (req, res) => {
-  try {
-    const order = await Order.findById(req.params.id).populate('store');
-    if (!order) return res.status(404).json({ message: 'Order not found' });
-    if (order.store.admin.toString() !== req.admin._id) return res.status(403).json({ message: 'Unauthorized' });
-    
-    order.paymentStatus = 'Refunded';
-    const savedOrder = await order.save();
-    
-    // Notify customer
-    const io = req.app.get('io');
-    io.to(order._id.toString()).emit('order_status_update', savedOrder);
-    
-    res.json(savedOrder);
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-});
-
 // Get Single Order Status (Public, for customer tracking)
 router.get('/:id', async (req, res) => {
   try {

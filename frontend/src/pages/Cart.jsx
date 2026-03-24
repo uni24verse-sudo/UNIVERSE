@@ -45,7 +45,7 @@ const Cart = () => {
     }
 
     if (paymentMethod === 'UPI' && !customerPhone) {
-      alert("Please enter your Phone Number for potential refunds.");
+      alert("Please enter your Phone Number.");
       return;
     }
 
@@ -277,7 +277,7 @@ const Cart = () => {
                                  }}
                                />
                                <p style={{ fontSize: '0.7rem', color: '#64748b', marginTop: '0.75rem', fontStyle: 'italic', lineHeight: '1.4' }}>
-                                 Providing your number ensures the vendor can refund you instantly if the order is cancelled.
+                                 Providing your number helps the vendor contact you regarding your order.
                                </p>
                             </div>
                           </div>

@@ -200,17 +200,7 @@ const OrderTracker = () => {
                  <p style={{ color: '#10b981', fontWeight: '700', margin: 0 }}>Payment Verified ✅</p>
                  <p style={{ color: '#64748b', fontSize: '0.8rem', marginTop: '0.4rem' }}>Your payment of ₹{order.totalAmount} has been confirmed by the vendor.</p>
               </div>
-            ) : order.paymentStatus === 'Refund Requested' ? (
-              <div style={{ padding: '1rem', background: 'rgba(239, 68, 68, 0.05)', borderRadius: '16px', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
-                 <p style={{ color: '#ef4444', fontWeight: '700', margin: 0 }}>Refund Requested</p>
-                 <p style={{ color: '#64748b', fontSize: '0.8rem', marginTop: '0.4rem' }}>You have cancelled this order. The vendor will process your refund manually.</p>
-              </div>
-            ) : (
-              <div style={{ padding: '1rem', background: 'rgba(0, 0, 0, 0.05)', borderRadius: '16px' }}>
-                 <p style={{ fontWeight: '700', margin: 0 }}>Refunded</p>
-                 <p style={{ color: '#64748b', fontSize: '0.8rem', marginTop: '0.4rem' }}>The vendor has processed your refund.</p>
-              </div>
-            )}
+            ) : null}
           </div>
         )}
 
@@ -235,23 +225,6 @@ const OrderTracker = () => {
              <span style={{ color: 'var(--secondary)' }}>₹{order.totalAmount}</span>
            </div>
         </div>
-        
-        {/* Refund Button */}
-        {order.status !== 'Completed' && order.status !== 'Cancelled' && (
-          <button 
-            onClick={async () => {
-              if (window.confirm("Are you sure you want to cancel and request a refund?")) {
-                try {
-                  const res = await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/orders/${order._id}/request-refund`);
-                  setOrder(res.data);
-                } catch (err) { alert('Refund request failed'); }
-              }
-            }}
-            style={{ width: '100%', padding: '1rem', borderRadius: '16px', background: 'transparent', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#ef4444', fontWeight: '600', cursor: 'pointer', marginBottom: '1rem' }}
-          >
-            Cancel Order & Request Refund
-          </button>
-        )}
 
         <button onClick={() => navigate('/')} className="btn btn-secondary" style={{ height: '60px', borderRadius: '16px', width: '100%' }}>
            <Home size={20} /> Return to Home

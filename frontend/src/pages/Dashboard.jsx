@@ -588,48 +588,6 @@ const Dashboard = () => {
                           </div>
                         )}
 
-                        {order.paymentStatus === 'Refund Requested' && (
-                          <div style={{ marginTop: '1rem', padding: '1.25rem', background: 'rgba(239, 68, 68, 0.05)', borderRadius: '16px', border: '1px solid rgba(239, 68, 68, 0.1)' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
-                              <div>
-                                <span style={{ fontSize: '0.75rem', fontWeight: '800', color: '#ef4444', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Refund Requested</span>
-                                <p style={{ margin: '0.25rem 0 0 0', fontSize: '1rem', fontWeight: '800', color: 'white', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                  <Phone size={16} color="#94a3b8" /> <span>Customer Phone:</span> {order.customerPhone || 'Not Provided'}
-                                </p>
-                              </div>
-                              <div style={{ textAlign: 'right' }}>
-                                <p style={{ margin: 0, fontSize: '1rem', fontWeight: '800', color: '#ef4444' }}>₹{order.totalAmount}</p>
-                              </div>
-                            </div>
-
-                            <div style={{ display: 'flex', gap: '0.75rem' }}>
-                              {order.customerPhone && (
-                                <a 
-                                  href={`upi://pay?pa=${order.customerPhone}@upi&pn=Customer&am=${order.totalAmount}&cu=INR&tn=Refund%20Order%20${order.orderNumber}`}
-                                  className="btn btn-primary"
-                                  style={{ flex: 2, background: '#ef4444', borderColor: '#ef4444', height: '44px', textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.875rem' }}
-                                >
-                                  Refund via UPI App
-                                </a>
-                              )}
-                              <button 
-                                onClick={async () => {
-                                  if (window.confirm("Mark as refund processed?")) {
-                                    try {
-                                      const res = await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/orders/${order._id}/process-refund`, {}, {
-                                        headers: { Authorization: `Bearer ${token}` }
-                                      });
-                                      setOrders(orders.map(o => o._id === order._id ? res.data : o));
-                                    } catch (err) { alert('Action failed'); }
-                                  }
-                                }}
-                                style={{ flex: 1, padding: '0.5rem 1rem', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid rgba(255,255,255,0.1)', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '700' }}
-                              >
-                                Mark Done
-                              </button>
-                            </div>
-                          </div>
-                        )}
                       </div>
                     )
                   ))}
