@@ -512,7 +512,14 @@ const Dashboard = () => {
                                 {order.status === 'Confirmed' && order.paymentMethod === 'UPI' ? 'UPI PAID' : order.status}
                               </span>
                             </div>
-                            <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{getTimeAgo(order.createdAt)} • {new Date(order.createdAt).toLocaleTimeString()} • {order.items.length} Items</p>
+                            <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>
+                              {getTimeAgo(order.createdAt)} • {new Date(order.createdAt).toLocaleTimeString()} • {order.items.length} Items
+                            </p>
+                            {order.customerPhone && (
+                              <p style={{ fontSize: '0.75rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '0.3rem', fontWeight: '600' }}>
+                                <Phone size={12} /> {order.customerPhone}
+                              </p>
+                            )}
                           </div>
                           
                           <div style={{ textAlign: 'right' }}>

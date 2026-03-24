@@ -254,9 +254,9 @@ const Cart = () => {
                             }}>
                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
                                  <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                    <CreditCard size={20} color="white" />
+                                    <CreditCard size={20} color="black" />
                                  </div>
-                                 <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: '800' }}>Refund Protection</h4>
+                                 <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: '800' }}>Contact Info</h4>
                                </div>
                                
                                <label style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-secondary)', marginBottom: '0.5rem', display: 'block' }}>PHONE NUMBER (LINKED TO UPI)</label>
