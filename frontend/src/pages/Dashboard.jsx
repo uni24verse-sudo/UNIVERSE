@@ -135,14 +135,21 @@ const Dashboard = () => {
   }, [store]);
 
   const updateOrderStatus = async (orderId, newStatus) => {
+    // 1. Snapshot previous state for rollback
+    const previousOrders = [...orders];
+    
+    // 2. Optimistic Update (Instant UI change)
+    setOrders(orders.map(o => o._id === orderId ? { ...o, status: newStatus } : o));
+
     try {
       await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/orders/${orderId}/status`, 
         { status: newStatus },
         { headers: { Authorization: `Bearer ${token}` }}
       );
-      setOrders(orders.map(o => o._id === orderId ? { ...o, status: newStatus } : o));
     } catch (err) {
-      alert('Failed to update status');
+      // 3. Rollback on failure
+      setOrders(previousOrders);
+      alert('Failed to update status. Please try again.');
     }
   };
 

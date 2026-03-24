@@ -3,11 +3,13 @@ import { useNavigate, Link, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { Store, Search, User, ShoppingBag, X, ChefHat, MapPin, ChevronRight, ArrowLeft } from 'lucide-react';
 import { CartContext } from '../context/CartContext';
+import { AuthContext } from '../context/AuthContext';
 
 const Navbar = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { cart } = useContext(CartContext);
+  const { vendor, token } = useContext(AuthContext);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState({ stores: [], dishes: [] });
   const [isSearching, setIsSearching] = useState(false);
@@ -318,10 +320,10 @@ const Navbar = () => {
       {(!isSearchFocused || !isMobile) && (
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexShrink: 0 }}>
           <button 
-            onClick={() => navigate('/vendor/login')}
+            onClick={() => navigate(token ? '/vendor/dashboard' : '/vendor/login')}
             style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--surface-border)', padding: '0.6rem 1.25rem', borderRadius: '14px', fontSize: '0.875rem', fontWeight: '700', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
           >
-            <User size={16} /> Vendor
+            <User size={16} /> {token ? 'Dashboard' : 'Vendor'}
           </button>
         </div>
       )}
