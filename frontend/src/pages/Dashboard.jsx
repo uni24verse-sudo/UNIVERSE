@@ -15,12 +15,10 @@ import {
   Bell, 
   CheckCircle2, 
   Clock, 
-  AlertCircle,
-  QrCode,
-  Globe,
   Plus,
   Phone,
-  X
+  X,
+  Menu
 } from 'lucide-react';
 
 const Dashboard = () => {
@@ -314,7 +312,7 @@ const Dashboard = () => {
                 onClick={() => setShowSidebar(true)}
                 style={{ background: 'var(--glass-bg)', border: '1px solid var(--surface-border)', color: 'white', padding: '0.6rem', borderRadius: '12px' }}
               >
-                <LayoutDashboard size={20} />
+                <Menu size={20} />
               </button>
             )}
             <div style={{ flex: 1 }}>
@@ -424,45 +422,11 @@ const Dashboard = () => {
           </div>
         ) : (
           <>
-            {/* Stats Cards */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem', marginBottom: '3rem' }}>
-              <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '24px', position: 'relative', overflow: 'hidden' }}>
-                <div style={{ position: 'absolute', right: '-10px', bottom: '-10px', opacity: 0.05 }}><Banknote size={100} /></div>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: '600', marginBottom: '1rem' }}>Today's Revenue</p>
-                <h3 style={{ fontSize: '1.75rem', margin: 0 }}>₹{todayRevenue}</h3>
-                <div style={{ marginTop: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--secondary)', fontSize: '0.75rem', fontWeight: '700' }}>
-                  <TrendingUp size={14} /> Live Updates
-                </div>
-              </div>
-
-              <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '24px', position: 'relative', overflow: 'hidden' }}>
-                <div style={{ position: 'absolute', right: '-10px', bottom: '-10px', opacity: 0.05 }}><ShoppingBag size={100} /></div>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: '600', marginBottom: '1rem' }}>Active Orders</p>
-                <h3 style={{ fontSize: '1.75rem', margin: 0 }}>{pendingOrders}</h3>
-                <p style={{ marginTop: '0.75rem', color: 'var(--text-secondary)', fontSize: '0.75rem' }}>Waiting to be accepted</p>
-              </div>
-
-              <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '24px', position: 'relative', overflow: 'hidden' }}>
-                <div style={{ position: 'absolute', right: '-10px', bottom: '-10px', opacity: 0.05 }}><TrendingUp size={100} /></div>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: '600', marginBottom: '1rem' }}>Total Life-time</p>
-                <h3 style={{ fontSize: '1.75rem', margin: 0 }}>₹{totalRevenue}</h3>
-                <p style={{ marginTop: '0.75rem', color: 'var(--text-secondary)', fontSize: '0.75rem' }}>Across {orders.length} orders</p>
-              </div>
-
-              <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '24px', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '0.5rem', background: 'var(--primary)', color: 'white' }}>
-                 <p style={{ fontSize: '0.875rem', fontWeight: '600', opacity: 0.8 }}>Store Visibility</p>
-                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    <Globe size={24} />
-                    <span style={{ fontSize: '1.25rem', fontWeight: '900' }}>ONLINE</span>
-                 </div>
-                 <Link to={`/store/${store._id}`} target="_blank" style={{ color: 'white', fontSize: '0.75rem', textDecoration: 'underline' }}>View Public Link</Link>
-              </div>
-            </div>
-
-            {/* Main Section: Orders & Info */}
-            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '2fr 1fr', gap: '2rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? '1.5rem' : '0' }}>
+            {/* Main Section: Orders & Info - Prioritized on mobile */}
+            <div style={{ order: isMobile ? 1 : 2, display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '2fr 1fr', gap: '2rem' }}>
               {/* Live Orders Feed */}
-              <div className="glass-card" style={{ padding: '2rem', borderRadius: '32px' }}>
+              <div className="glass-card" style={{ padding: isMobile ? '1.5rem' : '2rem', borderRadius: '32px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                   <h3 style={{ fontSize: '1.25rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                     Live Orders
@@ -523,7 +487,7 @@ const Dashboard = () => {
                   ))}
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxHeight: '65vh', overflowY: 'auto', paddingRight: '0.5rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxHeight: isMobile ? 'none' : '65vh', overflowY: isMobile ? 'visible' : 'auto', paddingRight: '0.5rem' }}>
                   {filteredOrders.length === 0 ? (
                     <div style={{ textAlign: 'center', padding: '3rem 0' }}>
                       <Clock size={40} style={{ opacity: 0.2, marginBottom: '1rem' }} />
@@ -546,17 +510,6 @@ const Dashboard = () => {
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.25rem' }}>
                               <span style={{ fontWeight: '800', fontSize: '1.125rem' }}>Order #{order.orderNumber}</span>
                               <span style={{ 
-                                padding: '0.2rem 0.6rem', 
-                                background: 'rgba(99, 102, 241, 0.1)', 
-                                color: 'var(--primary)', 
-                                borderRadius: '6px', 
-                                fontSize: '0.65rem', 
-                                fontWeight: '800',
-                                border: '1px solid rgba(99, 102, 241, 0.2)'
-                              }}>
-                                {store?.market || 'BH1 Market'}
-                              </span>
-                              <span style={{ 
                                 padding: '0.25rem 0.75rem', 
                                 borderRadius: '8px', 
                                 fontSize: '0.65rem',
@@ -577,125 +530,49 @@ const Dashboard = () => {
                                   '#10b98144'
                                 }`
                               }}>
-                                {order.status === 'Confirmed' && order.paymentMethod === 'UPI' ? 'UPI PAID' : order.status}
+                                {order.status}
                               </span>
                             </div>
                             <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>
-                              {getTimeAgo(order.createdAt)} • {new Date(order.createdAt).toLocaleTimeString()} • {order.items.length} Items
+                              {getTimeAgo(order.createdAt)} • {order.items.length} Items
                             </p>
-                            {order.customerPhone && (
-                              <p style={{ fontSize: '0.75rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '0.3rem', fontWeight: '600' }}>
-                                <Phone size={12} /> {order.customerPhone}
-                              </p>
-                            )}
                           </div>
                           
                           <div style={{ textAlign: 'right' }}>
                             <p style={{ fontSize: '1.25rem', fontWeight: '800', margin: 0 }}>₹{order.totalAmount}</p>
-                            <p style={{ 
-                              fontSize: '0.65rem', 
-                              fontWeight: '700',
-                              color: order.paymentMethod === 'UPI' ? '#3b82f6' : 'var(--text-secondary)', 
-                              display: 'flex', 
-                              alignItems: 'center', 
-                              justifyContent: 'flex-end', 
-                              gap: '0.25rem' 
-                            }}>
-                              {order.paymentMethod === 'UPI' ? <CreditCard size={10} /> : <Banknote size={10} />} {order.paymentMethod}
-                            </p>
                           </div>
                         </div>
 
                         <div style={{ background: 'rgba(255,255,255,0.02)', padding: '0.75rem 1rem', borderRadius: '12px', marginBottom: '1.25rem' }}>
                           {order.items.map((item, idx) => (
-                            <div key={idx} style={{ marginBottom: idx === order.items.length - 1 ? 0 : '1rem' }}>
+                            <div key={idx} style={{ marginBottom: idx === order.items.length - 1 ? 0 : '0.5rem' }}>
                               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem' }}>
-                                <span style={{ fontWeight: '700' }}>
-                                  {item.quantity}x {item.name} 
-                                  {item.variant && <span style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', marginLeft: '0.4rem' }}>({item.variant})</span>}
-                                  {item.isCombo && <span style={{ fontSize: '0.65rem', padding: '0.1rem 0.4rem', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', borderRadius: '4px', fontWeight: '800', marginLeft: '0.5rem' }}>COMBO</span>}
-                                </span>
+                                <span style={{ fontWeight: '700' }}>{item.quantity}x {item.name} {item.variant && `(${item.variant})`}</span>
                                 <span style={{ color: 'var(--text-secondary)' }}>₹{item.price * item.quantity}</span>
                               </div>
-                              
-                              {item.isCombo && (
-                                <div style={{ marginTop: '0.4rem', paddingLeft: '1.5rem', borderLeft: '2px solid var(--surface-border)' }}>
-                                  {item.comboItems && item.comboItems.length > 0 && (
-                                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                                      {item.comboItems.map((ci, cidx) => (
-                                        <div key={cidx}>• {ci.quantity} {ci.name}</div>
-                                      ))}
-                                    </div>
-                                  )}
-                                  {item.freeItems && item.freeItems.length > 0 && (
-                                    <div style={{ fontSize: '0.75rem', color: '#10b981', marginTop: '0.2rem', fontWeight: '600' }}>
-                                      {item.freeItems.map((fi, fidx) => (
-                                        <div key={fidx}>+ Free {fi.quantity} {fi.name}</div>
-                                      ))}
-                                    </div>
-                                  )}
-                                </div>
-                              )}
                             </div>
                           ))}
                         </div>
 
                         {order.status !== 'Completed' && order.status !== 'Cancelled' && (
                           <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-                            {order.paymentMethod === 'Cash' && order.status === 'Pending' && (
-                              <button 
-                                onClick={() => updateOrderStatus(order._id, 'Confirmed')} 
-                                className="btn btn-primary" 
-                                style={{ flex: 1, padding: '0.75rem', height: 'auto', borderRadius: '12px', fontSize: '0.875rem' }}
-                              >
-                                Accept Order (Cash)
-                              </button>
-                            )}
-                            
-                            {order.paymentMethod === 'UPI' && order.paymentStatus === 'Verification Requested' && (
-                              <button 
-                                onClick={async () => {
-                                  try {
-                                    const res = await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/orders/${order._id}/verify-payment`, {}, {
-                                      headers: { Authorization: `Bearer ${token}` }
-                                    });
-                                    setOrders(orders.map(o => o._id === order._id ? res.data : o));
-                                  } catch (err) { alert('Verification failed'); }
-                                }}
-                                className="btn btn-primary" 
-                                style={{ flex: 1, padding: '0.75rem', height: 'auto', borderRadius: '12px', fontSize: '0.875rem', background: '#2563eb', borderColor: '#2563eb' }}
-                              >
-                                Confirm Payment Received
-                              </button>
-                            )}
-
-                            {order.status === 'Confirmed' && (
-                              <button 
-                                onClick={() => updateOrderStatus(order._id, 'Completed')} 
-                                className="btn btn-secondary" 
-                                style={{ flex: 1, padding: '0.75rem', height: 'auto', borderRadius: '12px', fontSize: '0.875rem', background: 'var(--secondary)', color: 'white', borderColor: 'var(--secondary)' }}
-                              >
-                                <CheckCircle2 size={18} style={{ marginRight: '0.5rem' }} /> Mark Ready
-                              </button>
-                            )}
-                            
-                            <button 
-                              onClick={() => updateOrderStatus(order._id, 'Cancelled')} 
-                              style={{ padding: '0.75rem 1.25rem', borderRadius: '12px', border: '1px solid rgba(239, 68, 68, 0.2)', background: 'transparent', color: 'var(--error)', cursor: 'pointer', fontSize: '0.875rem' }}
-                            >
-                              Cancel
-                            </button>
+                             {order.status === 'Pending' && (
+                               <button onClick={() => updateOrderStatus(order._id, 'Confirmed')} className="btn btn-primary" style={{ flex: 1, padding: '0.75rem', borderRadius: '12px', fontSize: '0.875rem' }}>Accept</button>
+                             )}
+                             {order.status === 'Confirmed' && (
+                               <button onClick={() => updateOrderStatus(order._id, 'Completed')} className="btn btn-secondary" style={{ flex: 1, padding: '0.75rem', borderRadius: '12px', fontSize: '0.875rem', background: 'var(--secondary)', color: 'white' }}>Mark Ready</button>
+                             )}
+                             <button onClick={() => updateOrderStatus(order._id, 'Cancelled')} style={{ padding: '0.75rem 1.25rem', borderRadius: '12px', border: '1px solid rgba(239, 68, 68, 0.2)', background: 'transparent', color: 'var(--error)', fontSize: '0.875rem' }}>Cancel</button>
                           </div>
                         )}
-
                       </div>
-                    )
-                  ))}
+                    ))
+                  )}
                 </div>
               </div>
 
               {/* Quick Actions / Store Info */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', order: isMobile ? 3 : 2 }}>
                 {store && (
                   <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '24px' }}>
                     <h4 style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><QrCode size={18} /> Store QR</h4>
@@ -705,23 +582,45 @@ const Dashboard = () => {
                     <button onClick={() => navigate('/vendor/store/manage')} className="btn btn-secondary" style={{ width: '100%', borderRadius: '12px' }}>Download QR</button>
                   </div>
                 )}
-
-                <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '24px' }}>
-                  <h4 style={{ marginBottom: '1rem' }}>Resources</h4>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                    <div style={{ padding: '1rem', background: 'rgba(255,255,255,0.03)', borderRadius: '14px', fontSize: '0.875rem', cursor: 'pointer' }}>
-                      📢 Promoting your stall
-                    </div>
-                    <div style={{ padding: '1rem', background: 'rgba(255,255,255,0.03)', borderRadius: '14px', fontSize: '0.875rem', cursor: 'pointer' }}>
-                      📈 Sales optimization
-                    </div>
-                  </div>
-                </div>
               </div>
             </div>
-          </>
-        )}
-      </main>
+
+            {/* Stats Cards - Moved below Live Orders on mobile */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem', marginBottom: '3rem', order: isMobile ? 2 : 1 }}>
+              <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '24px', position: 'relative', overflow: 'hidden' }}>
+                <div style={{ position: 'absolute', right: '-10px', bottom: '-10px', opacity: 0.05 }}><Banknote size={100} /></div>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: '600', marginBottom: '1rem' }}>Today's Revenue</p>
+                <h3 style={{ fontSize: '1.75rem', margin: 0 }}>₹{todayRevenue}</h3>
+                <div style={{ marginTop: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--secondary)', fontSize: '0.75rem', fontWeight: '700' }}>
+                  <TrendingUp size={14} /> Live Updates
+                </div>
+              </div>
+
+              <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '24px', position: 'relative', overflow: 'hidden' }}>
+                <div style={{ position: 'absolute', right: '-10px', bottom: '-10px', opacity: 0.05 }}><ShoppingBag size={100} /></div>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: '600', marginBottom: '1rem' }}>Active Orders</p>
+                <h3 style={{ fontSize: '1.75rem', margin: 0 }}>{pendingOrders}</h3>
+              </div>
+
+              <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '24px', position: 'relative', overflow: 'hidden' }}>
+                <div style={{ position: 'absolute', right: '-10px', bottom: '-10px', opacity: 0.05 }}><TrendingUp size={100} /></div>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: '600', marginBottom: '1rem' }}>Total Life-time</p>
+                <h3 style={{ fontSize: '1.75rem', margin: 0 }}>₹{totalRevenue}</h3>
+              </div>
+
+              <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '24px', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '0.5rem', background: 'var(--primary)', color: 'white' }}>
+                 <p style={{ fontSize: '0.875rem', fontWeight: '600', opacity: 0.8 }}>Store Visibility</p>
+                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <Globe size={24} />
+                    <span style={{ fontSize: '1.25rem', fontWeight: '900' }}>{store?.isOpen ? 'ONLINE' : 'OFFLINE'}</span>
+                 </div>
+                 <Link to={`/store/${store?._id}`} target="_blank" style={{ color: 'white', fontSize: '0.75rem', textDecoration: 'underline' }}>View Public Link</Link>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+    </main>
 
       {/* Mobile Bottom Navigation */}
       {isMobile && (
