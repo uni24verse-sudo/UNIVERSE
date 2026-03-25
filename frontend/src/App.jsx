@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
+import { SocketProvider } from './context/SocketContext';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
@@ -15,34 +16,38 @@ import RecentOrders from './components/RecentOrders';
 import SuperAdminLogin from './pages/SuperAdminLogin';
 import SuperAdminPanel from './pages/SuperAdminPanel';
 import Navbar from './components/Navbar';
+import NotificationsToast from './components/NotificationsToast';
 
 function App() {
   return (
     <AuthProvider>
-      <CartProvider>
-        <Router>
-          <div className="app-container">
-            <Navbar />
-            <RecentOrders />
-            <React.Suspense fallback={<div className="auth-wrapper"><div className="pulse-container"><div className="pulse-dot"></div></div></div>}>
-              <Routes>
-                <Route path="/" element={<Home />} />
-                <Route path="/vendor/login" element={<Login />} />
-                <Route path="/vendor/register" element={<Register />} />
-                <Route path="/vendor/dashboard" element={<Dashboard />} />
-                <Route path="/vendor/store/create" element={<CreateStore />} />
-                <Route path="/vendor/store/manage" element={<ManageStore />} />
-                <Route path="/super-admin/login" element={<SuperAdminLogin />} />
-                <Route path="/super-admin/panel" element={<SuperAdminPanel />} />
-                <Route path="/store/:id" element={<StoreMenu />} />
-                <Route path="/cart" element={<Cart />} />
-                <Route path="/order-tracker/:id" element={<OrderTracker />} />
-                <Route path="*" element={<Navigate to="/" />} />
-              </Routes>
-            </React.Suspense>
-          </div>
-        </Router>
-      </CartProvider>
+      <SocketProvider>
+        <CartProvider>
+          <Router>
+            <div className="app-container">
+              <Navbar />
+              <RecentOrders />
+              <NotificationsToast />
+              <React.Suspense fallback={<div className="auth-wrapper"><div className="pulse-container"><div className="pulse-dot"></div></div></div>}>
+                <Routes>
+                  <Route path="/" element={<Home />} />
+                  <Route path="/vendor/login" element={<Login />} />
+                  <Route path="/vendor/register" element={<Register />} />
+                  <Route path="/vendor/dashboard" element={<Dashboard />} />
+                  <Route path="/vendor/store/create" element={<CreateStore />} />
+                  <Route path="/vendor/store/manage" element={<ManageStore />} />
+                  <Route path="/super-admin/login" element={<SuperAdminLogin />} />
+                  <Route path="/super-admin/panel" element={<SuperAdminPanel />} />
+                  <Route path="/store/:id" element={<StoreMenu />} />
+                  <Route path="/cart" element={<Cart />} />
+                  <Route path="/order-tracker/:id" element={<OrderTracker />} />
+                  <Route path="*" element={<Navigate to="/" />} />
+                </Routes>
+              </React.Suspense>
+            </div>
+          </Router>
+        </CartProvider>
+      </SocketProvider>
     </AuthProvider>
   );
 }

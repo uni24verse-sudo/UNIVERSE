@@ -108,6 +108,50 @@ router.put('/:id/status', auth, async (req, res) => {
   }
 });
 
+// Accept Order (Vendor)
+router.put('/:id/accept', auth, async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id).populate('store');
+    if (!order) return res.status(404).json({ message: 'Order not found' });
+    if (order.store.admin.toString() !== req.admin._id) {
+      return res.status(403).json({ message: 'Unauthorized' });
+    }
+
+    order.status = 'Accepted';
+    const updatedOrder = await order.save();
+
+    // Notify customer about order acceptance
+    const io = req.app.get('io');
+    io.to(updatedOrder._id.toString()).emit('order_update', updatedOrder);
+
+    res.json(updatedOrder);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// Reject Order (Vendor)
+router.put('/:id/reject', auth, async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id).populate('store');
+    if (!order) return res.status(404).json({ message: 'Order not found' });
+    if (order.store.admin.toString() !== req.admin._id) {
+      return res.status(403).json({ message: 'Unauthorized' });
+    }
+
+    order.status = 'Rejected';
+    const updatedOrder = await order.save();
+
+    // Notify customer about order rejection
+    const io = req.app.get('io');
+    io.to(updatedOrder._id.toString()).emit('order_update', updatedOrder);
+
+    res.json(updatedOrder);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 // Request Payment Verification (Customer)
 router.put('/:id/request-verification', async (req, res) => {
   try {
