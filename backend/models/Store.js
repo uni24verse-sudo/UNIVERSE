@@ -30,6 +30,10 @@ const StoreSchema = new mongoose.Schema({
   qrLink: { type: String },
   isOpen: { type: Boolean, default: true },
   packagingCharge: { type: Number, default: 0 },
+  priority: { type: Number, default: 0 },
+  isTrialStarted: { type: Boolean, default: false },
+  trialStartDate: { type: Date },
+  trialEndDate: { type: Date },
   products: [ProductSchema]
 }, { timestamps: true });
 

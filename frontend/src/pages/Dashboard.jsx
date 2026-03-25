@@ -621,6 +621,34 @@ const Dashboard = () => {
                 <h3 style={{ fontSize: '1.75rem', margin: 0 }}>₹{totalRevenue}</h3>
               </div>
 
+              {/* Subscription Status Card */}
+              {store && (
+                <div className="glass-card" style={{ 
+                  padding: '1.5rem', 
+                  borderRadius: '24px', 
+                  border: `1px solid ${store.isTrialStarted ? (store.daysLeftInTrial > 0 ? 'rgba(16, 185, 129, 0.4)' : 'rgba(239, 68, 68, 0.4)') : 'var(--surface-border)'}`,
+                  background: store.isTrialStarted ? (store.daysLeftInTrial > 0 ? 'rgba(16, 185, 129, 0.05)' : 'rgba(239, 68, 68, 0.05)') : 'var(--glass-bg)'
+                }}>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: '600', marginBottom: '1rem' }}>Subscription Status</p>
+                  {!store.isTrialStarted ? (
+                    <div>
+                      <h3 style={{ fontSize: '1.25rem', margin: 0, color: 'var(--secondary)' }}>Staging Phase</h3>
+                      <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>Waiting for trial activation.</p>
+                    </div>
+                  ) : store.daysLeftInTrial > 0 ? (
+                    <div>
+                      <h3 style={{ fontSize: '1.75rem', margin: 0, color: '#10b981' }}>{store.daysLeftInTrial} Days</h3>
+                      <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>Free Trial in progress (0% fees)</p>
+                    </div>
+                  ) : (
+                    <div>
+                      <h3 style={{ fontSize: '1.75rem', margin: 0, color: 'var(--error)' }}>₹{store.estimatedFees}</h3>
+                      <p style={{ fontSize: '0.75rem', opacity: 0.8, marginTop: '0.5rem', fontWeight: '700' }}>3.5% Platform Charges Applied</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '24px', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '0.5rem', background: 'var(--primary)', color: 'white' }}>
                  <p style={{ fontSize: '0.875rem', fontWeight: '600', opacity: 0.8 }}>Store Visibility</p>
                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>

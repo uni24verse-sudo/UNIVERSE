@@ -251,10 +251,10 @@ const SuperAdminPanel = () => {
               <h1 style={{ fontSize: '2rem', fontWeight: '900' }}>Store Directory</h1>
             </header>
             
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '1.5rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: '1.5rem' }}>
               {stores.map(store => (
-                <div key={store._id} style={{ padding: '1.5rem', background: '#111', borderRadius: '24px', border: '1px solid #333' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+                <div key={store._id} style={{ padding: '1.5rem', background: '#111', borderRadius: '24px', border: '1px solid #333', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <div>
                       <h3 style={{ fontSize: '1.25rem', fontWeight: '800', margin: '0 0 0.5rem 0' }}>{store.name}</h3>
                       <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -277,15 +277,78 @@ const SuperAdminPanel = () => {
                     </div>
                   </div>
                   
-                  <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                     <span style={{ fontSize: '0.75rem', padding: '0.2rem 0.6rem', background: 'rgba(99, 102, 241, 0.1)', color: 'var(--primary)', borderRadius: '6px', fontWeight: '700' }}>{store.category}</span>
                     <span style={{ fontSize: '0.75rem', padding: '0.2rem 0.6rem', background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', borderRadius: '6px', fontWeight: '700' }}>{store.market || 'BH1 Market'}</span>
                     <span style={{ fontSize: '0.75rem', padding: '0.2rem 0.6rem', background: '#222', color: 'var(--text-secondary)', borderRadius: '6px', fontWeight: '600' }}>{store.productCount} SKUs</span>
                   </div>
 
-                  <div style={{ padding: '1rem', background: '#1a1a1a', borderRadius: '12px', border: '1px solid #333' }}>
-                    <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem', textTransform: 'uppercase', fontWeight: '700' }}>Total Store Revenue</p>
-                    <p style={{ fontSize: '1.5rem', fontWeight: '900', color: 'var(--secondary)', margin: 0 }}>₹{store.totalRevenue}</p>
+                  {/* Manual Ranking Control */}
+                  <div style={{ padding: '1rem', background: '#1a1a1a', borderRadius: '16px', border: '1px solid #333' }}>
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.75rem', fontWeight: '800', textTransform: 'uppercase' }}>Store Ranking (Lower is Higher)</p>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <input 
+                        type="number" 
+                        defaultValue={store.priority}
+                        onBlur={async (e) => {
+                          const val = e.target.value;
+                          if (val == store.priority) return;
+                          try {
+                            await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/super-admin/store/${store._id}/priority`, 
+                              { priority: val }, 
+                              { headers: { Authorization: `Bearer ${token}` } }
+                            );
+                            fetchDashboardData();
+                          } catch(err) { alert('Failed to update priority'); }
+                        }}
+                        style={{ flex: 1, background: '#0a0a0a', border: '1px solid #444', borderRadius: '8px', padding: '0.5rem', color: 'white' }}
+                      />
+                      <div style={{ background: 'var(--primary)', color: 'white', padding: '0.5rem 1rem', borderRadius: '8px', fontSize: '0.75rem', fontWeight: '800', display: 'flex', alignItems: 'center' }}>Pos: {store.priority}</div>
+                    </div>
+                  </div>
+
+                  {/* Trial & Billing Section */}
+                  <div style={{ padding: '1rem', background: store.isTrialStarted ? 'rgba(16, 185, 129, 0.05)' : 'rgba(245, 158, 11, 0.05)', borderRadius: '16px', border: `1px solid ${store.isTrialStarted ? 'rgba(16, 185, 129, 0.2)' : 'rgba(245, 158, 11, 0.2)'}` }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                       <p style={{ fontSize: '0.75rem', margin: 0, fontWeight: '800', textTransform: 'uppercase', color: store.isTrialStarted ? '#10b981' : '#f59e0b' }}>
+                        {store.isTrialStarted ? 'Free Trial Active' : 'Trial Not Started'}
+                       </p>
+                       {!store.isTrialStarted && (
+                         <button 
+                          onClick={async () => {
+                            if(window.confirm(`Start 30-day free trial for ${store.name}?`)) {
+                              try {
+                                await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/super-admin/store/${store._id}/start-trial`, {}, { headers: { Authorization: `Bearer ${token}` } });
+                                fetchDashboardData();
+                              } catch(err) { alert('Action failed'); }
+                            }
+                          }}
+                          style={{ padding: '0.4rem 0.8rem', background: '#f59e0b', color: 'black', border: 'none', borderRadius: '8px', fontSize: '0.7rem', fontWeight: '800', cursor: 'pointer' }}
+                         >
+                          Start 30-Day Trial
+                         </button>
+                       )}
+                    </div>
+                    
+                    {store.isTrialStarted ? (
+                      <div>
+                        {store.daysLeftInTrial > 0 ? (
+                          <p style={{ fontSize: '1.25rem', fontWeight: '900', margin: 0 }}>{store.daysLeftInTrial} <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Days Remaining</span></p>
+                        ) : (
+                          <div style={{ color: 'white' }}>
+                            <p style={{ fontSize: '0.75rem', color: '#ef4444', fontWeight: '800', marginBottom: '0.25rem' }}>SUBSCRIPTION ACTIVE (3.5%)</p>
+                            <p style={{ fontSize: '1.5rem', fontWeight: '900', color: 'var(--secondary)', margin: 0 }}>₹{store.estimatedFees} <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Pending Fees</span></p>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', margin: 0 }}>Store is currently in early access.</p>
+                    )}
+                  </div>
+
+                  <div style={{ padding: '1rem', background: '#1a1a1a', borderRadius: '12px', border: '1px solid #333', marginTop: 'auto' }}>
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem', textTransform: 'uppercase', fontWeight: '700' }}>Overall Stall Revenue</p>
+                    <p style={{ fontSize: '1.5rem', fontWeight: '900', color: 'white', margin: 0 }}>₹{store.totalRevenue}</p>
                   </div>
                 </div>
               ))}

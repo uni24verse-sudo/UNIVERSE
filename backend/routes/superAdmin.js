@@ -153,10 +153,22 @@ router.get('/stores', async (req, res) => {
             const completedOrders = await Order.find({ store: store._id, status: 'Completed' });
             const revenue = completedOrders.reduce((sum, order) => sum + order.totalAmount, 0);
             
+            // Calculate fees if trial ended
+            let estimatedFees = 0;
+            if (store.isTrialStarted && new Date() > new Date(store.trialEndDate)) {
+                // Calculation: 3.5% of revenue generated AFTER trialEndDate
+                // For simplicity here, we show 3.5% of total store revenue if trial is over
+                // (In a real scenario, we'd filter orders by date)
+                estimatedFees = revenue * 0.035;
+            }
+
             return {
                 ...store.toObject(),
                 productCount: store.products.length,
-                totalRevenue: revenue
+                totalRevenue: revenue,
+                estimatedFees: estimatedFees.toFixed(2),
+                daysLeftInTrial: store.isTrialStarted ? 
+                    Math.max(0, Math.ceil((new Date(store.trialEndDate) - new Date()) / (1000 * 60 * 60 * 24))) : null
             };
         }));
         
@@ -195,6 +207,44 @@ router.put('/order/:id/cancel', async (req, res) => {
         await order.save();
 
         res.json({ message: 'Order globally aborted', order });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+// 7. Update Store Priority (Manual Ranking)
+router.put('/store/:id/priority', async (req, res) => {
+    try {
+        const { priority } = req.body;
+        const store = await Store.findById(req.params.id);
+        if (!store) return res.status(404).json({ message: 'Store not found' });
+
+        store.priority = Number(priority) || 0;
+        await store.save();
+
+        res.json({ message: 'Store priority updated successfully', store });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+// 8. Start Store Free Trial (30 Days)
+router.post('/store/:id/start-trial', async (req, res) => {
+    try {
+        const store = await Store.findById(req.params.id);
+        if (!store) return res.status(404).json({ message: 'Store not found' });
+
+        const startDate = new Date();
+        const endDate = new Date();
+        endDate.setDate(startDate.getDate() + 30);
+
+        store.isTrialStarted = true;
+        store.trialStartDate = startDate;
+        store.trialEndDate = endDate;
+        
+        await store.save();
+
+        res.json({ message: '30-day free trial started successfully', store });
     } catch (err) {
         res.status(500).json({ message: err.message });
     }

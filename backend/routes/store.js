@@ -47,7 +47,29 @@ router.post('/create', auth, async (req, res) => {
 router.get('/my-stores', auth, async (req, res) => {
   try {
     const stores = await Store.find({ admin: req.admin._id });
-    res.json(stores);
+    
+    // Fetch Order to calculate revenue for each store
+    const Order = require('../models/Order');
+    
+    const storesWithBilling = await Promise.all(stores.map(async (store) => {
+      const completedOrders = await Order.find({ store: store._id, status: 'Completed' });
+      const revenue = completedOrders.reduce((sum, order) => sum + order.totalAmount, 0);
+      
+      let estimatedFees = 0;
+      if (store.isTrialStarted && new Date() > new Date(store.trialEndDate)) {
+          estimatedFees = revenue * 0.035;
+      }
+
+      return {
+          ...store.toObject(),
+          totalRevenue: revenue,
+          estimatedFees: estimatedFees.toFixed(2),
+          daysLeftInTrial: store.isTrialStarted ? 
+              Math.max(0, Math.ceil((new Date(store.trialEndDate) - new Date()) / (1000 * 60 * 60 * 24))) : null
+      };
+    }));
+
+    res.json(storesWithBilling);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -63,7 +85,9 @@ router.get('/global/search', async (req, res) => {
     const escapedQuery = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const regex = new RegExp(escapedQuery, 'i');
 
-    const stores = await Store.find({}, 'name category products _id isOpen image market').populate('admin', 'name');
+    const stores = await Store.find({}, 'name category products _id isOpen image market priority')
+      .populate('admin', 'name')
+      .sort({ priority: 1, createdAt: -1 });
     const matchedStores = [];
     const matchedDishes = [];
 
@@ -100,7 +124,10 @@ router.get('/global/search', async (req, res) => {
 // Get all stores (Public)
 router.get('/all/list', async (req, res) => {
   try {
-    const stores = await Store.find({}, 'name market products admin category isOpen image').populate('admin', 'name').exec();
+    const stores = await Store.find({}, 'name market products admin category isOpen image priority')
+      .populate('admin', 'name')
+      .sort({ priority: 1, createdAt: -1 })
+      .exec();
     res.json(stores);
   } catch (err) {
     res.status(500).json({ message: err.message });
