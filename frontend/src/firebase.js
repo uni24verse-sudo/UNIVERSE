@@ -45,7 +45,7 @@ export const requestFCMPermission = async () => {
 
     // We use VAPID key pair you generated in Firebase Console
     const token = await getToken(messaging, {
-      vapidKey: "BFBclRUs4iKGG56oxPpSIXWF8ARNdJH2Ni_JZ9qOhxHYLlrZl-4OxSFCfMuLnoqD6LdZ4zjOHyqYqpB-6ZpgzGg",
+      vapidKey: "BFBclRUs4iKGG56oxPpSIXWF8ARNdJH2Ni_JZ9q0hxHYLIrZl-4OxSFCfMuLnoqD6LdZ4zj0HyqYqpB-6ZpgzGg",
     });
 
     if (token) {
