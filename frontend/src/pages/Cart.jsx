@@ -207,8 +207,8 @@ const Cart = () => {
 
   // Calculate order totals
   const subtotal = total;
-  const deliveryFee = orderType === 'Dine In' ? 0 : 20;
-  const platformFee = Math.round(subtotal * 0.02);
+  const deliveryFee = orderType === 'Take Away' ? 20 : 0;
+  const platformFee = 0; // Displayed as FREE in UI
   const finalTotal = subtotal + deliveryFee + platformFee;
 
   useEffect(() => {
