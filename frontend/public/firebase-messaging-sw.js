@@ -17,6 +17,26 @@ firebase.initializeApp({
 // Retrieve an instance of Firebase Messaging
 const messaging = firebase.messaging();
 
+// Handle fetch events with proper redirect handling
+self.addEventListener('fetch', function(event) {
+  // Only handle navigation requests, skip API calls and static assets
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request, { redirect: 'follow' }).catch(function(error) {
+        console.log('Fetch error:', error);
+        // Return a basic response if fetch fails
+        return new Response('Service Worker Error', { 
+          status: 500,
+          statusText: 'Service Worker Error'
+        });
+      })
+    );
+  } else {
+    // For non-navigation requests, let the browser handle normally
+    event.respondWith(fetch(event.request));
+  }
+});
+
 // Handle background messages
 messaging.onBackgroundMessage(function(payload) {
   console.log("FCM Background Message Received ", payload);

@@ -16,26 +16,19 @@ self.addEventListener('install', event => {
   );
 });
 
-// Fetch event - serve from cache when offline
+// Fetch event - serve from cache when offline with proper redirect handling
 self.addEventListener('fetch', event => {
-  event.respondWith(
-    caches.match(event.request)
-      .then(response => {
-        // Cache hit - return response
-        if (response) {
-          return response;
-        }
-
-        // Clone the request
-        const fetchRequest = event.request.clone();
-
-        return fetch(fetchRequest).then(response => {
+  // Handle fetch with proper redirect mode
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request, { redirect: 'follow' })
+        .then(response => {
           // Check if valid response
           if (!response || response.status !== 200 || response.type !== 'basic') {
             return response;
           }
 
-          // Clone the response
+          // Clone the response for caching
           const responseToCache = response.clone();
 
           // Cache dynamic assets
@@ -49,12 +42,52 @@ self.addEventListener('fetch', event => {
           }
 
           return response;
-        }).catch(() => {
+        })
+        .catch(() => {
           // Return cached version if network fails
           return caches.match(event.request);
-        });
-      })
-  );
+        })
+    );
+  } else {
+    // For non-navigation requests, try cache first
+    event.respondWith(
+      caches.match(event.request)
+        .then(response => {
+          // Cache hit - return response
+          if (response) {
+            return response;
+          }
+
+          // Clone request for fetch
+          const fetchRequest = event.request.clone();
+
+          return fetch(fetchRequest, { redirect: 'follow' }).then(response => {
+            // Check if valid response
+            if (!response || response.status !== 200 || response.type !== 'basic') {
+              return response;
+            }
+
+            // Clone the response for caching
+            const responseToCache = response.clone();
+
+            // Cache dynamic assets
+            if (event.request.url.includes('/assets/') || 
+                event.request.url.includes('/src/') ||
+                event.request.url.includes('/public/')) {
+              caches.open(CACHE_NAME)
+                .then(cache => {
+                  cache.put(event.request, responseToCache);
+                });
+            }
+
+            return response;
+          }).catch(() => {
+            // Return cached version if network fails
+            return caches.match(event.request);
+          });
+        })
+    );
+  }
 });
 
 /* 
