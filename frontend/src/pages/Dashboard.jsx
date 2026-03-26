@@ -113,6 +113,14 @@ const Dashboard = () => {
       const newSocket = io((import.meta.env.VITE_API_URL || 'http://localhost:5000') + '');
       setSocket(newSocket);
       newSocket.emit('join_store_room', store._id);
+      
+      // OneSignal Tagging for vendor notifications
+      if (window.OneSignalDeferred) {
+        window.OneSignalDeferred.push(function(OneSignal) {
+          OneSignal.User.addTag("vendorStoreId", store._id.toString());
+        });
+      }
+
       newSocket.on('new_order', (order) => {
         setOrders(prev => {
           const exists = prev.find(o => o._id === order._id);

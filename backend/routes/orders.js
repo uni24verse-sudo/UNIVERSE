@@ -32,6 +32,38 @@ router.post('/create', async (req, res) => {
     const io = req.app.get('io');
     io.to(storeId).emit('new_order', savedOrder);
 
+    // ONE SIGNAL PUSH NOTIFICATION FOR VENDOR
+    try {
+      if (process.env.ONESIGNAL_APP_ID && process.env.ONESIGNAL_REST_API_KEY) {
+        const https = require('https');
+        const data = JSON.stringify({
+          app_id: process.env.ONESIGNAL_APP_ID,
+          filters: [{ field: "tag", key: "vendorStoreId", relation: "=", value: storeId.toString() }],
+          contents: { en: `New Order #${savedOrder.orderNumber} received for ₹${savedOrder.totalAmount}!` },
+          headings: { en: "🔔 New Order!" },
+          url: `${process.env.FRONTEND_URL || 'https://universe-sudo.vercel.app'}/vendor/dashboard`
+        });
+
+        const options = {
+          hostname: 'onesignal.com',
+          port: 443,
+          path: '/api/v1/notifications',
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json; charset=utf-8',
+            'Authorization': `Basic ${process.env.ONESIGNAL_REST_API_KEY}`
+          }
+        };
+
+        const reqPush = https.request(options, (resPush) => {});
+        reqPush.on('error', (e) => console.error('OneSignal Vendor Push Error:', e));
+        reqPush.write(data);
+        reqPush.end();
+      }
+    } catch (pushErr) {
+      console.error('Vendor Push Error:', pushErr);
+    }
+
     res.status(201).json(savedOrder);
   } catch (err) {
     res.status(500).json({ message: err.message });
