@@ -80,10 +80,10 @@ const PaymentScreen = ({
             }}
           >
             <img 
-              src="https://freelogopng.com/images/all_img/1664035778phonepe-logo-png.png" 
+              src="https://upload.wikimedia.org/wikipedia/commons/7/77/PhonePe_Logo.svg" 
               alt="PhonePe" 
               style={{ height: '24px', filter: 'brightness(0) invert(1)' }} 
-              onError={(e) => { e.target.src = 'https://www.phonepe.com/badge.png'; }} 
+              onError={(e) => { e.target.style.display = 'none'; }} 
             />
             {loading ? 'Processing...' : 'Pay using PhonePe'}
           </button>
@@ -111,10 +111,10 @@ const PaymentScreen = ({
             }}
           >
              <img 
-               src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/24/Paytm_Logo_%28standalone%29.svg/1200px-Paytm_Logo_%28standalone%29.svg.png" 
+               src="https://upload.wikimedia.org/wikipedia/commons/2/24/Paytm_Logo_%28standalone%29.svg" 
                alt="Paytm" 
-               style={{ height: '18px', filter: 'brightness(0) invert(1)' }} 
-               onError={(e) => { e.target.src = 'https://asset.brandfetch.io/idfS-XyT_m/idN-9-R-m-.png'; }} 
+               style={{ height: '20px', filter: 'brightness(0) invert(1)' }} 
+               onError={(e) => { e.target.style.display = 'none'; }} 
              />
             {loading ? 'Processing...' : 'Pay using Paytm'}
           </button>
