@@ -15,12 +15,6 @@ class NotificationService {
     try {
       const message = {
         token: fcmToken,
-        notification: {
-          title: notificationData.title,
-          body: notificationData.body,
-          icon: 'https://www.universeorder.co.in/icons.svg',
-          click_action: notificationData.clickAction || '/vendor/dashboard'
-        },
         data: {
           title: String(notificationData.title),
           body: String(notificationData.body),
@@ -154,11 +148,6 @@ class NotificationService {
     try {
       const message = {
         topic: topic,
-        notification: {
-          title: notificationData.title,
-          body: notificationData.body,
-          icon: 'https://www.universeorder.co.in/icons.svg'
-        },
         data: {
           title: String(notificationData.title),
           body: String(notificationData.body),

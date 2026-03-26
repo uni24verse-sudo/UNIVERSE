@@ -109,8 +109,28 @@ router.put('/fcm-token', auth, async (req, res) => {
     const admin = await Admin.findById(req.admin._id);
     if (!admin) return res.status(404).json({ message: 'Vendor not found' });
 
+    // Save to Admin model
     admin.fcmToken = fcmToken;
     await admin.save();
+
+    // ALSO save to Store.fcmTokens (this is where order notifications read from!)
+    const Store = require('../models/Store');
+    const store = await Store.findOne({ owner: req.admin._id });
+    if (store) {
+      if (!store.fcmTokens) {
+        store.fcmTokens = [];
+      }
+      // Add token if not already present
+      if (!store.fcmTokens.includes(fcmToken)) {
+        store.fcmTokens.push(fcmToken);
+        // Keep only the 5 most recent tokens
+        if (store.fcmTokens.length > 5) {
+          store.fcmTokens = store.fcmTokens.slice(-5);
+        }
+        await store.save();
+        console.log(`FCM token also saved to Store ${store._id}`);
+      }
+    }
     
     res.json({ message: 'FCM Token saved successfully' });
   } catch (err) {
