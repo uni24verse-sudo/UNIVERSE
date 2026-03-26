@@ -3,7 +3,7 @@ import { getMessaging, getToken, onMessage } from "firebase/messaging";
 
 // Standard Firebase Web configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyD6IFV8OG0NUhVHI-Nd85Mw0TBEre4Ww7k",
+  apiKey: "AIzaSyD6IFV8OG0NUhVHI-Nd85MwOTbEre4Ww7k",
   authDomain: "universe-order.firebaseapp.com",
   projectId: "universe-order",
   storageBucket: "universe-order.firebasestorage.app",
