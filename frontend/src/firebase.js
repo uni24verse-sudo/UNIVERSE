@@ -67,21 +67,17 @@ export const requestFCMPermission = async () => {
   }
 };
 
-// Function to get current token without requesting permission
-export const getCurrentFCMToken = () => {
-  if (currentToken) {
-    return currentToken;
+// Function to get current token natively from Firebase
+export const getCurrentFCMToken = async () => {
+  try {
+    const token = await getToken(messaging, {
+      vapidKey: "BFBclRUs4iKGG56oxPpSIXWF8ARNdJH2Ni_JZ9q0hxHYLIrZl-4OxSFCfMuLnoqD6LdZ4zj0HyqYqpB-6ZpgzGg",
+    });
+    return token;
+  } catch (err) {
+    console.warn("Failed to get FCM token natively:", err);
+    return null;
   }
-  
-  // Try to get from localStorage as fallback
-  const storedToken = localStorage.getItem('fcm_token');
-  if (storedToken) {
-    currentToken = storedToken;
-    isTokenInitialized = true;
-    return storedToken;
-  }
-  
-  return null;
 };
 
 // Function to handle foreground messages
@@ -104,15 +100,24 @@ export const onForegroundMessage = () => {
     const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
     audio.play().catch(e => console.log('Audio play failed:', e));
 
-    // Show notification
-    new Notification(notificationTitle, notificationOptions);
+    // Show notification using Service Worker for maximum reliability
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.ready.then(registration => {
+        registration.showNotification(notificationTitle, notificationOptions);
+      }).catch(err => {
+        console.error('Service Worker showNotification failed, falling back:', err);
+        new Notification(notificationTitle, notificationOptions);
+      });
+    } else {
+      new Notification(notificationTitle, notificationOptions);
+    }
   });
 };
 
 // Initialize FCM on load
 export const initializeFCM = async () => {
   // Check if we already have a token
-  const existingToken = getCurrentFCMToken();
+  const existingToken = await getCurrentFCMToken();
   if (existingToken) {
     console.log('Using existing FCM token');
     return existingToken;
