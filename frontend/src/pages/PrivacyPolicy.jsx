@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Shield, ArrowLeft, Eye, Lock, Share2, DatabaseRounded } from 'lucide-react';
+import { Shield, ArrowLeft, Eye, Lock, Share2, Database } from 'lucide-react';
 
 const PrivacyPolicy = () => {
   const navigate = useNavigate();
