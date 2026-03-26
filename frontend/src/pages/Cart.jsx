@@ -9,6 +9,149 @@ import {
   CheckCircle, AlertCircle, X, Utensils
 } from 'lucide-react';
 
+
+const PaymentScreen = ({ 
+  show, 
+  order, 
+  total, 
+  loading, 
+  onPhonePe, 
+  onPaytm, 
+  onCancel 
+}) => {
+  if (!show || !order) return null;
+
+  return (
+    <div style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      background: 'rgba(0,0,0,0.9)',
+      backdropFilter: 'blur(10px)',
+      zIndex: 9999,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '1rem'
+    }}>
+      <div style={{
+        background: 'var(--glass-bg)',
+        borderRadius: '32px',
+        padding: '2rem',
+        maxWidth: '450px',
+        width: '100%',
+        border: '1px solid var(--surface-border)',
+        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
+      }}>
+        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+          <h2 style={{ marginBottom: '0.5rem' }}>Final Checkout</h2>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Order #{order.orderNumber}</p>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+             <span style={{ fontSize: '1.25rem', fontWeight: '800', color: 'var(--primary)' }}>₹{total}</span>
+             <span style={{ fontSize: '0.75rem', padding: '2px 8px', background: 'rgba(99, 102, 241, 0.1)', borderRadius: '6px', color: 'var(--primary)' }}>SECURE</span>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <p style={{ fontSize: '0.9rem', fontWeight: '700', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Select UPI Provider:</p>
+          
+          <button
+            onClick={onPhonePe}
+            disabled={loading}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '1rem',
+              width: '100%',
+              padding: '1.125rem',
+              background: '#5f259f',
+              color: 'white',
+              borderRadius: '16px',
+              fontSize: '1.125rem',
+              fontWeight: '700',
+              border: 'none',
+              cursor: 'pointer',
+              boxShadow: '0 4px 12px rgba(95, 37, 159, 0.2)',
+              transition: 'all 0.2s',
+              opacity: loading ? 0.7 : 1
+            }}
+          >
+            <img 
+              src="https://freelogopng.com/images/all_img/1664035778phonepe-logo-png.png" 
+              alt="PhonePe" 
+              style={{ height: '24px', filter: 'brightness(0) invert(1)' }} 
+              onError={(e) => { e.target.src = 'https://www.phonepe.com/badge.png'; }} 
+            />
+            {loading ? 'Processing...' : 'Pay using PhonePe'}
+          </button>
+
+          <button
+            onClick={onPaytm}
+            disabled={loading}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '1rem',
+              width: '100%',
+              padding: '1.125rem',
+              background: '#00baf2',
+              color: 'white',
+              borderRadius: '16px',
+              fontSize: '1.125rem',
+              fontWeight: '700',
+              border: 'none',
+              cursor: 'pointer',
+              boxShadow: '0 4px 12px rgba(0, 186, 242, 0.2)',
+              transition: 'all 0.2s',
+              opacity: loading ? 0.7 : 1
+            }}
+          >
+             <img 
+               src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/24/Paytm_Logo_%28standalone%29.svg/1200px-Paytm_Logo_%28standalone%29.svg.png" 
+               alt="Paytm" 
+               style={{ height: '18px', filter: 'brightness(0) invert(1)' }} 
+               onError={(e) => { e.target.src = 'https://asset.brandfetch.io/idfS-XyT_m/idN-9-R-m-.png'; }} 
+             />
+            {loading ? 'Processing...' : 'Pay using Paytm'}
+          </button>
+        </div>
+
+        <div style={{ marginTop: '2rem', padding: '1rem', background: 'rgba(99, 102, 241, 0.05)', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)' }}>
+          <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: 0, textAlign: 'center' }}>
+            <strong>Note:</strong> You will be redirected to the app. Once paid, your order will be instantly verified.
+          </p>
+        </div>
+
+        <div style={{ marginTop: '1.5rem', display: 'flex', gap: '1rem' }}>
+          <button
+            onClick={onCancel}
+            disabled={loading}
+            style={{
+              flex: 1,
+              padding: '0.875rem',
+              background: 'rgba(255,255,255,0.05)',
+              color: 'var(--error)',
+              borderRadius: '12px',
+              fontSize: '0.9rem',
+              fontWeight: '600',
+              border: '1px solid rgba(239, 68, 68, 0.2)',
+              cursor: 'pointer',
+              transition: 'var(--transition)',
+              opacity: loading ? 0.5 : 1
+            }}
+          >
+            Cancel & Go Back
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const Cart = () => {
   const { cart, storeId, updateQuantity, removeFromCart, total, clearCart } = useContext(CartContext);
   const navigate = useNavigate();
@@ -254,127 +397,6 @@ const Cart = () => {
     await initiateOrder();
   };
 
-  // Payment Screen Component
-  const PaymentScreen = () => {
-    if (!showPayment || !currentOrder) return null;
-
-    return (
-      <div style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        background: 'rgba(0,0,0,0.9)',
-        backdropFilter: 'blur(10px)',
-        zIndex: 9999,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '1rem'
-      }}>
-        <div style={{
-          background: 'var(--glass-bg)',
-          borderRadius: '32px',
-          padding: '2rem',
-          maxWidth: '450px',
-          width: '100%',
-          border: '1px solid var(--surface-border)',
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
-        }}>
-          <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-            <h2 style={{ marginBottom: '0.5rem' }}>Final Checkout</h2>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Order #{currentOrder.orderNumber}</p>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
-               <span style={{ fontSize: '1.25rem', fontWeight: '800', color: 'var(--primary)' }}>₹{finalTotal}</span>
-               <span style={{ fontSize: '0.75rem', padding: '2px 8px', background: 'rgba(99, 102, 241, 0.1)', borderRadius: '6px', color: 'var(--primary)' }}>SECURE</span>
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <p style={{ fontSize: '0.9rem', fontWeight: '700', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Select UPI Provider:</p>
-            
-            <button
-              onClick={handlePhonePePayment}
-              disabled={loading}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '1rem',
-                width: '100%',
-                padding: '1.125rem',
-                background: '#5f259f',
-                color: 'white',
-                borderRadius: '16px',
-                fontSize: '1.125rem',
-                fontWeight: '700',
-                border: 'none',
-                cursor: 'pointer',
-                boxShadow: '0 4px 12px rgba(95, 37, 159, 0.2)',
-                transition: 'all 0.2s'
-              }}
-            >
-              <img src="https://www.phonepe.com/badge.png" alt="PhonePe" style={{ height: '24px', filter: 'brightness(0) invert(1)' }} onError={(e) => { e.target.style.display='none'; }} />
-              Pay using PhonePe
-            </button>
-
-            <button
-              onClick={handlePaytmPayment}
-              disabled={loading}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '1rem',
-                width: '100%',
-                padding: '1.125rem',
-                background: '#00baf2',
-                color: 'white',
-                borderRadius: '16px',
-                fontSize: '1.125rem',
-                fontWeight: '700',
-                border: 'none',
-                cursor: 'pointer',
-                boxShadow: '0 4px 12px rgba(0, 186, 242, 0.2)',
-                transition: 'all 0.2s'
-              }}
-            >
-               <img src="https://static1.squarespace.com/static/5e8166946a06642013919b3d/t/5e816a1b94871d3c1a938c30/1585539611818/Paytm+Logo.png" alt="Paytm" style={{ height: '20px', filter: 'brightness(0) invert(1)' }} onError={(e) => { e.target.style.display='none'; }} />
-              Pay using Paytm
-            </button>
-          </div>
-
-          <div style={{ marginTop: '2rem', padding: '1rem', background: 'rgba(99, 102, 241, 0.05)', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)' }}>
-            <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: 0, textAlign: 'center' }}>
-              <strong>Note:</strong> You will be redirected to the selected app to complete payment. Once paid, your order will be instantly verified.
-            </p>
-          </div>
-
-          <div style={{ marginTop: '1.5rem', display: 'flex', gap: '1rem' }}>
-            <button
-              onClick={handlePaymentCancellation}
-              style={{
-                flex: 1,
-                padding: '0.875rem',
-                background: 'rgba(255,255,255,0.05)',
-                color: 'var(--error)',
-                borderRadius: '12px',
-                fontSize: '0.9rem',
-                fontWeight: '600',
-                border: '1px solid rgba(239, 68, 68, 0.2)',
-                cursor: 'pointer',
-                transition: 'var(--transition)'
-              }}
-            >
-              Cancel & Go Back
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
   if (cart.length === 0) {
     return (
       <div style={{ minHeight: '100vh', padding: '2rem 1rem', maxWidth: '1000px', margin: '0 auto', textAlign: 'center' }}>
@@ -403,7 +425,15 @@ const Cart = () => {
 
   return (
     <>
-      <PaymentScreen />
+      <PaymentScreen 
+        show={showPayment} 
+        order={currentOrder} 
+        total={finalTotal} 
+        loading={loading}
+        onPhonePe={handlePhonePePayment}
+        onPaytm={handlePaytmPayment}
+        onCancel={handlePaymentCancellation}
+      />
       <div style={{ minHeight: '100vh', padding: '2rem 1rem', maxWidth: '1000px', margin: '0 auto' }}>
         <div style={{ textAlign: 'right', marginBottom: '2rem' }}>
           <div style={{ display: 'inline-block', padding: '0.5rem 1rem', background: 'rgba(99, 102, 241, 0.1)', borderRadius: '12px', fontSize: '0.75rem', fontWeight: '700', color: 'var(--primary)' }}>
