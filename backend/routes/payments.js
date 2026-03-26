@@ -165,12 +165,24 @@ router.post('/paytm/initiate', async (req, res) => {
     });
     if (!order) return res.status(404).json({ message: 'Order not found' });
 
-    const mid = (vendor.paytmMerchantId || paymentConfig.paytm.merchantId).trim();
-    const mkey = (vendor.paytmMerchantKey || paymentConfig.paytm.merchantKey).trim();
-    const env = vendor.paytmEnv || paymentConfig.paytm.env;
+    const vendor = order.store?.admin;
+    if (!vendor) {
+      return res.status(400).json({ message: 'Store admin information missing' });
+    }
+
+    const mid = (vendor.paytmMerchantId || paymentConfig.paytm.merchantId || '').toString().trim();
+    const mkey = (vendor.paytmMerchantKey || paymentConfig.paytm.merchantKey || '').toString().trim();
+    const env = vendor.paytmEnv || paymentConfig.paytm.env || 'STAGING';
     
+    if (!mid || mid === 'YOUR_MID') {
+      return res.status(400).json({ message: 'Paytm Merchant ID not configured for this store' });
+    }
+    if (!mkey || mkey === 'YOUR_KEY') {
+      return res.status(400).json({ message: 'Paytm Merchant Key not configured for this store' });
+    }
+
     // Website name logic: Staging usually needs WEBSTAGING, Production needs DEFAULT (unless custom)
-    let website = (vendor.paytmWebsite || paymentConfig.paytm.website || 'DEFAULT').trim();
+    let website = (vendor.paytmWebsite || paymentConfig.paytm.website || 'DEFAULT').toString().trim();
     if (env === 'STAGING' && website === 'DEFAULT') {
       website = 'WEBSTAGING';
     }
