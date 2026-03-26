@@ -57,14 +57,15 @@ self.addEventListener('fetch', event => {
   );
 });
 
-// Background sync for notifications
+/* 
+// Background sync for notifications (Disabled - now handled by FCM)
 self.addEventListener('sync', event => {
   if (event.tag === 'order-notification') {
     event.waitUntil(showOrderNotification());
   }
 });
 
-// Push notification handler
+// Push notification handler (Disabled - now handled by FCM)
 self.addEventListener('push', event => {
   const options = {
     body: event.data ? event.data.text() : 'New order received!',
@@ -94,7 +95,7 @@ self.addEventListener('push', event => {
   );
 });
 
-// Notification click handler
+// Notification click handler (Disabled - now handled by FCM)
 self.addEventListener('notificationclick', event => {
   event.notification.close();
 
@@ -123,3 +124,4 @@ function showOrderNotification() {
     tag: 'order-notification'
   });
 }
+*/

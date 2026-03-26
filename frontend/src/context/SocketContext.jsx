@@ -59,16 +59,13 @@ export const SocketProvider = ({ children }) => {
     newSocket.on('new_order', async (orderData) => {
       console.log('New order received:', orderData);
       
-      // Play notification sound if enabled, globally
+      // Play notification sound if enabled
       if (localStorage.getItem('orderSoundEnabled') !== 'false') {
         const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
         audio.play().catch(e => console.log('Audio blocked:', e));
       }
-
-      // Show browser notification
-      await NotificationManager.showOrderNotification(orderData);
       
-      // Also show in-app notification if page is visible
+      // Also show in-app notification/update if page is visible
       if (document.visibilityState === 'visible') {
         // You can dispatch a custom event or use a state management solution
         window.dispatchEvent(new CustomEvent('newOrder', { detail: orderData }));

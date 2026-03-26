@@ -1,4 +1,5 @@
 require('dotenv').config();
+require('./config/firebase');
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -35,6 +36,7 @@ app.use('/api/store', require('./routes/store'));
 app.use('/api/orders', require('./routes/orders'));
 app.use('/api/scan-menu', require('./routes/menuScanner'));
 app.use('/api/super-admin', require('./routes/superAdmin'));
+app.use('/api/fcm', require('./routes/fcm'));
 
 // Socket.io connection handling
 io.on('connection', (socket) => {

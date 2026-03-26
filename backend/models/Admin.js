@@ -6,7 +6,8 @@ const AdminSchema = new mongoose.Schema({
   password: { type: String, required: true },
   upiId: { type: String, default: '' },
   role: { type: String, enum: ['vendor', 'superadmin'], default: 'vendor' },
-  isBanned: { type: Boolean, default: false }
+  isBanned: { type: Boolean, default: false },
+  fcmToken: { type: String, default: '' }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Admin', AdminSchema);

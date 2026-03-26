@@ -114,12 +114,22 @@ const Dashboard = () => {
       setSocket(newSocket);
       newSocket.emit('join_store_room', store._id);
       
-      // OneSignal Tagging for vendor notifications
-      if (window.OneSignalDeferred) {
-        window.OneSignalDeferred.push(function(OneSignal) {
-          OneSignal.User.addTag("vendorStoreId", store._id.toString());
-        });
-      }
+      // Firebase Cloud Messaging: Retrieve token and register with backend to receive background pushes
+      import('../firebase').then(async ({ requestFCMPermission }) => {
+        try {
+          const fcmToken = await requestFCMPermission();
+          if (fcmToken) {
+            // Save the token to the backend Admin document
+            await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/auth/fcm-token`, 
+              { fcmToken },
+              { headers: { Authorization: `Bearer ${token}` } }
+            );
+            console.log("FCM Token successfully synced to Vendor Account.");
+          }
+        } catch (err) {
+          console.error("Failed to sync FCM token:", err);
+        }
+      });
 
       newSocket.on('new_order', (order) => {
         setOrders(prev => {

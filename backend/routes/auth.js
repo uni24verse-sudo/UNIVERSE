@@ -71,4 +71,22 @@ router.put('/update-profile', auth, async (req, res) => {
   }
 });
 
+// Save FCM Token
+router.put('/fcm-token', auth, async (req, res) => {
+  try {
+    const { fcmToken } = req.body;
+    if (!fcmToken) return res.status(400).json({ message: 'Token is required' });
+    
+    const admin = await Admin.findById(req.admin._id);
+    if (!admin) return res.status(404).json({ message: 'Vendor not found' });
+
+    admin.fcmToken = fcmToken;
+    await admin.save();
+    
+    res.json({ message: 'FCM Token saved successfully' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 module.exports = router;

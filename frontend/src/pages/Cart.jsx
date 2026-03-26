@@ -1,4 +1,4 @@
-import React, { useContext, useState, useEffect } from 'react';
+import React, { useContext, useState, useEffect, useCallback } from 'react';
 import { CartContext } from '../context/CartContext';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
@@ -17,6 +17,55 @@ const Cart = () => {
   const [currentOrder, setCurrentOrder] = useState(null);
   const [paymentStatus, setPaymentStatus] = useState('pending'); // 'pending', 'initiated', 'completed'
   const [paymentCheckInterval, setPaymentCheckInterval] = useState(null);
+
+  const checkPaymentStatus = useCallback(async () => {
+    if (!currentOrder) return;
+    
+    try {
+      const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/orders/${currentOrder._id}`);
+      const order = res.data;
+      
+      if (order.paymentStatus === 'Confirmed') {
+        setPaymentStatus('completed');
+        if (paymentCheckInterval) {
+          clearInterval(paymentCheckInterval);
+          setPaymentCheckInterval(null);
+        }
+        
+        // Save to Recent Orders in localStorage
+        const recentOrders = JSON.parse(localStorage.getItem('universe_recent_orders') || '[]');
+        const updatedOrders = [
+          { 
+            id: order._id, 
+            orderNumber: order.orderNumber, 
+            storeName: store.name, 
+            market: store.market,
+            storeId: store._id,
+            status: order.status || 'Pending',
+            timestamp: Date.now() 
+          },
+          ...recentOrders.filter(o => o.id !== order._id)
+        ].slice(0, 10);
+        localStorage.setItem('universe_recent_orders', JSON.stringify(updatedOrders));
+
+        clearCart();
+        setTimeout(() => {
+          navigate(`/order-tracker/${order._id}`);
+        }, 2000);
+      }
+    } catch (err) {
+      console.error('Payment status check error:', err);
+    }
+  }, [currentOrder, paymentCheckInterval, store, clearCart, navigate]);
+
+  const handlePaymentComplete = useCallback(() => {
+    // Start checking payment status every 3 seconds
+    const interval = setInterval(checkPaymentStatus, 3000);
+    setPaymentCheckInterval(interval);
+    
+    // Also check immediately
+    checkPaymentStatus();
+  }, [checkPaymentStatus]);
 
   useEffect(() => {
     // Restore payment state from localStorage on mount
@@ -42,7 +91,7 @@ const Cart = () => {
         localStorage.removeItem('universe_payment_state');
       }
     }
-  }, []);
+  }, [handlePaymentComplete]);
 
   useEffect(() => {
     // Save payment state to localStorage whenever it changes
@@ -68,6 +117,15 @@ const Cart = () => {
         .catch(err => console.error(err));
     }
   }, [storeId]);
+
+  // Cleanup interval on unmount
+  useEffect(() => {
+    return () => {
+      if (paymentCheckInterval) {
+        clearInterval(paymentCheckInterval);
+      }
+    };
+  }, [paymentCheckInterval]);
 
   if (cart.length === 0) {
     return (
@@ -132,54 +190,6 @@ const Cart = () => {
     }
   };
 
-  const checkPaymentStatus = async () => {
-    if (!currentOrder) return;
-    
-    try {
-      const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/orders/${currentOrder._id}`);
-      const order = res.data;
-      
-      if (order.paymentStatus === 'Confirmed') {
-        setPaymentStatus('completed');
-        if (paymentCheckInterval) {
-          clearInterval(paymentCheckInterval);
-          setPaymentCheckInterval(null);
-        }
-        
-        // Save to Recent Orders in localStorage
-        const recentOrders = JSON.parse(localStorage.getItem('universe_recent_orders') || '[]');
-        const updatedOrders = [
-          { 
-            id: order._id, 
-            orderNumber: order.orderNumber, 
-            storeName: store.name, 
-            market: store.market,
-            storeId: store._id,
-            status: order.status || 'Pending',
-            timestamp: Date.now() 
-          },
-          ...recentOrders.filter(o => o.id !== order._id)
-        ].slice(0, 10);
-        localStorage.setItem('universe_recent_orders', JSON.stringify(updatedOrders));
-
-        clearCart();
-        setTimeout(() => {
-          navigate(`/order-tracker/${order._id}`);
-        }, 2000);
-      }
-    } catch (err) {
-      console.error('Payment status check error:', err);
-    }
-  };
-
-  const handlePaymentComplete = () => {
-    // Start checking payment status every 3 seconds
-    const interval = setInterval(checkPaymentStatus, 3000);
-    setPaymentCheckInterval(interval);
-    
-    // Also check immediately
-    checkPaymentStatus();
-  };
 
   const handlePaymentConfirmation = async () => {
     // Manual confirmation by user
@@ -222,14 +232,6 @@ const Cart = () => {
     }
   };
 
-  // Cleanup interval on unmount
-  useEffect(() => {
-    return () => {
-      if (paymentCheckInterval) {
-        clearInterval(paymentCheckInterval);
-      }
-    };
-  }, [paymentCheckInterval]);
 
   const upiLink = store?.admin?.upiId 
     ? `upi://pay?pa=${store.admin.upiId}&pn=${store.name.replace(/ /g, '%20')}&am=${finalTotal}&cu=INR&tn=Order%20from%20UniVerse&tr=${currentOrder?._id || Math.random().toString(36).substring(7)}`

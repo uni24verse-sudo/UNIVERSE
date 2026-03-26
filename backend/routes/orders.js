@@ -3,6 +3,7 @@ const router = express.Router();
 const auth = require('../middleware/auth');
 const Order = require('../models/Order');
 const Store = require('../models/Store');
+const notificationService = require('../services/notificationService');
 
 // Helper to generate a unique 4-digit order number
 const generateOrderNumber = () => Math.floor(1000 + Math.random() * 9000).toString();
@@ -37,36 +38,35 @@ router.post('/create', async (req, res) => {
       io.to(storeId).emit('new_order', savedOrder);
     }
 
-    // ONE SIGNAL PUSH NOTIFICATION FOR VENDOR
+    // FIREBASE FCM PUSH NOTIFICATION FOR VENDOR (New robust solution)
     try {
-      if (process.env.ONESIGNAL_APP_ID && process.env.ONESIGNAL_REST_API_KEY) {
-        const https = require('https');
-        const data = JSON.stringify({
-          app_id: process.env.ONESIGNAL_APP_ID,
-          filters: [{ field: "tag", key: "vendorStoreId", relation: "=", value: storeId.toString() }],
-          contents: { en: `New Order #${savedOrder.orderNumber} received for ₹${savedOrder.totalAmount}!` },
-          headings: { en: "🔔 New Order!" },
-          url: `${process.env.FRONTEND_URL || 'https://universe-sudo.vercel.app'}/vendor/dashboard`
-        });
-
-        const options = {
-          hostname: 'onesignal.com',
-          port: 443,
-          path: '/api/v1/notifications',
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json; charset=utf-8',
-            'Authorization': `Basic ${process.env.ONESIGNAL_REST_API_KEY}`
-          }
+      if (store.fcmTokens && store.fcmTokens.length > 0) {
+        const notificationData = {
+          title: '🍔 New Order Received!',
+          body: `Order #${savedOrder.orderNumber} - ₹${savedOrder.totalAmount}`,
+          orderId: savedOrder._id,
+          type: 'new_order',
+          clickAction: `/vendor/orders/${savedOrder._id}`
         };
 
-        const reqPush = https.request(options, (resPush) => {});
-        reqPush.on('error', (e) => console.error('OneSignal Vendor Push Error:', e));
-        reqPush.write(data);
-        reqPush.end();
+        // Send to all vendor's FCM tokens
+        const results = await notificationService.sendToMultipleDevices(store.fcmTokens, notificationData);
+        
+        // Remove invalid tokens from database
+        const invalidTokens = results
+          .filter(result => result.result && result.result.error === 'token_invalid')
+          .map(result => result.token);
+        
+        if (invalidTokens.length > 0) {
+          store.fcmTokens = store.fcmTokens.filter(token => !invalidTokens.includes(token));
+          await store.save();
+          console.log(`Removed ${invalidTokens.length} invalid FCM tokens`);
+        }
+        
+        console.log(`FCM notification sent to ${store.fcmTokens.length} devices`);
       }
-    } catch (pushErr) {
-      console.error('Vendor Push Error:', pushErr);
+    } catch (fcmErr) {
+      console.error('Vendor FCM Push Error:', fcmErr.message);
     }
 
     res.status(201).json(savedOrder);
@@ -106,38 +106,6 @@ router.put('/:id/status', auth, async (req, res) => {
     // Notify customer about status update using Socket.io
     const io = req.app.get('io');
     io.to(updatedOrder._id.toString()).emit('order_status_update', updatedOrder);
-
-    // ONE SIGNAL PUSH NOTIFICATION
-    try {
-      if (process.env.ONESIGNAL_APP_ID && process.env.ONESIGNAL_REST_API_KEY) {
-        const https = require('https');
-        const data = JSON.stringify({
-          app_id: process.env.ONESIGNAL_APP_ID,
-          filters: [{ field: "tag", key: "orderId", relation: "=", value: order._id.toString() }],
-          contents: { en: `Your order #${order.orderNumber} is now ${status}!` },
-          headings: { en: "Order Update" },
-          url: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/order-tracker/${order._id}`
-        });
-
-        const options = {
-          hostname: 'onesignal.com',
-          port: 443,
-          path: '/api/v1/notifications',
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json; charset=utf-8',
-            'Authorization': `Basic ${process.env.ONESIGNAL_REST_API_KEY}`
-          }
-        };
-
-        const reqPush = https.request(options, (resPush) => {});
-        reqPush.on('error', (e) => console.error('OneSignal Error:', e));
-        reqPush.write(data);
-        reqPush.end();
-      }
-    } catch (pushErr) {
-      console.error('Push Error:', pushErr);
-    }
 
     res.json(updatedOrder);
   } catch (err) {

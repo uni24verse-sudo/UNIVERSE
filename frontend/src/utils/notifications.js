@@ -1,22 +1,23 @@
+import { initializeFCM, onForegroundMessage } from '../firebase.js';
+
 class NotificationManager {
   constructor() {
     this.permission = 'default';
     this.swRegistration = null;
     this.audio = null;
+    this.fcmToken = null;
+    this.isFCMInitialized = false;
   }
 
   async initialize() {
     try {
-      // Register service worker
+      // Initialize FCM first
+      await this.initializeFCMService();
+      
+      // Register service worker for fallback notifications
       if ('serviceWorker' in navigator) {
         this.swRegistration = await navigator.serviceWorker.register('/sw.js');
         console.log('Service Worker registered');
-      }
-
-      // Request notification permission
-      if ('Notification' in window) {
-        this.permission = await Notification.requestPermission();
-        console.log('Notification permission:', this.permission);
       }
 
       // Create notification sound
@@ -29,6 +30,62 @@ class NotificationManager {
     }
   }
 
+  async initializeFCMService() {
+    try {
+      // Initialize FCM and get token
+      this.fcmToken = await initializeFCM();
+      
+      if (this.fcmToken) {
+        console.log('FCM initialized successfully with token:', this.fcmToken.substring(0, 20) + '...');
+        
+        // Set up foreground message handler
+        onForegroundMessage();
+        
+        // Save token to server (you should implement this API endpoint)
+        await this.saveFCMTokenToServer(this.fcmToken);
+        
+        this.isFCMInitialized = true;
+        return true;
+      } else {
+        console.warn('FCM initialization failed');
+        return false;
+      }
+    } catch (error) {
+      console.error('FCM initialization error:', error);
+      return false;
+    }
+  }
+
+  async saveFCMTokenToServer(token) {
+    try {
+      // Get current user info (you may need to adjust this based on your auth system)
+      const user = JSON.parse(localStorage.getItem('vendor') || '{}');
+      
+      if (user._id) {
+        const response = await fetch('/api/save-fcm-token', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          },
+          body: JSON.stringify({
+            token: token,
+            userId: user._id,
+            userType: 'vendor'
+          })
+        });
+        
+        if (response.ok) {
+          console.log('FCM token saved to server');
+        } else {
+          console.warn('Failed to save FCM token to server');
+        }
+      }
+    } catch (error) {
+      console.error('Error saving FCM token:', error);
+    }
+  }
+
   createNotificationSound() {
     // Create a simple notification sound using Web Audio API
     this.audio = new Audio();
@@ -36,6 +93,8 @@ class NotificationManager {
   }
 
   async showNotification(title, options = {}) {
+    // This method is now mainly for fallback notifications
+    // FCM handles most notifications automatically
     if (this.permission !== 'granted') {
       console.warn('Notification permission not granted');
       return false;
@@ -45,7 +104,7 @@ class NotificationManager {
       // Play notification sound
       this.playNotificationSound();
 
-      // Show browser notification
+      // Show browser notification (fallback)
       if (this.swRegistration) {
         await this.swRegistration.showNotification(title, {
           icon: '/icons.svg',
@@ -79,82 +138,85 @@ class NotificationManager {
     }
   }
 
+  // This method is now deprecated - use FCM instead
   async showOrderNotification(orderData) {
-    const { orderId, customerName, totalAmount, items } = orderData;
+    console.warn('showOrderNotification is deprecated. Use FCM push notifications instead.');
     
-    const title = '🍔 New Order Received!';
-    const body = `Order #${orderId} - ${customerName}\nAmount: ₹${totalAmount}\nItems: ${items?.length || 0} items`;
-
-    return this.showNotification(title, {
-      body,
-      data: { orderId, type: 'new_order' },
-      actions: [
-        {
-          action: 'accept',
-          title: '✅ Accept',
-          icon: '/icons.svg'
-        },
-        {
-          action: 'reject',
-          title: '❌ Reject',
-          icon: '/icons.svg'
-        },
-        {
-          action: 'view',
-          title: '👁️ View',
-          icon: '/icons.svg'
-        }
-      ],
-      tag: `order-${orderId}`,
-      renotify: true
-    });
-  }
-
-  async showOrderUpdateNotification(orderData) {
-    const { orderId, status } = orderData;
-    
-    const statusEmojis = {
-      'accepted': '✅',
-      'preparing': '👨‍🍳',
-      'ready': '🔔',
-      'completed': '🎉',
-      'rejected': '❌'
-    };
-
-    const title = `${statusEmojis[status] || '📋'} Order #${orderId} ${status}`;
-    const body = `Your order status has been updated to: ${status}`;
-
-    return this.showNotification(title, {
-      body,
-      data: { orderId, type: 'order_update', status },
-      tag: `order-${orderId}`,
-      renotify: true
-    });
-  }
-
-  // Handle notification clicks
-  handleNotificationClick(event) {
-    const { action, data } = event.notification;
-    
-    if (data?.type === 'new_order') {
-      const orderId = data.orderId;
+    if (!this.isFCMInitialized) {
+      // Fallback to basic notification if FCM is not available
+      const { orderId, customerName, totalAmount, items } = orderData;
       
-      switch (action) {
-        case 'accept':
-          this.handleOrderAction(orderId, 'accept');
-          break;
-        case 'reject':
-          this.handleOrderAction(orderId, 'reject');
-          break;
-        case 'view':
-          window.location.href = `/vendor/orders/${orderId}`;
-          break;
-        default:
-          window.location.href = '/vendor/orders';
-      }
+      const title = '🍔 New Order Received!';
+      const body = `Order #${orderId} - ${customerName}\nAmount: ₹${totalAmount}\nItems: ${items?.length || 0} items`;
+
+      return this.showNotification(title, {
+        body,
+        data: { orderId, type: 'new_order' },
+        actions: [
+          {
+            action: 'accept',
+            title: '✅ Accept',
+            icon: '/icons.svg'
+          },
+          {
+            action: 'reject',
+            title: '❌ Reject',
+            icon: '/icons.svg'
+          },
+          {
+            action: 'view',
+            title: '👁️ View',
+            icon: '/icons.svg'
+          }
+        ],
+        tag: `order-${orderId}`,
+        renotify: true
+      });
     }
+  }
+
+  // This method is now deprecated - use FCM instead
+  async showOrderUpdateNotification(orderData) {
+    console.warn('showOrderUpdateNotification is deprecated. Use FCM push notifications instead.');
     
-    event.notification.close();
+    if (!this.isFCMInitialized) {
+      const { orderId, status } = orderData;
+      
+      const statusEmojis = {
+        'accepted': '✅',
+        'preparing': '👨‍🍳',
+        'ready': '🔔',
+        'completed': '🎉',
+        'rejected': '❌'
+      };
+
+      const title = `${statusEmojis[status] || '📋'} Order #${orderId} ${status}`;
+      const body = `Your order status has been updated to: ${status}`;
+
+      return this.showNotification(title, {
+        body,
+        data: { orderId, type: 'order_update', status },
+        tag: `order-${orderId}`,
+        renotify: true
+      });
+    }
+  }
+
+  // Get FCM token for server-side usage
+  getFCMToken() {
+    return this.fcmToken;
+  }
+
+  // Check if FCM is properly initialized
+  isFCMReady() {
+    return this.isFCMInitialized;
+  }
+
+  // Handle notification clicks (now handled by service worker)
+  handleNotificationClick(event) {
+    console.log('Notification click handled by service worker');
+    // This is now handled by the service worker
+    // Keeping this method for backward compatibility
   }
 
   async handleOrderAction(orderId, action) {

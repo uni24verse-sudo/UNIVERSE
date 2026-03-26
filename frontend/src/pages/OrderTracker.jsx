@@ -16,8 +16,8 @@ const OrderTracker = () => {
         const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/orders/${id}`);
         setOrder(res.data);
         
-        // OneSignal Tagging for targeted notifications
-        if (window.OneSignalDeferred) {
+        // OneSignal Tagging for targeted notifications (only if available)
+        if (window.OneSignalDeferred && window.location.hostname === 'www.universeorder.co.in') {
           window.OneSignalDeferred.push(function(OneSignal) {
             OneSignal.User.addTag("orderId", id);
           });
@@ -190,7 +190,9 @@ const OrderTracker = () => {
                       try {
                         const res = await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/orders/${order._id}/request-verification`);
                         setOrder(res.data);
-                      } catch (err) { alert('Request failed'); }
+                      } catch { 
+                        alert('Request failed'); 
+                      }
                     }}
                     className="btn btn-primary"
                     style={{ borderRadius: '12px', height: '54px', fontWeight: '800' }}
