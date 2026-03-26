@@ -47,8 +47,8 @@ messaging.onBackgroundMessage(function(payload) {
   
   const notificationOptions = {
     body: notificationBody,
-    icon: "/icons.svg",
-    badge: "/favicon.svg",
+    icon: "https://www.universeorder.co.in/icons.svg",
+    badge: "https://www.universeorder.co.in/favicon.svg",
     // Custom order bell sound - use a reliable source
     sound: "https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3",
     requireInteraction: true,
@@ -138,7 +138,7 @@ self.addEventListener('pushsubscriptionchange', function(event) {
   event.waitUntil(
     self.registration.pushManager.subscribe({
       userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array('YOUR_VAPID_PUBLIC_KEY')
+      applicationServerKey: urlBase64ToUint8Array('BFBclRUs4iKGG56oxPpSIXWF8ARNdJH2Ni_JZ9q0hxHYLIrZl-4OxSFCfMuLnoqD6LdZ4zj0HyqYqpB-6ZpgzGg')
     }).then(function(newSubscription) {
       // Send new subscription to server
       return fetch('/api/save-push-subscription', {

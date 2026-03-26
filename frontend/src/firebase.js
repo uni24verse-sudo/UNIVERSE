@@ -93,8 +93,8 @@ export const onForegroundMessage = () => {
     const notificationTitle = payload.data?.title || payload.notification?.title || "New Order!";
     const notificationOptions = {
       body: payload.data?.body || payload.notification?.body || "A new order has been received.",
-      icon: "/icons.svg",
-      badge: "/favicon.svg",
+      icon: "https://www.universeorder.co.in/icons.svg",
+      badge: "https://www.universeorder.co.in/favicon.svg",
       requireInteraction: true,
       vibrate: [200, 100, 200],
       data: payload.data || {}

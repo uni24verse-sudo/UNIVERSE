@@ -1,0 +1,1 @@
+{"body":{"requestType":"Payment","mid":"uKPGEK91260219944393","websiteName":"WEBSTAGING","orderId":"TEST_123","callbackUrl":"https://webhook.site/test","txnAmount":{"value":"10.00","currency":"INR"},"userInfo":{"custId":"CUST_123"}},"head":{"signature":"z2lK9c7kqzLc4pMwuK6D/L8zuCqWCutbKwhGaVtWw+PjyxKn+YhKNuyDQWZSZpgYuFAYPSePfhMpbDJzjx5qpk73ftxfi5Ta+WxEUxH42qg="}}

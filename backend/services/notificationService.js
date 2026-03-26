@@ -18,25 +18,31 @@ class NotificationService {
         notification: {
           title: notificationData.title,
           body: notificationData.body,
-          icon: '/icons.svg',
-          badge: '/favicon.svg',
-          sound: 'default',
+          icon: 'https://www.universeorder.co.in/icons.svg',
           click_action: notificationData.clickAction || '/vendor/dashboard'
         },
         data: {
-          title: notificationData.title,
-          body: notificationData.body,
-          orderId: notificationData.orderId,
-          type: notificationData.type || 'new_order',
-          url: notificationData.clickAction || '/vendor/dashboard',
-          click_action: notificationData.clickAction || '/vendor/dashboard'
+          title: String(notificationData.title),
+          body: String(notificationData.body),
+          orderId: notificationData.orderId ? String(notificationData.orderId) : '',
+          type: String(notificationData.type || 'new_order'),
+          url: String(notificationData.clickAction || '/vendor/dashboard'),
+          click_action: String(notificationData.clickAction || '/vendor/dashboard')
+        },
+        webpush: {
+          notification: {
+            icon: 'https://www.universeorder.co.in/icons.svg',
+            badge: 'https://www.universeorder.co.in/favicon.svg',
+            requireInteraction: true,
+            vibrate: [200, 100, 200, 100, 200]
+          }
         },
         android: {
           notification: {
-            sound: 'https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3',
+            sound: 'default',
             priority: 'high',
             vibrate: [200, 100, 200, 100, 200],
-            icon: '/icons.svg',
+            icon: 'https://www.universeorder.co.in/icons.svg',
             color: '#6366f1'
           }
         },
@@ -151,14 +157,18 @@ class NotificationService {
         notification: {
           title: notificationData.title,
           body: notificationData.body,
-          icon: '/icons.svg',
-          badge: '/favicon.svg',
-          sound: 'default'
+          icon: 'https://www.universeorder.co.in/icons.svg'
         },
         data: {
-          title: notificationData.title,
-          body: notificationData.body,
-          type: notificationData.type || 'general'
+          title: String(notificationData.title),
+          body: String(notificationData.body),
+          type: String(notificationData.type || 'general')
+        },
+        webpush: {
+          notification: {
+            icon: 'https://www.universeorder.co.in/icons.svg',
+            badge: 'https://www.universeorder.co.in/favicon.svg'
+          }
         }
       };
 
