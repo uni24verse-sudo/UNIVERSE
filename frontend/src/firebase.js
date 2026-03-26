@@ -70,8 +70,10 @@ export const requestFCMPermission = async () => {
 // Function to get current token natively from Firebase
 export const getCurrentFCMToken = async () => {
   try {
+    const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', { scope: '/' });
     const token = await getToken(messaging, {
       vapidKey: "BFBclRUs4iKGG56oxPpSIXWF8ARNdJH2Ni_JZ9q0hxHYLIrZl-4OxSFCfMuLnoqD6LdZ4zj0HyqYqpB-6ZpgzGg",
+      serviceWorkerRegistration: registration
     });
     return token;
   } catch (err) {

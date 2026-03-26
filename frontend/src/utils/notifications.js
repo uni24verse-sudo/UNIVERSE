@@ -17,10 +17,10 @@ class NotificationManager {
       // Initialize FCM first
       await this.initializeFCMService();
       
-      // Register service worker for fallback notifications
+      // Register service worker for notifications
       if ('serviceWorker' in navigator) {
-        this.swRegistration = await navigator.serviceWorker.register('/sw.js');
-        console.log('Service Worker registered');
+        this.swRegistration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', { scope: '/' });
+        console.log('Firebase Service Worker registered explicitly');
       }
 
       // Create notification sound
