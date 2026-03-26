@@ -219,17 +219,25 @@ const Cart = () => {
   };
 
   const handleCheckout = async () => {
-    if (paymentMethod === 'Cash') {
-      // For cash orders, proceed normally
-      await initiatePayment();
-      if (currentOrder) {
-        clearCart();
-        navigate(`/order-tracker/${currentOrder._id}`);
-      }
-    } else {
-      // For UPI orders, go to payment screen
-      await initiatePayment();
+    if (!paymentMethod) {
+      alert('Please select a payment method');
+      return;
     }
+    
+    if (!customerPhone && paymentMethod === 'UPI') {
+      alert('Please enter your phone number for UPI payment');
+      return;
+    }
+    
+    // Create order first, then show payment screen if UPI
+    await initiatePayment();
+    
+    if (paymentMethod === 'Cash' && currentOrder) {
+      // For cash orders, clear cart and navigate directly
+      clearCart();
+      navigate(`/order-tracker/${currentOrder._id}`);
+    }
+    // For UPI orders, the payment screen will show automatically
   };
 
 
@@ -578,59 +586,28 @@ const Cart = () => {
                     </div>
                     {paymentMethod === 'UPI' && <ShieldCheck size={20} color="var(--primary)" />}
                   </div>
-
+                  
                   {paymentMethod === 'UPI' && (
-                    <div style={{ marginTop: '1.5rem', padding: '1.5rem', background: 'white', borderRadius: '16px', textAlign: 'center' }}>
-                      {store ? (
-                        upiLink ? (
-                          <div style={{ textAlign: 'center', padding: '0.5rem' }}>
-                            <div style={{ 
-                              background: 'rgba(99, 102, 241, 0.05)', 
-                              padding: '1.5rem', 
-                              borderRadius: '20px', 
-                              border: '1px solid rgba(99, 102, 241, 0.1)',
-                              textAlign: 'left'
-                            }}>
-                               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
-                                 <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                    <CreditCard size={20} color="black" />
-                                 </div>
-                                 <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: '900', color: '#0f172a' }}>Contact Info</h4>
-                               </div>
-                               
-                               <label style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-secondary)', marginBottom: '0.5rem', display: 'block' }}>PHONE NUMBER (LINKED TO UPI)</label>
-                               <input 
-                                 type="tel" 
-                                 placeholder="Enter your 10-digit number" 
-                                 value={customerPhone}
-                                 onChange={(e) => setCustomerPhone(e.target.value)}
-                                 style={{ 
-                                   width: '100%', 
-                                   padding: '1rem', 
-                                   borderRadius: '12px', 
-                                   border: '2px solid var(--surface-border)', 
-                                   background: 'white', 
-                                   fontSize: '1rem',
-                                   fontWeight: '600',
-                                   color: '#0f172a'
-                                 }}
-                               />
-                               <p style={{ fontSize: '0.7rem', color: '#64748b', marginTop: '0.75rem', fontStyle: 'italic', lineHeight: '1.4' }}>
-                                 Providing your number helps the vendor contact you regarding your order.
-                               </p>
-                            </div>
-                          </div>
-                        ) : (
-                          <p style={{ color: 'var(--error)', fontSize: '0.875rem' }}>
-                            Vendor UPI ID not set. Please inform the vendor or try another method.
-                          </p>
-                        )
-                      ) : (
-                        <div style={{ color: '#666' }}>
-                           <p style={{ fontSize: '0.875rem', marginBottom: '0.5rem' }}>Fetching stall details...</p>
-                           <p style={{ fontSize: '0.75rem' }}>If this takes too long, check your connection.</p>
-                        </div>
-                      )}
+                    <div style={{ marginTop: '1rem', padding: '1rem', background: 'rgba(99, 102, 241, 0.05)', borderRadius: '12px' }}>
+                      <label style={{ fontSize: '0.8rem', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '0.5rem', display: 'block' }}>
+                        Phone Number (for order confirmation)
+                      </label>
+                      <input 
+                        type="tel" 
+                        placeholder="Enter 10-digit number" 
+                        value={customerPhone}
+                        onChange={(e) => setCustomerPhone(e.target.value)}
+                        style={{ 
+                          width: '100%', 
+                          padding: '0.75rem', 
+                          borderRadius: '8px', 
+                          border: '1px solid rgba(99, 102, 241, 0.2)', 
+                          background: 'white', 
+                          fontSize: '0.9rem',
+                          fontWeight: '600',
+                          color: '#0f172a'
+                        }}
+                      />
                     </div>
                   )}
                 </div>
@@ -668,7 +645,9 @@ const Cart = () => {
               style={{ marginTop: '2rem', height: '60px', borderRadius: '16px', fontSize: '1.125rem' }}
             >
               {loading ? 'Placing Order...' : (
-                <>Place Order <ChevronRight size={20} style={{ marginLeft: '0.5rem' }} /></>
+                <>
+                  {paymentMethod === 'UPI' ? 'Proceed to Payment' : 'Place Order'} <ChevronRight size={20} style={{ marginLeft: '0.5rem' }} />
+                </>
               )}
             </button>
             <p style={{ textAlign: 'center', fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '1rem' }}>
