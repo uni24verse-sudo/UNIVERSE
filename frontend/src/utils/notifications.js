@@ -11,6 +11,9 @@ class NotificationManager {
 
   async initialize() {
     try {
+      // Update current permission state
+      this.permission = Notification.permission;
+
       // Initialize FCM first
       await this.initializeFCMService();
       
@@ -23,7 +26,8 @@ class NotificationManager {
       // Create notification sound
       this.createNotificationSound();
 
-      return this.permission === 'granted';
+      // Return true if FCM was successfully initialized
+      return this.isFCMInitialized;
     } catch (error) {
       console.error('Failed to initialize notifications:', error);
       return false;
@@ -41,7 +45,7 @@ class NotificationManager {
         // Set up foreground message handler
         onForegroundMessage();
         
-        // Save token to server (you should implement this API endpoint)
+        // Save token to server using the auth routing
         await this.saveFCMTokenToServer(this.fcmToken);
         
         this.isFCMInitialized = true;
@@ -56,33 +60,27 @@ class NotificationManager {
     }
   }
 
-  async saveFCMTokenToServer(token) {
+  async saveFCMTokenToServer(fcmToken) {
     try {
-      // Get current user info (you may need to adjust this based on your auth system)
-      const user = JSON.parse(localStorage.getItem('vendor') || '{}');
-      
-      if (user._id) {
-        const response = await fetch('/api/save-fcm-token', {
-          method: 'POST',
+      const token = localStorage.getItem('token');
+      if (token && fcmToken) {
+        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/auth/fcm-token`, {
+          method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
+            'Authorization': `Bearer ${token}`
           },
-          body: JSON.stringify({
-            token: token,
-            userId: user._id,
-            userType: 'vendor'
-          })
+          body: JSON.stringify({ fcmToken })
         });
         
         if (response.ok) {
-          console.log('FCM token saved to server');
+          console.log('FCM token successfully synced to Vendor Account via NotificationManager.');
         } else {
-          console.warn('Failed to save FCM token to server');
+          console.warn('Failed to sync FCM token via NotificationManager');
         }
       }
     } catch (error) {
-      console.error('Error saving FCM token:', error);
+      console.error('Error syncing FCM token:', error);
     }
   }
 
