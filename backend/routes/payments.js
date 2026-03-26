@@ -165,54 +165,68 @@ router.post('/paytm/initiate', async (req, res) => {
     });
     if (!order) return res.status(404).json({ message: 'Order not found' });
 
-    const vendor = order.store.admin;
-    const mid = vendor.paytmMerchantId || paymentConfig.paytm.merchantId;
-    const mkey = vendor.paytmMerchantKey || paymentConfig.paytm.merchantKey;
-    const website = vendor.paytmWebsite || paymentConfig.paytm.website;
+    const mid = (vendor.paytmMerchantId || paymentConfig.paytm.merchantId).trim();
+    const mkey = (vendor.paytmMerchantKey || paymentConfig.paytm.merchantKey).trim();
     const env = vendor.paytmEnv || paymentConfig.paytm.env;
-
-    // Validation: Paytm Merchant Keys are usually exactly 16 characters
-    if (mkey && mkey.length !== 16) {
-      console.warn(`Paytm Warning: Vendor ${vendor.email} has a Merchant Key of length ${mkey.length}. Standard keys are 16 chars.`);
+    
+    // Website name logic: Staging usually needs WEBSTAGING, Production needs DEFAULT (unless custom)
+    let website = (vendor.paytmWebsite || paymentConfig.paytm.website || 'DEFAULT').trim();
+    if (env === 'STAGING' && website === 'DEFAULT') {
+      website = 'WEBSTAGING';
     }
 
-    const orderNumber = `PT${order.orderNumber}${Date.now()}`.substring(0, 45); // Remove underscores for safety
+    // Clean up callback URL (remove double slashes)
+    const backendUrl = (process.env.BACKEND_URL || '').replace(/\/+$/, '');
+    const callbackUrl = `${backendUrl}/api/payments/paytm/callback`;
+
+    // Validation: Paytm Merchant Keys are strictly 16 characters
+    if (mkey.length !== 16) {
+      console.warn(`Paytm Critical: Vendor ${vendor.email} has a Merchant Key of ${mkey.length} characters. IT MUST BE EXACTLY 16.`);
+    }
+
+    const orderNumber = `PT${order.orderNumber}${Date.now()}`.substring(0, 45); 
     
     order.transactionId = orderNumber;
     order.paymentProvider = 'Paytm';
     await order.save();
 
-    const paytmParams = {
-      body: {
-        requestType: "Payment",
-        mid: mid,
-        websiteName: website,
-        orderId: orderNumber,
-        callbackUrl: paymentConfig.paytm.callbackUrl,
-        txnAmount: {
-          value: order.totalAmount.toFixed(2),
-          currency: "INR",
-        },
-        userInfo: {
-          custId: `CUST${order.customerPhone || 'GUEST'}`.substring(0, 30),
-        },
+    const paytmParamsBody = {
+      requestType: "Payment",
+      mid: mid,
+      websiteName: website,
+      orderId: orderNumber,
+      callbackUrl: callbackUrl,
+      txnAmount: {
+        value: order.totalAmount.toFixed(2),
+        currency: "INR",
+      },
+      userInfo: {
+        custId: `CUST${order.customerPhone || 'GUEST'}`.substring(0, 30),
       },
     };
 
-    // Paytm Checksum generation for initiateTransaction API
-    const checksum = await PaytmChecksum.generateSignature(
-      JSON.stringify(paytmParams.body),
-      mkey
-    );
+    // Ensure strict minified JSON for checksum to avoid 'System Error (501)'
+    const bodyString = JSON.stringify(paytmParamsBody);
+    const checksum = await PaytmChecksum.generateSignature(bodyString, mkey);
 
-    paytmParams.head = {
-      signature: checksum,
+    const paytmParams = {
+      body: paytmParamsBody,
+      head: {
+        signature: checksum,
+      },
     };
 
     const isProduction = env === 'PRODUCTION';
     const url = isProduction
       ? `https://securegw.paytm.in/theia/api/v1/initiateTransaction?mid=${mid}&orderId=${orderNumber}`
       : `https://securegw-stage.paytm.in/theia/api/v1/initiateTransaction?mid=${mid}&orderId=${orderNumber}`;
+
+    console.log('--- PAYTM DEBUG INFO ---');
+    console.log('ENV:', env, '| WEBSITE:', website);
+    console.log('MID:', mid, `(Len: ${mid.length})`);
+    console.log('MKEY:', '****', `(Len: ${mkey.length})`);
+    console.log('CALLBACK:', callbackUrl);
+    console.log('---');
 
     console.log('--- PAYTM INITIATE REQUEST ---');
     console.log('URL:', url);
