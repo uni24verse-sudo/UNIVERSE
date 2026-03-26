@@ -93,7 +93,9 @@ const OrderTracker = () => {
       </header>
 
       <div className="glass-card" style={{ padding: '2rem', borderRadius: '28px', textAlign: 'center', marginBottom: '2rem' }}>
-        <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>Order #{order.orderNumber}</p>
+        <div style={{ display: 'inline-block', padding: '0.4rem 1rem', background: 'rgba(99, 102, 241, 0.15)', color: 'var(--primary)', borderRadius: '12px', fontWeight: '900', fontSize: '1.25rem', marginBottom: '1.5rem', border: '1px solid rgba(99, 102, 241, 0.3)' }}>
+          Order #{order.orderNumber}
+        </div>
         
         {/* Live Status Animation */}
         <div style={{ margin: '2rem 0', position: 'relative', display: 'flex', justifyContent: 'center' }}>

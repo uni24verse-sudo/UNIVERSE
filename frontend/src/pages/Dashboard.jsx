@@ -122,11 +122,6 @@ const Dashboard = () => {
           }
           
           // Truly new order
-          // Play notification sound if enabled
-          if (localStorage.getItem('orderSoundEnabled') === 'true') {
-            const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
-            audio.play().catch(e => console.log('Audio blocked:', e));
-          }
           return [order, ...prev];
         });
       });
@@ -520,8 +515,19 @@ const Dashboard = () => {
                       }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
                           <div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.25rem' }}>
-                              <span style={{ fontWeight: '800', fontSize: '1.125rem' }}>Order #{order.orderNumber}</span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.25rem', flexWrap: 'wrap' }}>
+                              <span style={{ 
+                                fontWeight: '900', 
+                                fontSize: '1.125rem', 
+                                background: 'rgba(99, 102, 241, 0.15)', 
+                                color: 'var(--primary)', 
+                                padding: '0.3rem 0.8rem', 
+                                borderRadius: '8px',
+                                border: '1px solid rgba(99, 102, 241, 0.3)',
+                                letterSpacing: '0.02em'
+                              }}>
+                                #{order.orderNumber}
+                              </span>
                               <span style={{ 
                                 padding: '0.25rem 0.75rem', 
                                 borderRadius: '8px', 
@@ -544,6 +550,21 @@ const Dashboard = () => {
                                 }`
                               }}>
                                 {order.status}
+                              </span>
+                              <span style={{
+                                padding: '0.25rem 0.6rem',
+                                borderRadius: '8px',
+                                fontSize: '0.65rem',
+                                fontWeight: '900',
+                                textTransform: 'uppercase',
+                                background: order.paymentMethod === 'UPI' ? 'rgba(139, 92, 246, 0.15)' : 'rgba(16, 185, 129, 0.15)',
+                                color: order.paymentMethod === 'UPI' ? '#c4b5fd' : '#10b981',
+                                border: `1px solid ${order.paymentMethod === 'UPI' ? '#8b5cf688' : '#10b98188'}`,
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.2rem'
+                              }}>
+                                {order.paymentMethod === 'UPI' ? '📱 UPI' : '💵 CASH'}
                               </span>
                             </div>
                             <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>
