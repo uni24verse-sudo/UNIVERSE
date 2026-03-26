@@ -60,7 +60,7 @@ router.put('/update-profile', auth, async (req, res) => {
     const { 
       name, upiId, 
       phonepeMerchantId, phonepeSaltKey, phonepeSaltIndex,
-      paytmMerchantId, paytmMerchantKey, paytmWebsite 
+      paytmMerchantId, paytmMerchantKey, paytmWebsite, paytmEnv
     } = req.body;
     
     const admin = await Admin.findById(req.admin._id);
@@ -76,6 +76,7 @@ router.put('/update-profile', auth, async (req, res) => {
     if (paytmMerchantId !== undefined) admin.paytmMerchantId = paytmMerchantId;
     if (paytmMerchantKey !== undefined) admin.paytmMerchantKey = paytmMerchantKey;
     if (paytmWebsite !== undefined) admin.paytmWebsite = paytmWebsite;
+    if (paytmEnv !== undefined) admin.paytmEnv = paytmEnv;
 
     await admin.save();
     

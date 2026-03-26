@@ -31,6 +31,7 @@ const ManageStore = () => {
   const [paytmMerchantId, setPaytmMerchantId] = useState('');
   const [paytmMerchantKey, setPaytmMerchantKey] = useState('');
   const [paytmWebsite, setPaytmWebsite] = useState('DEFAULT');
+  const [paytmEnv, setPaytmEnv] = useState('PRODUCTION');
 
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
   const [showSidebar, setShowSidebar] = useState(false);
@@ -83,6 +84,7 @@ const ManageStore = () => {
           setPaytmMerchantId(vendor?.paytmMerchantId || '');
           setPaytmMerchantKey(vendor?.paytmMerchantKey || '');
           setPaytmWebsite(vendor?.paytmWebsite || 'DEFAULT');
+          setPaytmEnv(vendor?.paytmEnv || 'PRODUCTION');
         } else {
           navigate('/vendor/store/create');
         }
@@ -224,7 +226,8 @@ const ManageStore = () => {
           phonepeSaltIndex,
           paytmMerchantId, 
           paytmMerchantKey, 
-          paytmWebsite
+          paytmWebsite,
+          paytmEnv
         },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -726,6 +729,17 @@ const ManageStore = () => {
                     <div className="form-group">
                       <label style={{ fontSize: '0.65rem', marginBottom: '0.25rem', display: 'block' }}>Merchant Key</label>
                       <input type="password" value={paytmMerchantKey} onChange={e => setPaytmMerchantKey(e.target.value)} className="form-input" style={{ height: '36px', fontSize: '0.8rem' }} placeholder="Not set" />
+                    </div>
+                    <div className="form-group">
+                      <label style={{ fontSize: '0.65rem', marginBottom: '0.25rem', display: 'block' }}>Website Name (e.g., WEBSTAGING)</label>
+                      <input type="text" value={paytmWebsite} onChange={e => setPaytmWebsite(e.target.value)} className="form-input" style={{ height: '36px', fontSize: '0.8rem' }} placeholder="DEFAULT" />
+                    </div>
+                    <div className="form-group">
+                      <label style={{ fontSize: '0.65rem', marginBottom: '0.25rem', display: 'block' }}>Environment</label>
+                      <select value={paytmEnv} onChange={e => setPaytmEnv(e.target.value)} className="form-input" style={{ height: '36px', fontSize: '0.8rem', background: 'var(--glass-bg)', color: 'white' }}>
+                        <option value="PRODUCTION">Production</option>
+                        <option value="STAGING">Staging / Test</option>
+                      </select>
                     </div>
                   </div>
                 </div>

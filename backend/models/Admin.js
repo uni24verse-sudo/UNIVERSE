@@ -20,7 +20,8 @@ const AdminSchema = new mongoose.Schema({
   phonepeSaltIndex: { type: String, default: '1' },
   paytmMerchantId: { type: String, default: '' },
   paytmMerchantKey: { type: String, default: '' },
-  paytmWebsite: { type: String, default: 'DEFAULT' }
+  paytmWebsite: { type: String, default: 'DEFAULT' },
+  paytmEnv: { type: String, enum: ['STAGING', 'PRODUCTION'], default: 'PRODUCTION' }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Admin', AdminSchema);

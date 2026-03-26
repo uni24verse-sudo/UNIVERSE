@@ -169,6 +169,7 @@ router.post('/paytm/initiate', async (req, res) => {
     const mid = vendor.paytmMerchantId || paymentConfig.paytm.merchantId;
     const mkey = vendor.paytmMerchantKey || paymentConfig.paytm.merchantKey;
     const website = vendor.paytmWebsite || paymentConfig.paytm.website;
+    const env = vendor.paytmEnv || paymentConfig.paytm.env;
 
     const orderNumber = `PT_${order.orderNumber}_${Date.now()}`;
     
@@ -202,7 +203,8 @@ router.post('/paytm/initiate', async (req, res) => {
       signature: checksum,
     };
 
-    const url = paymentConfig.paytm.env === 'PRODUCTION'
+    const isProduction = env === 'PRODUCTION';
+    const url = isProduction
       ? `https://securegw.paytm.in/theia/api/v1/initiateTransaction?mid=${mid}&orderId=${orderNumber}`
       : `https://securegw-stage.paytm.in/theia/api/v1/initiateTransaction?mid=${mid}&orderId=${orderNumber}`;
 
@@ -212,7 +214,7 @@ router.post('/paytm/initiate', async (req, res) => {
 
     if (response.data.body.resultInfo.resultStatus === 'S') {
       const txnToken = response.data.body.txnToken;
-      const paymentUrl = paymentConfig.paytm.env === 'PRODUCTION'
+      const paymentUrl = isProduction
         ? `https://securegw.paytm.in/theia/api/v1/showPaymentPage?mid=${mid}&orderId=${orderNumber}&txnToken=${txnToken}`
         : `https://securegw-stage.paytm.in/theia/api/v1/showPaymentPage?mid=${mid}&orderId=${orderNumber}&txnToken=${txnToken}`;
 
