@@ -24,7 +24,9 @@ const OrderSchema = new mongoose.Schema({
   },
   orderType: { type: String, enum: ['Dine In', 'Take Away'], default: 'Dine In' },
   packagingChargeApplied: { type: Number, default: 0 },
-  customerPhone: { type: String }
+  customerPhone: { type: String },
+  transactionId: { type: String, unique: true, sparse: true },
+  paymentProvider: { type: String, enum: ['PhonePe', 'Paytm', 'Manual'], default: 'Manual' }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Order', OrderSchema);

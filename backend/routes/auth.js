@@ -57,15 +57,43 @@ router.post('/login', async (req, res) => {
 // Update Profile
 router.put('/update-profile', auth, async (req, res) => {
   try {
-    const { name, upiId } = req.body;
+    const { 
+      name, upiId, 
+      phonepeMerchantId, phonepeSaltKey, phonepeSaltIndex,
+      paytmMerchantId, paytmMerchantKey, paytmWebsite 
+    } = req.body;
+    
     const admin = await Admin.findById(req.admin._id);
     if (!admin) return res.status(404).json({ message: 'Vendor not found' });
 
     if (name) admin.name = name;
     if (upiId !== undefined) admin.upiId = upiId;
+    
+    // Update Payment Credentials
+    if (phonepeMerchantId !== undefined) admin.phonepeMerchantId = phonepeMerchantId;
+    if (phonepeSaltKey !== undefined) admin.phonepeSaltKey = phonepeSaltKey;
+    if (phonepeSaltIndex !== undefined) admin.phonepeSaltIndex = phonepeSaltIndex;
+    if (paytmMerchantId !== undefined) admin.paytmMerchantId = paytmMerchantId;
+    if (paytmMerchantKey !== undefined) admin.paytmMerchantKey = paytmMerchantKey;
+    if (paytmWebsite !== undefined) admin.paytmWebsite = paytmWebsite;
 
     await admin.save();
-    res.json({ message: 'Profile updated successfully', admin: { id: admin._id, name: admin.name, email: admin.email, upiId: admin.upiId } });
+    
+    res.json({ 
+      message: 'Profile updated successfully', 
+      admin: { 
+        id: admin._id, 
+        name: admin.name, 
+        email: admin.email, 
+        upiId: admin.upiId,
+        phonepeMerchantId: admin.phonepeMerchantId,
+        phonepeSaltKey: admin.phonepeSaltKey,
+        phonepeSaltIndex: admin.phonepeSaltIndex,
+        paytmMerchantId: admin.paytmMerchantId,
+        paytmMerchantKey: admin.paytmMerchantKey,
+        paytmWebsite: admin.paytmWebsite
+      } 
+    });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

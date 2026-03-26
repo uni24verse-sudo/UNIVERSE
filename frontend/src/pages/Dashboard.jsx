@@ -588,6 +588,12 @@ const Dashboard = () => {
                                 gap: '0.2rem'
                               }}>
                                 {order.paymentMethod === 'UPI' ? '📱 UPI' : '💵 CASH'}
+                                {order.paymentMethod === 'UPI' && order.paymentStatus === 'Confirmed' && (
+                                  <span style={{ marginLeft: '4px', color: '#10b981' }}>● PAID</span>
+                                )}
+                                {order.paymentMethod === 'UPI' && order.paymentStatus !== 'Confirmed' && (
+                                  <span style={{ marginLeft: '4px', color: '#f59e0b' }}>● UNPAID</span>
+                                )}
                               </span>
                             </div>
                             <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>

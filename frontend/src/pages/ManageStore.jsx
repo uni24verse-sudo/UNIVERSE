@@ -24,6 +24,14 @@ const ManageStore = () => {
   const [updatingImage, setUpdatingImage] = useState(false);
   const storeImageInputRef = useRef(null);
 
+  // Payment Integration States
+  const [phonepeMerchantId, setPhonepeMerchantId] = useState('');
+  const [phonepeSaltKey, setPhonepeSaltKey] = useState('');
+  const [phonepeSaltIndex, setPhonepeSaltIndex] = useState('1');
+  const [paytmMerchantId, setPaytmMerchantId] = useState('');
+  const [paytmMerchantKey, setPaytmMerchantKey] = useState('');
+  const [paytmWebsite, setPaytmWebsite] = useState('DEFAULT');
+
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
   const [showSidebar, setShowSidebar] = useState(false);
 
@@ -68,6 +76,13 @@ const ManageStore = () => {
           setStoreMarket(defaultStore.market || 'BH1 Market');
           setStorePackagingCharge(defaultStore.packagingCharge || 0);
           setAdminUpiId(vendor?.upiId || '');
+          // Init payment keys
+          setPhonepeMerchantId(vendor?.phonepeMerchantId || '');
+          setPhonepeSaltKey(vendor?.phonepeSaltKey || '');
+          setPhonepeSaltIndex(vendor?.phonepeSaltIndex || '1');
+          setPaytmMerchantId(vendor?.paytmMerchantId || '');
+          setPaytmMerchantKey(vendor?.paytmMerchantKey || '');
+          setPaytmWebsite(vendor?.paytmWebsite || 'DEFAULT');
         } else {
           navigate('/vendor/store/create');
         }
@@ -199,9 +214,18 @@ const ManageStore = () => {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       
-      // Update Admin Profile (UPI ID)
+      // Update Admin Profile (UPI ID & Payment Keys)
       const adminRes = await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/auth/update-profile`,
-        { name: vendor.name, upiId: adminUpiId },
+        { 
+          name: vendor.name, 
+          upiId: adminUpiId,
+          phonepeMerchantId, 
+          phonepeSaltKey, 
+          phonepeSaltIndex,
+          paytmMerchantId, 
+          paytmMerchantKey, 
+          paytmWebsite
+        },
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
@@ -652,6 +676,69 @@ const ManageStore = () => {
                   </div>
                 </div>
               )}
+            </div>
+
+            {/* Payment Integration Card */}
+            <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '24px', border: '1px solid rgba(99, 102, 241, 0.2)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
+                <div style={{ background: 'rgba(99, 102, 241, 0.1)', padding: '0.5rem', borderRadius: '10px' }}>
+                  <Globe size={20} color="var(--primary)" />
+                </div>
+                <h4 style={{ margin: 0 }}>Payment Integration (Direct)</h4>
+              </div>
+
+              <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '1.5rem', lineHeight: '1.5' }}>
+                Set up your Business Merchant accounts to receive payments directly. Leave empty to use the platform's standard QR flow.
+              </p>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                {/* PhonePe Section */}
+                <div style={{ padding: '1rem', background: 'rgba(255,255,255,0.02)', borderRadius: '16px', border: '1px solid var(--surface-border)' }}>
+                  <p style={{ fontWeight: '800', fontSize: '0.85rem', marginBottom: '1rem', color: '#5f259f', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    📱 PhonePe Business
+                  </p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                    <div className="form-group">
+                      <label style={{ fontSize: '0.65rem', marginBottom: '0.25rem', display: 'block' }}>Merchant ID (MID)</label>
+                      <input type="password" value={phonepeMerchantId} onChange={e => setPhonepeMerchantId(e.target.value)} className="form-input" style={{ height: '36px', fontSize: '0.8rem' }} placeholder="Not set" />
+                    </div>
+                    <div className="form-group">
+                      <label style={{ fontSize: '0.65rem', marginBottom: '0.25rem', display: 'block' }}>Salt Key</label>
+                      <input type="password" value={phonepeSaltKey} onChange={e => setPhonepeSaltKey(e.target.value)} className="form-input" style={{ height: '36px', fontSize: '0.8rem' }} placeholder="Not set" />
+                    </div>
+                    <div className="form-group">
+                      <label style={{ fontSize: '0.65rem', marginBottom: '0.25rem', display: 'block' }}>Salt Index (Default: 1)</label>
+                      <input type="text" value={phonepeSaltIndex} onChange={e => setPhonepeSaltIndex(e.target.value)} className="form-input" style={{ height: '36px', fontSize: '0.8rem' }} />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Paytm Section */}
+                <div style={{ padding: '1rem', background: 'rgba(255,255,255,0.02)', borderRadius: '16px', border: '1px solid var(--surface-border)' }}>
+                  <p style={{ fontWeight: '800', fontSize: '0.85rem', marginBottom: '1rem', color: '#00baf2', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    💰 Paytm Business
+                  </p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                    <div className="form-group">
+                      <label style={{ fontSize: '0.65rem', marginBottom: '0.25rem', display: 'block' }}>Merchant ID (MID)</label>
+                      <input type="password" value={paytmMerchantId} onChange={e => setPaytmMerchantId(e.target.value)} className="form-input" style={{ height: '36px', fontSize: '0.8rem' }} placeholder="Not set" />
+                    </div>
+                    <div className="form-group">
+                      <label style={{ fontSize: '0.65rem', marginBottom: '0.25rem', display: 'block' }}>Merchant Key</label>
+                      <input type="password" value={paytmMerchantKey} onChange={e => setPaytmMerchantKey(e.target.value)} className="form-input" style={{ height: '36px', fontSize: '0.8rem' }} placeholder="Not set" />
+                    </div>
+                  </div>
+                </div>
+
+                <button 
+                  onClick={handleUpdateStoreDetails} 
+                  disabled={updatingStore}
+                  className="btn btn-primary" 
+                  style={{ height: '46px', borderRadius: '12px', fontSize: '0.875rem' }}
+                >
+                  {updatingStore ? 'Saving...' : 'Update Payment Settings'}
+                </button>
+              </div>
             </div>
           </div>
 

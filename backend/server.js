@@ -38,6 +38,7 @@ app.use('/api/scan-menu', require('./routes/menuScanner'));
 app.use('/api/super-admin', require('./routes/superAdmin'));
 app.use('/api/fcm', require('./routes/fcm'));
 app.use('/api/upi', require('./routes/upi'));
+app.use('/api/payments', require('./routes/payments'));
 
 // Socket.io connection handling
 io.on('connection', (socket) => {

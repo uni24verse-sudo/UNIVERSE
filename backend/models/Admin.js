@@ -13,7 +13,14 @@ const AdminSchema = new mongoose.Schema({
   upiDailyLimit: { type: Number, default: 100000 }, // Daily transaction limit in paise
   role: { type: String, enum: ['vendor', 'superadmin'], default: 'vendor' },
   isBanned: { type: Boolean, default: false },
-  fcmToken: { type: String, default: '' }
+  fcmToken: { type: String, default: '' },
+  // Multi-vendor payment credentials
+  phonepeMerchantId: { type: String, default: '' },
+  phonepeSaltKey: { type: String, default: '' },
+  phonepeSaltIndex: { type: String, default: '1' },
+  paytmMerchantId: { type: String, default: '' },
+  paytmMerchantKey: { type: String, default: '' },
+  paytmWebsite: { type: String, default: 'DEFAULT' }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Admin', AdminSchema);

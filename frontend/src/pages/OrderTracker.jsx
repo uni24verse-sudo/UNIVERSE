@@ -11,6 +11,41 @@ const OrderTracker = () => {
   const [loading, setLoading] = useState(true);
   const [upiDetails, setUpiDetails] = useState(null);
   const [upiLoading, setUpiLoading] = useState(false);
+  const [retryLoading, setRetryLoading] = useState(false);
+
+  const handleRetryPhonePe = async () => {
+    setRetryLoading(true);
+    try {
+      const res = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/payments/phonepe/initiate`, {
+        orderId: order._id
+      });
+      if (res.data.success && res.data.paymentUrl) {
+        window.location.href = res.data.paymentUrl;
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Failed to initiate payment. Please try again.');
+    } finally {
+      setRetryLoading(false);
+    }
+  };
+
+  const handleRetryPaytm = async () => {
+    setRetryLoading(true);
+    try {
+      const res = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/payments/paytm/initiate`, {
+        orderId: order._id
+      });
+      if (res.data.success && res.data.paymentUrl) {
+        window.location.href = res.data.paymentUrl;
+      }
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.message || 'Paytm retry failed.');
+    } finally {
+      setRetryLoading(false);
+    }
+  };
 
   useEffect(() => {
     const fetchOrder = async () => {
@@ -214,88 +249,82 @@ const OrderTracker = () => {
             )}
             
             {order.paymentStatus === 'Pending' ? (
-              <>
-                <div style={{ display: 'inline-block', padding: '1rem', background: '#f8fafc', borderRadius: '16px', marginBottom: '1rem' }}>
-                  <QRCodeSVG 
-                    value={upiDetails?.qrData || `upi://pay?pa=${order.store.admin.upiId}&pn=${order.store.name.replace(/ /g, '%20')}&am=${order.totalAmount}&cu=INR&tn=Order%20${order.orderNumber}&tr=${order._id}`} 
-                    size={180} 
-                  />
-                </div>
-                
-                {/* Merchant Info */}
-                {upiDetails?.vendorInfo && (
-                  <div style={{ 
-                    background: '#f0f9ff', 
-                    border: '1px solid #0ea5e9', 
-                    borderRadius: '12px', 
-                    padding: '1rem', 
-                    marginBottom: '1rem' 
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                      <AlertCircle size={14} color="#0284c7" />
-                      <span style={{ color: '#0c4a6e', fontSize: '0.875rem', fontWeight: '600' }}>
-                        Paying to: {upiDetails.vendorInfo.businessName || upiDetails.vendorInfo.name}
-                      </span>
-                    </div>
-                    <p style={{ margin: '0', color: '#0e7490', fontSize: '0.8rem' }}>
-                      UPI ID: {upiDetails.upiId}
-                      {upiDetails.vendorInfo.upiType === 'merchant' && (
-                        <span style={{ color: '#059669', fontWeight: '600', marginLeft: '0.5rem' }}>
-                          ✓ Merchant Verified
-                        </span>
-                      )}
-                    </p>
-                  </div>
-                )}
-                
+              <div style={{ textAlign: 'center' }}>
                 <p style={{ color: '#64748b', fontSize: '0.875rem', marginBottom: '1.5rem', lineHeight: '1.5' }}>
-                  Scan this QR to pay **₹{order.totalAmount}**. Once done, click the button below.
+                  Your payment is currently <strong>Pending</strong>. Please complete it to finish your order.
                 </p>
                 
-                {/* Alternative Payment Link */}
-                {upiDetails?.upiLink && (
-                  <div style={{ marginBottom: '1rem' }}>
-                    <a 
-                      href={upiDetails.upiLink} 
-                      style={{ 
-                        display: 'inline-flex', 
-                        alignItems: 'center', 
-                        gap: '0.5rem', 
-                        color: '#0ea5e9', 
-                        textDecoration: 'none', 
-                        fontSize: '0.875rem',
-                        fontWeight: '500'
-                      }}
-                    >
-                      <ExternalLink size={14} />
-                      Click here to open in UPI app
-                    </a>
-                  </div>
-                )}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                   <a 
-                    href={`upi://pay?pa=${order.store.admin.upiId}&pn=${order.store.name.replace(/ /g, '%20')}&am=${order.totalAmount}&cu=INR&tn=Order%20${order.orderNumber}&tr=${order._id}`}
-                    className="btn btn-secondary"
-                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', textDecoration: 'none', borderRadius: '12px', height: '54px' }}
-                  >
-                    Pay Now Directly
-                  </a>
-                  <button 
-                    onClick={async () => {
-                      try {
-                        const res = await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/orders/${order._id}/request-verification`);
-                        setOrder(res.data);
-                      } catch { 
-                        alert('Request failed'); 
-                      }
-                    }}
-                    className="btn btn-primary"
-                    style={{ borderRadius: '12px', height: '54px', fontWeight: '800' }}
-                  >
-                    I've Made the Payment
-                  </button>
+                  {/* Dedicated Buttons for automated providers */}
+                  {order.paymentProvider !== 'Manual' ? (
+                    <>
+                      <button 
+                        onClick={order.paymentProvider === 'PhonePe' ? handleRetryPhonePe : handleRetryPaytm}
+                        disabled={retryLoading}
+                        className="btn btn-primary"
+                        style={{ 
+                          borderRadius: '16px', 
+                          height: '56px', 
+                          fontWeight: '800', 
+                          background: order.paymentProvider === 'PhonePe' ? '#5f259f' : '#00baf2',
+                          color: 'white',
+                          border: 'none',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '0.75rem'
+                        }}
+                      >
+                         {retryLoading ? 'Initializing...' : `Pay via ${order.paymentProvider}`} 
+                         <ExternalLink size={18} />
+                      </button>
+                      
+                      {/* Show both as fallback options if first choice failed */}
+                      <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: '0.5rem 0' }}>Or try another method:</p>
+                      
+                      <button 
+                        onClick={order.paymentProvider === 'PhonePe' ? handleRetryPaytm : handleRetryPhonePe}
+                        disabled={retryLoading}
+                        style={{ 
+                          borderRadius: '16px', 
+                          height: '50px', 
+                          fontWeight: '600', 
+                          background: 'rgba(255,255,255,0.05)',
+                          color: 'white',
+                          border: '1px solid rgba(255,255,255,0.1)',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        {order.paymentProvider === 'PhonePe' ? 'Pay via Paytm' : 'Pay via PhonePe'}
+                      </button>
+                    </>
+                  ) : (
+                    /* Legacy QR Flow for Manual UPI */
+                    <>
+                      <div style={{ display: 'inline-block', padding: '1rem', background: '#f8fafc', borderRadius: '16px', marginBottom: '1rem' }}>
+                        <QRCodeSVG 
+                          value={upiDetails?.qrData || `upi://pay?pa=${order.store.admin.upiId}&pn=${order.store.name.replace(/ /g, '%20')}&am=${order.totalAmount}&cu=INR&tn=Order%20${order.orderNumber}&tr=${order._id}`} 
+                          size={180} 
+                        />
+                      </div>
+                      <button 
+                        onClick={async () => {
+                          try {
+                            const res = await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/orders/${order._id}/request-verification`);
+                            setOrder(res.data);
+                          } catch { 
+                            alert('Request failed'); 
+                          }
+                        }}
+                        className="btn btn-primary"
+                        style={{ borderRadius: '12px', height: '54px', fontWeight: '800' }}
+                      >
+                        I've Made the Payment
+                      </button>
+                    </>
+                  )}
                 </div>
-              </>
+              </div>
             ) : order.paymentStatus === 'Verification Requested' ? (
               <div style={{ padding: '1rem', background: 'rgba(59, 130, 246, 0.05)', borderRadius: '16px', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
                  <p style={{ color: '#2563eb', fontWeight: '700', margin: 0 }}>Payment Reported</p>
@@ -304,7 +333,7 @@ const OrderTracker = () => {
             ) : order.paymentStatus === 'Confirmed' ? (
               <div style={{ padding: '1rem', background: 'rgba(16, 185, 129, 0.05)', borderRadius: '16px', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
                  <p style={{ color: '#10b981', fontWeight: '700', margin: 0 }}>Payment Verified ✅</p>
-                 <p style={{ color: '#64748b', fontSize: '0.8rem', marginTop: '0.4rem' }}>Your payment of ₹{order.totalAmount} has been confirmed by the vendor.</p>
+                 <p style={{ color: '#64748b', fontSize: '0.8rem', marginTop: '0.4rem' }}>Your payment of ₹{order.totalAmount} has been confirmed automatically.</p>
               </div>
             ) : null}
           </div>
