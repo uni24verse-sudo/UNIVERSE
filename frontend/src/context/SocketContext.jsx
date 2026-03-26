@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import { io } from 'socket.io-client';
 import { AuthContext } from './AuthContext';
 import NotificationManager from '../utils/notifications';
+import axios from 'axios';
 
 const SocketContext = createContext();
 
@@ -23,21 +24,29 @@ export const SocketProvider = ({ children }) => {
     }
 
     // Initialize socket connection
-    const newSocket = io(import.meta.env.VITE_SERVER_URL || 'http://localhost:5000', {
+    const newSocket = io(import.meta.env.VITE_API_URL || 'http://localhost:5000', {
       auth: {
         token: token
       },
       transports: ['websocket', 'polling']
     });
 
-    newSocket.on('connect', () => {
+    newSocket.on('connect', async () => {
       console.log('Socket connected:', newSocket.id);
       setConnected(true);
       
-      // Join vendor's store room for real-time order notifications
-      if (vendor.storeId) {
-        newSocket.emit('join_store_room', vendor.storeId);
-        console.log('Joined store room:', vendor.storeId);
+      // Join vendor's store rooms for real-time order notifications globally
+      try {
+        const storesRes = await axios.get((import.meta.env.VITE_API_URL || 'http://localhost:5000') + '/api/store/my-stores', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        
+        storesRes.data.forEach(store => {
+          newSocket.emit('join_store_room', store._id);
+          console.log('Joined store room:', store._id);
+        });
+      } catch (err) {
+        console.error('Failed to fetch stores for socket context:', err);
       }
     });
 
@@ -50,6 +59,12 @@ export const SocketProvider = ({ children }) => {
     newSocket.on('new_order', async (orderData) => {
       console.log('New order received:', orderData);
       
+      // Play notification sound if enabled, globally
+      if (localStorage.getItem('orderSoundEnabled') !== 'false') {
+        const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+        audio.play().catch(e => console.log('Audio blocked:', e));
+      }
+
       // Show browser notification
       await NotificationManager.showOrderNotification(orderData);
       

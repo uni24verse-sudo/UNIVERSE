@@ -4,26 +4,7 @@ import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
 import { QRCodeSVG } from 'qrcode.react';
 import { 
-  ArrowLeft, 
-  Store, 
-  LayoutDashboard, 
-  QrCode, 
-  LogOut, 
-  Plus, 
-  Pencil, 
-  Trash2, 
-  Eye, 
-  EyeOff, 
-  Save, 
-  X, 
-  Image as LucideImage,
-  Download,
-  ExternalLink,
-  ShoppingBag,
-  Tag,
-  Sparkles,
-  Loader2,
-  Check
+  ArrowLeft, Store, LayoutDashboard, QrCode, LogOut, Plus, Pencil, Trash2, Eye, EyeOff, Save, X, Image as LucideImage, Download, ExternalLink, ShoppingBag, Tag, Sparkles, Loader2, Check, Menu, Globe
 } from 'lucide-react';
 
 const ManageStore = () => {
@@ -42,6 +23,15 @@ const ManageStore = () => {
   const [storeImageFile, setStoreImageFile] = useState(null);
   const [updatingImage, setUpdatingImage] = useState(false);
   const storeImageInputRef = useRef(null);
+
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
+  const [showSidebar, setShowSidebar] = useState(false);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 1024);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // AI Scan States
   const [isScanning, setIsScanning] = useState(false);
@@ -380,7 +370,27 @@ const ManageStore = () => {
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-dark)' }}>
       {/* Sidebar */}
-      <aside style={{ width: '280px', background: 'rgba(15, 23, 42, 0.8)', borderRight: '1px solid var(--surface-border)', display: 'flex', flexDirection: 'column', position: 'fixed', height: '100vh', zIndex: 100 }}>
+      <aside style={{ 
+        width: '280px', 
+        background: 'rgba(15, 23, 42, 0.95)', 
+        borderRight: '1px solid var(--surface-border)', 
+        display: isMobile ? (showSidebar ? 'flex' : 'none') : 'flex', 
+        flexDirection: 'column', 
+        position: 'fixed', 
+        height: '100vh', 
+        zIndex: 1000,
+        backdropFilter: 'blur(20px)',
+        transition: 'transform 0.3s ease',
+        transform: isMobile && !showSidebar ? 'translateX(-100%)' : 'translateX(0)'
+      }}>
+        {isMobile && (
+          <button 
+            onClick={() => setShowSidebar(false)}
+            style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'none', border: 'none', color: 'white' }}
+          >
+            <X size={24} />
+          </button>
+        )}
         <div style={{ padding: '2rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           <div style={{ width: '40px', height: '40px', background: 'var(--primary)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Store color="white" size={24} />
@@ -408,9 +418,29 @@ const ManageStore = () => {
       </aside>
 
       {/* Main Content */}
-      <main style={{ marginLeft: '280px', flex: 1, padding: '2rem 3rem' }}>
-        <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3rem' }}>
+      <main style={{ 
+        marginLeft: isMobile ? '0' : '280px', 
+        flex: 1, 
+        padding: isMobile ? '1.5rem 1rem' : '2rem 3rem',
+        paddingBottom: isMobile ? '100px' : '2rem'
+      }}>
+        <header style={{ 
+          display: 'flex', 
+          flexDirection: isMobile ? 'column' : 'row',
+          justifyContent: 'space-between', 
+          alignItems: isMobile ? 'flex-start' : 'center', 
+          gap: isMobile ? '1.5rem' : 0,
+          marginBottom: isMobile ? '2rem' : '3rem' 
+        }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+            {isMobile && (
+              <button 
+                onClick={() => setShowSidebar(true)}
+                style={{ background: 'var(--glass-bg)', border: '1px solid var(--surface-border)', color: 'white', padding: '0.6rem', borderRadius: '12px' }}
+              >
+                <Menu size={20} />
+              </button>
+            )}
             <button onClick={() => navigate('/vendor/dashboard')} style={{ background: 'var(--glass-bg)', border: '1px solid var(--surface-border)', color: 'white', padding: '0.6rem', borderRadius: '12px', cursor: 'pointer' }}>
                <ArrowLeft size={18} />
             </button>
@@ -467,7 +497,7 @@ const ManageStore = () => {
           </div>
         </header>
 
-        <div className="manage-store-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '2rem' }}>
+        <div className="manage-store-grid" style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 2fr', gap: '2rem' }}>
           
           {/* Left Column: QR & Details */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
@@ -716,7 +746,7 @@ const ManageStore = () => {
                 )}
               </div>
 
-              <form onSubmit={handleSaveProduct} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem' }}>
+              <form onSubmit={handleSaveProduct} style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '1.25rem' }}>
                 <div className="form-group" style={{ gridColumn: '1 / span 2' }}>
                   <label className="form-label">Product Title</label>
                   <input 
@@ -837,7 +867,7 @@ const ManageStore = () => {
                   </label>
                   
                   {isComboDeal && (
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginTop: '1rem' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '1.5rem', marginTop: '1rem' }}>
                        {/* Combo Items */}
                        <div style={{ background: 'rgba(0,0,0,0.2)', padding: '1rem', borderRadius: '12px' }}>
                           <h4 style={{ margin: '0 0 1rem 0', fontSize: '0.875rem' }}>Items in Combo</h4>
@@ -1116,6 +1146,46 @@ const ManageStore = () => {
           100% { border-color: rgba(99, 102, 241, 0.2); box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.1); }
         }
       `}</style>
+
+      {/* Mobile Bottom Navigation */}
+      {isMobile && (
+        <div style={{ 
+          position: 'fixed', 
+          bottom: 0, 
+          left: 0, 
+          right: 0, 
+          background: 'rgba(15, 23, 42, 0.95)', 
+          backdropFilter: 'blur(20px)', 
+          borderTop: '1px solid var(--surface-border)', 
+          padding: '0.75rem 0.5rem', 
+          display: 'flex', 
+          justifyContent: 'space-around', 
+          zIndex: 2000 
+        }}>
+          <Link to="/vendor/dashboard" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25rem', color: 'var(--text-secondary)', textDecoration: 'none', flex: 1 }}>
+            <LayoutDashboard size={20} />
+            <span style={{ fontSize: '0.65rem', fontWeight: '500' }}>Home</span>
+          </Link>
+          <Link to="/vendor/store/manage" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25rem', color: 'var(--primary)', textDecoration: 'none', flex: 1 }}>
+            <QrCode size={20} />
+            <span style={{ fontSize: '0.65rem', fontWeight: '700' }}>Store</span>
+          </Link>
+          <div 
+            onClick={toggleStoreStatus}
+            style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25rem', color: store?.isOpen ? 'var(--secondary)' : 'var(--error)', cursor: 'pointer', flex: 1 }}
+          >
+            <Globe size={20} />
+            <span style={{ fontSize: '0.65rem', fontWeight: '800' }}>{store?.isOpen ? 'Online' : 'Offline'}</span>
+          </div>
+          <div 
+            onClick={handleLogout}
+            style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25rem', color: 'var(--text-secondary)', cursor: 'pointer', flex: 1 }}
+          >
+            <LogOut size={20} />
+            <span style={{ fontSize: '0.65rem', fontWeight: '500' }}>Exit</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

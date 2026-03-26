@@ -19,6 +19,49 @@ const Cart = () => {
   const [paymentCheckInterval, setPaymentCheckInterval] = useState(null);
 
   useEffect(() => {
+    // Restore payment state from localStorage on mount
+    const savedPaymentState = localStorage.getItem('universe_payment_state');
+    if (savedPaymentState) {
+      try {
+        const paymentState = JSON.parse(savedPaymentState);
+        if (paymentState.showPaymentScreen && paymentState.currentOrder) {
+          setShowPaymentScreen(true);
+          setCurrentOrder(paymentState.currentOrder);
+          setPaymentStatus(paymentState.paymentStatus);
+          setCustomerPhone(paymentState.customerPhone || '');
+          setPaymentMethod(paymentState.paymentMethod || 'UPI');
+          setOrderType(paymentState.orderType || 'Dine In');
+          
+          // Restart payment checking if it was initiated
+          if (paymentState.paymentStatus === 'initiated') {
+            handlePaymentComplete();
+          }
+        }
+      } catch (err) {
+        console.error('Error restoring payment state:', err);
+        localStorage.removeItem('universe_payment_state');
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    // Save payment state to localStorage whenever it changes
+    if (showPaymentScreen && currentOrder) {
+      const paymentState = {
+        showPaymentScreen,
+        currentOrder,
+        paymentStatus,
+        customerPhone,
+        paymentMethod,
+        orderType
+      };
+      localStorage.setItem('universe_payment_state', JSON.stringify(paymentState));
+    } else {
+      localStorage.removeItem('universe_payment_state');
+    }
+  }, [showPaymentScreen, currentOrder, paymentStatus, customerPhone, paymentMethod, orderType]);
+
+  useEffect(() => {
     if (storeId) {
       axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/store/${storeId}`)
         .then(res => setStore(res.data))
@@ -136,6 +179,33 @@ const Cart = () => {
     
     // Also check immediately
     checkPaymentStatus();
+  };
+
+  const handlePaymentConfirmation = async () => {
+    // Manual confirmation by user
+    setPaymentStatus('initiated');
+    handlePaymentComplete();
+  };
+
+  const handlePaymentCancellation = async () => {
+    try {
+      // Cancel the order
+      if (currentOrder) {
+        await axios.delete(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/orders/${currentOrder._id}`);
+      }
+    } catch (err) {
+      console.error('Error cancelling order:', err);
+    } finally {
+      // Reset payment state
+      setShowPaymentScreen(false);
+      setCurrentOrder(null);
+      setPaymentStatus('pending');
+      if (paymentCheckInterval) {
+        clearInterval(paymentCheckInterval);
+        setPaymentCheckInterval(null);
+      }
+      localStorage.removeItem('universe_payment_state');
+    }
   };
 
   const handleCheckout = async () => {
@@ -301,6 +371,44 @@ const Cart = () => {
                   <span style={{ fontSize: '0.875rem', color: 'var(--primary)' }}>Waiting for payment confirmation...</span>
                 </div>
               )}
+
+              {/* Action Buttons */}
+              <div style={{ marginTop: '2rem', display: 'flex', gap: '1rem' }}>
+                <button
+                  onClick={handlePaymentConfirmation}
+                  style={{
+                    flex: 1,
+                    padding: '0.875rem',
+                    background: 'var(--secondary)',
+                    color: 'white',
+                    borderRadius: '12px',
+                    fontSize: '1rem',
+                    fontWeight: '600',
+                    border: 'none',
+                    cursor: 'pointer',
+                    transition: 'var(--transition)'
+                  }}
+                >
+                  ✅ I've Paid
+                </button>
+                <button
+                  onClick={handlePaymentCancellation}
+                  style={{
+                    flex: 1,
+                    padding: '0.875rem',
+                    background: 'var(--error)',
+                    color: 'white',
+                    borderRadius: '12px',
+                    fontSize: '1rem',
+                    fontWeight: '600',
+                    border: 'none',
+                    cursor: 'pointer',
+                    transition: 'var(--transition)'
+                  }}
+                >
+                  ❌ Cancel Order
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -485,7 +593,7 @@ const Cart = () => {
                                  <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                     <CreditCard size={20} color="black" />
                                  </div>
-                                 <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: '800' }}>Contact Info</h4>
+                                 <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: '900', color: '#0f172a' }}>Contact Info</h4>
                                </div>
                                
                                <label style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-secondary)', marginBottom: '0.5rem', display: 'block' }}>PHONE NUMBER (LINKED TO UPI)</label>
