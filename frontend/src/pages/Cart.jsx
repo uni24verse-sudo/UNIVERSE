@@ -17,9 +17,15 @@ const PaymentScreen = ({
   loading, 
   onPhonePe, 
   onPaytm, 
-  onCancel 
+  onCancel,
+  hasPhonePe,
+  hasPaytm,
+  upiId,
+  storeName
 }) => {
   if (!show || !order) return null;
+
+  const noDirectPayment = !hasPhonePe && !hasPaytm;
 
   return (
     <div style={{
@@ -55,73 +61,109 @@ const PaymentScreen = ({
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <p style={{ fontSize: '0.9rem', fontWeight: '700', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Select UPI Provider:</p>
-          
-          <button
-            onClick={onPhonePe}
-            disabled={loading}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '1rem',
-              width: '100%',
-              padding: '1.125rem',
-              background: '#5f259f',
-              color: 'white',
-              borderRadius: '16px',
-              fontSize: '1.125rem',
-              fontWeight: '700',
-              border: 'none',
-              cursor: 'pointer',
-              boxShadow: '0 4px 12px rgba(95, 37, 159, 0.2)',
-              transition: 'all 0.2s',
-              opacity: loading ? 0.7 : 1
-            }}
-          >
-            <svg viewBox="0 0 24 24" style={{ height: '24px', fill: 'white' }}>
-              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/>
-              {/* Fallback to simple icon if svg path is too complex for this edit, but I'll use a better one below */}
-            </svg>
-            {loading ? 'Processing...' : 'Pay using PhonePe'}
-          </button>
+          {hasPhonePe && (
+            <>
+              <p style={{ fontSize: '0.9rem', fontWeight: '700', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Select UPI Provider:</p>
+              <button
+                onClick={onPhonePe}
+                disabled={loading}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '1rem',
+                  width: '100%',
+                  padding: '1.125rem',
+                  background: '#5f259f',
+                  color: 'white',
+                  borderRadius: '16px',
+                  fontSize: '1.125rem',
+                  fontWeight: '700',
+                  border: 'none',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 12px rgba(95, 37, 159, 0.2)',
+                  transition: 'all 0.2s',
+                  opacity: loading ? 0.7 : 1
+                }}
+              >
+                <svg viewBox="0 0 24 24" style={{ height: '24px', fill: 'white' }}>
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/>
+                </svg>
+                {loading ? 'Processing...' : 'Pay using PhonePe'}
+              </button>
+            </>
+          )}
 
-          <button
-            onClick={onPaytm}
-            disabled={loading}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '1rem',
-              width: '100%',
-              padding: '1.125rem',
-              background: '#00baf2',
-              color: 'white',
-              borderRadius: '16px',
-              fontSize: '1.125rem',
-              fontWeight: '700',
-              border: 'none',
-              cursor: 'pointer',
-              boxShadow: '0 4px 12px rgba(0, 186, 242, 0.2)',
-              transition: 'all 0.2s',
-              opacity: loading ? 0.7 : 1
-            }}
-          >
-            <svg viewBox="0 0 24 24" style={{ height: '24px', fill: 'white' }}>
-              <path d="M4 4h16v16H4V4zm2 2v12h12V6H6zm3 3h6v6H9V9z"/>
-            </svg>
-            {loading ? 'Processing...' : 'Pay using Paytm'}
-          </button>
+          {hasPaytm && (
+            <button
+              onClick={onPaytm}
+              disabled={loading}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '1rem',
+                width: '100%',
+                padding: '1.125rem',
+                background: '#00baf2',
+                color: 'white',
+                borderRadius: '16px',
+                fontSize: '1.125rem',
+                fontWeight: '700',
+                border: 'none',
+                cursor: 'pointer',
+                boxShadow: '0 4px 12px rgba(0, 186, 242, 0.2)',
+                transition: 'all 0.2s',
+                opacity: loading ? 0.7 : 1
+              }}
+            >
+              <svg viewBox="0 0 24 24" style={{ height: '24px', fill: 'white' }}>
+                <path d="M4 4h16v16H4V4zm2 2v12h12V6H6zm3 3h6v6H9V9z"/>
+              </svg>
+              {loading ? 'Processing...' : 'Pay using Paytm'}
+            </button>
+          )}
+
+          {noDirectPayment && upiId && (
+            <div style={{ textAlign: 'center', padding: '1.5rem', background: 'white', borderRadius: '24px', border: '1px solid #e2e8f0' }}>
+              <p style={{ color: '#0f172a', fontWeight: '700', marginBottom: '1rem' }}>Scan and Pay to Merchant</p>
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }}>
+                <QRCodeSVG 
+                  value={`upi://pay?pa=${upiId}&pn=${storeName}&am=${total}&cu=INR`} 
+                  size={200}
+                />
+              </div>
+              <p style={{ fontSize: '0.8rem', color: '#64748b' }}>UPI ID: {upiId}</p>
+              <p style={{ fontSize: '0.75rem', marginTop: '0.5rem', color: 'var(--primary)', fontWeight: '700' }}>After payment, click "I Have Paid" below</p>
+            </div>
+          )}
         </div>
 
         <div style={{ marginTop: '2rem', padding: '1rem', background: 'rgba(99, 102, 241, 0.05)', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)' }}>
           <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: 0, textAlign: 'center' }}>
-            <strong>Note:</strong> You will be redirected to the app. Once paid, your order will be instantly verified.
+            {noDirectPayment ? 'Standard QR Flow Active' : 'You will be redirected to the selected app to complete payment.'}
           </p>
         </div>
 
         <div style={{ marginTop: '1.5rem', display: 'flex', gap: '1rem' }}>
+          {noDirectPayment ? (
+             <button
+              onClick={() => window.location.reload()}
+              style={{
+                flex: 2,
+                padding: '1.125rem',
+                background: 'var(--primary)',
+                color: 'white',
+                borderRadius: '16px',
+                fontSize: '1rem',
+                fontWeight: '700',
+                border: 'none',
+                cursor: 'pointer'
+              }}
+            >
+              I Have Paid
+            </button>
+          ) : null}
           <button
             onClick={onCancel}
             disabled={loading}
@@ -139,7 +181,7 @@ const PaymentScreen = ({
               opacity: loading ? 0.5 : 1
             }}
           >
-            Cancel & Go Back
+            Cancel
           </button>
         </div>
       </div>
@@ -429,6 +471,10 @@ const Cart = () => {
         onPhonePe={handlePhonePePayment}
         onPaytm={handlePaytmPayment}
         onCancel={handlePaymentCancellation}
+        hasPhonePe={store?.paymentStatus?.hasPhonePe}
+        hasPaytm={store?.paymentStatus?.hasPaytm}
+        upiId={store?.paymentStatus?.upiId || store?.admin?.upiId}
+        storeName={store?.name}
       />
       <div style={{ minHeight: '100vh', padding: '2rem 1rem', maxWidth: '1000px', margin: '0 auto' }}>
         <div style={{ textAlign: 'right', marginBottom: '2rem' }}>
