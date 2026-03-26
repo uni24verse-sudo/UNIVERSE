@@ -14,14 +14,8 @@ class NotificationManager {
       // Update current permission state
       this.permission = Notification.permission;
 
-      // Initialize FCM first
+      // Initialize FCM (this also registers the service worker)
       await this.initializeFCMService();
-      
-      // Register service worker for notifications
-      if ('serviceWorker' in navigator) {
-        this.swRegistration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', { scope: '/' });
-        console.log('Firebase Service Worker registered explicitly');
-      }
 
       // Create notification sound
       this.createNotificationSound();
