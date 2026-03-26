@@ -13,6 +13,10 @@ const Cart = () => {
   const [paymentMethod, setPaymentMethod] = useState(''); // 'Cash' or 'UPI'
   const [orderType, setOrderType] = useState('Dine In');
   const [customerPhone, setCustomerPhone] = useState('');
+  const [showPaymentScreen, setShowPaymentScreen] = useState(false);
+  const [currentOrder, setCurrentOrder] = useState(null);
+  const [paymentStatus, setPaymentStatus] = useState('pending'); // 'pending', 'initiated', 'completed'
+  const [paymentCheckInterval, setPaymentCheckInterval] = useState(null);
 
   useEffect(() => {
     if (storeId) {
@@ -38,7 +42,7 @@ const Cart = () => {
   const packagingFee = orderType === 'Take Away' ? (store?.packagingCharge || 0) : 0;
   const finalTotal = total + packagingFee;
 
-  const handleCheckout = async () => {
+  const initiatePayment = async () => {
     if (!paymentMethod) {
       alert("Please select a payment method.");
       return;
@@ -72,40 +76,242 @@ const Cart = () => {
       const res = await axios.post((import.meta.env.VITE_API_URL || 'http://localhost:5000') + '/api/orders/create', orderData);
       const newOrder = res.data;
       
-      // Save to Recent Orders in localStorage
-      const recentOrders = JSON.parse(localStorage.getItem('universe_recent_orders') || '[]');
-      const updatedOrders = [
-        { 
-          id: newOrder._id, 
-          orderNumber: newOrder.orderNumber, 
-          storeName: store.name, 
-          market: store.market,
-          storeId: store._id,
-          status: newOrder.status || 'Pending',
-          timestamp: Date.now() 
-        },
-        ...recentOrders.filter(o => o.id !== newOrder._id)
-      ].slice(0, 10); // Keep last 10
-      localStorage.setItem('universe_recent_orders', JSON.stringify(updatedOrders));
-
-      clearCart();
-      navigate(`/order-tracker/${newOrder._id}`);
+      setCurrentOrder(newOrder);
+      setShowPaymentScreen(true);
+      setPaymentStatus('initiated');
       
     } catch (err) {
       const msg = err.response?.data?.message || err.message;
-      alert('Failed to place order: ' + msg);
-      console.error('Checkout error:', err);
+      alert('Failed to create order: ' + msg);
+      console.error('Order creation error:', err);
     } finally {
       setLoading(false);
     }
   };
 
+  const checkPaymentStatus = async () => {
+    if (!currentOrder) return;
+    
+    try {
+      const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/orders/${currentOrder._id}`);
+      const order = res.data;
+      
+      if (order.paymentStatus === 'Confirmed') {
+        setPaymentStatus('completed');
+        if (paymentCheckInterval) {
+          clearInterval(paymentCheckInterval);
+          setPaymentCheckInterval(null);
+        }
+        
+        // Save to Recent Orders in localStorage
+        const recentOrders = JSON.parse(localStorage.getItem('universe_recent_orders') || '[]');
+        const updatedOrders = [
+          { 
+            id: order._id, 
+            orderNumber: order.orderNumber, 
+            storeName: store.name, 
+            market: store.market,
+            storeId: store._id,
+            status: order.status || 'Pending',
+            timestamp: Date.now() 
+          },
+          ...recentOrders.filter(o => o.id !== order._id)
+        ].slice(0, 10);
+        localStorage.setItem('universe_recent_orders', JSON.stringify(updatedOrders));
+
+        clearCart();
+        setTimeout(() => {
+          navigate(`/order-tracker/${order._id}`);
+        }, 2000);
+      }
+    } catch (err) {
+      console.error('Payment status check error:', err);
+    }
+  };
+
+  const handlePaymentComplete = () => {
+    // Start checking payment status every 3 seconds
+    const interval = setInterval(checkPaymentStatus, 3000);
+    setPaymentCheckInterval(interval);
+    
+    // Also check immediately
+    checkPaymentStatus();
+  };
+
+  const handleCheckout = async () => {
+    if (paymentMethod === 'Cash') {
+      // For cash orders, proceed normally
+      await initiatePayment();
+      if (currentOrder) {
+        clearCart();
+        navigate(`/order-tracker/${currentOrder._id}`);
+      }
+    } else {
+      // For UPI orders, go to payment screen
+      await initiatePayment();
+    }
+  };
+
+  // Cleanup interval on unmount
+  useEffect(() => {
+    return () => {
+      if (paymentCheckInterval) {
+        clearInterval(paymentCheckInterval);
+      }
+    };
+  }, [paymentCheckInterval]);
+
   const upiLink = store?.admin?.upiId 
-    ? `upi://pay?pa=${store.admin.upiId}&pn=${store.name.replace(/ /g, '%20')}&am=${finalTotal}&cu=INR&tn=Order%20from%20UniVerse&tr=${Math.random().toString(36).substring(7)}`
+    ? `upi://pay?pa=${store.admin.upiId}&pn=${store.name.replace(/ /g, '%20')}&am=${finalTotal}&cu=INR&tn=Order%20from%20UniVerse&tr=${currentOrder?._id || Math.random().toString(36).substring(7)}`
     : null;
 
+  // Payment Screen Component
+  const PaymentScreen = () => {
+    if (!showPaymentScreen || !currentOrder) return null;
+
+    return (
+      <div style={{ 
+        position: 'fixed', 
+        top: 0, 
+        left: 0, 
+        right: 0, 
+        bottom: 0, 
+        background: 'rgba(0,0,0,0.9)', 
+        zIndex: 9999, 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center',
+        padding: '1rem'
+      }}>
+        <div style={{ 
+          background: 'var(--glass-bg)', 
+          borderRadius: '24px', 
+          padding: '2rem', 
+          maxWidth: '400px', 
+          width: '100%',
+          border: '1px solid var(--surface-border)'
+        }}>
+          {paymentStatus === 'completed' ? (
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ 
+                width: '80px', 
+                height: '80px', 
+                borderRadius: '50%', 
+                background: 'rgba(16, 185, 129, 0.1)', 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center', 
+                margin: '0 auto 1.5rem' 
+              }}>
+                <span style={{ fontSize: '3rem' }}>✅</span>
+              </div>
+              <h2 style={{ color: 'var(--secondary)', marginBottom: '1rem' }}>Payment Confirmed!</h2>
+              <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>Redirecting to order tracker...</p>
+              <div style={{ 
+                width: '100%', 
+                height: '4px', 
+                background: 'rgba(255,255,255,0.1)', 
+                borderRadius: '2px',
+                overflow: 'hidden'
+              }}>
+                <div style={{ 
+                  width: '100%', 
+                  height: '100%', 
+                  background: 'var(--secondary)', 
+                  animation: 'shimmer 1s ease-in-out infinite' 
+                }} />
+              </div>
+            </div>
+          ) : (
+            <div>
+              <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+                <h2 style={{ marginBottom: '0.5rem' }}>Complete Payment</h2>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Order #{currentOrder.orderNumber}</p>
+                <p style={{ fontSize: '1.5rem', fontWeight: '800', color: 'var(--primary)' }}>₹{finalTotal}</p>
+              </div>
+
+              {upiLink && (
+                <>
+                  <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+                    <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>Scan QR Code or Click Button</p>
+                    <div style={{ 
+                      background: 'white', 
+                      padding: '1.5rem', 
+                      borderRadius: '16px', 
+                      display: 'inline-block',
+                      marginBottom: '1.5rem'
+                    }}>
+                      <QRCodeSVG value={upiLink} size={200} />
+                    </div>
+                  </div>
+
+                  <a
+                    href={upiLink}
+                    onClick={handlePaymentComplete}
+                    style={{
+                      display: 'block',
+                      width: '100%',
+                      padding: '1rem',
+                      background: 'var(--primary)',
+                      color: 'white',
+                      borderRadius: '12px',
+                      fontSize: '1.125rem',
+                      fontWeight: '700',
+                      textAlign: 'center',
+                      textDecoration: 'none',
+                      marginBottom: '1rem',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Pay Using UPI App
+                  </a>
+
+                  <div style={{ textAlign: 'center' }}>
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                      Works with Google Pay, PhonePe, Paytm & all UPI apps
+                    </p>
+                  </div>
+                </>
+              )}
+
+              <div style={{ marginTop: '2rem', padding: '1rem', background: 'rgba(99, 102, 241, 0.05)', borderRadius: '12px' }}>
+                <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: 0 }}>
+                  <strong>Note:</strong> After payment, we'll automatically verify and redirect you to the order tracker. This may take a few seconds.
+                </p>
+              </div>
+
+              {paymentStatus === 'initiated' && (
+                <div style={{ 
+                  marginTop: '1.5rem', 
+                  textAlign: 'center',
+                  padding: '1rem',
+                  background: 'rgba(99, 102, 241, 0.05)',
+                  borderRadius: '12px'
+                }}>
+                  <div style={{ 
+                    display: 'inline-block', 
+                    width: '20px', 
+                    height: '20px', 
+                    border: '2px solid var(--primary)', 
+                    borderTop: '2px solid transparent', 
+                    borderRadius: '50%', 
+                    animation: 'spin 1s linear infinite',
+                    marginRight: '0.5rem'
+                  }} />
+                  <span style={{ fontSize: '0.875rem', color: 'var(--primary)' }}>Waiting for payment confirmation...</span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   return (
-    <div style={{ minHeight: '100vh', padding: '2rem 1rem', maxWidth: '1000px', margin: '0 auto' }}>
+    <>
+      <PaymentScreen />
+      <div style={{ minHeight: '100vh', padding: '2rem 1rem', maxWidth: '1000px', margin: '0 auto' }}>
       <div style={{ textAlign: 'right', marginBottom: '2rem' }}>
         <div style={{ display: 'inline-block', padding: '0.5rem 1rem', background: 'rgba(99, 102, 241, 0.1)', borderRadius: '12px', fontSize: '0.75rem', fontWeight: '700', color: 'var(--primary)' }}>
           Secure Checkout
@@ -361,7 +567,8 @@ const Cart = () => {
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 };
 

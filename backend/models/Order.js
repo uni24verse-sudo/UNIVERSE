@@ -16,7 +16,7 @@ const OrderSchema = new mongoose.Schema({
   items: [OrderItemSchema],
   totalAmount: { type: Number, required: true },
   paymentMethod: { type: String, enum: ['Cash', 'UPI'], required: true },
-  status: { type: String, enum: ['Pending', 'Confirmed', 'Completed', 'Cancelled'], default: 'Pending' },
+  status: { type: String, enum: ['Payment Pending', 'Pending', 'Confirmed', 'Completed', 'Cancelled'], default: 'Pending' },
   paymentStatus: { 
     type: String, 
     enum: ['Pending', 'Verification Requested', 'Confirmed', 'Refund Requested', 'Refunded'], 

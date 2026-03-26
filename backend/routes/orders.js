@@ -10,7 +10,7 @@ const generateOrderNumber = () => Math.floor(1000 + Math.random() * 9000).toStri
 // Create a new Order (Public Customer endpoint)
 router.post('/create', async (req, res) => {
   try {
-    const { storeId, items, totalAmount, paymentMethod, customerPhone } = req.body;
+    const { storeId, items, totalAmount, paymentMethod, customerPhone, orderType, packagingChargeApplied } = req.body;
 
     const store = await Store.findById(storeId);
     if (!store) return res.status(404).json({ message: 'Store not found' });
@@ -22,15 +22,20 @@ router.post('/create', async (req, res) => {
       totalAmount,
       paymentMethod,
       customerPhone,
-      status: 'Pending',
-      paymentStatus: 'Pending'
+      orderType,
+      packagingChargeApplied,
+      status: paymentMethod === 'Cash' ? 'Pending' : 'Payment Pending',
+      paymentStatus: paymentMethod === 'Cash' ? 'Pending' : 'Pending'
     });
 
     const savedOrder = await newOrder.save();
 
-    // Emit socket event to the vendor's room (using storeId as room name)
-    const io = req.app.get('io');
-    io.to(storeId).emit('new_order', savedOrder);
+    // Only emit socket event to vendor for cash orders immediately
+    // UPI orders will be notified after payment confirmation
+    if (paymentMethod === 'Cash') {
+      const io = req.app.get('io');
+      io.to(storeId).emit('new_order', savedOrder);
+    }
 
     res.status(201).json(savedOrder);
   } catch (err) {
@@ -185,6 +190,11 @@ router.put('/:id/verify-payment', auth, async (req, res) => {
     // Notify customer
     const io = req.app.get('io');
     io.to(order._id.toString()).emit('order_status_update', savedOrder);
+    
+    // Notify vendor about new confirmed order (for UPI orders)
+    if (order.paymentMethod === 'UPI') {
+      io.to(order.store.toString()).emit('new_order', savedOrder);
+    }
     
     res.json(savedOrder);
   } catch (err) {
