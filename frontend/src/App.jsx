@@ -19,6 +19,7 @@ import Navbar from './components/Navbar';
 import TermsAndConditions from './pages/TermsAndConditions';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import Footer from './components/Footer';
+import NotificationsToast from './components/NotificationsToast';
 
 function App() {
   return (
