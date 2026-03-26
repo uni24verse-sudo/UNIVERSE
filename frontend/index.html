@@ -14,32 +14,6 @@
 
       gtag('config', 'G-H8E25GNBVE');
     </script>
-    <!-- OneSignal SDK - only load on production domain -->
-    <script>
-      if (window.location.hostname === 'www.universeorder.co.in' || 
-          window.location.hostname === 'universeorder.co.in') {
-        const script = document.createElement('script');
-        script.src = 'https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js';
-        script.defer = true;
-        script.onload = function() {
-          window.OneSignalDeferred = window.OneSignalDeferred || [];
-          OneSignalDeferred.push(async function(OneSignal) {
-            await OneSignal.init({
-              appId: "cec6a596-a353-47ac-af3b-f007f5ceeb54",
-              notifyButton: {
-                enable: false
-              },
-              serviceWorkerParam: {
-                scope: '/OneSignalSDKWorker.js'
-              }
-            });
-          });
-        };
-        document.head.appendChild(script);
-      } else {
-        console.log('OneSignal disabled on localhost');
-      }
-    </script>
   </head>
   <body>
     <div id="root"></div>

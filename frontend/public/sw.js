@@ -1,11 +1,7 @@
 const CACHE_NAME = 'universe-v1';
 const urlsToCache = [
   '/',
-  '/src/main.jsx',
-  '/src/App.jsx',
-  '/src/index.css',
-  '/public/icons.svg',
-  '/public/favicon.svg'
+  '/favicon.svg'
 ];
 
 // Install event - cache resources
@@ -33,7 +29,6 @@ self.addEventListener('fetch', event => {
 
           // Cache dynamic assets
           if (event.request.url.includes('/assets/') || 
-              event.request.url.includes('/src/') ||
               event.request.url.includes('/public/')) {
             caches.open(CACHE_NAME)
               .then(cache => {
@@ -72,7 +67,6 @@ self.addEventListener('fetch', event => {
 
             // Cache dynamic assets
             if (event.request.url.includes('/assets/') || 
-                event.request.url.includes('/src/') ||
                 event.request.url.includes('/public/')) {
               caches.open(CACHE_NAME)
                 .then(cache => {
