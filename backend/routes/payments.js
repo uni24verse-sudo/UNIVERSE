@@ -171,7 +171,12 @@ router.post('/paytm/initiate', async (req, res) => {
     const website = vendor.paytmWebsite || paymentConfig.paytm.website;
     const env = vendor.paytmEnv || paymentConfig.paytm.env;
 
-    const orderNumber = `PT_${order.orderNumber}_${Date.now()}`;
+    // Validation: Paytm Merchant Keys are usually exactly 16 characters
+    if (mkey && mkey.length !== 16) {
+      console.warn(`Paytm Warning: Vendor ${vendor.email} has a Merchant Key of length ${mkey.length}. Standard keys are 16 chars.`);
+    }
+
+    const orderNumber = `PT${order.orderNumber}${Date.now()}`.substring(0, 45); // Remove underscores for safety
     
     order.transactionId = orderNumber;
     order.paymentProvider = 'Paytm';
@@ -189,11 +194,12 @@ router.post('/paytm/initiate', async (req, res) => {
           currency: "INR",
         },
         userInfo: {
-          custId: `CUST_${order.customerPhone || 'GUEST'}`,
+          custId: `CUST${order.customerPhone || 'GUEST'}`.substring(0, 30),
         },
       },
     };
 
+    // Paytm Checksum generation for initiateTransaction API
     const checksum = await PaytmChecksum.generateSignature(
       JSON.stringify(paytmParams.body),
       mkey
@@ -208,6 +214,11 @@ router.post('/paytm/initiate', async (req, res) => {
       ? `https://securegw.paytm.in/theia/api/v1/initiateTransaction?mid=${mid}&orderId=${orderNumber}`
       : `https://securegw-stage.paytm.in/theia/api/v1/initiateTransaction?mid=${mid}&orderId=${orderNumber}`;
 
+    console.log('--- PAYTM INITIATE REQUEST ---');
+    console.log('URL:', url);
+    console.log('Body:', JSON.stringify(paytmParams.body));
+    console.log('Checksum:', checksum);
+
     const response = await axios.post(url, paytmParams, {
       headers: { "Content-Type": "application/json" },
     }).catch(err => {
@@ -215,9 +226,10 @@ router.post('/paytm/initiate', async (req, res) => {
       throw err;
     });
 
-    console.log('Paytm API Response:', JSON.stringify(response.data));
+    console.log('--- PAYTM API RESPONSE ---');
+    console.log(JSON.stringify(response.data));
 
-    if (response.data.body.resultInfo.resultStatus === 'S') {
+    if (response.data.body && response.data.body.resultInfo.resultStatus === 'S') {
       const txnToken = response.data.body.txnToken;
       const paymentUrl = isProduction
         ? `https://securegw.paytm.in/theia/api/v1/showPaymentPage?mid=${mid}&orderId=${orderNumber}&txnToken=${txnToken}`
@@ -229,8 +241,10 @@ router.post('/paytm/initiate', async (req, res) => {
         transactionId: orderNumber
       });
     } else {
+      const resultInfo = response.data.body?.resultInfo || {};
       res.status(400).json({ 
-        message: response.data.body.resultInfo.resultMsg || 'Paytm initiation failed' 
+        success: false,
+        message: `${resultInfo.resultMsg || 'System Error'} (${resultInfo.resultCode || 'N/A'})`
       });
     }
 

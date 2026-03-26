@@ -723,12 +723,12 @@ const ManageStore = () => {
                   </p>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                     <div className="form-group">
-                      <label style={{ fontSize: '0.65rem', marginBottom: '0.25rem', display: 'block' }}>Merchant ID (MID)</label>
-                      <input type="password" value={paytmMerchantId} onChange={e => setPaytmMerchantId(e.target.value)} className="form-input" style={{ height: '36px', fontSize: '0.8rem' }} placeholder="Not set" />
+                      <label style={{ fontSize: '0.65rem', marginBottom: '0.25rem', display: 'block' }}>Merchant ID (MID) - 24 chars typically</label>
+                      <input type="text" value={paytmMerchantId} onChange={e => setPaytmMerchantId(e.target.value)} className="form-input" style={{ height: '36px', fontSize: '0.8rem' }} placeholder="Enter MID" />
                     </div>
                     <div className="form-group">
-                      <label style={{ fontSize: '0.65rem', marginBottom: '0.25rem', display: 'block' }}>Merchant Key</label>
-                      <input type="password" value={paytmMerchantKey} onChange={e => setPaytmMerchantKey(e.target.value)} className="form-input" style={{ height: '36px', fontSize: '0.8rem' }} placeholder="Not set" />
+                      <label style={{ fontSize: '0.65rem', marginBottom: '0.25rem', display: 'block' }}>Merchant Key (MKEY) - Exactly 16 chars</label>
+                      <input type="password" value={paytmMerchantKey} onChange={e => setPaytmMerchantKey(e.target.value)} className="form-input" style={{ height: '36px', fontSize: '0.8rem' }} placeholder="Enter 16-char Key" />
                     </div>
                     <div className="form-group">
                       <label style={{ fontSize: '0.65rem', marginBottom: '0.25rem', display: 'block' }}>Website Name (e.g., WEBSTAGING)</label>
