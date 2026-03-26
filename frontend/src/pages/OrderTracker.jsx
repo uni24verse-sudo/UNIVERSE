@@ -3,18 +3,25 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { io } from 'socket.io-client';
 import { QRCodeSVG } from 'qrcode.react';
-import { CheckCircle2, Clock, ChefHat, PackageCheck, ArrowLeft, Home, ShoppingBag, Receipt, CreditCard, X, AlertCircle } from 'lucide-react';
+import { CheckCircle2, Clock, ChefHat, PackageCheck, ArrowLeft, Home, ShoppingBag, Receipt, CreditCard, X, AlertCircle, AlertTriangle, ExternalLink } from 'lucide-react';
 
 const OrderTracker = () => {
   const { id } = useParams();
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [upiDetails, setUpiDetails] = useState(null);
+  const [upiLoading, setUpiLoading] = useState(false);
 
   useEffect(() => {
     const fetchOrder = async () => {
       try {
         const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/orders/${id}`);
         setOrder(res.data);
+        
+        // Fetch UPI details if payment is pending
+        if (res.data.paymentMethod === 'UPI' && res.data.paymentStatus !== 'Confirmed') {
+          fetchUpiDetails();
+        }
         
         // OneSignal Tagging for targeted notifications (only if available)
         if (window.OneSignalDeferred && window.location.hostname === 'www.universeorder.co.in') {
@@ -26,6 +33,18 @@ const OrderTracker = () => {
         console.error(err);
       } finally {
         setLoading(false);
+      }
+    };
+
+    const fetchUpiDetails = async () => {
+      try {
+        setUpiLoading(true);
+        const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/orders/upi-details/${id}`);
+        setUpiDetails(res.data);
+      } catch (err) {
+        console.error('Error fetching UPI details:', err);
+      } finally {
+        setUpiLoading(false);
       }
     };
 
@@ -159,24 +178,100 @@ const OrderTracker = () => {
         </div>
 
         {/* UPI Payment Section (Conditional) */}
-        {order.paymentMethod === 'UPI' && order.store?.admin?.upiId && (
+        {order.paymentMethod === 'UPI' && (upiDetails?.upiId || order.store?.admin?.upiId) && (
           <div style={{ background: 'white', padding: '2rem', borderRadius: '24px', marginBottom: '2rem', boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', justifyContent: 'center', marginBottom: '1.25rem' }}>
               <CreditCard size={20} color="var(--primary)" />
               <h3 style={{ margin: 0, color: '#0f172a', fontWeight: '800' }}>UPI Payment</h3>
             </div>
             
+            {/* UPI Warnings */}
+            {upiDetails?.warnings && upiDetails.warnings.length > 0 && (
+              <div style={{ 
+                background: '#fef3c7', 
+                border: '1px solid #fbbf24', 
+                borderRadius: '12px', 
+                padding: '1rem', 
+                marginBottom: '1.5rem' 
+              }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
+                  <AlertTriangle size={16} color="#d97706" style={{ marginTop: '2px' }} />
+                  <div>
+                    <p style={{ margin: '0 0 0.5rem 0', color: '#92400e', fontSize: '0.875rem', fontWeight: '600' }}>
+                      ⚠️ Payment Warning
+                    </p>
+                    {upiDetails.warnings.map((warning, idx) => (
+                      <p key={idx} style={{ margin: '0 0 0.5rem 0', color: '#78350f', fontSize: '0.8rem', lineHeight: '1.4' }}>
+                        {warning}
+                      </p>
+                    ))}
+                    <p style={{ margin: '0.5rem 0 0 0', color: '#78350f', fontSize: '0.8rem' }}>
+                      <strong>Solution:</strong> Ask the vendor to upgrade to a merchant UPI ID for seamless payments.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+            
             {order.paymentStatus === 'Pending' ? (
               <>
                 <div style={{ display: 'inline-block', padding: '1rem', background: '#f8fafc', borderRadius: '16px', marginBottom: '1rem' }}>
                   <QRCodeSVG 
-                    value={`upi://pay?pa=${order.store.admin.upiId}&pn=${order.store.name.replace(/ /g, '%20')}&am=${order.totalAmount}&cu=INR&tn=Order%20${order.orderNumber}&tr=${order._id}`} 
+                    value={upiDetails?.qrData || `upi://pay?pa=${order.store.admin.upiId}&pn=${order.store.name.replace(/ /g, '%20')}&am=${order.totalAmount}&cu=INR&tn=Order%20${order.orderNumber}&tr=${order._id}`} 
                     size={180} 
                   />
                 </div>
+                
+                {/* Merchant Info */}
+                {upiDetails?.vendorInfo && (
+                  <div style={{ 
+                    background: '#f0f9ff', 
+                    border: '1px solid #0ea5e9', 
+                    borderRadius: '12px', 
+                    padding: '1rem', 
+                    marginBottom: '1rem' 
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                      <AlertCircle size={14} color="#0284c7" />
+                      <span style={{ color: '#0c4a6e', fontSize: '0.875rem', fontWeight: '600' }}>
+                        Paying to: {upiDetails.vendorInfo.businessName || upiDetails.vendorInfo.name}
+                      </span>
+                    </div>
+                    <p style={{ margin: '0', color: '#0e7490', fontSize: '0.8rem' }}>
+                      UPI ID: {upiDetails.upiId}
+                      {upiDetails.vendorInfo.upiType === 'merchant' && (
+                        <span style={{ color: '#059669', fontWeight: '600', marginLeft: '0.5rem' }}>
+                          ✓ Merchant Verified
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                )}
+                
                 <p style={{ color: '#64748b', fontSize: '0.875rem', marginBottom: '1.5rem', lineHeight: '1.5' }}>
                   Scan this QR to pay **₹{order.totalAmount}**. Once done, click the button below.
                 </p>
+                
+                {/* Alternative Payment Link */}
+                {upiDetails?.upiLink && (
+                  <div style={{ marginBottom: '1rem' }}>
+                    <a 
+                      href={upiDetails.upiLink} 
+                      style={{ 
+                        display: 'inline-flex', 
+                        alignItems: 'center', 
+                        gap: '0.5rem', 
+                        color: '#0ea5e9', 
+                        textDecoration: 'none', 
+                        fontSize: '0.875rem',
+                        fontWeight: '500'
+                      }}
+                    >
+                      <ExternalLink size={14} />
+                      Click here to open in UPI app
+                    </a>
+                  </div>
+                )}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                    <a 
                     href={`upi://pay?pa=${order.store.admin.upiId}&pn=${order.store.name.replace(/ /g, '%20')}&am=${order.totalAmount}&cu=INR&tn=Order%20${order.orderNumber}&tr=${order._id}`}

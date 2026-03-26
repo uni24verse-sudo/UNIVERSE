@@ -3,10 +3,109 @@ const router = express.Router();
 const auth = require('../middleware/auth');
 const Order = require('../models/Order');
 const Store = require('../models/Store');
+const Admin = require('../models/Admin');
 const notificationService = require('../services/notificationService');
+const upiService = require('../services/upiService');
 
 // Helper to generate a unique 4-digit order number
 const generateOrderNumber = () => Math.floor(1000 + Math.random() * 9000).toString();
+
+// Get UPI payment details for an order
+router.get('/upi-details/:orderId', async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    
+    const order = await Order.findById(orderId).populate({
+      path: 'store',
+      populate: { path: 'admin', select: 'name merchantUpiId upiId businessName bankName upiType' }
+    });
+    
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    const vendor = order.store.admin;
+    const amount = upiService.formatAmount(order.totalAmount);
+    
+    // Use merchant UPI ID if available, otherwise fallback to personal UPI
+    const upiId = vendor.merchantUpiId || vendor.upiId;
+    const merchantName = vendor.businessName || vendor.name || 'UniVerse Food';
+    
+    if (!upiId) {
+      return res.status(400).json({ message: 'UPI ID not configured for this vendor' });
+    }
+
+    // Generate UPI payment link
+    const upiLink = upiService.generateUpiLink(
+      upiId, 
+      amount, 
+      order._id, 
+      merchantName,
+      `Payment for Order #${order.orderNumber}`
+    );
+
+    // Generate QR code data
+    const qrData = upiService.generateUpiQrData(
+      upiId, 
+      amount, 
+      order._id, 
+      merchantName,
+      `Payment for Order #${order.orderNumber}`
+    );
+
+    // Validate UPI ID and get info
+    const upiValidation = upiService.validateUpiId(upiId);
+    
+    res.json({
+      orderId: order._id,
+      orderNumber: order.orderNumber,
+      amount: order.totalAmount,
+      upiId: upiId,
+      merchantName: merchantName,
+      upiLink: upiLink,
+      qrData: qrData,
+      upiValidation: upiValidation,
+      vendorInfo: {
+        name: vendor.name,
+        businessName: vendor.businessName,
+        bankName: vendor.bankName,
+        upiType: vendor.upiType
+      },
+      warnings: upiValidation.warning ? [upiValidation.warning] : []
+    });
+  } catch (error) {
+    console.error('Error getting UPI details:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// Get UPI setup recommendations
+router.get('/upi-recommendations', (req, res) => {
+  try {
+    const recommendations = upiService.getRecommendedProviders();
+    res.json({
+      recommendations,
+      currentIssues: [
+        'Personal UPI IDs face transaction limits',
+        'Risk warnings in UPI apps',
+        'Payment mode restrictions',
+        'Daily transaction caps'
+      ],
+      benefits: {
+        merchantUpi: [
+          'No risk warnings',
+          'Higher transaction limits',
+          'Business branding',
+          'Instant settlements',
+          'Professional appearance'
+        ]
+      }
+    });
+  } catch (error) {
+    console.error('Error getting UPI recommendations:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
 
 // Create a new Order (Public Customer endpoint)
 router.post('/create', async (req, res) => {
