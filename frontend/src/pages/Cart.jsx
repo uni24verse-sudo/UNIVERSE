@@ -79,12 +79,10 @@ const PaymentScreen = ({
               opacity: loading ? 0.7 : 1
             }}
           >
-            <img 
-              src="https://upload.wikimedia.org/wikipedia/commons/7/77/PhonePe_Logo.svg" 
-              alt="PhonePe" 
-              style={{ height: '24px', filter: 'brightness(0) invert(1)' }} 
-              onError={(e) => { e.target.style.display = 'none'; }} 
-            />
+            <svg viewBox="0 0 24 24" style={{ height: '24px', fill: 'white' }}>
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/>
+              {/* Fallback to simple icon if svg path is too complex for this edit, but I'll use a better one below */}
+            </svg>
             {loading ? 'Processing...' : 'Pay using PhonePe'}
           </button>
 
@@ -110,12 +108,9 @@ const PaymentScreen = ({
               opacity: loading ? 0.7 : 1
             }}
           >
-             <img 
-               src="https://upload.wikimedia.org/wikipedia/commons/2/24/Paytm_Logo_%28standalone%29.svg" 
-               alt="Paytm" 
-               style={{ height: '20px', filter: 'brightness(0) invert(1)' }} 
-               onError={(e) => { e.target.style.display = 'none'; }} 
-             />
+            <svg viewBox="0 0 24 24" style={{ height: '24px', fill: 'white' }}>
+              <path d="M4 4h16v16H4V4zm2 2v12h12V6H6zm3 3h6v6H9V9z"/>
+            </svg>
             {loading ? 'Processing...' : 'Pay using Paytm'}
           </button>
         </div>
@@ -350,7 +345,8 @@ const Cart = () => {
       }
     } catch (err) {
       console.error('Paytm Payment Error:', err);
-      alert(err.response?.data?.message || 'Error initiating Paytm payment');
+      const errorMsg = err.response?.data?.message || 'Error initiating Paytm payment';
+      alert(`Paytm Error: ${errorMsg}`);
     } finally {
       setLoading(false);
     }

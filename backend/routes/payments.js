@@ -210,7 +210,12 @@ router.post('/paytm/initiate', async (req, res) => {
 
     const response = await axios.post(url, paytmParams, {
       headers: { "Content-Type": "application/json" },
+    }).catch(err => {
+      console.error('Paytm API Request Failed:', err.response?.data || err.message);
+      throw err;
     });
+
+    console.log('Paytm API Response:', JSON.stringify(response.data));
 
     if (response.data.body.resultInfo.resultStatus === 'S') {
       const txnToken = response.data.body.txnToken;
