@@ -101,65 +101,29 @@ router.put('/update-profile', auth, async (req, res) => {
   }
 });
 
-// Save FCM Token
-router.put('/fcm-token', auth, async (req, res) => {
-  try {
-    const { fcmToken } = req.body;
-    if (!fcmToken) return res.status(400).json({ message: 'Token is required' });
-    
-    const admin = await Admin.findById(req.admin._id);
-    if (!admin) return res.status(404).json({ message: 'Vendor not found' });
 
-    // Save to Admin model
-    admin.fcmToken = fcmToken;
-    await admin.save();
 
-    // ALSO save to Store.fcmTokens (this is where order notifications read from!)
-    const Store = require('../models/Store');
-    const store = await Store.findOne({ owner: req.admin._id });
-    if (store) {
-      if (!store.fcmTokens) {
-        store.fcmTokens = [];
-      }
-      // Add token if not already present
-      if (!store.fcmTokens.includes(fcmToken)) {
-        store.fcmTokens.push(fcmToken);
-        // Keep only the 5 most recent tokens
-        if (store.fcmTokens.length > 5) {
-          store.fcmTokens = store.fcmTokens.slice(-5);
-        }
-        await store.save();
-        console.log(`FCM token also saved to Store ${store._id}`);
-      }
-    }
-    
-    res.json({ message: 'FCM Token saved successfully' });
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-});
-
-// Test FCM Notification
+// Test OneSignal Notification
 router.post('/test-fcm', auth, async (req, res) => {
   try {
     const admin = await Admin.findById(req.admin._id);
-    if (!admin || !admin.fcmToken) {
-      return res.status(404).json({ message: 'No FCM token found for this account' });
+    if (!admin) {
+      return res.status(404).json({ message: 'Admin not found' });
     }
 
     const testData = {
-      title: '🔔 Test Notification',
-      body: 'If you see this, your background notifications are working perfectly!',
+      title: '🔔 OneSignal Test',
+      body: 'If you see this, your background notifications are working perfectly with OneSignal!',
       type: 'test',
       clickAction: '/vendor/dashboard'
     };
 
-    const success = await notificationService.sendToDevice(admin.fcmToken, testData);
+    const success = await notificationService.sendToUser(admin._id, testData);
     
     if (success) {
       res.json({ message: 'Test notification sent successfully!' });
     } else {
-      res.status(500).json({ message: 'Failed to send test notification' });
+      res.status(500).json({ message: 'Failed to send test notification via OneSignal' });
     }
   } catch (err) {
     res.status(500).json({ message: err.message });

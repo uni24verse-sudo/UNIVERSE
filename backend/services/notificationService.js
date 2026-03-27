@@ -1,96 +1,108 @@
-const admin = require('../config/firebase');
+const axios = require('axios');
 
 class NotificationService {
   constructor() {
-    this.isInitialized = admin.apps.length > 0;
+    this.appId = process.env.ONESIGNAL_APP_ID || "cec6a596-a353-47ac-af3b-f007f5ceeb54";
+    this.apiKey = process.env.ONESIGNAL_REST_API_KEY || "njhvvihlmubfnbkq2b46m1daa";
   }
 
-  // Send notification to a specific device
-  async sendToDevice(fcmToken, notificationData) {
-    if (!this.isInitialized) {
-      console.warn('Firebase Admin not initialized. Cannot send notification.');
-      return false;
-    }
+  // Send notification to a specific user (via OneSignal External ID)
+  async sendToUser(userId, notificationData) {
+    if (!userId) return false;
 
     try {
-      const message = {
-        token: fcmToken,
+      const response = await axios.post('https://onesignal.com/api/v1/notifications', {
+        app_id: this.appId,
+        include_external_user_ids: [String(userId)],
+        contents: {
+          en: String(notificationData.body)
+        },
+        headings: {
+          en: String(notificationData.title)
+        },
         data: {
-          title: String(notificationData.title),
-          body: String(notificationData.body),
           orderId: notificationData.orderId ? String(notificationData.orderId) : '',
           type: String(notificationData.type || 'new_order'),
-          url: String(notificationData.clickAction || '/vendor/dashboard'),
-          click_action: String(notificationData.clickAction || '/vendor/dashboard')
+          url: String(notificationData.clickAction || '/vendor/dashboard')
         },
-        webpush: {
-          headers: {
-            Urgency: 'high'
-          }
-        },
-        android: {
-          priority: 'high'
-        },
-        apns: {
-          payload: {
-            aps: {
-              contentAvailable: true
-            }
-          }
+        web_url: String(notificationData.clickAction || '/vendor/dashboard'),
+        chrome_web_icon: 'https://www.universeorder.co.in/icons.svg',
+        chrome_web_badge: 'https://www.universeorder.co.in/favicon.svg'
+      }, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Basic ${this.apiKey}`
         }
-      };
+      });
 
-      const response = await admin.messaging().send(message);
-      console.log('Successfully sent message:', response);
+      console.log('OneSignal Notification response:', response.data);
       return true;
     } catch (error) {
-      console.error('Error sending FCM notification:', error);
-      
-      // Handle specific error cases
-      if (error.code === 'messaging/registration-token-not-registered') {
-        console.log('Token is no longer valid, should be removed from database');
-        return { error: 'token_invalid', token: fcmToken };
-      } else if (error.code === 'messaging/invalid-registration-token') {
-        console.log('Invalid token format');
-        return { error: 'token_invalid', token: fcmToken };
-      }
-      
+      console.error('Error sending OneSignal notification:', error.response?.data || error.message);
       return false;
     }
   }
 
-  // Send notification to multiple devices
-  async sendToMultipleDevices(fcmTokens, notificationData) {
-    if (!this.isInitialized) {
-      console.warn('Firebase Admin not initialized. Cannot send notifications.');
+  // Send notification to multiple users
+  async sendToMultipleUsers(userIds, notificationData) {
+    if (!userIds || userIds.length === 0) return false;
+
+    try {
+      const response = await axios.post('https://onesignal.com/api/v1/notifications', {
+        app_id: this.appId,
+        include_external_user_ids: userIds.map(id => String(id)),
+        contents: {
+          en: String(notificationData.body)
+        },
+        headings: {
+          en: String(notificationData.title)
+        },
+        data: {
+          orderId: notificationData.orderId ? String(notificationData.orderId) : '',
+          type: String(notificationData.type || 'new_order'),
+          url: String(notificationData.clickAction || '/vendor/dashboard')
+        },
+        web_url: String(notificationData.clickAction || '/vendor/dashboard')
+      }, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Basic ${this.apiKey}`
+        }
+      });
+
+      console.log('OneSignal Multi-Notification response:', response.data);
+      return true;
+    } catch (error) {
+      console.error('Error sending OneSignal multi-notification:', error.response?.data || error.message);
       return false;
     }
+  }
 
-    const results = [];
-    
-    for (const token of fcmTokens) {
-      const result = await this.sendToDevice(token, notificationData);
-      results.push({ token, result });
-    }
+  // Legacy method signature maintained for compatibility, now maps to sendToUser
+  async sendToDevice(userId, notificationData) {
+    return this.sendToUser(userId, notificationData);
+  }
 
-    return results;
+  // Legacy method signature maintained for compatibility, now maps to sendToMultipleUsers
+  async sendToMultipleDevices(userIds, notificationData) {
+    return this.sendToMultipleUsers(userIds, notificationData);
   }
 
   // Send new order notification to vendor
-  async sendNewOrderNotification(vendorFCMToken, orderData) {
+  async sendNewOrderNotification(vendorId, orderData) {
     const notificationData = {
       title: '🍔 New Order Received!',
       body: `Order #${orderData.orderNumber || orderData._id} - ₹${orderData.totalAmount}`,
       orderId: orderData._id,
       type: 'new_order',
-      clickAction: `/vendor/orders/${orderData._id}`
+      clickAction: `/vendor/dashboard`
     };
 
-    return await this.sendToDevice(vendorFCMToken, notificationData);
+    return await this.sendToUser(vendorId, notificationData);
   }
 
   // Send order status update notification to customer
-  async sendOrderStatusUpdate(customerFCMToken, orderData, status) {
+  async sendOrderStatusUpdate(customerId, orderData, status) {
     const statusEmojis = {
       'accepted': '✅',
       'preparing': '👨‍🍳',
@@ -107,56 +119,7 @@ class NotificationService {
       clickAction: `/order-tracker/${orderData._id}`
     };
 
-    return await this.sendToDevice(customerFCMToken, notificationData);
-  }
-
-  // Subscribe to topic
-  async subscribeToTopic(fcmToken, topic) {
-    if (!this.isInitialized) {
-      console.warn('Firebase Admin not initialized. Cannot subscribe to topic.');
-      return false;
-    }
-
-    try {
-      const response = await admin.messaging().subscribeToTopic([fcmToken], topic);
-      console.log(`Successfully subscribed to topic: ${topic}`, response);
-      return true;
-    } catch (error) {
-      console.error('Error subscribing to topic:', error);
-      return false;
-    }
-  }
-
-  // Send to topic
-  async sendToTopic(topic, notificationData) {
-    if (!this.isInitialized) {
-      console.warn('Firebase Admin not initialized. Cannot send to topic.');
-      return false;
-    }
-
-    try {
-      const message = {
-        topic: topic,
-        data: {
-          title: String(notificationData.title),
-          body: String(notificationData.body),
-          type: String(notificationData.type || 'general')
-        },
-        webpush: {
-          notification: {
-            icon: 'https://www.universeorder.co.in/icons.svg',
-            badge: 'https://www.universeorder.co.in/favicon.svg'
-          }
-        }
-      };
-
-      const response = await admin.messaging().send(message);
-      console.log('Successfully sent message to topic:', response);
-      return true;
-    } catch (error) {
-      console.error('Error sending message to topic:', error);
-      return false;
-    }
+    return await this.sendToUser(customerId, notificationData);
   }
 }
 

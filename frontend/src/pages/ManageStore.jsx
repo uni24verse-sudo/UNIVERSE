@@ -385,7 +385,7 @@ const ManageStore = () => {
     }
   };
 
-  const handleTestFCM = async () => {
+  const handleTestNotification = async () => {
     setTestingFCM(true);
     try {
       const res = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/auth/test-fcm`, {}, {
@@ -393,7 +393,7 @@ const ManageStore = () => {
       });
       alert(res.data.message || 'Test notification triggered!');
     } catch (err) {
-      alert('FCM Test Failed: ' + (err.response?.data?.message || err.message));
+      alert('Notification Test Failed: ' + (err.response?.data?.message || err.message));
     } finally {
       setTestingFCM(false);
     }
@@ -782,7 +782,7 @@ const ManageStore = () => {
                 Verify if your device is correctly receiving push notifications from UniVerse.
               </p>
               <button 
-                onClick={handleTestFCM} 
+                onClick={handleTestNotification} 
                 disabled={testingFCM}
                 className="btn btn-secondary" 
                 style={{ 
@@ -799,7 +799,7 @@ const ManageStore = () => {
                 }}
               >
                 {testingFCM ? <Loader2 size={18} className="animate-spin" /> : <Sparkles size={18} />}
-                {testingFCM ? 'Sending Ping...' : 'Send Test Notification'}
+                {testingFCM ? 'Sending OneSignal Ping...' : 'Send Test Notification'}
               </button>
             </div>
           </div>

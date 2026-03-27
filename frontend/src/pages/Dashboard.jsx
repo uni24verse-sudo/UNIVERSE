@@ -23,7 +23,6 @@ import {
   Globe,
   AlertCircle
 } from 'lucide-react';
-import { requestFCMPermission } from '../firebase';
 
 
 const Dashboard = () => {
@@ -116,26 +115,6 @@ const Dashboard = () => {
       setSocket(newSocket);
       newSocket.emit('join_store_room', store._id);
       
-      // Firebase Cloud Messaging: Retrieve token and register with backend to receive background pushes
-      const syncFCM = async () => {
-        try {
-          const fcmToken = await requestFCMPermission();
-          if (fcmToken) {
-            // Save the token to the backend Admin document
-            await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/auth/fcm-token`, 
-              { fcmToken },
-              { headers: { Authorization: `Bearer ${token}` } }
-            );
-            console.log("FCM Token successfully synced to Vendor Account.");
-          }
-        } catch (err) {
-          console.error("Failed to sync FCM token:", err);
-        }
-      };
-      
-      syncFCM();
-
-
       newSocket.on('new_order', (order) => {
         setOrders(prev => {
           const exists = prev.find(o => o._id === order._id);

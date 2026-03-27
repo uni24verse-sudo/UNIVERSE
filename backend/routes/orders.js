@@ -112,7 +112,7 @@ router.post('/create', async (req, res) => {
   try {
     const { storeId, items, totalAmount, paymentMethod, customerPhone, orderType, packagingChargeApplied } = req.body;
 
-    const store = await Store.findById(storeId);
+    const store = await Store.findById(storeId).populate('admin');
     if (!store) return res.status(404).json({ message: 'Store not found' });
 
     const newOrder = new Order({
@@ -137,35 +137,22 @@ router.post('/create', async (req, res) => {
       io.to(storeId).emit('new_order', savedOrder);
     }
 
-    // FIREBASE FCM PUSH NOTIFICATION FOR VENDOR (New robust solution)
+    // OneSignal Push Notification for Vendor
     try {
-      if (store.fcmTokens && store.fcmTokens.length > 0) {
+      if (store.admin && store.admin._id) {
         const notificationData = {
           title: '🍔 New Order Received!',
           body: `Order #${savedOrder.orderNumber} - ₹${savedOrder.totalAmount}`,
           orderId: savedOrder._id,
           type: 'new_order',
-          clickAction: `/vendor/orders/${savedOrder._id}`
+          clickAction: `/vendor/dashboard`
         };
 
-        // Send to all vendor's FCM tokens
-        const results = await notificationService.sendToMultipleDevices(store.fcmTokens, notificationData);
-        
-        // Remove invalid tokens from database
-        const invalidTokens = results
-          .filter(result => result.result && result.result.error === 'token_invalid')
-          .map(result => result.token);
-        
-        if (invalidTokens.length > 0) {
-          store.fcmTokens = store.fcmTokens.filter(token => !invalidTokens.includes(token));
-          await store.save();
-          console.log(`Removed ${invalidTokens.length} invalid FCM tokens`);
-        }
-        
-        console.log(`FCM notification sent to ${store.fcmTokens.length} devices`);
+        await notificationService.sendToUser(store.admin._id, notificationData);
+        console.log(`OneSignal notification triggered for vendor: ${store.admin._id}`);
       }
-    } catch (fcmErr) {
-      console.error('Vendor FCM Push Error:', fcmErr.message);
+    } catch (pushErr) {
+      console.error('Vendor Push Notification Error:', pushErr.message);
     }
 
     res.status(201).json(savedOrder);
