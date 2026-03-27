@@ -1,0 +1,37 @@
+﻿Starting OneSignal V2 Auth Diagnostics...
+Target App ID: cec6a596-a353-47ac-af3b-f007f5ceeb54
+
+--- Testing Auth Prefix: "Key" ---
+Γ¥î Failed: 403 {
+  errors: [
+    "Access denied.  Please include an 'Authorization: ...' header with a valid API key (https://documentation.onesignal.com/docs/en/keys-and-ids#api-keys)."
+  ]
+}
+
+--- Testing Auth Prefix: "Basic" ---
+Γ¥î Failed: 403 {
+  errors: [
+    "Access denied.  Please include an 'Authorization: ...' header with a valid API key (https://documentation.onesignal.com/docs/en/keys-and-ids#api-keys)."
+  ]
+}
+
+--- Testing Auth Prefix: "Bearer" ---
+Γ¥î Failed: 403 {
+  errors: [
+    "Access denied.  Please include an 'Authorization: ...' header with a valid API key (https://documentation.onesignal.com/docs/en/keys-and-ids#api-keys)."
+  ]
+}
+
+--- Testing Auth Prefix: "" ---
+Γ¥î Failed: 403 {
+  errors: [
+    "Access denied.  Please include an 'Authorization: ...' header with a valid API key (https://documentation.onesignal.com/docs/en/keys-and-ids#api-keys)."
+  ]
+}
+
+--- Testing LEGACY Endpoint with "Key" prefix ---
+Γ¥î Failed (Legacy): 403 {
+  errors: [
+    "Access denied.  Please include an 'Authorization: ...' header with a valid API key (https://documentation.onesignal.com/docs/en/keys-and-ids#api-keys)."
+  ]
+}

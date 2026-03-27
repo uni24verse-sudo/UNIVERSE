@@ -3,7 +3,7 @@ const axios = require('axios');
 class NotificationService {
   constructor() {
     this.appId = process.env.ONESIGNAL_APP_ID || "cec6a596-a353-47ac-af3b-f007f5ceeb54";
-    this.apiKey = process.env.ONESIGNAL_REST_API_KEY || "os_v2_app_z3dklfvdknd2zlz36ad7ltxlksbjnukozmzu74ft3laggyikge7uogijxiofoo7m7owxcrwbgqtclhsnro2m7f66pyhjou2l2dlzrti";
+    this.apiKey = process.env.ONESIGNAL_REST_API_KEY || "os_v2_app_z3dklfvdknd2zlz36ad7ltxlkqlbv6y52xturye4mpaudrkqh6dcgbcbkelefxuxer7r3x7qdziyavd2uwtezkf526fkbz7l3wznbli";
   }
 
   // Send notification to a specific user (via OneSignal External ID)
