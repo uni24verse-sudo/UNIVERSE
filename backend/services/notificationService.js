@@ -8,17 +8,20 @@ class NotificationService {
 
   // Send notification to a specific user (via OneSignal External ID)
   async sendToUser(userId, notificationData) {
-    if (!userId) return false;
+    if (!userId) {
+      console.warn('OneSignal: No userId provided for notification');
+      return false;
+    }
 
     try {
-      const response = await axios.post('https://onesignal.com/api/v1/notifications', {
+      const payload = {
         app_id: this.appId,
         include_external_user_ids: [String(userId)],
         contents: {
-          en: String(notificationData.body)
+          en: String(notificationData.body || 'New Notification')
         },
         headings: {
-          en: String(notificationData.title)
+          en: String(notificationData.title || 'UniVerse')
         },
         data: {
           orderId: notificationData.orderId ? String(notificationData.orderId) : '',
@@ -28,17 +31,26 @@ class NotificationService {
         web_url: String(notificationData.clickAction || '/vendor/dashboard'),
         chrome_web_icon: 'https://www.universeorder.co.in/icons.svg',
         chrome_web_badge: 'https://www.universeorder.co.in/favicon.svg'
-      }, {
+      };
+
+      console.log('Sending OneSignal Notification to External ID:', userId);
+      
+      const response = await axios.post('https://onesignal.com/api/v1/notifications', payload, {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Basic ${this.apiKey}`
         }
       });
 
-      console.log('OneSignal Notification response:', response.data);
+      console.log('OneSignal API Success:', response.data);
       return true;
     } catch (error) {
-      console.error('Error sending OneSignal notification:', error.response?.data || error.message);
+      const errorData = error.response?.data;
+      console.error('OneSignal API Error:', {
+        status: error.response?.status,
+        data: errorData,
+        message: error.message
+      });
       return false;
     }
   }
