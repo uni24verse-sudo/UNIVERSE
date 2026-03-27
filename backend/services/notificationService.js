@@ -3,7 +3,7 @@ const axios = require('axios');
 class NotificationService {
   constructor() {
     this.appId = process.env.ONESIGNAL_APP_ID || "cec6a596-a353-47ac-af3b-f007f5ceeb54";
-    this.apiKey = process.env.ONESIGNAL_REST_API_KEY || "njhvvihlmubfnbkq2b46m1daa";
+    this.apiKey = process.env.ONESIGNAL_REST_API_KEY || "os_v2_app_z3dklfvdknd2zlz36ad7ltxlksbjnukozmzu74ft3laggyikge7uogijxiofoo7m7owxcrwbgqtclhsnro2m7f66pyhjou2l2dlzrti";
   }
 
   // Send notification to a specific user (via OneSignal External ID)
@@ -11,11 +11,6 @@ class NotificationService {
     if (!userId) {
       console.warn('OneSignal: No userId provided for notification');
       return false;
-    }
-
-    // Diagnostic check for API key
-    if (this.apiKey.length < 30) {
-      console.error('OneSignal: REST API Key looks too short! (Current length:', this.apiKey.length, '). It should be a long string from Settings > Keys & IDs.');
     }
 
     try {
@@ -39,7 +34,6 @@ class NotificationService {
       };
 
       console.log('Sending OneSignal Notification to External ID:', userId);
-      console.log('Using App ID:', this.appId);
       
       const response = await axios.post('https://onesignal.com/api/v1/notifications', payload, {
         headers: {
@@ -55,8 +49,7 @@ class NotificationService {
       console.error('OneSignal API Error:', {
         status: error.response?.status,
         data: errorData,
-        message: error.message,
-        auth_header_used: `Basic ${this.apiKey.substring(0, 5)}...`
+        message: error.message
       });
       return false;
     }
