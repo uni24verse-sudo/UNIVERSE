@@ -7,6 +7,8 @@ class NotificationService {
     
     if (!this.appId || !this.apiKey) {
       console.warn('OneSignal: Missing App ID or API Key in environment variables.');
+    } else {
+      console.log('OneSignal Service Initialized');
     }
   }
 
@@ -37,20 +39,38 @@ class NotificationService {
         chrome_web_badge: 'https://www.universeorder.co.in/favicon.svg'
       };
 
-      console.log('Sending OneSignal Notification via V2 API to External ID:', userId);
-      
-      const response = await axios.post('https://api.onesignal.com/notifications', payload, {
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Key ${this.apiKey.trim()}`
-        }
-      });
+      // Try multiple authorization formats as requested "anyhow"
+      const authFormats = [
+        { name: 'Key (V2)', header: `Key ${this.apiKey.trim()}` },
+        { name: 'Basic (V2)', header: `Basic ${this.apiKey.trim()}` },
+        { name: 'Bearer (V2)', header: `Bearer ${this.apiKey.trim()}` },
+        { name: 'Basic (Legacy)', header: `Basic 4tpe7ibemelnevdmawgph4pgb` }
+      ];
 
-      console.log('OneSignal V2 API Success:', response.data);
-      return { success: true, data: response.data };
+      let lastError = null;
+      for (const format of authFormats) {
+        try {
+          console.log(`Trying OneSignal ${format.name} authentication...`);
+          const response = await axios.post('https://api.onesignal.com/notifications', payload, {
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': format.header
+            }
+          });
+          console.log(`OneSignal ${format.name} Success:`, response.data);
+          return { success: true, data: response.data };
+        } catch (error) {
+          lastError = error.response?.data || { message: error.message };
+          console.warn(`OneSignal ${format.name} Failed:`, lastError);
+          // Continue to next format
+        }
+      }
+
+      console.error('All OneSignal auth formats failed.');
+      return { success: false, error: lastError };
     } catch (error) {
       const errorData = error.response?.data || { message: error.message };
-      console.error('OneSignal V2 API Error:', errorData);
+      console.error('OneSignal Error (Outer):', errorData);
       return { success: false, error: errorData };
     }
   }
@@ -60,7 +80,7 @@ class NotificationService {
     if (!userIds || userIds.length === 0) return false;
 
     try {
-      const response = await axios.post('https://api.onesignal.com/notifications', {
+      const response = await axios.post('https://onesignal.com/api/v1/notifications', {
         app_id: this.appId.trim(),
         include_external_user_ids: userIds.map(id => String(id).trim()),
         contents: {
@@ -78,7 +98,7 @@ class NotificationService {
       }, {
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Key ${this.apiKey.trim()}`
+          'Authorization': `Basic ${this.apiKey.trim()}`
         }
       });
 
@@ -100,17 +120,51 @@ class NotificationService {
     return this.sendToMultipleUsers(userIds, notificationData);
   }
 
-  // Send new order notification to vendor
+  // Send new order notification to vendor with full details
   async sendNewOrderNotification(vendorId, orderData) {
-    const notificationData = {
-      title: '🍔 New Order Received!',
-      body: `Order #${orderData.orderNumber || orderData._id} - ₹${orderData.totalAmount}`,
-      orderId: orderData._id,
-      type: 'new_order',
-      clickAction: `/vendor/dashboard`
-    };
+    if (!vendorId || !orderData) return { success: false, error: 'Missing vendorId or orderData' };
 
-    return await this.sendToUser(vendorId, notificationData);
+    try {
+      // Format items list for notification body
+      const itemsList = orderData.items?.map(item => `${item.quantity}x ${item.name}`).join(', ') || 'Items details unavalaible';
+      
+      const notificationData = {
+        title: '🍔 New Order Received!',
+        body: `Order #${orderData.orderNumber} - ₹${orderData.totalAmount}\nItems: ${itemsList}\nCustomer: ${orderData.customerPhone || 'N/A'}`,
+        orderId: orderData._id,
+        type: 'new_order',
+        clickAction: `/vendor/dashboard`
+      };
+
+      console.log(`Formatting notification for vendor ${vendorId}: Order #${orderData.orderNumber}`);
+      return await this.sendToUser(vendorId, notificationData);
+    } catch (err) {
+      console.error('Error formatting order notification:', err);
+      return { success: false, error: err.message };
+    }
+  }
+
+  // Send any update to vendor with full details
+  async sendOrderUpdateToVendor(vendorId, orderData, title, type = 'new_order') {
+    if (!vendorId || !orderData) return { success: false, error: 'Missing vendorId or orderData' };
+
+    try {
+      const itemsList = orderData.items?.map(item => `${item.quantity}x ${item.name}`).join(', ') || 'Items details unavalaible';
+      
+      const notificationData = {
+        title: title || '📋 Order Update',
+        body: `Order #${orderData.orderNumber} - ₹${orderData.totalAmount}\nItems: ${itemsList}\nCustomer: ${orderData.customerPhone || 'N/A'}`,
+        orderId: orderData._id,
+        type: type,
+        clickAction: `/vendor/dashboard`
+      };
+
+      console.log(`Sending update notification to vendor ${vendorId}: ${title}`);
+      return await this.sendToUser(vendorId, notificationData);
+    } catch (err) {
+      console.error('Error sending vendor update notification:', err);
+      return { success: false, error: err.message };
+    }
   }
 
   // Send order status update notification to customer

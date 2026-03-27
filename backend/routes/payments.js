@@ -130,14 +130,12 @@ router.post('/phonepe/callback', async (req, res) => {
 
         // 🔔 PUSH NOTIFICATION (OneSignal)
         if (order.store && order.store.admin) {
-          const notificationData = {
-            title: '💰 New Paid Order!',
-            body: `Order #${order.orderNumber} - ₹${order.totalAmount} (Paid via PhonePe)`,
-            orderId: order._id,
-            type: 'new_order',
-            clickAction: `/vendor/dashboard`
-          };
-          await notificationService.sendToUser(order.store.admin._id || order.store.admin, notificationData);
+          await notificationService.sendOrderUpdateToVendor(
+            order.store.admin._id || order.store.admin,
+            order,
+            '💰 New Paid Order! (PhonePe)',
+            'new_order'
+          );
         }
         
         console.log(`Order #${order.orderNumber} successfully paid via PhonePe.`);
@@ -320,14 +318,12 @@ router.post('/paytm/callback', async (req, res) => {
 
         // 🔔 PUSH NOTIFICATION (OneSignal)
         if (order.store && order.store.admin) {
-          const notificationData = {
-            title: '💰 New Paid Order!',
-            body: `Order #${order.orderNumber} - ₹${order.totalAmount} (Paid via Paytm)`,
-            orderId: order._id,
-            type: 'new_order',
-            clickAction: `/vendor/dashboard`
-          };
-          await notificationService.sendToUser(order.store.admin._id || order.store.admin, notificationData);
+          await notificationService.sendOrderUpdateToVendor(
+            order.store.admin._id || order.store.admin,
+            order,
+            '💰 New Paid Order! (Paytm)',
+            'new_order'
+          );
         }
       }
     }

@@ -137,20 +137,12 @@ router.post('/create', async (req, res) => {
       io.to(storeId).emit('new_order', savedOrder);
     }
 
-    // OneSignal Push Notification for Vendor (Modern ID Targeting)
+    // OneSignal Push Notification for Vendor (All Payment Methods)
     try {
       if (store.admin) {
-        const notificationData = {
-          title: '🍔 New Order Received!',
-          body: `Order #${savedOrder.orderNumber} - ₹${savedOrder.totalAmount}`,
-          orderId: savedOrder._id,
-          type: 'new_order',
-          clickAction: `/vendor/dashboard`
-        };
-
         const vendorId = store.admin._id || store.admin;
-        await notificationService.sendToUser(vendorId, notificationData);
-        console.log(`OneSignal notification triggered for vendor: ${vendorId}`);
+        // Use the enhanced notification service for detailed orders
+        await notificationService.sendNewOrderNotification(vendorId, savedOrder);
       }
     } catch (pushErr) {
       console.error('Vendor Push Notification Error:', pushErr.message);
@@ -262,19 +254,13 @@ router.put('/:id/request-verification', async (req, res) => {
     
     // OneSignal Push Notification for Payment Verification Request
     try {
-      if (order.store && order.store.admin) {
-        const notificationData = {
-          title: '🔔 Payment Verification Requested!',
-          body: `Customer requested verification for Order #${order.orderNumber} - ₹${order.totalAmount}`,
-          orderId: order._id,
-          type: 'payment_verification',
-          clickAction: `/vendor/dashboard`
-        };
-        
         const vendorId = order.store.admin._id || order.store.admin;
-        await notificationService.sendToUser(vendorId, notificationData);
-        console.log(`OneSignal notification sent for payment verification request: ${vendorId}`);
-      }
+        await notificationService.sendOrderUpdateToVendor(
+          vendorId, 
+          savedOrder, 
+          '🔔 Payment Verification Requested!',
+          'payment_verification'
+        );
     } catch (pushErr) {
       console.error('OneSignal Payment Verification Notification Error:', pushErr.message);
     }
@@ -307,17 +293,13 @@ router.put('/:id/verify-payment', auth, async (req, res) => {
       // OneSignal Push Notification for UPI Payment Confirmation
       try {
         if (order.store && order.store.admin) {
-          const notificationData = {
-            title: '💰 UPI Payment Confirmed!',
-            body: `Order #${order.orderNumber} - ₹${order.totalAmount} (UPI payment verified)`,
-            orderId: order._id,
-            type: 'new_order',
-            clickAction: `/vendor/dashboard`
-          };
-          
           const vendorId = order.store.admin._id || order.store.admin;
-          await notificationService.sendToUser(vendorId, notificationData);
-          console.log(`OneSignal notification sent for UPI payment confirmation: ${vendorId}`);
+          await notificationService.sendOrderUpdateToVendor(
+            vendorId, 
+            savedOrder, 
+            '💰 UPI Payment Confirmed!',
+            'new_order'
+          );
         }
       } catch (pushErr) {
         console.error('OneSignal UPI Payment Notification Error:', pushErr.message);
