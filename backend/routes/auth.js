@@ -123,7 +123,11 @@ router.post('/test-fcm', auth, async (req, res) => {
     if (success) {
       res.json({ message: 'Test notification sent successfully!' });
     } else {
-      res.status(500).json({ message: 'Failed to send test notification via OneSignal' });
+      // Provide more helpful error info to the frontend
+      res.status(500).json({ 
+        message: 'Failed to send test notification via OneSignal',
+        hint: 'Please check your ONESIGNAL_REST_API_KEY in Render. It should be a long string (approx 48 chars) from Settings > Keys & IDs.'
+      });
     }
   } catch (err) {
     res.status(500).json({ message: err.message });

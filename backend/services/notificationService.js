@@ -13,6 +13,11 @@ class NotificationService {
       return false;
     }
 
+    // Diagnostic check for API key
+    if (this.apiKey.length < 30) {
+      console.error('OneSignal: REST API Key looks too short! (Current length:', this.apiKey.length, '). It should be a long string from Settings > Keys & IDs.');
+    }
+
     try {
       const payload = {
         app_id: this.appId,
@@ -34,6 +39,7 @@ class NotificationService {
       };
 
       console.log('Sending OneSignal Notification to External ID:', userId);
+      console.log('Using App ID:', this.appId);
       
       const response = await axios.post('https://onesignal.com/api/v1/notifications', payload, {
         headers: {
@@ -49,7 +55,8 @@ class NotificationService {
       console.error('OneSignal API Error:', {
         status: error.response?.status,
         data: errorData,
-        message: error.message
+        message: error.message,
+        auth_header_used: `Basic ${this.apiKey.substring(0, 5)}...`
       });
       return false;
     }
