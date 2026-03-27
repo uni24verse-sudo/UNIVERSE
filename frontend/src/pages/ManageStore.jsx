@@ -388,12 +388,16 @@ const ManageStore = () => {
   const handleTestNotification = async () => {
     setTestingFCM(true);
     try {
-      const res = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/auth/test-fcm`, {}, {
-        headers: { Authorization: `Bearer ${token}` }
+      const response = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/auth/test-fcm`, {}, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
-      alert(res.data.message || 'Test notification triggered!');
+      alert('Success: ' + response.data.message);
     } catch (err) {
-      alert('Notification Test Failed: ' + (err.response?.data?.message || err.message));
+      console.error('Notification test failed:', err);
+      const errorMsg = err.response?.data?.error 
+        ? JSON.stringify(err.response.data.error) 
+        : (err.response?.data?.message || err.message);
+      alert('Notification Test Failed: ' + errorMsg);
     } finally {
       setTestingFCM(false);
     }

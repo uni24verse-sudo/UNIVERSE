@@ -118,12 +118,15 @@ router.post('/test-fcm', auth, async (req, res) => {
       clickAction: '/vendor/dashboard'
     };
 
-    const success = await notificationService.sendToUser(admin._id, testData);
+    const result = await notificationService.sendToUser(admin._id, testData);
     
-    if (success) {
-      res.json({ message: 'Test notification sent successfully!' });
+    if (result.success) {
+      res.json({ message: 'Test notification sent successfully!', data: result.data });
     } else {
-      res.status(500).json({ message: 'Failed to send test notification via OneSignal. Check server logs for details.' });
+      res.status(500).json({ 
+        message: 'Failed to send test notification via OneSignal',
+        error: result.error
+      });
     }
   } catch (err) {
     res.status(500).json({ message: err.message });

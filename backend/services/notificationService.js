@@ -10,7 +10,7 @@ class NotificationService {
   async sendToUser(userId, notificationData) {
     if (!userId) {
       console.warn('OneSignal: No userId provided for notification');
-      return false;
+      return { success: false, error: 'No userId provided' };
     }
 
     try {
@@ -43,15 +43,11 @@ class NotificationService {
       });
 
       console.log('OneSignal API Success:', response.data);
-      return true;
+      return { success: true, data: response.data };
     } catch (error) {
-      const errorData = error.response?.data;
-      console.error('OneSignal API Error:', {
-        status: error.response?.status,
-        data: errorData,
-        message: error.message
-      });
-      return false;
+      const errorData = error.response?.data || { message: error.message };
+      console.error('OneSignal API Error:', errorData);
+      return { success: false, error: errorData };
     }
   }
 
