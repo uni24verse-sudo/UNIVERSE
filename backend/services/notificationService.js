@@ -15,8 +15,8 @@ class NotificationService {
 
     try {
       const payload = {
-        app_id: this.appId,
-        include_external_user_ids: [String(userId)],
+        app_id: this.appId.trim(),
+        include_external_user_ids: [String(userId).trim()],
         contents: {
           en: String(notificationData.body || 'New Notification')
         },
@@ -33,20 +33,20 @@ class NotificationService {
         chrome_web_badge: 'https://www.universeorder.co.in/favicon.svg'
       };
 
-      console.log('Sending OneSignal Notification to External ID:', userId);
+      console.log('Sending OneSignal Notification via V2 API to External ID:', userId);
       
-      const response = await axios.post('https://onesignal.com/api/v1/notifications', payload, {
+      const response = await axios.post('https://api.onesignal.com/notifications', payload, {
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Key ${this.apiKey}`
+          'Authorization': `Key ${this.apiKey.trim()}`
         }
       });
 
-      console.log('OneSignal API Success:', response.data);
+      console.log('OneSignal V2 API Success:', response.data);
       return { success: true, data: response.data };
     } catch (error) {
       const errorData = error.response?.data || { message: error.message };
-      console.error('OneSignal API Error:', errorData);
+      console.error('OneSignal V2 API Error:', errorData);
       return { success: false, error: errorData };
     }
   }
@@ -56,9 +56,9 @@ class NotificationService {
     if (!userIds || userIds.length === 0) return false;
 
     try {
-      const response = await axios.post('https://onesignal.com/api/v1/notifications', {
-        app_id: this.appId,
-        include_external_user_ids: userIds.map(id => String(id)),
+      const response = await axios.post('https://api.onesignal.com/notifications', {
+        app_id: this.appId.trim(),
+        include_external_user_ids: userIds.map(id => String(id).trim()),
         contents: {
           en: String(notificationData.body)
         },
@@ -74,7 +74,7 @@ class NotificationService {
       }, {
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Key ${this.apiKey}`
+          'Authorization': `Key ${this.apiKey.trim()}`
         }
       });
 
