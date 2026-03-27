@@ -38,7 +38,7 @@ class NotificationService {
       const response = await axios.post('https://onesignal.com/api/v1/notifications', payload, {
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Basic ${this.apiKey}`
+          'Authorization': `Key ${this.apiKey}`
         }
       });
 
@@ -78,7 +78,7 @@ class NotificationService {
       }, {
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Basic ${this.apiKey}`
+          'Authorization': `Key ${this.apiKey}`
         }
       });
 
