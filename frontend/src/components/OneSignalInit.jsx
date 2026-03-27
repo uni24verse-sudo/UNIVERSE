@@ -1,12 +1,14 @@
-import { useEffect, useContext } from 'react';
+import { useEffect, useContext, useRef } from 'react';
 import OneSignal from 'react-onesignal';
 import { AuthContext } from '../context/AuthContext';
 
 const OneSignalInit = () => {
   const { vendor, token } = useContext(AuthContext);
+  const isInitialized = useRef(false);
 
   useEffect(() => {
     const initOneSignal = async () => {
+      if (isInitialized.current) return;
       try {
         await OneSignal.init({
           appId: "cec6a596-a353-47ac-af3b-f007f5ceeb54",
@@ -15,14 +17,13 @@ const OneSignalInit = () => {
             enable: true,
           },
         });
+        isInitialized.current = true;
         console.log("OneSignal Initialized");
-
-        // If logged in, set external ID to link user account
-        if (vendor && vendor._id) {
-          await OneSignal.login(vendor._id);
-          console.log("OneSignal External ID set to:", vendor._id);
-        } else {
-          await OneSignal.logout();
+        
+        // Immediate sync after init
+        if (vendor && (vendor.id || vendor._id)) {
+          await OneSignal.login(vendor.id || vendor._id);
+          console.log("OneSignal External ID linked:", vendor.id || vendor._id);
         }
       } catch (err) {
         console.error("OneSignal Init Error:", err);
@@ -30,7 +31,26 @@ const OneSignalInit = () => {
     };
 
     initOneSignal();
-  }, [vendor, token]);
+  }, []); // Only once on mount
+
+  useEffect(() => {
+    const syncUser = async () => {
+      if (!isInitialized.current) return;
+      try {
+        if (vendor && (vendor.id || vendor._id)) {
+          await OneSignal.login(vendor.id || vendor._id);
+          console.log("OneSignal External ID synced:", vendor.id || vendor._id);
+        } else if (!vendor && isInitialized.current) {
+          await OneSignal.logout();
+          console.log("OneSignal External ID cleared");
+        }
+      } catch (err) {
+        console.error("OneSignal User Sync Error:", err);
+      }
+    };
+
+    syncUser();
+  }, [vendor, token]); // Sync when auth changes
 
   return null;
 };
