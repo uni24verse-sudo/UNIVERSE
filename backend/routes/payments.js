@@ -128,15 +128,16 @@ router.post('/phonepe/callback', async (req, res) => {
         const io = req.app.get('io');
         io.to(order.store._id.toString()).emit('new_order', order);
 
-        // 🔔 PUSH NOTIFICATION
-        const store = await Store.findById(order.store._id);
-        if (store && store.fcmTokens?.length > 0) {
-          await notificationService.sendToMultipleDevices(store.fcmTokens, {
+        // 🔔 PUSH NOTIFICATION (OneSignal)
+        if (order.store && order.store.admin) {
+          const notificationData = {
             title: '💰 New Paid Order!',
             body: `Order #${order.orderNumber} - ₹${order.totalAmount} (Paid via PhonePe)`,
             orderId: order._id,
-            type: 'new_order'
-          });
+            type: 'new_order',
+            clickAction: `/vendor/dashboard`
+          };
+          await notificationService.sendToUser(order.store.admin._id || order.store.admin, notificationData);
         }
         
         console.log(`Order #${order.orderNumber} successfully paid via PhonePe.`);
@@ -317,15 +318,16 @@ router.post('/paytm/callback', async (req, res) => {
         const io = req.app.get('io');
         io.to(order.store._id.toString()).emit('new_order', order);
 
-        // 🔔 PUSH NOTIFICATION
-        const store = await Store.findById(order.store._id);
-        if (store && store.fcmTokens?.length > 0) {
-          await notificationService.sendToMultipleDevices(store.fcmTokens, {
+        // 🔔 PUSH NOTIFICATION (OneSignal)
+        if (order.store && order.store.admin) {
+          const notificationData = {
             title: '💰 New Paid Order!',
             body: `Order #${order.orderNumber} - ₹${order.totalAmount} (Paid via Paytm)`,
             orderId: order._id,
-            type: 'new_order'
-          });
+            type: 'new_order',
+            clickAction: `/vendor/dashboard`
+          };
+          await notificationService.sendToUser(order.store.admin._id || order.store.admin, notificationData);
         }
       }
     }

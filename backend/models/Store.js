@@ -34,8 +34,6 @@ const StoreSchema = new mongoose.Schema({
   isTrialStarted: { type: Boolean, default: false },
   trialStartDate: { type: Date },
   trialEndDate: { type: Date },
-  fcmTokens: [{ type: String }], // Array to store FCM tokens for push notifications
-  owner: { type: mongoose.Schema.Types.ObjectId, ref: 'Admin' }, // Reference to store owner for FCM token management
   products: [ProductSchema]
 }, { timestamps: true });
 
