@@ -24,27 +24,16 @@ class NotificationService {
           click_action: String(notificationData.clickAction || '/vendor/dashboard')
         },
         webpush: {
-          notification: {
-            icon: 'https://www.universeorder.co.in/icons.svg',
-            badge: 'https://www.universeorder.co.in/favicon.svg',
-            requireInteraction: true,
-            vibrate: [200, 100, 200, 100, 200]
+          headers: {
+            Urgency: 'high'
           }
         },
         android: {
-          notification: {
-            sound: 'default',
-            priority: 'high',
-            vibrate: [200, 100, 200, 100, 200],
-            icon: 'https://www.universeorder.co.in/icons.svg',
-            color: '#6366f1'
-          }
+          priority: 'high'
         },
         apns: {
           payload: {
             aps: {
-              sound: 'https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3',
-              badge: 1,
               contentAvailable: true
             }
           }

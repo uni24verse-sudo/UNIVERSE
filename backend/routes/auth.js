@@ -4,6 +4,7 @@ const Admin = require('../models/Admin');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const auth = require('../middleware/auth');
+const notificationService = require('../services/notificationService');
 
 // Register
 router.post('/register', async (req, res) => {
@@ -133,6 +134,33 @@ router.put('/fcm-token', auth, async (req, res) => {
     }
     
     res.json({ message: 'FCM Token saved successfully' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// Test FCM Notification
+router.post('/test-fcm', auth, async (req, res) => {
+  try {
+    const admin = await Admin.findById(req.admin._id);
+    if (!admin || !admin.fcmToken) {
+      return res.status(404).json({ message: 'No FCM token found for this account' });
+    }
+
+    const testData = {
+      title: '🔔 Test Notification',
+      body: 'If you see this, your background notifications are working perfectly!',
+      type: 'test',
+      clickAction: '/vendor/dashboard'
+    };
+
+    const success = await notificationService.sendToDevice(admin.fcmToken, testData);
+    
+    if (success) {
+      res.json({ message: 'Test notification sent successfully!' });
+    } else {
+      res.status(500).json({ message: 'Failed to send test notification' });
+    }
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

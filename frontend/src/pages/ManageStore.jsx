@@ -32,6 +32,7 @@ const ManageStore = () => {
   const [paytmMerchantKey, setPaytmMerchantKey] = useState('');
   const [paytmWebsite, setPaytmWebsite] = useState('DEFAULT');
   const [paytmEnv, setPaytmEnv] = useState('PRODUCTION');
+  const [testingFCM, setTestingFCM] = useState(false);
 
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
   const [showSidebar, setShowSidebar] = useState(false);
@@ -381,6 +382,20 @@ const ManageStore = () => {
       setStore(res.data);
     } catch (err) {
       alert('Failed to delete product: ' + (err.response?.data?.message || err.message));
+    }
+  };
+
+  const handleTestFCM = async () => {
+    setTestingFCM(true);
+    try {
+      const res = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/auth/test-fcm`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      alert(res.data.message || 'Test notification triggered!');
+    } catch (err) {
+      alert('FCM Test Failed: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setTestingFCM(false);
     }
   };
 
@@ -753,6 +768,39 @@ const ManageStore = () => {
                   {updatingStore ? 'Saving...' : 'Update Payment Settings'}
                 </button>
               </div>
+            </div>
+
+            {/* Notification Diagnostic Card */}
+            <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '24px', border: '1px solid rgba(16, 185, 129, 0.2)', background: 'rgba(16, 185, 129, 0.02)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+                <div style={{ background: 'rgba(16, 185, 129, 0.1)', padding: '0.5rem', borderRadius: '10px' }}>
+                  <Check size={20} color="#10b981" />
+                </div>
+                <h4 style={{ margin: 0 }}>Notification Status</h4>
+              </div>
+              <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '1.25rem' }}>
+                Verify if your device is correctly receiving push notifications from UniVerse.
+              </p>
+              <button 
+                onClick={handleTestFCM} 
+                disabled={testingFCM}
+                className="btn btn-secondary" 
+                style={{ 
+                  width: '100%', 
+                  height: '46px', 
+                  borderRadius: '12px', 
+                  fontSize: '0.875rem', 
+                  borderColor: 'rgba(16, 185, 129, 0.3)',
+                  color: '#10b981',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.5rem'
+                }}
+              >
+                {testingFCM ? <Loader2 size={18} className="animate-spin" /> : <Sparkles size={18} />}
+                {testingFCM ? 'Sending Ping...' : 'Send Test Notification'}
+              </button>
             </div>
           </div>
 
