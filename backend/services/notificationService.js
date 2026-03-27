@@ -2,8 +2,12 @@ const axios = require('axios');
 
 class NotificationService {
   constructor() {
-    this.appId = process.env.ONESIGNAL_APP_ID || "cec6a596-a353-47ac-af3b-f007f5ceeb54";
-    this.apiKey = process.env.ONESIGNAL_REST_API_KEY || "os_v2_app_z3dklfvdknd2zlz36ad7ltxlkqlbv6y52xturye4mpaudrkqh6dcgbcbkelefxuxer7r3x7qdziyavd2uwtezkf526fkbz7l3wznbli";
+    this.appId = process.env.ONESIGNAL_APP_ID;
+    this.apiKey = process.env.ONESIGNAL_REST_API_KEY;
+    
+    if (!this.appId || !this.apiKey) {
+      console.warn('OneSignal: Missing App ID or API Key in environment variables.');
+    }
   }
 
   // Send notification to a specific user (via OneSignal External ID)

@@ -1,35 +1,48 @@
-﻿Starting OneSignal V2 Auth Diagnostics...
-Target App ID: cec6a596-a353-47ac-af3b-f007f5ceeb54
+﻿Starting DEEP OneSignal V2 Auth Diagnostics...
 
---- Testing Auth Prefix: "Key" ---
+--- Testing Header: "Key os_v2_app_z3dklf..." ---
 Γ¥î Failed: 403 {
   errors: [
     "Access denied.  Please include an 'Authorization: ...' header with a valid API key (https://documentation.onesignal.com/docs/en/keys-and-ids#api-keys)."
   ]
 }
 
---- Testing Auth Prefix: "Basic" ---
+--- Testing Header: "Basic os_v2_app_z3dk..." ---
 Γ¥î Failed: 403 {
   errors: [
     "Access denied.  Please include an 'Authorization: ...' header with a valid API key (https://documentation.onesignal.com/docs/en/keys-and-ids#api-keys)."
   ]
 }
 
---- Testing Auth Prefix: "Bearer" ---
+--- Testing Header: "Basic b3NfdjJfYXBwX3..." ---
 Γ¥î Failed: 403 {
   errors: [
     "Access denied.  Please include an 'Authorization: ...' header with a valid API key (https://documentation.onesignal.com/docs/en/keys-and-ids#api-keys)."
   ]
 }
 
---- Testing Auth Prefix: "" ---
+--- Testing Header: "Token os_v2_app_z3dk..." ---
 Γ¥î Failed: 403 {
   errors: [
     "Access denied.  Please include an 'Authorization: ...' header with a valid API key (https://documentation.onesignal.com/docs/en/keys-and-ids#api-keys)."
   ]
 }
 
---- Testing LEGACY Endpoint with "Key" prefix ---
+--- Testing Header: "Bearer os_v2_app_z3d..." ---
+Γ¥î Failed: 403 {
+  errors: [
+    "Access denied.  Please include an 'Authorization: ...' header with a valid API key (https://documentation.onesignal.com/docs/en/keys-and-ids#api-keys)."
+  ]
+}
+
+--- Testing Header: "os_v2_app_z3dklfvdkn..." ---
+Γ¥î Failed: 403 {
+  errors: [
+    "Access denied.  Please include an 'Authorization: ...' header with a valid API key (https://documentation.onesignal.com/docs/en/keys-and-ids#api-keys)."
+  ]
+}
+
+--- Testing LEGACY Endpoint with "Basic" (Plain) ---
 Γ¥î Failed (Legacy): 403 {
   errors: [
     "Access denied.  Please include an 'Authorization: ...' header with a valid API key (https://documentation.onesignal.com/docs/en/keys-and-ids#api-keys)."
