@@ -3,54 +3,50 @@ import OneSignal from 'react-onesignal';
 import { AuthContext } from '../context/AuthContext';
 
 const OneSignalInit = () => {
-  const { vendor, token } = useContext(AuthContext);
-  const isInitialized = useRef(false);
+  const { vendor } = useContext(AuthContext);
+  const [sdkReady, setSdkReady] = useState(false);
 
+  // 1. Initialize SDK
   useEffect(() => {
-    const initOneSignal = async () => {
-      if (isInitialized.current) return;
+    const init = async () => {
       try {
         await OneSignal.init({
           appId: "cec6a596-a353-47ac-af3b-f007f5ceeb54",
           allowLocalhostAsSecureOrigin: true,
-          notifyButton: {
-            enable: true,
-          },
+          notifyButton: { enable: true },
         });
-        isInitialized.current = true;
-        console.log("OneSignal Initialized");
-        
-        // Immediate sync after init
-        if (vendor && (vendor.id || vendor._id)) {
-          await OneSignal.login(vendor.id || vendor._id);
-          console.log("OneSignal External ID linked:", vendor.id || vendor._id);
-        }
+        setSdkReady(true);
+        console.log("OneSignal SDK Ready");
       } catch (err) {
         console.error("OneSignal Init Error:", err);
       }
     };
+    init();
+  }, []);
 
-    initOneSignal();
-  }, []); // Only once on mount
-
+  // 2. Sync User Identity when SDK and Vendor are both ready
   useEffect(() => {
     const syncUser = async () => {
-      if (!isInitialized.current) return;
+      if (!sdkReady) return;
+
       try {
-        if (vendor && (vendor.id || vendor._id)) {
-          await OneSignal.login(vendor.id || vendor._id);
-          console.log("OneSignal External ID synced:", vendor.id || vendor._id);
-        } else if (!vendor && isInitialized.current) {
+        const userId = vendor?.id || vendor?._id;
+        
+        if (userId) {
+          const cleanId = String(userId).trim();
+          await OneSignal.login(cleanId);
+          console.log("OneSignal identity linked:", cleanId);
+        } else {
           await OneSignal.logout();
-          console.log("OneSignal External ID cleared");
+          console.log("OneSignal identity cleared (Guest)");
         }
       } catch (err) {
-        console.error("OneSignal User Sync Error:", err);
+        console.error("OneSignal Identity Sync Error:", err);
       }
     };
 
     syncUser();
-  }, [vendor, token]); // Sync when auth changes
+  }, [sdkReady, vendor]);
 
   return null;
 };
