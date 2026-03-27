@@ -336,6 +336,22 @@ const Cart = () => {
       }));
 
       if (paymentMethod === 'Cash') {
+        // Save to recent orders BEFORE clearing cart
+        const recentOrders = JSON.parse(localStorage.getItem('universe_recent_orders') || '[]');
+        const updatedOrders = [
+          {
+            id: res.data._id,
+            orderNumber: res.data.orderNumber,
+            storeName: store?.name || 'Restaurant',
+            market: store?.market || '',
+            storeId: store?._id || '',
+            status: res.data.status || 'Pending',
+            timestamp: Date.now()
+          },
+          ...recentOrders.filter(o => o.id !== res.data._id)
+        ].slice(0, 10);
+        localStorage.setItem('universe_recent_orders', JSON.stringify(updatedOrders));
+
         // For cash orders, go directly to tracker
         clearCart();
         navigate(`/order-tracker/${res.data._id}`);
