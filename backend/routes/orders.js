@@ -137,9 +137,9 @@ router.post('/create', async (req, res) => {
       io.to(storeId).emit('new_order', savedOrder);
     }
 
-    // OneSignal Push Notification for Vendor
+    // OneSignal Push Notification for Vendor (Modern ID Targeting)
     try {
-      if (store.admin && store.admin._id) {
+      if (store.admin) {
         const notificationData = {
           title: '🍔 New Order Received!',
           body: `Order #${savedOrder.orderNumber} - ₹${savedOrder.totalAmount}`,
@@ -148,8 +148,9 @@ router.post('/create', async (req, res) => {
           clickAction: `/vendor/dashboard`
         };
 
-        await notificationService.sendToUser(store.admin._id, notificationData);
-        console.log(`OneSignal notification triggered for vendor: ${store.admin._id}`);
+        const vendorId = store.admin._id || store.admin;
+        await notificationService.sendToUser(vendorId, notificationData);
+        console.log(`OneSignal notification triggered for vendor: ${vendorId}`);
       }
     } catch (pushErr) {
       console.error('Vendor Push Notification Error:', pushErr.message);
