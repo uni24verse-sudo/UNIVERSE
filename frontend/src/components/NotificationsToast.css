@@ -1,31 +1,39 @@
 .notifications-container {
   position: fixed;
-  top: 80px;
-  right: 20px;
-  z-index: 1000;
+  top: 24px;
+  right: 24px;
+  z-index: 9999;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  max-width: 400px;
+  gap: 12px;
+  max-width: 380px;
+  width: calc(100% - 48px);
+  pointer-events: none;
 }
 
 .notification-toast {
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-  border: 1px solid rgba(0, 0, 0, 0.1);
-  backdrop-filter: blur(10px);
-  animation: slideIn 0.3s ease-out;
+  pointer-events: auto;
+  background: rgba(15, 23, 42, 0.95);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4), 
+              0 0 0 1px rgba(255, 255, 255, 0.05);
+  overflow: hidden;
+  animation: toast-slide-in 0.4s cubic-bezier(0.16, 1, 0.3, 1);
   transition: all 0.3s ease;
+  color: white;
 }
 
 .notification-toast:hover {
-  transform: translateX(-5px);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
+  border-color: rgba(99, 102, 241, 0.4);
 }
 
 .notification-toast.new_order {
-  border-left: 4px solid #10b981;
+  border-left: 4px solid #f59e0b;
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(15, 23, 42, 0.95));
 }
 
 .notification-toast.order_update {
@@ -33,97 +41,156 @@
 }
 
 .notification-content {
-  padding: 16px;
+  padding: 16px 20px;
 }
 
 .notification-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
+}
+
+.notification-title-area {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.title-icon {
+  color: #f59e0b;
 }
 
 .notification-header h4 {
   margin: 0;
-  font-size: 14px;
-  font-weight: 600;
-  color: #1f2937;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
 }
 
 .notification-close {
-  background: none;
+  background: rgba(255, 255, 255, 0.05);
   border: none;
   cursor: pointer;
-  color: #6b7280;
-  padding: 4px;
-  border-radius: 4px;
-  transition: background-color 0.2s;
+  color: #94a3b8;
+  padding: 6px;
+  border-radius: 10px;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .notification-close:hover {
-  background-color: #f3f4f6;
-  color: #374151;
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
 }
 
-.notification-toast p {
-  margin: 0 0 12px 0;
-  font-size: 13px;
-  color: #4b5563;
-  line-height: 1.4;
+.notification-body {
+  margin-bottom: 14px;
+}
+
+.notification-message {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  color: #e2e8f0;
+  line-height: 1.5;
+  font-weight: 500;
+}
+
+.notification-meta {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.price-tag {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 800;
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.order-type {
+  background: rgba(255, 255, 255, 0.05);
+  color: #94a3b8;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .notification-actions {
   display: flex;
   gap: 8px;
-  flex-wrap: wrap;
 }
 
 .notification-btn {
+  flex: 1;
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 6px 12px;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 12px;
   border: none;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 500;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 700;
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .accept-btn {
-  background-color: #10b981;
+  background: #10b981;
   color: white;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
 }
 
 .accept-btn:hover {
-  background-color: #059669;
+  background: #059669;
   transform: translateY(-1px);
 }
 
 .reject-btn {
-  background-color: #ef4444;
-  color: white;
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.2);
 }
 
 .reject-btn:hover {
-  background-color: #dc2626;
+  background: rgba(239, 68, 68, 0.2);
   transform: translateY(-1px);
 }
 
 .view-btn {
-  background-color: #3b82f6;
-  color: white;
+  background: rgba(99, 102, 241, 0.1);
+  color: #818cf8;
+  border: 1px solid rgba(99, 102, 241, 0.2);
 }
 
 .view-btn:hover {
-  background-color: #2563eb;
+  background: rgba(99, 102, 241, 0.2);
   transform: translateY(-1px);
 }
 
-@keyframes slideIn {
+.progress-bar-container {
+  height: 3px;
+  background: rgba(255, 255, 255, 0.05);
+  width: 100%;
+}
+
+.progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #6366f1, #a855f7);
+  transition: width 0.05s linear;
+}
+
+@keyframes toast-slide-in {
   from {
-    transform: translateX(100%);
+    transform: translateX(110%);
     opacity: 0;
   }
   to {
@@ -135,43 +202,11 @@
 /* Mobile responsive */
 @media (max-width: 640px) {
   .notifications-container {
-    top: 70px;
-    right: 10px;
-    left: 10px;
+    top: auto;
+    bottom: 90px;
+    right: 12px;
+    left: 12px;
+    width: auto;
     max-width: none;
-  }
-  
-  .notification-content {
-    padding: 12px;
-  }
-  
-  .notification-actions {
-    justify-content: stretch;
-  }
-  
-  .notification-btn {
-    flex: 1;
-    justify-content: center;
-  }
-}
-
-/* Dark mode support */
-@media (prefers-color-scheme: dark) {
-  .notification-toast {
-    background: #1f2937;
-    border-color: rgba(255, 255, 255, 0.1);
-  }
-  
-  .notification-header h4 {
-    color: #f9fafb;
-  }
-  
-  .notification-toast p {
-    color: #d1d5db;
-  }
-  
-  .notification-close:hover {
-    background-color: #374151;
-    color: #f9fafb;
   }
 }

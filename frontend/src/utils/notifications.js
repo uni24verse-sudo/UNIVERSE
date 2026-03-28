@@ -50,22 +50,22 @@ class NotificationManager {
   }
 
   async showOrderUpdateNotification(orderData) {
-    const { orderId, status } = orderData;
+    const { orderNumber, status } = orderData;
+    const id = orderData._id || orderData.id;
     
     const statusEmojis = {
-      'accepted': '✅',
-      'preparing': '👨‍🍳',
-      'ready': '🔔',
-      'completed': '🎉',
-      'rejected': '❌'
+      'Pending': '⏳',
+      'Confirmed': '✅',
+      'Completed': '🎉',
+      'Cancelled': '❌'
     };
 
-    const title = `${statusEmojis[status] || '📋'} Order #${orderId} ${status}`;
+    const title = `${statusEmojis[status] || '📋'} Order #${orderNumber} ${status}`;
     const body = `Your order status has been updated to: ${status}`;
 
     return this.showNotification(title, {
       body,
-      tag: `order-${orderId}`,
+      tag: `order-${id}`,
       renotify: true
     });
   }
