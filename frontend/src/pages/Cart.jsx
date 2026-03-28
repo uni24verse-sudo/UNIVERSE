@@ -108,6 +108,21 @@ const Cart = () => {
             });
 
             if (verifyRes.data.success) {
+              // Add to recent orders for tracking
+              const recentOrders = JSON.parse(localStorage.getItem('universe_recent_orders') || '[]');
+              const newOrder = {
+                id: savedOrder._id,
+                orderNumber: savedOrder.orderNumber,
+                storeName: store?.name || 'Store',
+                market: store?.market || 'Campus',
+                timestamp: Date.now(),
+                status: 'Pending'
+              };
+              
+              // Only keep unique orders, limit to 5
+              const updatedRecent = [newOrder, ...recentOrders.filter(o => o.id !== savedOrder._id)].slice(0, 5);
+              localStorage.setItem('universe_recent_orders', JSON.stringify(updatedRecent));
+              
               clearCart();
               navigate(`/order-tracker/${savedOrder._id}`);
             } else {
