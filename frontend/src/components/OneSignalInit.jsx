@@ -11,7 +11,7 @@ const OneSignalInit = () => {
     const init = async () => {
       try {
         await OneSignal.init({
-          appId: "cec6a596-a353-47ac-af3b-f007f5ceeb54",
+          appId: "a2a1bddd-7fdd-46bf-8424-dee74aeb0bdf",
           allowLocalhostAsSecureOrigin: true,
           notifyButton: { enable: true },
         });

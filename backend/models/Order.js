@@ -15,7 +15,7 @@ const OrderSchema = new mongoose.Schema({
   orderNumber: { type: String, required: true },
   items: [OrderItemSchema],
   totalAmount: { type: Number, required: true },
-  paymentMethod: { type: String, enum: ['Cash', 'UPI'], required: true },
+  paymentMethod: { type: String, enum: ['UPI'], required: true },
   status: { type: String, enum: ['Payment Pending', 'Pending', 'Confirmed', 'Completed', 'Cancelled'], default: 'Pending' },
   paymentStatus: { 
     type: String, 

@@ -2,192 +2,13 @@ import React, { useContext, useState, useEffect, useCallback } from 'react';
 import { CartContext } from '../context/CartContext';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
-import { QRCodeSVG } from 'qrcode.react';
+import { load } from '@cashfreepayments/cashfree-js';
 import {
   Trash2, Plus, Minus, ArrowLeft, CreditCard, Coins, ShoppingBag,
   ChevronRight, ShieldCheck, Store, Clock, User, Phone,
   CheckCircle, AlertCircle, X, Utensils
 } from 'lucide-react';
-
-
-const PaymentScreen = ({ 
-  show, 
-  order, 
-  total, 
-  loading, 
-  onPhonePe, 
-  onPaytm, 
-  onCancel,
-  hasPhonePe,
-  hasPaytm,
-  upiId,
-  storeName
-}) => {
-  if (!show || !order) return null;
-
-  const noDirectPayment = !hasPhonePe && !hasPaytm;
-
-  return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      background: 'rgba(0,0,0,0.9)',
-      backdropFilter: 'blur(10px)',
-      zIndex: 9999,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '1rem'
-    }}>
-      <div style={{
-        background: 'var(--glass-bg)',
-        borderRadius: '32px',
-        padding: '2rem',
-        maxWidth: '450px',
-        width: '100%',
-        border: '1px solid var(--surface-border)',
-        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
-      }}>
-        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          <h2 style={{ marginBottom: '0.5rem' }}>Final Checkout</h2>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Order #{order.orderNumber}</p>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
-             <span style={{ fontSize: '1.25rem', fontWeight: '800', color: 'var(--primary)' }}>₹{total}</span>
-             <span style={{ fontSize: '0.75rem', padding: '2px 8px', background: 'rgba(99, 102, 241, 0.1)', borderRadius: '6px', color: 'var(--primary)' }}>SECURE</span>
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          {hasPhonePe && (
-            <>
-              <p style={{ fontSize: '0.9rem', fontWeight: '700', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Select UPI Provider:</p>
-              <button
-                onClick={onPhonePe}
-                disabled={loading}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '1rem',
-                  width: '100%',
-                  padding: '1.125rem',
-                  background: '#5f259f',
-                  color: 'white',
-                  borderRadius: '16px',
-                  fontSize: '1.125rem',
-                  fontWeight: '700',
-                  border: 'none',
-                  cursor: 'pointer',
-                  boxShadow: '0 4px 12px rgba(95, 37, 159, 0.2)',
-                  transition: 'all 0.2s',
-                  opacity: loading ? 0.7 : 1
-                }}
-              >
-                <svg viewBox="0 0 24 24" style={{ height: '24px', fill: 'white' }}>
-                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/>
-                </svg>
-                {loading ? 'Processing...' : 'Pay using PhonePe'}
-              </button>
-            </>
-          )}
-
-          {hasPaytm && (
-            <button
-              onClick={onPaytm}
-              disabled={loading}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '1rem',
-                width: '100%',
-                padding: '1.125rem',
-                background: '#00baf2',
-                color: 'white',
-                borderRadius: '16px',
-                fontSize: '1.125rem',
-                fontWeight: '700',
-                border: 'none',
-                cursor: 'pointer',
-                boxShadow: '0 4px 12px rgba(0, 186, 242, 0.2)',
-                transition: 'all 0.2s',
-                opacity: loading ? 0.7 : 1
-              }}
-            >
-              <svg viewBox="0 0 24 24" style={{ height: '24px', fill: 'white' }}>
-                <path d="M4 4h16v16H4V4zm2 2v12h12V6H6zm3 3h6v6H9V9z"/>
-              </svg>
-              {loading ? 'Processing...' : 'Pay using Paytm'}
-            </button>
-          )}
-
-          {noDirectPayment && upiId && (
-            <div style={{ textAlign: 'center', padding: '1.5rem', background: 'white', borderRadius: '24px', border: '1px solid #e2e8f0' }}>
-              <p style={{ color: '#0f172a', fontWeight: '700', marginBottom: '1rem' }}>Scan and Pay to Merchant</p>
-              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }}>
-                <QRCodeSVG 
-                  value={`upi://pay?pa=${upiId}&pn=${storeName}&am=${total}&cu=INR`} 
-                  size={200}
-                />
-              </div>
-              <p style={{ fontSize: '0.8rem', color: '#64748b' }}>UPI ID: {upiId}</p>
-              <p style={{ fontSize: '0.75rem', marginTop: '0.5rem', color: 'var(--primary)', fontWeight: '700' }}>After payment, click "I Have Paid" below</p>
-            </div>
-          )}
-        </div>
-
-        <div style={{ marginTop: '2rem', padding: '1rem', background: 'rgba(99, 102, 241, 0.05)', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)' }}>
-          <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: 0, textAlign: 'center' }}>
-            {noDirectPayment ? 'Standard QR Flow Active' : 'You will be redirected to the selected app to complete payment.'}
-          </p>
-        </div>
-
-        <div style={{ marginTop: '1.5rem', display: 'flex', gap: '1rem' }}>
-          {noDirectPayment ? (
-             <button
-              onClick={() => window.location.reload()}
-              style={{
-                flex: 2,
-                padding: '1.125rem',
-                background: 'var(--primary)',
-                color: 'white',
-                borderRadius: '16px',
-                fontSize: '1rem',
-                fontWeight: '700',
-                border: 'none',
-                cursor: 'pointer'
-              }}
-            >
-              I Have Paid
-            </button>
-          ) : null}
-          <button
-            onClick={onCancel}
-            disabled={loading}
-            style={{
-              flex: 1,
-              padding: '0.875rem',
-              background: 'rgba(255,255,255,0.05)',
-              color: 'var(--error)',
-              borderRadius: '12px',
-              fontSize: '0.9rem',
-              fontWeight: '600',
-              border: '1px solid rgba(239, 68, 68, 0.2)',
-              cursor: 'pointer',
-              transition: 'var(--transition)',
-              opacity: loading ? 0.5 : 1
-            }}
-          >
-            Cancel
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
+// Legacy PaymentScreen removed
 
 const Cart = () => {
   const { cart, storeId, updateQuantity, removeFromCart, total, clearCart } = useContext(CartContext);
@@ -197,17 +18,13 @@ const Cart = () => {
   const [orderType, setOrderType] = useState('Dine In');
   const [customerPhone, setCustomerPhone] = useState('');
   const [customerName, setCustomerName] = useState('');
-  const [showPayment, setShowPayment] = useState(false);
-  const [showPaidButton, setShowPaidButton] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('Cashfree');
   const [orderPlaced, setOrderPlaced] = useState(false);
   const [currentOrder, setCurrentOrder] = useState(null);
-  const [paymentStatus, setPaymentStatus] = useState('pending');
-  const [paymentCheckInterval, setPaymentCheckInterval] = useState(null);
 
   // Calculate order totals
   const subtotal = total;
-  const deliveryFee = orderType === 'Take Away' ? 20 : 0;
+  const deliveryFee = orderType === 'Take Away' ? (store?.packagingCharge || 0) : 0;
   const platformFee = 0; // Displayed as FREE in UI
   const finalTotal = subtotal + deliveryFee + platformFee;
 
@@ -215,13 +32,6 @@ const Cart = () => {
     if (storeId) {
       fetchStore();
     }
-    // Cleanup payment check interval on unmount
-    return () => {
-      if (paymentCheckInterval) {
-        clearInterval(paymentCheckInterval);
-      }
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storeId]);
 
   const fetchStore = async () => {
@@ -232,59 +42,6 @@ const Cart = () => {
       console.error('Error fetching store:', error);
     }
   };
-
-  const generateUpiLink = useCallback(() => {
-    if (!store?.admin?.upiId || !currentOrder) return null;
-    return `upi://pay?pa=${store.admin.upiId}&pn=${store.name.replace(/ /g, '%20')}&am=${finalTotal}&cu=INR&tn=Order%20from%20UniVerse&tr=${currentOrder._id}`;
-  }, [store, currentOrder, finalTotal]);
-
-  const checkPaymentStatus = useCallback(async () => {
-    if (!currentOrder) return;
-
-    try {
-      const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/orders/${currentOrder._id}`);
-      const order = res.data;
-
-      if (order.paymentStatus === 'Confirmed') {
-        setPaymentStatus('completed');
-        if (paymentCheckInterval) {
-          clearInterval(paymentCheckInterval);
-          setPaymentCheckInterval(null);
-        }
-
-        // Save to recent orders
-        const recentOrders = JSON.parse(localStorage.getItem('universe_recent_orders') || '[]');
-        const updatedOrders = [
-          {
-            id: order._id,
-            orderNumber: order.orderNumber,
-            storeName: store?.name || 'Restaurant',
-            market: store?.market || '',
-            storeId: store?._id || '',
-            status: order.status || 'Pending',
-            timestamp: Date.now()
-          },
-          ...recentOrders.filter(o => o.id !== order._id)
-        ].slice(0, 10);
-        localStorage.setItem('universe_recent_orders', JSON.stringify(updatedOrders));
-
-        // Clear cart and redirect
-        clearCart();
-        setTimeout(() => {
-          navigate(`/order-tracker/${order._id}`);
-        }, 2000);
-      }
-    } catch (error) {
-      console.error('Error checking payment:', error);
-    }
-  }, [currentOrder, store, clearCart, navigate, paymentCheckInterval]);
-
-  const handlePaymentComplete = useCallback(() => {
-    setPaymentStatus('initiated');
-    // Start checking payment status every 3 seconds
-    const interval = setInterval(checkPaymentStatus, 3000);
-    setPaymentCheckInterval(interval);
-  }, [checkPaymentStatus]);
 
   const initiateOrder = async () => {
     if (!store) {
@@ -335,30 +92,8 @@ const Cart = () => {
         orderType
       }));
 
-      if (paymentMethod === 'Cash') {
-        // Save to recent orders BEFORE clearing cart
-        const recentOrders = JSON.parse(localStorage.getItem('universe_recent_orders') || '[]');
-        const updatedOrders = [
-          {
-            id: res.data._id,
-            orderNumber: res.data.orderNumber,
-            storeName: store?.name || 'Restaurant',
-            market: store?.market || '',
-            storeId: store?._id || '',
-            status: res.data.status || 'Pending',
-            timestamp: Date.now()
-          },
-          ...recentOrders.filter(o => o.id !== res.data._id)
-        ].slice(0, 10);
-        localStorage.setItem('universe_recent_orders', JSON.stringify(updatedOrders));
-
-        // For cash orders, go directly to tracker
-        clearCart();
-        navigate(`/order-tracker/${res.data._id}`);
-      } else {
-        // For UPI orders, show payment screen
-        setShowPayment(true);
-      }
+        // Proceed with Cashfree
+        handleCashfreePayment(res.data._id);
     } catch (error) {
       console.error('Error creating order:', error);
       alert('Failed to create order. Please try again.');
@@ -367,67 +102,25 @@ const Cart = () => {
     }
   };
 
-  const handlePhonePePayment = async () => {
+  const handleCashfreePayment = async (orderId) => {
     setLoading(true);
     try {
-      const res = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/payments/phonepe/initiate`, {
-        orderId: currentOrder._id
-      });
+      const res = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/payments/cashfree/initiate`, { orderId });
       
-      if (res.data.success && res.data.paymentUrl) {
-        // Redirect to PhonePe
-        window.location.href = res.data.paymentUrl;
+      if (res.data.success && res.data.paymentSessionId) {
+        const cashfree = await load({ mode: "sandbox" }); 
+        cashfree.checkout({
+          paymentSessionId: res.data.paymentSessionId,
+          redirectTarget: "_self"
+        });
       } else {
-        alert('Failed to get PhonePe payment link');
+        alert('Failed to get Cashfree payment session');
+        setLoading(false);
       }
     } catch (err) {
-      console.error('PhonePe Payment Error:', err);
-      alert('Error initiating PhonePe payment');
-    } finally {
+      console.error('Cashfree Payment Error:', err);
+      alert('Error initiating Cashfree payment');
       setLoading(false);
-    }
-  };
-
-  const handlePaytmPayment = async () => {
-    // Current backend returns 501 for Paytm, but we set it up on frontend
-    setLoading(true);
-    try {
-      const res = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/payments/paytm/initiate`, {
-        orderId: currentOrder._id
-      });
-      
-      if (res.data.success && res.data.paymentUrl) {
-        window.location.href = res.data.paymentUrl;
-      } else {
-        alert(res.data.message || 'Paytm integration is coming soon!');
-      }
-    } catch (err) {
-      console.error('Paytm Payment Error:', err);
-      const errorMsg = err.response?.data?.message || 'Error initiating Paytm payment';
-      alert(`Paytm Error: ${errorMsg}`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handlePaymentCancellation = async () => {
-    try {
-      // Cancel the order
-      if (currentOrder) {
-        await axios.delete(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/orders/${currentOrder._id}`);
-      }
-    } catch (err) {
-      console.error('Error cancelling order:', err);
-    } finally {
-      // Reset payment state
-      setShowPayment(false);
-      setCurrentOrder(null);
-      setPaymentStatus('pending');
-      if (paymentCheckInterval) {
-        clearInterval(paymentCheckInterval);
-        setPaymentCheckInterval(null);
-      }
-      localStorage.removeItem('universe_payment_state');
     }
   };
 
@@ -437,13 +130,13 @@ const Cart = () => {
       return;
     }
 
-    if (paymentMethod === 'UPI' && !customerPhone) {
-      alert('Please enter your phone number for UPI payment');
+    if (paymentMethod === 'Cashfree' && !customerPhone) {
+      alert('Please enter your phone number for payment');
       return;
     }
 
-    if (paymentMethod === 'UPI' && !customerName) {
-      alert('Please enter your name for UPI payment');
+    if (paymentMethod === 'Cashfree' && !customerName) {
+      alert('Please enter your name for payment');
       return;
     }
 
@@ -479,19 +172,6 @@ const Cart = () => {
 
   return (
     <>
-      <PaymentScreen 
-        show={showPayment} 
-        order={currentOrder} 
-        total={finalTotal} 
-        loading={loading}
-        onPhonePe={handlePhonePePayment}
-        onPaytm={handlePaytmPayment}
-        onCancel={handlePaymentCancellation}
-        hasPhonePe={store?.paymentStatus?.hasPhonePe}
-        hasPaytm={store?.paymentStatus?.hasPaytm}
-        upiId={store?.paymentStatus?.upiId || store?.admin?.upiId}
-        storeName={store?.name}
-      />
       <div style={{ minHeight: '100vh', padding: '2rem 1rem', maxWidth: '1000px', margin: '0 auto' }}>
         <div style={{ textAlign: 'right', marginBottom: '2rem' }}>
           <div style={{ display: 'inline-block', padding: '0.5rem 1rem', background: 'rgba(99, 102, 241, 0.1)', borderRadius: '12px', fontSize: '0.75rem', fontWeight: '700', color: 'var(--primary)' }}>
@@ -509,7 +189,11 @@ const Cart = () => {
           </div>
         </header>
 
-        <div style={{ display: 'grid', gap: '2rem', gridTemplateColumns: '1fr 1fr' }}>
+        <div className="checkout-grid" style={{ 
+          display: 'grid', 
+          gap: '2rem', 
+          gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))' 
+        }}>
           {/* Left: Items List */}
           <div>
             <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '24px' }}>
@@ -626,15 +310,15 @@ const Cart = () => {
               <h3 style={{ marginBottom: '1.5rem' }}>Payment Method</h3>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                {/* UPI Option */}
+                {/* Cashfree Option */}
                 <div
-                  onClick={() => setPaymentMethod('UPI')}
+                  onClick={() => setPaymentMethod('Cashfree')}
                   style={{
                     padding: '1.25rem',
                     borderRadius: '16px',
                     cursor: 'pointer',
-                    background: paymentMethod === 'UPI' ? 'rgba(99, 102, 241, 0.1)' : 'rgba(255,255,255,0.03)',
-                    border: `2px solid ${paymentMethod === 'UPI' ? 'var(--primary)' : 'transparent'}`,
+                    background: paymentMethod === 'Cashfree' ? 'rgba(99, 102, 241, 0.1)' : 'rgba(255,255,255,0.03)',
+                    border: `2px solid ${paymentMethod === 'Cashfree' ? 'var(--primary)' : 'transparent'}`,
                     transition: 'var(--transition)'
                   }}
                 >
@@ -643,13 +327,13 @@ const Cart = () => {
                       <CreditCard size={20} color="white" />
                     </div>
                     <div style={{ flex: 1 }}>
-                      <p style={{ margin: 0, fontWeight: '700' }}>UPI Payment</p>
-                      <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Instant & Safe</p>
+                      <p style={{ margin: 0, fontWeight: '700' }}>Pay Online</p>
+                      <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Cards, UPI, Wallets</p>
                     </div>
-                    {paymentMethod === 'UPI' && <ShieldCheck size={20} color="var(--primary)" />}
+                    {paymentMethod === 'Cashfree' && <ShieldCheck size={20} color="var(--primary)" />}
                   </div>
 
-                  {paymentMethod === 'UPI' && (
+                  {paymentMethod === 'Cashfree' && (
                     <div style={{ marginTop: '1rem', padding: '1rem', background: 'rgba(99, 102, 241, 0.05)', borderRadius: '12px' }}>
                       <label style={{ fontSize: '0.8rem', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '0.5rem', display: 'block' }}>
                         Name
@@ -672,7 +356,7 @@ const Cart = () => {
                         }}
                       />
                       <label style={{ fontSize: '0.8rem', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '0.5rem', display: 'block' }}>
-                        Phone Number (for order confirmation)
+                        Phone Number
                       </label>
                       <input
                         type="tel"
@@ -693,30 +377,6 @@ const Cart = () => {
                     </div>
                   )}
                 </div>
-
-                {/* Cash Option */}
-                <div
-                  onClick={() => setPaymentMethod('Cash')}
-                  style={{
-                    padding: '1.25rem',
-                    borderRadius: '16px',
-                    cursor: 'pointer',
-                    background: paymentMethod === 'Cash' ? 'rgba(16, 185, 129, 0.05)' : 'rgba(255,255,255,0.03)',
-                    border: `2px solid ${paymentMethod === 'Cash' ? 'var(--secondary)' : 'transparent'}`,
-                    transition: 'var(--transition)'
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                    <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'var(--secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <Coins size={20} color="white" />
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <p style={{ margin: 0, fontWeight: '700' }}>Pay with Cash</p>
-                      <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-secondary)' }}>At the counter</p>
-                    </div>
-                    {paymentMethod === 'Cash' && <ShieldCheck size={20} color="var(--secondary)" />}
-                  </div>
-                </div>
               </div>
 
               <button
@@ -727,7 +387,7 @@ const Cart = () => {
               >
                 {loading ? 'Placing Order...' : (
                   <>
-                    {paymentMethod === 'UPI' ? 'Proceed to Payment' : 'Place Order'} <ChevronRight size={20} style={{ marginLeft: '0.5rem' }} />
+                    Proceed to Payment <ChevronRight size={20} style={{ marginLeft: '0.5rem' }} />
                   </>
                 )}
               </button>
