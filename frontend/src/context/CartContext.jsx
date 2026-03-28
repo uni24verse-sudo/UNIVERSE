@@ -1,10 +1,27 @@
-import React, { createContext, useState } from 'react';
+import React, { createContext, useState, useEffect } from 'react';
 
 export const CartContext = createContext();
 
 export const CartProvider = ({ children }) => {
-  const [cart, setCart] = useState([]);
-  const [storeId, setStoreId] = useState(null);
+  // Initialize from localStorage
+  const [cart, setCart] = useState(() => {
+    const savedCart = localStorage.getItem('universe_cart');
+    return savedCart ? JSON.parse(savedCart) : [];
+  });
+  
+  const [storeId, setStoreId] = useState(() => {
+    return localStorage.getItem('universe_storeId') || null;
+  });
+
+  // Persist to localStorage whenever cart or storeId changes
+  useEffect(() => {
+    localStorage.setItem('universe_cart', JSON.stringify(cart));
+    if (storeId) {
+      localStorage.setItem('universe_storeId', storeId);
+    } else {
+      localStorage.removeItem('universe_storeId');
+    }
+  }, [cart, storeId]);
 
   const addToCart = (product, currentStoreId, variant = null) => {
     // If adding from a different store, clear cart
@@ -31,8 +48,11 @@ export const CartProvider = ({ children }) => {
   };
 
   const removeFromCart = (targetId) => {
-    setCart((prev) => prev.filter(item => (item.cartItemId || item._id) !== targetId));
-    if (cart.length === 1) setStoreId(null); // Clear store attachment if cart empties
+    setCart((prev) => {
+      const newCart = prev.filter(item => (item.cartItemId || item._id) !== targetId);
+      if (newCart.length === 0) setStoreId(null);
+      return newCart;
+    });
   };
 
   const updateQuantity = (targetId, delta) => {
@@ -48,6 +68,8 @@ export const CartProvider = ({ children }) => {
   const clearCart = () => {
     setCart([]);
     setStoreId(null);
+    localStorage.removeItem('universe_cart');
+    localStorage.removeItem('universe_storeId');
   };
 
   const total = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);

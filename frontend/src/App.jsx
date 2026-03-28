@@ -21,6 +21,7 @@ import PrivacyPolicy from './pages/PrivacyPolicy';
 import Footer from './components/Footer';
 import NotificationsToast from './components/NotificationsToast';
 import OneSignalInit from './components/OneSignalInit';
+import FloatingCart from './components/FloatingCart';
 
 function App() {
   return (
@@ -33,6 +34,7 @@ function App() {
               <Navbar />
               <RecentOrders />
               <NotificationsToast />
+              <FloatingCart />
               <div style={{ flex: 1 }}>
                 <React.Suspense fallback={<div className="auth-wrapper"><div className="pulse-container"><div className="pulse-dot"></div></div></div>}>
                   <Routes>

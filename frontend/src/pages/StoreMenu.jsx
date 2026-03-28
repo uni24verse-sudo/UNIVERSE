@@ -358,44 +358,7 @@ const StoreMenu = () => {
         </div>
       </div>
 
-      {/* Cart Summary Bar Section */}
-      {totalItems > 0 && (
-        <div style={{ 
-          position: 'fixed', 
-          bottom: '24px', 
-          left: '50%', 
-          transform: 'translateX(-50%)', 
-          width: '90%', 
-          maxWidth: '600px', 
-          zIndex: 1000 
-        }}>
-          <div onClick={() => navigate('/cart')} style={{ 
-            background: 'var(--primary)', 
-            color: 'white', 
-            padding: '1rem 1.5rem', 
-            borderRadius: '24px', 
-            display: 'flex', 
-            justifyContent: 'space-between', 
-            alignItems: 'center',
-            cursor: 'pointer',
-            boxShadow: '0 20px 40px rgba(99, 102, 241, 0.4)',
-            border: '1px solid rgba(255,255,255,0.1)'
-          }}>
-             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <div style={{ background: 'rgba(255,255,255,0.2)', padding: '0.5rem', borderRadius: '12px' }}>
-                  <ShoppingBag size={20} />
-                </div>
-                <div>
-                   <p style={{ margin: 0, fontWeight: '700', fontSize: '1rem' }}>{totalItems} Items</p>
-                   <p style={{ margin: 0, fontSize: '0.75rem', opacity: 0.8 }}>₹{cart.reduce((acc, item) => acc + (item.price * item.quantity), 0)} • View Cart</p>
-                </div>
-             </div>
-             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: '700' }}>
-                NEXT &rarr;
-             </div>
-          </div>
-        </div>
-      )}
+
 
       {/* Variant Selection Modal */}
       {showVariantModal && selectedProduct && (
