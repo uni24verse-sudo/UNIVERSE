@@ -2,7 +2,7 @@ import React, { useEffect, useState, useContext } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
-import { io } from 'socket.io-client';
+import { useSocket } from '../context/SocketContext';
 import { QRCodeSVG } from 'qrcode.react';
 import { 
   LayoutDashboard, 
@@ -32,7 +32,7 @@ const Dashboard = () => {
   const [store, setStore] = useState(null);
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [socket, setSocket] = useState(null);
+  const { socket, connected } = useSocket();
   const [orderFilter, setOrderFilter] = useState('Active');
   const [soundEnabled, setSoundEnabled] = useState(localStorage.getItem('orderSoundEnabled') !== 'false');
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
@@ -109,27 +109,43 @@ const Dashboard = () => {
     fetchStoreOrders();
   }, [store, token]);
 
+  // Join relevant store room whenever the selected store changes
   useEffect(() => {
-    if (store) {
-      const newSocket = io((import.meta.env.VITE_API_URL || 'http://localhost:5000') + '');
-      setSocket(newSocket);
-      newSocket.emit('join_store_room', store._id);
+    if (socket && connected && store) {
+      socket.emit('join_store_room', store._id);
       
-      newSocket.on('new_order', (order) => {
+      const handleNewOrder = (order) => {
         setOrders(prev => {
           const exists = prev.find(o => o._id === order._id);
-          if (exists) {
-            // Update existing order (e.g., payment verification request)
-            return prev.map(o => o._id === order._id ? order : o);
-          }
-          
-          // Truly new order
+          if (exists) return prev.map(o => o._id === order._id ? order : o);
           return [order, ...prev];
         });
-      });
-      return () => newSocket.close();
+      };
+
+      socket.on('new_order', handleNewOrder);
+      return () => socket.off('new_order', handleNewOrder);
     }
-  }, [store]);
+  }, [store, socket, connected]);
+
+  // Persistent Audio Alert System - Every 20 seconds if pending orders exist
+  useEffect(() => {
+    let interval;
+    const pendingCount = orders.filter(o => o.status === 'Pending').length;
+    
+    if (soundEnabled && pendingCount > 0) {
+      const playAlert = () => {
+        const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+        audio.volume = 0.8;
+        audio.play().catch(e => console.log('Audio blocked by browser. User interaction needed.', e));
+      };
+
+      // Play immediately and then every 20s
+      playAlert();
+      interval = setInterval(playAlert, 20000);
+    }
+    
+    return () => clearInterval(interval);
+  }, [soundEnabled, orders]);
 
   const updateOrderStatus = async (orderId, newStatus) => {
     // 1. Snapshot previous state for rollback
@@ -241,8 +257,22 @@ const Dashboard = () => {
     }
   };
 
-  return (
+   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-dark)' }}>
+      <style>{`
+        @keyframes pulse-glow {
+          0% { box-shadow: 0 0 5px rgba(245, 158, 11, 0.4), inset 0 0 5px rgba(245, 158, 11, 0.2); border-color: rgba(245, 158, 11, 0.5); }
+          50% { box-shadow: 0 0 20px rgba(245, 158, 11, 0.8), inset 0 0 10px rgba(245, 158, 11, 0.4); border-color: rgba(245, 158, 11, 1); }
+          100% { box-shadow: 0 0 5px rgba(245, 158, 11, 0.4), inset 0 0 5px rgba(245, 158, 11, 0.2); border-color: rgba(245, 158, 11, 0.5); }
+        }
+        .pending-order-glow {
+          animation: pulse-glow 2s infinite ease-in-out !important;
+          background: rgba(245, 158, 11, 0.08) !important;
+          border-width: 2px !important;
+          transform: scale(1.01);
+          z-index: 10;
+        }
+      `}</style>
       {/* Sidebar - Hidden on mobile, or shown as overlay */}
       <aside style={{ 
         width: '280px', 
@@ -505,14 +535,16 @@ const Dashboard = () => {
                     </div>
                   ) : (
                     filteredOrders.map(order => (
-                      <div key={order._id} style={{ 
+                      <div key={order._id} 
+                        className={order.status === 'Pending' ? 'pending-order-glow' : ''}
+                        style={{ 
                         padding: '1.25rem', 
                         paddingLeft: '1.5rem',
-                        background: order.status === 'Pending' ? 'rgba(245, 158, 11, 0.03)' : 'rgba(255,255,255,0.02)', 
+                        background: 'rgba(255,255,255,0.02)', 
                         borderRadius: '20px', 
                         border: '1px solid var(--surface-border)', 
                         borderLeft: `4px solid ${getStatusColor(order.status)}`,
-                        transition: 'all 0.2s ease',
+                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                         position: 'relative'
                       }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
