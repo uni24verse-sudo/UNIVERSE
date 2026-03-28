@@ -2,13 +2,11 @@ import React, { useContext, useState, useEffect, useCallback } from 'react';
 import { CartContext } from '../context/CartContext';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
-import { load } from '@cashfreepayments/cashfree-js';
 import {
   Trash2, Plus, Minus, ArrowLeft, CreditCard, Coins, ShoppingBag,
   ChevronRight, ShieldCheck, Store, Clock, User, Phone,
   CheckCircle, AlertCircle, X, Utensils
 } from 'lucide-react';
-// Legacy PaymentScreen removed
 
 const Cart = () => {
   const { cart, storeId, updateQuantity, removeFromCart, total, clearCart } = useContext(CartContext);
@@ -18,20 +16,29 @@ const Cart = () => {
   const [orderType, setOrderType] = useState('Dine In');
   const [customerPhone, setCustomerPhone] = useState('');
   const [customerName, setCustomerName] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState('Cashfree');
   const [orderPlaced, setOrderPlaced] = useState(false);
   const [currentOrder, setCurrentOrder] = useState(null);
 
   // Calculate order totals
   const subtotal = total;
   const deliveryFee = orderType === 'Take Away' ? (store?.packagingCharge || 0) : 0;
-  const platformFee = 0; // Displayed as FREE in UI
+  const platformFee = 0;
   const finalTotal = subtotal + deliveryFee + platformFee;
 
   useEffect(() => {
     if (storeId) {
       fetchStore();
     }
+    // Load Razorpay script
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.async = true;
+    document.body.appendChild(script);
+    return () => {
+      if (document.body.contains(script)) {
+        document.body.removeChild(script);
+      }
+    };
   }, [storeId]);
 
   const fetchStore = async () => {
@@ -43,23 +50,12 @@ const Cart = () => {
     }
   };
 
-  const initiateOrder = async () => {
-    if (!store) {
-      alert('Store information not available');
+  const handleCheckout = async () => {
+    if (!customerPhone || customerPhone.length < 10) {
+      alert('Please enter a valid 10-digit phone number');
       return;
     }
-
-    if (!paymentMethod) {
-      alert('Please select a payment method');
-      return;
-    }
-
-    if (paymentMethod === 'UPI' && !customerPhone) {
-      alert('Please enter your phone number');
-      return;
-    }
-
-    if (paymentMethod === 'UPI' && !customerName) {
+    if (!customerName) {
       alert('Please enter your name');
       return;
     }
@@ -67,81 +63,86 @@ const Cart = () => {
     setLoading(true);
 
     try {
+      // Step 1: Create order in our backend
       const orderData = {
         storeId,
         items: cart,
         totalAmount: finalTotal,
-        paymentMethod,
-        customerPhone: paymentMethod === 'UPI' ? customerPhone : '',
-        customerName: paymentMethod === 'UPI' ? customerName : '',
+        paymentMethod: 'Razorpay',
+        customerPhone,
+        customerName,
         orderType,
         packagingChargeApplied: deliveryFee > 0
       };
 
-      const res = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/orders/create`, orderData);
-      setCurrentOrder(res.data);
+      const orderRes = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/orders/create`, orderData);
+      const savedOrder = orderRes.data;
 
-      // Save payment state to localStorage
-      localStorage.setItem('universe_payment_state', JSON.stringify({
-        showPaymentScreen: true,
-        currentOrder: res.data,
-        paymentStatus: 'pending',
-        customerPhone,
-        customerName,
-        paymentMethod,
-        orderType
-      }));
+      // Step 2: Create Razorpay order
+      const paymentRes = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/payments/razorpay/create-order`, {
+        orderId: savedOrder._id
+      });
 
-        // Proceed with Cashfree
-        handleCashfreePayment(res.data._id);
+      if (!paymentRes.data.success) {
+        alert('Failed to initiate payment. Please try again.');
+        setLoading(false);
+        return;
+      }
+
+      // Step 3: Open Razorpay checkout
+      const options = {
+        key: paymentRes.data.keyId,
+        amount: paymentRes.data.amount,
+        currency: paymentRes.data.currency,
+        name: store?.name || 'UniVerse',
+        description: `Order #${savedOrder.orderNumber}`,
+        order_id: paymentRes.data.razorpayOrderId,
+        handler: async function (response) {
+          // Step 4: Verify payment on backend
+          try {
+            const verifyRes = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/payments/razorpay/verify`, {
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+              orderId: savedOrder._id
+            });
+
+            if (verifyRes.data.success) {
+              clearCart();
+              navigate(`/order-tracker/${savedOrder._id}`);
+            } else {
+              alert('Payment verification failed. Please contact support.');
+            }
+          } catch (err) {
+            console.error('Payment verification error:', err);
+            alert('Payment verification failed. Please contact support.');
+          }
+        },
+        prefill: {
+          name: customerName,
+          contact: customerPhone
+        },
+        theme: {
+          color: '#6366f1'
+        },
+        modal: {
+          ondismiss: function () {
+            setLoading(false);
+            // Delete the pending order if payment is cancelled
+            axios.delete(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/orders/${savedOrder._id}`).catch(() => {});
+          }
+        }
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.open();
+      setLoading(false);
+
     } catch (error) {
       console.error('Error creating order:', error);
       alert('Failed to create order. Please try again.');
-    } finally {
       setLoading(false);
     }
-  };
-
-  const handleCashfreePayment = async (orderId) => {
-    setLoading(true);
-    try {
-      const res = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/payments/cashfree/initiate`, { orderId });
-      
-      if (res.data.success && res.data.paymentSessionId) {
-        const cashfree = await load({ mode: "sandbox" }); 
-        cashfree.checkout({
-          paymentSessionId: res.data.paymentSessionId,
-          redirectTarget: "_self"
-        });
-      } else {
-        alert('Failed to get Cashfree payment session');
-        setLoading(false);
-      }
-    } catch (err) {
-      console.error('Cashfree Payment Error:', err);
-      alert('Error initiating Cashfree payment');
-      setLoading(false);
-    }
-  };
-
-  const handleCheckout = async () => {
-    if (!paymentMethod) {
-      alert('Please select a payment method');
-      return;
-    }
-
-    if (paymentMethod === 'Cashfree' && !customerPhone) {
-      alert('Please enter your phone number for payment');
-      return;
-    }
-
-    if (paymentMethod === 'Cashfree' && !customerName) {
-      alert('Please enter your name for payment');
-      return;
-    }
-
-    // Create order
-    await initiateOrder();
   };
 
   if (cart.length === 0) {
@@ -307,92 +308,84 @@ const Cart = () => {
             </div>
 
             <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '24px' }}>
-              <h3 style={{ marginBottom: '1.5rem' }}>Payment Method</h3>
+              <h3 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                <CreditCard size={20} color="var(--primary)" /> Your Details
+              </h3>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                {/* Cashfree Option */}
-                <div
-                  onClick={() => setPaymentMethod('Cashfree')}
-                  style={{
-                    padding: '1.25rem',
-                    borderRadius: '16px',
-                    cursor: 'pointer',
-                    background: paymentMethod === 'Cashfree' ? 'rgba(99, 102, 241, 0.1)' : 'rgba(255,255,255,0.03)',
-                    border: `2px solid ${paymentMethod === 'Cashfree' ? 'var(--primary)' : 'transparent'}`,
-                    transition: 'var(--transition)'
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                    <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <CreditCard size={20} color="white" />
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <p style={{ margin: 0, fontWeight: '700' }}>Pay Online</p>
-                      <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Cards, UPI, Wallets</p>
-                    </div>
-                    {paymentMethod === 'Cashfree' && <ShieldCheck size={20} color="var(--primary)" />}
-                  </div>
+                <div>
+                  <label style={{ fontSize: '0.8rem', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '0.5rem', display: 'block' }}>
+                    <User size={14} style={{ marginRight: '0.4rem', verticalAlign: 'middle' }} />
+                    Name
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Enter your name"
+                    value={customerName}
+                    onChange={(e) => setCustomerName(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '0.75rem',
+                      borderRadius: '12px',
+                      border: '1px solid rgba(99, 102, 241, 0.2)',
+                      background: 'rgba(255,255,255,0.05)',
+                      fontSize: '0.9rem',
+                      fontWeight: '600',
+                      color: 'white',
+                      outline: 'none',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.8rem', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '0.5rem', display: 'block' }}>
+                    <Phone size={14} style={{ marginRight: '0.4rem', verticalAlign: 'middle' }} />
+                    Phone Number
+                  </label>
+                  <input
+                    type="tel"
+                    placeholder="Enter 10-digit number"
+                    value={customerPhone}
+                    onChange={(e) => setCustomerPhone(e.target.value)}
+                    maxLength={10}
+                    style={{
+                      width: '100%',
+                      padding: '0.75rem',
+                      borderRadius: '12px',
+                      border: '1px solid rgba(99, 102, 241, 0.2)',
+                      background: 'rgba(255,255,255,0.05)',
+                      fontSize: '0.9rem',
+                      fontWeight: '600',
+                      color: 'white',
+                      outline: 'none',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+              </div>
 
-                  {paymentMethod === 'Cashfree' && (
-                    <div style={{ marginTop: '1rem', padding: '1rem', background: 'rgba(99, 102, 241, 0.05)', borderRadius: '12px' }}>
-                      <label style={{ fontSize: '0.8rem', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '0.5rem', display: 'block' }}>
-                        Name
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="Enter your name"
-                        value={customerName}
-                        onChange={(e) => setCustomerName(e.target.value)}
-                        style={{
-                          width: '100%',
-                          padding: '0.75rem',
-                          borderRadius: '8px',
-                          border: '1px solid rgba(99, 102, 241, 0.2)',
-                          background: 'white',
-                          fontSize: '0.9rem',
-                          fontWeight: '600',
-                          color: '#0f172a',
-                          marginBottom: '1rem'
-                        }}
-                      />
-                      <label style={{ fontSize: '0.8rem', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '0.5rem', display: 'block' }}>
-                        Phone Number
-                      </label>
-                      <input
-                        type="tel"
-                        placeholder="Enter 10-digit number"
-                        value={customerPhone}
-                        onChange={(e) => setCustomerPhone(e.target.value)}
-                        style={{
-                          width: '100%',
-                          padding: '0.75rem',
-                          borderRadius: '8px',
-                          border: '1px solid rgba(99, 102, 241, 0.2)',
-                          background: 'white',
-                          fontSize: '0.9rem',
-                          fontWeight: '600',
-                          color: '#0f172a'
-                        }}
-                      />
-                    </div>
-                  )}
+              <div style={{ marginTop: '1.5rem', padding: '1rem', background: 'rgba(99, 102, 241, 0.05)', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <ShieldCheck size={20} color="var(--primary)" />
+                <div>
+                  <p style={{ margin: 0, fontSize: '0.8rem', fontWeight: '700' }}>Secure Payment via Razorpay</p>
+                  <p style={{ margin: 0, fontSize: '0.7rem', color: 'var(--text-secondary)' }}>UPI • Cards • Wallets • Net Banking</p>
                 </div>
               </div>
 
               <button
                 onClick={handleCheckout}
                 className="btn btn-primary"
-                disabled={loading || !paymentMethod}
-                style={{ marginTop: '2rem', height: '60px', borderRadius: '16px', fontSize: '1.125rem', width: '100%' }}
+                disabled={loading || !customerName || !customerPhone}
+                style={{ marginTop: '1.5rem', height: '60px', borderRadius: '16px', fontSize: '1.125rem', width: '100%' }}
               >
-                {loading ? 'Placing Order...' : (
+                {loading ? 'Processing...' : (
                   <>
-                    Proceed to Payment <ChevronRight size={20} style={{ marginLeft: '0.5rem' }} />
+                    Pay ₹{finalTotal} <ChevronRight size={20} style={{ marginLeft: '0.5rem' }} />
                   </>
                 )}
               </button>
               <p style={{ textAlign: 'center', fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '1rem' }}>
-                Secure transaction powered by UniVerse
+                Secure transaction powered by Razorpay
               </p>
             </div>
           </div>
