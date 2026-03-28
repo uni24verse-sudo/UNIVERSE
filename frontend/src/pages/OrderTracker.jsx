@@ -1,85 +1,24 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { io } from 'socket.io-client';
-import { QRCodeSVG } from 'qrcode.react';
-import { CheckCircle2, Clock, ChefHat, PackageCheck, ArrowLeft, Home, ShoppingBag, Receipt, CreditCard, X, AlertCircle, AlertTriangle, ExternalLink } from 'lucide-react';
+import { CheckCircle2, Clock, ChefHat, PackageCheck, ArrowLeft, Home, Receipt, X } from 'lucide-react';
 
 const OrderTracker = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [upiDetails, setUpiDetails] = useState(null);
-  const [upiLoading, setUpiLoading] = useState(false);
-  const [retryLoading, setRetryLoading] = useState(false);
-
-  const handleRetryPhonePe = async () => {
-    setRetryLoading(true);
-    try {
-      const res = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/payments/phonepe/initiate`, {
-        orderId: order._id
-      });
-      if (res.data.success && res.data.paymentUrl) {
-        window.location.href = res.data.paymentUrl;
-      }
-    } catch (err) {
-      console.error(err);
-      alert('Failed to initiate payment. Please try again.');
-    } finally {
-      setRetryLoading(false);
-    }
-  };
-
-  const handleRetryPaytm = async () => {
-    setRetryLoading(true);
-    try {
-      const res = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/payments/paytm/initiate`, {
-        orderId: order._id
-      });
-      if (res.data.success && res.data.paymentUrl) {
-        window.location.href = res.data.paymentUrl;
-      }
-    } catch (err) {
-      console.error(err);
-      alert(err.response?.data?.message || 'Paytm retry failed.');
-    } finally {
-      setRetryLoading(false);
-    }
-  };
 
   useEffect(() => {
     const fetchOrder = async () => {
       try {
         const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/orders/${id}`);
         setOrder(res.data);
-        
-        // Fetch UPI details if payment is pending
-        if (res.data.paymentMethod === 'UPI' && res.data.paymentStatus !== 'Confirmed') {
-          fetchUpiDetails();
-        }
-        
-        // OneSignal Tagging for targeted notifications (only if available)
-        if (window.OneSignalDeferred && window.location.hostname === 'www.universeorder.co.in') {
-          window.OneSignalDeferred.push(function(OneSignal) {
-            OneSignal.User.addTag("orderId", id);
-          });
-        }
       } catch (err) {
         console.error(err);
       } finally {
         setLoading(false);
-      }
-    };
-
-    const fetchUpiDetails = async () => {
-      try {
-        setUpiLoading(true);
-        const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/orders/upi-details/${id}`);
-        setUpiDetails(res.data);
-      } catch (err) {
-        console.error('Error fetching UPI details:', err);
-      } finally {
-        setUpiLoading(false);
       }
     };
 
@@ -91,7 +30,6 @@ const OrderTracker = () => {
     socket.on('order_status_update', (updatedOrder) => {
       setOrder(prev => {
         if (prev && prev.status !== updatedOrder.status) {
-          // Play Sound
           if (updatedOrder.status === 'Confirmed') {
             new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3').play().catch(() => {});
           } else if (updatedOrder.status === 'Completed') {
@@ -105,13 +43,10 @@ const OrderTracker = () => {
     return () => socket.close();
   }, [id]);
 
-  const navigate = useNavigate();
-  
-  // Status config
   const statusSteps = [
     { label: 'Pending', icon: Clock, color: '#f59e0b', desc: 'Vendor is reviewing your order' },
-    { label: 'Confirmed', icon: ChefHat, color: '#3b82f6', desc: 'Great! Chef is preparing your food' },
-    { label: 'Completed', icon: PackageCheck, color: '#10b981', desc: 'Delicious! Collect your order now' }
+    { label: 'Confirmed', icon: ChefHat, color: '#3b82f6', desc: 'Great! Your order is being prepared' },
+    { label: 'Completed', icon: PackageCheck, color: '#10b981', desc: 'Your order is ready! Please collect it' }
   ];
 
   const currentStepIndex = order ? statusSteps.findIndex(s => s.label === order.status) : -1;
@@ -168,182 +103,94 @@ const OrderTracker = () => {
                  <CheckCircle2 size={48} color="#10b981" />
               ) : order.status === 'Cancelled' ? (
                  <X size={48} color="#ef4444" />
+              ) : order.status === 'Payment Pending' ? (
+                 <Clock size={48} color="#f59e0b" />
               ) : (
                  React.createElement(statusSteps[currentStepIndex >= 0 ? currentStepIndex : 0].icon, { size: 48 })
               )}
             </div>
         </div>
 
-        <h2 style={{ fontSize: '2rem', fontWeight: '800', marginBottom: '0.5rem' }}>{order.status}</h2>
+        <h2 style={{ fontSize: '2rem', fontWeight: '800', marginBottom: '0.5rem' }}>
+          {order.status === 'Payment Pending' ? 'Processing Payment...' : order.status}
+        </h2>
         <p style={{ color: 'var(--text-secondary)', fontSize: '1rem', marginBottom: '3rem' }}>
-          {statusSteps[currentStepIndex >= 0 ? currentStepIndex : 0].desc}
+          {order.status === 'Payment Pending' ? 'Your payment is being processed' :
+           order.status === 'Cancelled' ? 'This order has been cancelled' :
+           statusSteps[currentStepIndex >= 0 ? currentStepIndex : 0].desc}
         </p>
 
         {/* Timeline */}
-        <div style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', marginBottom: '3rem', padding: '0 1rem' }}>
-           <div style={{ position: 'absolute', top: '24px', left: '10%', right: '10%', height: '2px', background: 'var(--surface-border)', zIndex: 0 }}></div>
-           <div style={{ position: 'absolute', top: '24px', left: '10%', width: currentStepIndex === 0 ? '0%' : currentStepIndex === 1 ? '40%' : '80%', height: '2px', background: 'var(--primary)', zIndex: 1, transition: 'width 1s ease' }}></div>
-           
-           {statusSteps.map((step, idx) => {
-             const Icon = step.icon;
-             const isCompleted = idx < currentStepIndex;
-             const isActive = idx === currentStepIndex;
+        {order.status !== 'Payment Pending' && order.status !== 'Cancelled' && (
+          <div style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', marginBottom: '3rem', padding: '0 1rem' }}>
+             <div style={{ position: 'absolute', top: '24px', left: '10%', right: '10%', height: '2px', background: 'var(--surface-border)', zIndex: 0 }}></div>
+             <div style={{ position: 'absolute', top: '24px', left: '10%', width: currentStepIndex === 0 ? '0%' : currentStepIndex === 1 ? '40%' : '80%', height: '2px', background: 'var(--primary)', zIndex: 1, transition: 'width 1s ease' }}></div>
              
-             return (
-               <div key={idx} style={{ position: 'relative', zIndex: 10, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
-                  <div style={{ 
-                    width: '48px', 
-                    height: '48px', 
-                    borderRadius: '50%', 
-                    background: isCompleted || isActive ? 'var(--primary)' : 'var(--background)',
-                    border: '2px solid',
-                    borderColor: isCompleted || isActive ? 'var(--primary)' : 'var(--surface-border)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: isCompleted || isActive ? 'white' : 'var(--text-secondary)',
-                    boxShadow: isActive ? '0 0 20px rgba(99, 102, 241, 0.4)' : 'none'
-                  }}>
-                    {isCompleted ? <CheckCircle2 size={24} /> : <Icon size={20} />}
-                  </div>
-                  <span style={{ fontSize: '0.75rem', fontWeight: '600', color: isActive ? 'white' : 'var(--text-secondary)' }}>{step.label}</span>
-               </div>
-             );
-           })}
-        </div>
-
-        {/* UPI Payment Section (Conditional) */}
-        {order.paymentMethod === 'UPI' && (upiDetails?.upiId || order.store?.admin?.upiId) && (
-          <div style={{ background: 'white', padding: '2rem', borderRadius: '24px', marginBottom: '2rem', boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', justifyContent: 'center', marginBottom: '1.25rem' }}>
-              <CreditCard size={20} color="var(--primary)" />
-              <h3 style={{ margin: 0, color: '#0f172a', fontWeight: '800' }}>UPI Payment</h3>
-            </div>
-            
-            {/* UPI Warnings */}
-            {upiDetails?.warnings && upiDetails.warnings.length > 0 && (
-              <div style={{ 
-                background: '#fef3c7', 
-                border: '1px solid #fbbf24', 
-                borderRadius: '12px', 
-                padding: '1rem', 
-                marginBottom: '1.5rem' 
-              }}>
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
-                  <AlertTriangle size={16} color="#d97706" style={{ marginTop: '2px' }} />
-                  <div>
-                    <p style={{ margin: '0 0 0.5rem 0', color: '#92400e', fontSize: '0.875rem', fontWeight: '600' }}>
-                      ⚠️ Payment Warning
-                    </p>
-                    {upiDetails.warnings.map((warning, idx) => (
-                      <p key={idx} style={{ margin: '0 0 0.5rem 0', color: '#78350f', fontSize: '0.8rem', lineHeight: '1.4' }}>
-                        {warning}
-                      </p>
-                    ))}
-                    <p style={{ margin: '0.5rem 0 0 0', color: '#78350f', fontSize: '0.8rem' }}>
-                      <strong>Solution:</strong> Ask the vendor to upgrade to a merchant UPI ID for seamless payments.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-            
-            {order.paymentStatus === 'Pending' ? (
-              <div style={{ textAlign: 'center' }}>
-                <p style={{ color: '#64748b', fontSize: '0.875rem', marginBottom: '1.5rem', lineHeight: '1.5' }}>
-                  Your payment is currently <strong>Pending</strong>. Please complete it to finish your order.
-                </p>
-                
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                  {/* Dedicated Buttons for automated providers */}
-                  {order.paymentProvider !== 'Manual' ? (
-                    <>
-                      <button 
-                        onClick={order.paymentProvider === 'PhonePe' ? handleRetryPhonePe : handleRetryPaytm}
-                        disabled={retryLoading}
-                        className="btn btn-primary"
-                        style={{ 
-                          borderRadius: '16px', 
-                          height: '56px', 
-                          fontWeight: '800', 
-                          background: order.paymentProvider === 'PhonePe' ? '#5f259f' : '#00baf2',
-                          color: 'white',
-                          border: 'none',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '0.75rem'
-                        }}
-                      >
-                         {retryLoading ? 'Initializing...' : `Pay via ${order.paymentProvider}`} 
-                         <ExternalLink size={18} />
-                      </button>
-                      
-                      {/* Show both as fallback options if first choice failed */}
-                      <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: '0.5rem 0' }}>Or try another method:</p>
-                      
-                      <button 
-                        onClick={order.paymentProvider === 'PhonePe' ? handleRetryPaytm : handleRetryPhonePe}
-                        disabled={retryLoading}
-                        style={{ 
-                          borderRadius: '16px', 
-                          height: '50px', 
-                          fontWeight: '600', 
-                          background: 'rgba(255,255,255,0.05)',
-                          color: 'white',
-                          border: '1px solid rgba(255,255,255,0.1)',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        {order.paymentProvider === 'PhonePe' ? 'Pay via Paytm' : 'Pay via PhonePe'}
-                      </button>
-                    </>
-                  ) : (
-                    /* Legacy QR Flow for Manual UPI */
-                    <>
-                      <div style={{ display: 'inline-block', padding: '1rem', background: '#f8fafc', borderRadius: '16px', marginBottom: '1rem' }}>
-                        <QRCodeSVG 
-                          value={upiDetails?.qrData || `upi://pay?pa=${order.store.admin.upiId}&pn=${order.store.name.replace(/ /g, '%20')}&am=${order.totalAmount}&cu=INR&tn=Order%20${order.orderNumber}&tr=${order._id}`} 
-                          size={180} 
-                        />
-                      </div>
-                      <button 
-                        onClick={async () => {
-                          try {
-                            const res = await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/orders/${order._id}/request-verification`);
-                            setOrder(res.data);
-                          } catch { 
-                            alert('Request failed'); 
-                          }
-                        }}
-                        className="btn btn-primary"
-                        style={{ borderRadius: '12px', height: '54px', fontWeight: '800' }}
-                      >
-                        I've Made the Payment
-                      </button>
-                    </>
-                  )}
-                </div>
-              </div>
-            ) : order.paymentStatus === 'Verification Requested' ? (
-              <div style={{ padding: '1rem', background: 'rgba(59, 130, 246, 0.05)', borderRadius: '16px', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
-                 <p style={{ color: '#2563eb', fontWeight: '700', margin: 0 }}>Payment Reported</p>
-                 <p style={{ color: '#64748b', fontSize: '0.8rem', marginTop: '0.5rem' }}>The vendor is verifying your transaction. Please stay on this page.</p>
-              </div>
-            ) : order.paymentStatus === 'Confirmed' ? (
-              <div style={{ padding: '1rem', background: 'rgba(16, 185, 129, 0.05)', borderRadius: '16px', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
-                 <p style={{ color: '#10b981', fontWeight: '700', margin: 0 }}>Payment Verified ✅</p>
-                 <p style={{ color: '#64748b', fontSize: '0.8rem', marginTop: '0.4rem' }}>Your payment of ₹{order.totalAmount} has been confirmed automatically.</p>
-              </div>
-            ) : null}
+             {statusSteps.map((step, idx) => {
+               const Icon = step.icon;
+               const isCompleted = idx < currentStepIndex;
+               const isActive = idx === currentStepIndex;
+               
+               return (
+                 <div key={idx} style={{ position: 'relative', zIndex: 10, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
+                    <div style={{ 
+                      width: '48px', 
+                      height: '48px', 
+                      borderRadius: '50%', 
+                      background: isCompleted || isActive ? 'var(--primary)' : 'var(--background)',
+                      border: '2px solid',
+                      borderColor: isCompleted || isActive ? 'var(--primary)' : 'var(--surface-border)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: isCompleted || isActive ? 'white' : 'var(--text-secondary)',
+                      boxShadow: isActive ? '0 0 20px rgba(99, 102, 241, 0.4)' : 'none'
+                    }}>
+                      {isCompleted ? <CheckCircle2 size={24} /> : <Icon size={20} />}
+                    </div>
+                    <span style={{ fontSize: '0.75rem', fontWeight: '600', color: isActive ? 'white' : 'var(--text-secondary)' }}>{step.label}</span>
+                 </div>
+               );
+             })}
           </div>
         )}
 
-        {/* Breakdown */}
+        {/* Payment Status */}
+        <div style={{ 
+          padding: '1rem', 
+          borderRadius: '16px', 
+          marginBottom: '2rem',
+          background: order.paymentStatus === 'Confirmed' ? 'rgba(16, 185, 129, 0.05)' : 'rgba(245, 158, 11, 0.05)',
+          border: `1px solid ${order.paymentStatus === 'Confirmed' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(245, 158, 11, 0.2)'}`
+        }}>
+          <p style={{ 
+            fontWeight: '700', 
+            margin: 0,
+            color: order.paymentStatus === 'Confirmed' ? '#10b981' : '#f59e0b'
+          }}>
+            {order.paymentStatus === 'Confirmed' ? '✅ Payment Confirmed' : '⏳ Payment Processing'}
+          </p>
+          <p style={{ color: '#64748b', fontSize: '0.8rem', marginTop: '0.4rem' }}>
+            {order.paymentStatus === 'Confirmed' 
+              ? `₹${order.totalAmount} paid via Razorpay` 
+              : 'Your payment is being verified...'}
+          </p>
+        </div>
+
+        {/* Order Summary */}
         <div style={{ textAlign: 'left', background: 'rgba(255,255,255,0.02)', padding: '1.5rem', borderRadius: '18px', border: '1px solid var(--surface-border)', marginBottom: '2rem' }}>
            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '1.25rem' }}>
               <Receipt size={18} color="var(--primary)" />
               <h4 style={{ margin: 0 }}>Order Summary</h4>
+           </div>
+
+           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem', fontSize: '0.85rem' }}>
+             <span style={{ color: 'var(--text-secondary)' }}>Store</span>
+             <span style={{ fontWeight: '700' }}>{order.store?.name || 'Store'}</span>
+           </div>
+           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem', fontSize: '0.85rem' }}>
+             <span style={{ color: 'var(--text-secondary)' }}>Order Type</span>
+             <span style={{ fontWeight: '700' }}>{order.orderType}</span>
            </div>
            
            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -380,7 +227,7 @@ const OrderTracker = () => {
            </div>
            
            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '1.5rem', paddingTop: '1.25rem', borderTop: '1px dashed var(--surface-border)', fontWeight: '800', fontSize: '1.25rem' }}>
-             <span>{order.paymentMethod === 'UPI' ? 'Total' : 'Pay via Cash'}</span>
+             <span>Total Paid</span>
              <span style={{ color: 'var(--secondary)' }}>₹{order.totalAmount}</span>
            </div>
         </div>

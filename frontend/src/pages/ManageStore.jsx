@@ -17,7 +17,6 @@ const ManageStore = () => {
   const [storeCategory, setStoreCategory] = useState('');
   const [storeMarket, setStoreMarket] = useState('');
   const [storePackagingCharge, setStorePackagingCharge] = useState(0);
-  const [adminUpiId, setAdminUpiId] = useState('');
   const [isEditingStore, setIsEditingStore] = useState(false);
   const [updatingStore, setUpdatingStore] = useState(false);
   const [storeImageFile, setStoreImageFile] = useState(null);

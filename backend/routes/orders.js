@@ -9,8 +9,6 @@ const notificationService = require('../services/notificationService');
 // Helper to generate a unique 4-digit order number
 const generateOrderNumber = () => Math.floor(1000 + Math.random() * 9000).toString();
 
-// Get UPI setup recommendations removed
-
 // Create a new Order (Public Customer endpoint)
 router.post('/create', async (req, res) => {
   try {
@@ -34,26 +32,8 @@ router.post('/create', async (req, res) => {
 
     const savedOrder = await newOrder.save();
 
-
-
-    // OneSignal Push Notification for Vendor (Modern ID Targeting)
-    try {
-      if (store.admin) {
-        const notificationData = {
-          title: '🍔 New Order Received!',
-          body: `Order #${savedOrder.orderNumber} - ₹${savedOrder.totalAmount}`,
-          orderId: savedOrder._id,
-          type: 'new_order',
-          clickAction: `/vendor/dashboard`
-        };
-
-        const vendorId = store.admin._id || store.admin;
-        await notificationService.sendToUser(vendorId, notificationData);
-        console.log(`OneSignal notification triggered for vendor: ${vendorId}`);
-      }
-    } catch (pushErr) {
-      console.error('Vendor Push Notification Error:', pushErr.message);
-    }
+    // Don't notify vendor yet - wait for payment confirmation via Razorpay verify endpoint
+    console.log(`Order #${savedOrder.orderNumber} created, awaiting payment...`);
 
     res.status(201).json(savedOrder);
   } catch (err) {
@@ -82,7 +62,6 @@ router.put('/:id/status', auth, async (req, res) => {
   try {
     const { status } = req.body;
     
-    // Security check: Make sure order belongs to this vendor
     const order = await Order.findById(req.params.id).populate('store');
     if (!order) return res.status(404).json({ message: 'Order not found' });
     if (order.store.admin.toString() !== req.admin._id) {
@@ -92,7 +71,7 @@ router.put('/:id/status', auth, async (req, res) => {
     order.status = status;
     const updatedOrder = await order.save();
 
-    // Notify customer about status update using Socket.io
+    // Notify customer about status update
     const io = req.app.get('io');
     io.to(updatedOrder._id.toString()).emit('order_status_update', updatedOrder);
 
@@ -102,109 +81,18 @@ router.put('/:id/status', auth, async (req, res) => {
   }
 });
 
-// Accept Order (Vendor)
-router.put('/:id/accept', auth, async (req, res) => {
-  try {
-    const order = await Order.findById(req.params.id).populate('store');
-    if (!order) return res.status(404).json({ message: 'Order not found' });
-    if (order.store.admin.toString() !== req.admin._id) {
-      return res.status(403).json({ message: 'Unauthorized' });
-    }
-
-    order.status = 'Accepted';
-    const updatedOrder = await order.save();
-
-    // Notify customer about order acceptance
-    const io = req.app.get('io');
-    io.to(updatedOrder._id.toString()).emit('order_update', updatedOrder);
-
-    res.json(updatedOrder);
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-});
-
-// Reject Order (Vendor)
-router.put('/:id/reject', auth, async (req, res) => {
-  try {
-    const order = await Order.findById(req.params.id).populate('store');
-    if (!order) return res.status(404).json({ message: 'Order not found' });
-    if (order.store.admin.toString() !== req.admin._id) {
-      return res.status(403).json({ message: 'Unauthorized' });
-    }
-
-    order.status = 'Rejected';
-    const updatedOrder = await order.save();
-
-    // Notify customer about order rejection
-    const io = req.app.get('io');
-    io.to(updatedOrder._id.toString()).emit('order_update', updatedOrder);
-
-    res.json(updatedOrder);
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-});
-
-// Request Payment Verification (Customer)
-router.put('/:id/request-verification', async (req, res) => {
-  try {
-    const order = await Order.findById(req.params.id);
-    if (!order) return res.status(404).json({ message: 'Order not found' });
-    
-    order.paymentStatus = 'Verification Requested';
-    const savedOrder = await order.save();
-    
-    // Notify vendor
-    const io = req.app.get('io');
-    io.to(order.store.toString()).emit('new_order', savedOrder); // Resend as update
-    
-    res.json(savedOrder);
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-});
-
-// Verify Payment (Vendor)
-router.put('/:id/verify-payment', auth, async (req, res) => {
-  try {
-    const order = await Order.findById(req.params.id).populate('store');
-    if (!order) return res.status(404).json({ message: 'Order not found' });
-    if (order.store.admin.toString() !== req.admin._id) return res.status(403).json({ message: 'Unauthorized' });
-    
-    order.paymentStatus = 'Confirmed';
-    order.status = 'Confirmed';
-    const savedOrder = await order.save();
-    
-    // Notify customer
-    const io = req.app.get('io');
-    io.to(order._id.toString()).emit('order_status_update', savedOrder);
-    
-    // Notify vendor about new confirmed order (for UPI orders)
-    if (order.paymentMethod === 'UPI') {
-      io.to(order.store.toString()).emit('new_order', savedOrder);
-    }
-    
-    res.json(savedOrder);
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-});
-
-// Cancel Order (Customer)
+// Cancel Order (Customer - only if Payment Pending)
 router.delete('/:id', async (req, res) => {
   try {
     const order = await Order.findById(req.params.id);
     if (!order) return res.status(404).json({ message: 'Order not found' });
     
-    // Only allow cancellation of orders with 'Payment Pending' status
     if (order.status !== 'Payment Pending') {
       return res.status(400).json({ message: 'Order cannot be cancelled at this stage' });
     }
     
     await Order.findByIdAndDelete(req.params.id);
     
-    // Notify vendor about cancellation
     const io = req.app.get('io');
     io.to(order.store.toString()).emit('order_cancelled', order);
     
@@ -219,7 +107,7 @@ router.get('/:id', async (req, res) => {
   try {
     const order = await Order.findById(req.params.id).populate({
       path: 'store',
-      populate: { path: 'admin', select: 'upiId name' }
+      populate: { path: 'admin', select: 'name' }
     });
     if (!order) return res.status(404).json({ message: 'Order not found' });
     res.json(order);

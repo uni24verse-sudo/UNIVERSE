@@ -15,18 +15,19 @@ const OrderSchema = new mongoose.Schema({
   orderNumber: { type: String, required: true },
   items: [OrderItemSchema],
   totalAmount: { type: Number, required: true },
-  paymentMethod: { type: String, enum: ['UPI', 'Razorpay'], required: true },
-  status: { type: String, enum: ['Payment Pending', 'Pending', 'Confirmed', 'Completed', 'Cancelled'], default: 'Pending' },
+  paymentMethod: { type: String, enum: ['Razorpay', 'UPI'], default: 'Razorpay' },
+  status: { type: String, enum: ['Payment Pending', 'Pending', 'Confirmed', 'Completed', 'Cancelled'], default: 'Payment Pending' },
   paymentStatus: { 
     type: String, 
-    enum: ['Pending', 'Verification Requested', 'Confirmed', 'Refund Requested', 'Refunded'], 
+    enum: ['Pending', 'Confirmed', 'Failed'], 
     default: 'Pending' 
   },
   orderType: { type: String, enum: ['Dine In', 'Take Away'], default: 'Dine In' },
   packagingChargeApplied: { type: Number, default: 0 },
   customerPhone: { type: String },
+  customerName: { type: String },
   transactionId: { type: String, unique: true, sparse: true },
-  paymentProvider: { type: String, enum: ['Razorpay', 'Manual'], default: 'Razorpay' }
+  paymentProvider: { type: String, default: 'Razorpay' }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Order', OrderSchema);

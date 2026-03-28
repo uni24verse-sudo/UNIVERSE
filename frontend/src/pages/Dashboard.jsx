@@ -559,18 +559,18 @@ const Dashboard = () => {
                                 fontSize: '0.65rem',
                                 fontWeight: '900',
                                 textTransform: 'uppercase',
-                                background: order.paymentMethod === 'UPI' ? 'rgba(139, 92, 246, 0.15)' : 'rgba(16, 185, 129, 0.15)',
-                                color: order.paymentMethod === 'UPI' ? '#c4b5fd' : '#10b981',
-                                border: `1px solid ${order.paymentMethod === 'UPI' ? '#8b5cf688' : '#10b98188'}`,
+                                background: order.paymentStatus === 'Confirmed' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)',
+                                color: order.paymentStatus === 'Confirmed' ? '#10b981' : '#f59e0b',
+                                border: `1px solid ${order.paymentStatus === 'Confirmed' ? '#10b98188' : '#f59e0b88'}`,
                                 display: 'flex',
                                 alignItems: 'center',
                                 gap: '0.2rem'
                               }}>
-                                {order.paymentMethod === 'UPI' ? '📱 UPI' : '💵 CASH'}
-                                {order.paymentMethod === 'UPI' && order.paymentStatus === 'Confirmed' && (
+                                💳 ONLINE
+                                {order.paymentStatus === 'Confirmed' && (
                                   <span style={{ marginLeft: '4px', color: '#10b981' }}>● PAID</span>
                                 )}
-                                {order.paymentMethod === 'UPI' && order.paymentStatus !== 'Confirmed' && (
+                                {order.paymentStatus !== 'Confirmed' && (
                                   <span style={{ marginLeft: '4px', color: '#f59e0b' }}>● UNPAID</span>
                                 )}
                               </span>
