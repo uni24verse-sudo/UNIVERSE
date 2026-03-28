@@ -23,6 +23,7 @@ const ManageStore = () => {
   const [storeImageFile, setStoreImageFile] = useState(null);
   const [updatingImage, setUpdatingImage] = useState(false);
   const storeImageInputRef = useRef(null);
+  const [testingFCM, setTestingFCM] = useState(false);
 
   // AI Scan States
 
