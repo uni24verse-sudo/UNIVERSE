@@ -1,131 +1,84 @@
-const { Client, LocalAuth } = require('whatsapp-web.js');
-const qrcode = require('qrcode');
-const path = require('path');
+const axios = require('axios');
 
 class WhatsAppService {
   constructor() {
-    this.client = new Client({
-      authStrategy: new LocalAuth({
-        dataPath: path.join(__dirname, '../.wwebjs_auth')
-      }),
-      puppeteer: {
-        headless: true,
-        handleSIGINT: false,
-        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/opt/render/.cache/puppeteer/chrome/linux-146.0.7680.153/chrome-linux64/chrome', 
-        args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-          '--disable-accelerated-2d-canvas',
-          '--no-first-run',
-          '--no-zygote',
-          '--single-process', 
-          '--disable-gpu'
-        ],
-      }
-    });
-
-    this.qrCode = null;
-    this.status = 'disconnected'; // disconnected, initializing, qr_ready, connected
-
-    this.setupEventListeners();
+    this.status = 'ready'; // CallMeBot is always ready as it's a REST API
+    console.log('--- WhatsApp Service: CallMeBot Integration Active ---');
   }
 
-  setupEventListeners() {
-    this.client.on('qr', (qr) => {
-      qrcode.toDataURL(qr, (err, url) => {
-        if (!err) {
-          this.qrCode = url;
-          this.status = 'qr_ready';
-          console.log('✅ WhatsApp QR Code generated and shared for scanning.');
-        }
-      });
-    });
-
-    this.client.on('ready', () => {
-      this.status = 'connected';
-      this.qrCode = null;
-      console.log('🚀 SUCCESS: WhatsApp Client is ready and connected!');
-    });
-
-    this.client.on('authenticated', () => {
-      console.log('🔑 WhatsApp Authenticated successfully.');
-    });
-
-    this.client.on('auth_failure', (msg) => {
-      this.status = 'disconnected';
-      console.error('❌ WhatsApp Auth failure:', msg);
-    });
-
-    this.client.on('disconnected', (reason) => {
-      this.status = 'disconnected';
-      console.log('⚠️ WhatsApp disconnected (Reason):', reason);
-    });
-  }
-
-  async start() {
-    if (this.status === 'connected' || this.status === 'initializing' || this.status === 'qr_ready') {
-      console.log(`WhatsApp already in state: ${this.status}. Skipping initialization.`);
-      return;
-    }
-
-    console.log('--- WhatsApp Service: Manual Start Triggered ---');
-    this.status = 'initializing';
-    
-    try {
-      console.log('Launching Puppeteer browser...');
-      await this.client.initialize();
-      console.log('WhatsApp initialization command sent to client.');
-    } catch (err) {
-      this.status = 'disconnected';
-      console.error('❌ CRITICAL: Failed to start WhatsApp client:', err.message);
-      throw err;
-    }
-  }
-
-  getStatus() {
-    return {
-      status: this.status,
-      qrCode: this.qrCode
-    };
-  }
-
-  async sendMessage(number, message) {
-    if (this.status !== 'connected') {
-      console.warn('WhatsApp not connected. Cannot send message to:', number);
+  /**
+   * Send a message via CallMeBot API
+   * @param {string} number - Destination phone number (e.g. 919876543210)
+   * @param {string} apiKey - Vendor's CallMeBot API Key
+   * @param {string} message - Message text
+   */
+  async sendMessage(number, apiKey, message) {
+    if (!apiKey) {
+      console.warn('Skipping WhatsApp: No API Key provided for number', number);
       return false;
     }
 
     try {
+      // Sanitize number: Remove non-numeric characters and ensure it has 91 prefix for India if 10 digits
       let cleanNumber = number.replace(/\D/g, '');
       if (cleanNumber.length === 10) {
         cleanNumber = '91' + cleanNumber;
       }
+
+      // Encode message for URL
+      const encodedMessage = encodeURIComponent(message);
       
-      const chatId = cleanNumber + '@c.us';
-      await this.client.sendMessage(chatId, message);
-      console.log(`WhatsApp message sent successfully to ${cleanNumber}`);
-      return true;
+      // CallMeBot Endpoint
+      const url = `https://api.callmebot.com/whatsapp.php?phone=${cleanNumber}&text=${encodedMessage}&apikey=${apiKey}`;
+      
+      console.log(`Forwarding WhatsApp alert to CallMeBot for ${cleanNumber}...`);
+      
+      const response = await axios.get(url);
+      
+      if (response.status === 200) {
+        console.log(`✅ WhatsApp message sent successfully via CallMeBot to ${cleanNumber}`);
+        return true;
+      } else {
+        console.error('❌ CallMeBot returned non-200 status:', response.status);
+        return false;
+      }
     } catch (err) {
-      console.error('Error sending WhatsApp message:', err);
+      console.error('❌ Error sending WhatsApp via CallMeBot:', err.message);
       return false;
     }
   }
 
+  /**
+   * Specific helper for order alerts
+   */
   async sendOrderAlert(admin, order) {
-    if (!admin.whatsappNumber) {
-      console.log('Skipping WhatsApp alert: No whatsappNumber for admin.');
+    if (!admin.whatsappNumber || !admin.whatsappApiKey) {
+      console.log('Skipping WhatsApp alert: Missing number or API key for vendor.');
       return;
     }
 
     const message = `🔔 *UniVerse Order Alert!*\n\n` +
-      `New Order *#${order.orderNumber}* has been received.\n` +
+      `New Order *#${order.orderNumber}* received.\n` +
       `💰 Amount: ₹${order.totalAmount}\n` +
       `👤 Customer: ${order.customerName || 'Customer'}\n` +
       `🏪 Store: ${order.store?.name || 'Your Store'}\n\n` +
-      `👉 Manage here: https://www.universeorder.co.in/vendor/dashboard`;
+      `👉 View: https://www.universeorder.co.in/vendor/dashboard`;
 
-    return this.sendMessage(admin.whatsappNumber, message);
+    return this.sendMessage(admin.whatsappNumber, admin.whatsappApiKey, message);
+  }
+
+  // Mock getStatus for dashboard compatibility
+  getStatus() {
+    return {
+      status: 'connected', // Always show connected for CallMeBot
+      qrCode: null
+    };
+  }
+  
+  // Mock start for dashboard compatibility
+  async start() {
+    console.log('CallMeBot service is always active. No browser needed.');
+    return true;
   }
 }
 
