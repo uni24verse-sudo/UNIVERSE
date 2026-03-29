@@ -17,17 +17,22 @@ class WhatsAppService {
     this.qrCode = null;
     this.status = 'initializing'; // initializing, qr_ready, connected, disconnected
 
+    console.log('--- WhatsApp Service Initializing... ---');
     this.initialize();
   }
 
   initialize() {
+    console.log('Attempting to initialize WhatsApp client...');
     this.client.on('qr', (qr) => {
+      console.log('WhatsApp QR Code received by service. Converting to DataURL...');
       // Generate a Data URL for the QR code so it can be easily displayed in the frontend
       qrcode.toDataURL(qr, (err, url) => {
         if (!err) {
           this.qrCode = url;
           this.status = 'qr_ready';
-          console.log('WhatsApp QR Code generated. Scan it from the dashboard.');
+          console.log('✅ WhatsApp QR Code generated successfully. Scan it from the dashboard.');
+        } else {
+          console.error('❌ Error generating QR DataURL:', err);
         }
       });
     });
@@ -35,27 +40,30 @@ class WhatsAppService {
     this.client.on('ready', () => {
       this.status = 'connected';
       this.qrCode = null;
-      console.log('WhatsApp Client is ready and connected!');
+      console.log('🚀 SUCCESS: WhatsApp Client is ready and connected!');
     });
 
     this.client.on('authenticated', () => {
-      console.log('WhatsApp Authenticated');
+      console.log('🔑 WhatsApp Authenticated successfully.');
     });
 
     this.client.on('auth_failure', (msg) => {
       this.status = 'disconnected';
-      console.error('WhatsApp Auth failure:', msg);
+      console.error('❌ WhatsApp Auth failure:', msg);
     });
 
     this.client.on('disconnected', (reason) => {
       this.status = 'disconnected';
-      console.log('WhatsApp disconnected:', reason);
+      console.log('⚠️ WhatsApp disconnected (Reason):', reason);
       // Try to re-initialize
+      console.log('Re-initializing WhatsApp client...');
       this.client.initialize();
     });
 
-    this.client.initialize().catch(err => {
-      console.error('Failed to initialize WhatsApp client:', err);
+    this.client.initialize().then(() => {
+      console.log('initialization process started...');
+    }).catch(err => {
+      console.error('❌ CRITICAL: Failed to initialize WhatsApp client:', err.message);
     });
   }
 
