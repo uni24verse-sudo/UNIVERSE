@@ -710,6 +710,8 @@ const Dashboard = () => {
                 </div>
               )}
 
+              <WhatsAppStatus />
+
               <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '24px', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '0.5rem', background: 'var(--primary)', color: 'white' }}>
                  <p style={{ fontSize: '0.875rem', fontWeight: '600', opacity: 0.8 }}>Store Visibility</p>
                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>

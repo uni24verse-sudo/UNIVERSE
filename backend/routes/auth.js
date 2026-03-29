@@ -9,7 +9,7 @@ const notificationService = require('../services/notificationService');
 // Register
 router.post('/register', async (req, res) => {
   try {
-    const { name, email, password, upiId } = req.body;
+    const { name, email, password, whatsappNumber } = req.body;
 
     // Check if admin exists
     const existingAdmin = await Admin.findOne({ email });
@@ -20,7 +20,7 @@ router.post('/register', async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, salt);
 
     // Create new admin
-    const newAdmin = new Admin({ name, email, password: hashedPassword, upiId });
+    const newAdmin = new Admin({ name, email, password: hashedPassword, whatsappNumber });
     await newAdmin.save();
 
     res.status(201).json({ message: 'Vendor registered successfully' });
@@ -49,7 +49,15 @@ router.post('/login', async (req, res) => {
 
     // Create and assign token
     const token = jwt.sign({ _id: admin._id, name: admin.name }, process.env.JWT_SECRET, { expiresIn: '10h' });
-    res.header('Authorization', token).json({ token, admin: { id: admin._id, name: admin.name, email: admin.email, upiId: admin.upiId } });
+    res.header('Authorization', token).json({ 
+      token, 
+      admin: { 
+        id: admin._id, 
+        name: admin.name, 
+        email: admin.email, 
+        whatsappNumber: admin.whatsappNumber 
+      } 
+    });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -59,7 +67,7 @@ router.post('/login', async (req, res) => {
 router.put('/update-profile', auth, async (req, res) => {
   try {
     const { 
-      name, upiId, 
+      name, whatsappNumber,
       phonepeMerchantId, phonepeSaltKey, phonepeSaltIndex,
       paytmMerchantId, paytmMerchantKey, paytmWebsite, paytmEnv
     } = req.body;
@@ -68,7 +76,7 @@ router.put('/update-profile', auth, async (req, res) => {
     if (!admin) return res.status(404).json({ message: 'Vendor not found' });
 
     if (name) admin.name = name;
-    if (upiId !== undefined) admin.upiId = upiId;
+    if (whatsappNumber !== undefined) admin.whatsappNumber = whatsappNumber;
     
     // Update Payment Credentials
     if (phonepeMerchantId !== undefined) admin.phonepeMerchantId = phonepeMerchantId;
@@ -87,7 +95,7 @@ router.put('/update-profile', auth, async (req, res) => {
         id: admin._id, 
         name: admin.name, 
         email: admin.email, 
-        upiId: admin.upiId,
+        whatsappNumber: admin.whatsappNumber,
         phonepeMerchantId: admin.phonepeMerchantId,
         phonepeSaltKey: admin.phonepeSaltKey,
         phonepeSaltIndex: admin.phonepeSaltIndex,
