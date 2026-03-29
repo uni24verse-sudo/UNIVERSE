@@ -57,11 +57,14 @@ class WhatsAppService {
       return;
     }
 
+    const itemList = order.items?.map(item => `• ${item.name} *(x${item.quantity})*`).join('\n') || 'No items listed';
+
     const message = `🔔 *UniVerse Order Alert!*\n\n` +
       `New Order *#${order.orderNumber}* received.\n` +
       `💰 Amount: ₹${order.totalAmount}\n` +
       `👤 Customer: ${order.customerName || 'Customer'}\n` +
       `🏪 Store: ${order.store?.name || 'Your Store'}\n\n` +
+      `📦 *Items Ordered:*\n${itemList}\n\n` +
       `👉 View: https://www.universeorder.co.in/vendor/dashboard`;
 
     return this.sendMessage(admin.whatsappNumber, admin.whatsappApiKey, message);
