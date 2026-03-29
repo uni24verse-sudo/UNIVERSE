@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
+import WhatsAppStatus from '../components/WhatsAppStatus';
 import { QRCodeSVG } from 'qrcode.react';
 import { 
   LayoutDashboard, 
