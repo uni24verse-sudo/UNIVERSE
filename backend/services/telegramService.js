@@ -56,10 +56,10 @@ class TelegramService {
 
     const message = `🔔 <b>UniVerse Order Alert!</b>\n\n` +
       `New Order <b>#${order.orderNumber}</b> received.\n` +
+      `📦 <b>Items Ordered:</b>\n${itemList}\n\n` +
       `💰 Amount: <b>₹${order.totalAmount}</b>\n` +
       `👤 Customer: ${order.customerName || 'Customer'}\n` +
       `🏪 Store: ${store?.name || 'Your Store'}\n\n` +
-      `📦 <b>Items Ordered:</b>\n${itemList}\n\n` +
       `👉 <b><a href="https://www.universeorder.co.in/vendor/dashboard">Open Dashboard</a></b>`;
  
     return this.sendMessage(chatId, message);
