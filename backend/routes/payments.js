@@ -81,6 +81,7 @@ router.post('/razorpay/verify', async (req, res) => {
     const io = req.app.get('io');
     io.to(order.store._id.toString()).emit('new_order', order);
 
+    /*
     // Push notification to vendor
     if (order.store && order.store.admin) {
       const notificationData = {
@@ -92,6 +93,7 @@ router.post('/razorpay/verify', async (req, res) => {
       };
       await notificationService.sendToUser(order.store.admin._id || order.store.admin, notificationData);
     }
+    */
 
     console.log(`Order #${order.orderNumber} successfully paid via Razorpay.`);
 

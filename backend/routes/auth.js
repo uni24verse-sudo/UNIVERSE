@@ -111,34 +111,11 @@ router.put('/update-profile', auth, async (req, res) => {
 
 
 
+/*
 // Test OneSignal Notification
 router.post('/test-fcm', auth, async (req, res) => {
-  try {
-    const admin = await Admin.findById(req.admin._id);
-    if (!admin) {
-      return res.status(404).json({ message: 'Admin not found' });
-    }
-
-    const testData = {
-      title: '🔔 OneSignal Test',
-      body: 'If you see this, your background notifications are working perfectly with OneSignal!',
-      type: 'test',
-      clickAction: '/vendor/dashboard'
-    };
-
-    const result = await notificationService.sendToUser(admin._id, testData);
-    
-    if (result.success) {
-      res.json({ message: 'Test notification sent successfully!', data: result.data });
-    } else {
-      res.status(500).json({ 
-        message: 'Failed to send test notification via OneSignal',
-        error: result.error
-      });
-    }
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
+  // ... code ...
 });
+*/
 
 module.exports = router;

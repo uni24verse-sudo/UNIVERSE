@@ -20,13 +20,13 @@ import TermsAndConditions from './pages/TermsAndConditions';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import Footer from './components/Footer';
 import NotificationsToast from './components/NotificationsToast';
-import OneSignalInit from './components/OneSignalInit';
+// import OneSignalInit from './components/OneSignalInit';
 import FloatingCart from './components/FloatingCart';
 
 function App() {
   return (
     <AuthProvider>
-      <OneSignalInit />
+      {/* <OneSignalInit /> */}
       <SocketProvider>
         <CartProvider>
           <Router>
