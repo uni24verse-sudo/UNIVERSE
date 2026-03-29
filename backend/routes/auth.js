@@ -65,9 +65,7 @@ router.post('/login', async (req, res) => {
 // Update Profile
 router.put('/update-profile', auth, async (req, res) => {
   try {
-    const { 
-      paytmMerchantId, paytmMerchantKey, paytmWebsite, paytmEnv
-    } = req.body;
+    const { name, telegramChatId } = req.body;
     
     const admin = await Admin.findById(req.admin._id);
     if (!admin) return res.status(404).json({ message: 'Vendor not found' });
@@ -75,15 +73,6 @@ router.put('/update-profile', auth, async (req, res) => {
     if (name) admin.name = name;
     if (telegramChatId !== undefined) admin.telegramChatId = telegramChatId;
     
-    // Update Payment Credentials
-    if (phonepeMerchantId !== undefined) admin.phonepeMerchantId = phonepeMerchantId;
-    if (phonepeSaltKey !== undefined) admin.phonepeSaltKey = phonepeSaltKey;
-    if (phonepeSaltIndex !== undefined) admin.phonepeSaltIndex = phonepeSaltIndex;
-    if (paytmMerchantId !== undefined) admin.paytmMerchantId = paytmMerchantId;
-    if (paytmMerchantKey !== undefined) admin.paytmMerchantKey = paytmMerchantKey;
-    if (paytmWebsite !== undefined) admin.paytmWebsite = paytmWebsite;
-    if (paytmEnv !== undefined) admin.paytmEnv = paytmEnv;
-
     await admin.save();
     
     res.json({ 
@@ -92,13 +81,7 @@ router.put('/update-profile', auth, async (req, res) => {
         id: admin._id, 
         name: admin.name, 
         email: admin.email, 
-        telegramChatId: admin.telegramChatId,
-        phonepeMerchantId: admin.phonepeMerchantId,
-        phonepeSaltKey: admin.phonepeSaltKey,
-        phonepeSaltIndex: admin.phonepeSaltIndex,
-        paytmMerchantId: admin.paytmMerchantId,
-        paytmMerchantKey: admin.paytmMerchantKey,
-        paytmWebsite: admin.paytmWebsite
+        telegramChatId: admin.telegramChatId
       } 
     });
   } catch (err) {

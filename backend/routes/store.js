@@ -138,24 +138,15 @@ router.get('/all/list', async (req, res) => {
 // Get single store by ID (Public)
 router.get('/:id', async (req, res) => {
   try {
-    const store = await Store.findById(req.params.id)
-      .populate('admin', 'name phonepeMerchantId phonepeSaltKey paytmMerchantId paytmMerchantKey');
+    const store = await Store.findById(req.params.id).populate('admin', 'name');
     
     if (!store) return res.status(404).json({ message: 'Store not found' });
 
-    // Sanitize admin data to only send booleans for payment status
     const storeObj = store.toObject();
     if (storeObj.admin) {
       storeObj.paymentStatus = {
-        hasPhonePe: !!(storeObj.admin.phonepeMerchantId && storeObj.admin.phonepeSaltKey),
-        hasPaytm: !!(storeObj.admin.paytmMerchantId && storeObj.admin.paytmMerchantKey),
-        upiId: store.upiId
+        upiId: store.upiId || ''
       };
-      // Remove sensitive/private fields before sending to public
-      delete storeObj.admin.phonepeMerchantId;
-      delete storeObj.admin.phonepeSaltKey;
-      delete storeObj.admin.paytmMerchantId;
-      delete storeObj.admin.paytmMerchantKey;
     }
 
     res.json(storeObj);
