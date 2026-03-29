@@ -41,6 +41,7 @@ const StoreSchema = new mongoose.Schema({
   },
   commissionRate: { type: Number, default: 5 },
   upiId: { type: String, default: '' },
+  telegramChatId: { type: String, default: '' },
   products: [ProductSchema]
 }, { timestamps: true });
 

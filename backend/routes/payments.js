@@ -82,8 +82,8 @@ router.post('/razorpay/verify', async (req, res) => {
     io.to(order.store._id.toString()).emit('new_order', order);
 
     // Notify vendor via Telegram
-    if (order.store && order.store.admin) {
-      telegramService.sendOrderAlert(order.store.admin, order).catch(err => {
+    if (order.store) {
+      telegramService.sendOrderAlert(order.store, order).catch(err => {
         console.error('Telegram alert failed:', err.message);
       });
     }

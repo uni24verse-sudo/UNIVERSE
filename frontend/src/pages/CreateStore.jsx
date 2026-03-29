@@ -9,6 +9,7 @@ const CreateStore = () => {
   const [category, setCategory] = useState('');
   const [market, setMarket] = useState('');
   const [upiId, setUpiId] = useState('');
+  const [telegramChatId, setTelegramChatId] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { token, vendor } = useContext(AuthContext);
@@ -20,7 +21,7 @@ const CreateStore = () => {
     setError('');
 
     try {
-      await axios.post((import.meta.env.VITE_API_URL || 'http://localhost:5000') + '/api/store/create', { name, category, market, upiId }, {
+      await axios.post((import.meta.env.VITE_API_URL || 'http://localhost:5000') + '/api/store/create', { name, category, market, upiId, telegramChatId }, {
         headers: { Authorization: `Bearer ${token}` }
       });
       navigate('/vendor/dashboard');
@@ -115,6 +116,23 @@ const CreateStore = () => {
               />
               <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.75rem' }}>
                 • Required for your monthly revenue settlements.
+              </p>
+            </div>
+
+            <div className="form-group" style={{ marginBottom: '1.5rem' }}>
+              <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem', fontWeight: '700' }}>
+                <ShieldCheck size={18} color="#0088cc" /> Telegram Chat ID (Optional)
+              </label>
+              <input 
+                type="text" 
+                className="form-input" 
+                placeholder="e.g. 1080395706"
+                value={telegramChatId}
+                onChange={(e) => setTelegramChatId(e.target.value)}
+                style={{ height: '58px', borderRadius: '16px', fontSize: '1.125rem' }}
+              />
+              <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.75rem' }}>
+                • For instant order alerts via your Telegram Bot.
               </p>
             </div>
 

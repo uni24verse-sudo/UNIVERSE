@@ -3,38 +3,50 @@ import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
 import { Send, CheckCircle2, Info, Key } from 'lucide-react';
 
-const VendorNotifications = () => {
+const VendorNotifications = ({ store }) => {
   const { vendor, token, updateVendor } = useContext(AuthContext);
-  const [telegramChatId, setTelegramChatId] = useState(vendor?.telegramChatId || '');
+  const [telegramChatId, setTelegramChatId] = useState(store?.telegramChatId || '');
   const [isUpdating, setIsUpdating] = useState(false);
   const [testStatus, setTestStatus] = useState(null);
-
-  const isActive = !!vendor?.telegramChatId;
-
+ 
+  // Update local state when store prop changes
+  React.useEffect(() => {
+    setTelegramChatId(store?.telegramChatId || '');
+  }, [store]);
+ 
+  const isActive = !!telegramChatId;
+ 
   const handleSave = async (e) => {
     e.preventDefault();
+    if (!store) return;
     setIsUpdating(true);
     try {
-      const res = await axios.put(
-        (import.meta.env.VITE_API_URL || 'http://localhost:5000') + '/api/auth/update-profile',
+      // Save to STORE level
+      await axios.put(
+        `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/store/${store._id}/update-details`,
         { telegramChatId },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      updateVendor(res.data.admin);
-      alert('Telegram settings saved!');
+      
+      // Also update the global admin if needed (optional fallback)
+      // but we focus on store-level now. 
+      // The parent component (Dashboard) handles the store state update via its own fetch or state management
+      // For instant feedback, we can alert.
+      alert(`Telegram settings saved for ${store.name}!`);
     } catch (err) {
       alert('Failed to save settings.');
     } finally {
       setIsUpdating(false);
     }
   };
-
+ 
   const sendTestAlert = async () => {
+    if (!store) return;
     setTestStatus('sending');
     try {
       await axios.post(
         (import.meta.env.VITE_API_URL || 'http://localhost:5000') + '/api/whatsapp/test-telegram',
-        {},
+        { storeId: store._id },
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setTestStatus('success');
@@ -49,11 +61,11 @@ const VendorNotifications = () => {
       setTimeout(() => setTestStatus(null), 3000);
     }
   };
-
+ 
   return (
     <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '24px', border: '1px solid var(--surface-border)' }}>
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
         <h3 style={{ margin: 0, fontSize: '1.125rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <Send size={20} color="#0088cc" /> Order Alerts
         </h3>
@@ -65,7 +77,11 @@ const VendorNotifications = () => {
           {isActive ? 'TELEGRAM ACTIVE' : 'SETUP REQUIRED'}
         </div>
       </div>
-
+ 
+      <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '1.5rem', fontWeight: '600' }}>
+         Configure alerts for: <span style={{ color: 'var(--primary)' }}>{store?.name || 'Loading...'}</span>
+      </p>
+ 
       {/* Active state */}
       {isActive && (
         <div style={{ background: 'rgba(16, 185, 129, 0.05)', color: 'var(--secondary)', padding: '1rem', borderRadius: '16px', marginBottom: '1.5rem', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
@@ -89,7 +105,7 @@ const VendorNotifications = () => {
           </button>
         </div>
       )}
-
+ 
       {/* Setup guide */}
       {!isActive && (
         <div style={{ background: 'rgba(0,136,204,0.05)', border: '1px solid rgba(0,136,204,0.2)', borderRadius: '16px', padding: '1rem', marginBottom: '1.5rem' }}>
@@ -104,7 +120,7 @@ const VendorNotifications = () => {
           </ol>
         </div>
       )}
-
+ 
       {/* Input form */}
       <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
         <div>

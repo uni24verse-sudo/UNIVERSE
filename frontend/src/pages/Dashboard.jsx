@@ -396,7 +396,7 @@ const Dashboard = () => {
                 }}
               >
                 {stores.map(s => (
-                  <option key={s._id} value={s._id}>{s.name}</option>
+                  <option key={s._id} value={s._id}>{s.name} ({s.market || 'BH1 Market'})</option>
                 ))}
               </select>
             )}
@@ -711,7 +711,7 @@ const Dashboard = () => {
                 </div>
               )}
 
-              <WhatsAppStatus />
+              <WhatsAppStatus store={store} />
 
               <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '24px', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '0.5rem', background: 'var(--primary)', color: 'white' }}>
                  <p style={{ fontSize: '0.875rem', fontWeight: '600', opacity: 0.8 }}>Store Visibility</p>
