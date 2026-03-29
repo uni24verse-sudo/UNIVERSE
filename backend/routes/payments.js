@@ -5,9 +5,7 @@ const crypto = require('crypto');
 const Order = require('../models/Order');
 const Store = require('../models/Store');
 const paymentConfig = require('../config/payments.js');
-const notificationService = require('../services/notificationService');
 const telegramService = require('../services/telegramService');
-const whatsappService = require('../services/whatsappService');
 
 const razorpay = new Razorpay({
   key_id: paymentConfig.razorpay.keyId,
@@ -83,29 +81,10 @@ router.post('/razorpay/verify', async (req, res) => {
     const io = req.app.get('io');
     io.to(order.store._id.toString()).emit('new_order', order);
 
-    /*
-    // Push notification to vendor
-    if (order.store && order.store.admin) {
-      const notificationData = {
-        title: '💰 New Paid Order!',
-        body: `Order #${order.orderNumber} - ₹${order.totalAmount} (Paid Online)`,
-        orderId: order._id,
-        type: 'new_order',
-        clickAction: `/vendor/dashboard`
-      };
-      await notificationService.sendToUser(order.store.admin._id || order.store.admin, notificationData);
-    }
-    */
-
-    // Notify vendor via Telegram (Official)
+    // Notify vendor via Telegram
     if (order.store && order.store.admin) {
       telegramService.sendOrderAlert(order.store.admin, order).catch(err => {
-        console.error('Failed to trigger Telegram alert:', err.message);
-      });
-      
-      // Also trigger WhatsApp (via CallMeBot if key is set)
-      whatsappService.sendOrderAlert(order.store.admin, order).catch(err => {
-        console.error('Failed to trigger WhatsApp alert:', err.message);
+        console.error('Telegram alert failed:', err.message);
       });
     }
 

@@ -4,12 +4,11 @@ const Admin = require('../models/Admin');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const auth = require('../middleware/auth');
-const notificationService = require('../services/notificationService');
 
 // Register
 router.post('/register', async (req, res) => {
   try {
-    const { name, email, password, whatsappNumber, whatsappApiKey, telegramChatId } = req.body;
+    const { name, email, password, telegramChatId } = req.body;
 
     // Check if admin exists
     const existingAdmin = await Admin.findOne({ email });
@@ -20,7 +19,7 @@ router.post('/register', async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, salt);
 
     // Create new admin
-    const newAdmin = new Admin({ name, email, password: hashedPassword, whatsappNumber, whatsappApiKey, telegramChatId });
+    const newAdmin = new Admin({ name, email, password: hashedPassword, telegramChatId });
     await newAdmin.save();
 
     res.status(201).json({ message: 'Vendor registered successfully' });
@@ -55,8 +54,6 @@ router.post('/login', async (req, res) => {
         id: admin._id, 
         name: admin.name, 
         email: admin.email, 
-        whatsappNumber: admin.whatsappNumber,
-        whatsappApiKey: admin.whatsappApiKey,
         telegramChatId: admin.telegramChatId
       } 
     });
@@ -69,18 +66,15 @@ router.post('/login', async (req, res) => {
 router.put('/update-profile', auth, async (req, res) => {
   try {
     const { 
-      name, whatsappNumber,
+      name, telegramChatId,
       phonepeMerchantId, phonepeSaltKey, phonepeSaltIndex,
-      paytmMerchantId, paytmMerchantKey, paytmWebsite, paytmEnv,
-      whatsappApiKey, telegramChatId
+      paytmMerchantId, paytmMerchantKey, paytmWebsite, paytmEnv
     } = req.body;
     
     const admin = await Admin.findById(req.admin._id);
     if (!admin) return res.status(404).json({ message: 'Vendor not found' });
 
     if (name) admin.name = name;
-    if (whatsappNumber !== undefined) admin.whatsappNumber = whatsappNumber;
-    if (whatsappApiKey !== undefined) admin.whatsappApiKey = whatsappApiKey;
     if (telegramChatId !== undefined) admin.telegramChatId = telegramChatId;
     
     // Update Payment Credentials
@@ -100,8 +94,6 @@ router.put('/update-profile', auth, async (req, res) => {
         id: admin._id, 
         name: admin.name, 
         email: admin.email, 
-        whatsappNumber: admin.whatsappNumber,
-        whatsappApiKey: admin.whatsappApiKey,
         telegramChatId: admin.telegramChatId,
         phonepeMerchantId: admin.phonepeMerchantId,
         phonepeSaltKey: admin.phonepeSaltKey,
