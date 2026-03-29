@@ -116,6 +116,9 @@ const Dashboard = () => {
       socket.emit('join_store_room', store._id);
       
       const handleNewOrder = (order) => {
+        const orderStoreId = (typeof order.store === 'object') ? order.store._id : order.store;
+        if (orderStoreId !== store._id) return;
+
         setOrders(prev => {
           const exists = prev.find(o => o._id === order._id);
           if (exists) return prev.map(o => o._id === order._id ? order : o);
