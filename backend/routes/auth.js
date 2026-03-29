@@ -9,7 +9,7 @@ const notificationService = require('../services/notificationService');
 // Register
 router.post('/register', async (req, res) => {
   try {
-    const { name, email, password, whatsappNumber, whatsappApiKey } = req.body;
+    const { name, email, password, whatsappNumber, whatsappApiKey, telegramChatId } = req.body;
 
     // Check if admin exists
     const existingAdmin = await Admin.findOne({ email });
@@ -20,7 +20,7 @@ router.post('/register', async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, salt);
 
     // Create new admin
-    const newAdmin = new Admin({ name, email, password: hashedPassword, whatsappNumber, whatsappApiKey });
+    const newAdmin = new Admin({ name, email, password: hashedPassword, whatsappNumber, whatsappApiKey, telegramChatId });
     await newAdmin.save();
 
     res.status(201).json({ message: 'Vendor registered successfully' });
@@ -56,7 +56,8 @@ router.post('/login', async (req, res) => {
         name: admin.name, 
         email: admin.email, 
         whatsappNumber: admin.whatsappNumber,
-        whatsappApiKey: admin.whatsappApiKey
+        whatsappApiKey: admin.whatsappApiKey,
+        telegramChatId: admin.telegramChatId
       } 
     });
   } catch (err) {
@@ -71,7 +72,7 @@ router.put('/update-profile', auth, async (req, res) => {
       name, whatsappNumber,
       phonepeMerchantId, phonepeSaltKey, phonepeSaltIndex,
       paytmMerchantId, paytmMerchantKey, paytmWebsite, paytmEnv,
-      whatsappApiKey
+      whatsappApiKey, telegramChatId
     } = req.body;
     
     const admin = await Admin.findById(req.admin._id);
@@ -100,6 +101,7 @@ router.put('/update-profile', auth, async (req, res) => {
         email: admin.email, 
         whatsappNumber: admin.whatsappNumber,
         whatsappApiKey: admin.whatsappApiKey,
+        telegramChatId: admin.telegramChatId,
         phonepeMerchantId: admin.phonepeMerchantId,
         phonepeSaltKey: admin.phonepeSaltKey,
         phonepeSaltIndex: admin.phonepeSaltIndex,

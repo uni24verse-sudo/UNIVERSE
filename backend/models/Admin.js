@@ -1,5 +1,7 @@
 const mongoose = require('mongoose');
 
+const mongoose = require('mongoose');
+
 const AdminSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true },
@@ -8,6 +10,7 @@ const AdminSchema = new mongoose.Schema({
   isBanned: { type: Boolean, default: false },
   whatsappNumber: { type: String, default: '' },
   whatsappApiKey: { type: String, default: '' },
+  telegramChatId: { type: String, default: '' },
   fcmToken: { type: String, default: '' }
 }, { timestamps: true });
 

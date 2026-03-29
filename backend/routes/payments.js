@@ -6,6 +6,8 @@ const Order = require('../models/Order');
 const Store = require('../models/Store');
 const paymentConfig = require('../config/payments.js');
 const notificationService = require('../services/notificationService');
+const telegramService = require('../services/telegramService');
+const whatsappService = require('../services/whatsappService');
 
 const razorpay = new Razorpay({
   key_id: paymentConfig.razorpay.keyId,
@@ -94,6 +96,18 @@ router.post('/razorpay/verify', async (req, res) => {
       await notificationService.sendToUser(order.store.admin._id || order.store.admin, notificationData);
     }
     */
+
+    // Notify vendor via Telegram (Official)
+    if (order.store && order.store.admin) {
+      telegramService.sendOrderAlert(order.store.admin, order).catch(err => {
+        console.error('Failed to trigger Telegram alert:', err.message);
+      });
+      
+      // Also trigger WhatsApp (via CallMeBot if key is set)
+      whatsappService.sendOrderAlert(order.store.admin, order).catch(err => {
+        console.error('Failed to trigger WhatsApp alert:', err.message);
+      });
+    }
 
     console.log(`Order #${order.orderNumber} successfully paid via Razorpay.`);
 
