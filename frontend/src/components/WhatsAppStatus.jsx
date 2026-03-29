@@ -1,15 +1,16 @@
 import React, { useState, useEffect, useContext } from 'react';
 import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
-import { Phone, CheckCircle2, QrCode, RefreshCw, XCircle, AlertCircle } from 'lucide-react';
+import { Phone, CheckCircle2, QrCode, RefreshCw, XCircle, AlertCircle, Loader2 } from 'lucide-react';
 
 const WhatsAppStatus = () => {
   const { vendor, token, updateVendor } = useContext(AuthContext);
-  const [status, setStatus] = useState('initializing');
+  const [status, setStatus] = useState('disconnected');
   const [qrCode, setQrCode] = useState(null);
   const [loading, setLoading] = useState(true);
   const [whatsappNumber, setWhatsappNumber] = useState(vendor?.whatsappNumber || '');
   const [isUpdating, setIsUpdating] = useState(false);
+  const [error, setError] = useState(null);
 
   const fetchStatus = async () => {
     try {
@@ -18,16 +19,17 @@ const WhatsAppStatus = () => {
       });
       setStatus(res.data.status);
       setQrCode(res.data.qrCode);
+      if (res.data.status !== 'initializing') {
+        setLoading(false);
+      }
     } catch (err) {
       console.error('Failed to fetch WhatsApp status');
-    } finally {
-      setLoading(false);
     }
   };
 
   useEffect(() => {
     fetchStatus();
-    const interval = setInterval(fetchStatus, 5000); // Poll every 5s
+    const interval = setInterval(fetchStatus, 3000); // Poll every 3s for faster feedback
     return () => clearInterval(interval);
   }, []);
 
@@ -48,15 +50,18 @@ const WhatsAppStatus = () => {
     }
   };
 
-  const reInitialize = async () => {
+  const startWhatsApp = async () => {
     setLoading(true);
+    setError(null);
     try {
-      await axios.post((import.meta.env.VITE_API_URL || 'http://localhost:5000') + '/api/whatsapp/re-initialize', {}, {
+      const res = await axios.post((import.meta.env.VITE_API_URL || 'http://localhost:5000') + '/api/whatsapp/re-initialize', {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      fetchStatus();
+      console.log(res.data.message);
+      // Status will update via polling
     } catch (err) {
-      alert('Failed to re-initialize');
+      setError(err.response?.data?.error || 'Failed to start browser');
+      setLoading(false);
     }
   };
 
@@ -72,8 +77,12 @@ const WhatsAppStatus = () => {
           fontSize: '0.7rem', 
           fontWeight: '800',
           background: status === 'connected' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)',
-          color: status === 'connected' ? 'var(--secondary)' : '#f59e0b'
+          color: status === 'connected' ? 'var(--secondary)' : '#f59e0b',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.4rem'
         }}>
+          {status === 'initializing' && <Loader2 size={12} className="animate-spin" />}
           {status.toUpperCase().replace('_', ' ')}
         </div>
       </div>
@@ -84,31 +93,48 @@ const WhatsAppStatus = () => {
             <CheckCircle2 size={24} />
             <div style={{ textAlign: 'left' }}>
               <p style={{ margin: 0, fontWeight: '700', fontSize: '0.9rem' }}>Smart Alerts Active</p>
-              <p style={{ margin: 0, fontSize: '0.75rem', opacity: 0.8 }}>Your orders will be sent to your WhatsApp.</p>
+              <p style={{ margin: 0, fontSize: '0.75rem', opacity: 0.8 }}>Orders are automatically sent to your phone.</p>
             </div>
           </div>
         </div>
-      ) : status === 'qr_ready' && qrCode ? (
-        <div style={{ textAlign: 'center', padding: '1rem 0' }}>
-          <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>Scan the QR code below with your WhatsApp phone to link this dashboard.</p>
-          <div style={{ background: 'white', padding: '1rem', borderRadius: '16px', display: 'inline-block', marginBottom: '1rem' }}>
-            <img src={qrCode} alt="WhatsApp QR" style={{ width: '180px', height: '180px' }} />
+      ) : (status === 'qr_ready' || status === 'initializing') && qrCode ? (
+        <div style={{ textAlign: 'center', padding: '0.5rem 0' }}>
+          <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1rem', lineHeight: '1.4' }}>
+            Scan the QR code below with your WhatsApp linked devices to finish setup.
+          </p>
+          <div style={{ background: 'white', padding: '1rem', borderRadius: '16px', display: 'inline-block', marginBottom: '1rem', boxShadow: '0 4px 20px rgba(0,0,0,0.2)' }}>
+            <img src={qrCode} alt="WhatsApp QR" style={{ width: '180px', height: '180px', display: 'block' }} />
           </div>
           <button onClick={fetchStatus} style={{ background: 'transparent', border: 'none', color: 'var(--primary)', fontWeight: '700', fontSize: '0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem', margin: '0 auto' }}>
             <RefreshCw size={14} /> Refresh QR
           </button>
         </div>
-      ) : (
+      ) : status === 'initializing' ? (
         <div style={{ textAlign: 'center', padding: '2rem 0' }}>
-          <button onClick={reInitialize} className="btn btn-secondary" style={{ width: 'auto', padding: '0.6rem 2rem', fontSize: '0.875rem' }}>
-             {loading ? 'Starting...' : 'Enable WhatsApp Alerts'}
+          <div style={{ marginBottom: '1rem' }}>
+            <Loader2 size={40} className="animate-spin" style={{ margin: '0 auto', color: 'var(--primary)' }} />
+          </div>
+          <p style={{ fontSize: '0.9rem', fontWeight: '700' }}>Starting Browser Engine...</p>
+          <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>This may take 30-60 seconds on server launch.</p>
+        </div>
+      ) : (
+        <div style={{ textAlign: 'center', padding: '1.5rem 0' }}>
+          {error && <p style={{ color: 'var(--error)', fontSize: '0.75rem', marginBottom: '1rem' }}>⚠️ {error}</p>}
+          <button 
+            onClick={startWhatsApp} 
+            className="btn btn-secondary" 
+            disabled={loading && status !== 'disconnected'}
+            style={{ width: 'auto', padding: '0.8rem 2rem', fontSize: '0.875rem', borderRadius: '14px' }}
+          >
+             Connect My WhatsApp
           </button>
+          <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '1rem' }}>Scan a QR code from your phone to start receiving alerts.</p>
         </div>
       )}
 
       <div style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid var(--surface-border)' }}>
         <form onSubmit={handleUpdateNumber}>
-          <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.5rem', fontWeight: '700' }}>YOUR WHATSAPP NUMBER</label>
+          <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.5rem', fontWeight: '700' }}>DESTINATION WHATSAPP NUMBER</label>
           <div style={{ display: 'flex', gap: '0.5rem' }}>
             <input 
               type="text" 
@@ -119,33 +145,31 @@ const WhatsAppStatus = () => {
                 flex: 1,
                 background: 'rgba(255,255,255,0.03)',
                 border: '1px solid var(--surface-border)',
-                borderRadius: '10px',
-                padding: '0.6rem 1rem',
+                borderRadius: '12px',
+                padding: '0.75rem 1rem',
                 color: 'white',
                 fontSize: '0.9rem',
-                outline: 'none'
+                outline: 'none',
+                transition: 'border-color 0.2s'
               }}
             />
             <button 
               type="submit" 
               disabled={isUpdating}
+              className="btn btn-primary"
               style={{
-                background: 'var(--primary)',
-                color: 'white',
-                border: 'none',
-                borderRadius: '10px',
-                padding: '0 1rem',
-                fontWeight: '700',
+                width: 'auto',
+                padding: '0 1.5rem',
+                borderRadius: '12px',
                 fontSize: '0.8rem',
-                cursor: 'pointer',
-                opacity: isUpdating ? 0.5 : 1
+                height: '46px'
               }}
             >
               {isUpdating ? 'Saving...' : 'SAVE'}
             </button>
           </div>
           <p style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', marginTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-            <AlertCircle size={10} /> Enter without country code (+91)
+            <AlertCircle size={10} /> Alerts will be sent to this number.
           </p>
         </form>
       </div>

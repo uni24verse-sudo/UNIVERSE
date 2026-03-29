@@ -9,10 +9,14 @@ router.get('/status', auth, (req, res) => {
   res.json(result);
 });
 
-// Force re-initialize if needed
-router.post('/re-initialize', auth, (req, res) => {
-  whatsappService.initialize();
-  res.json({ message: 'WhatsApp client re-initializing' });
+// Force start/re-initialize
+router.post('/re-initialize', auth, async (req, res) => {
+  try {
+    await whatsappService.start();
+    res.json({ message: 'WhatsApp client initialization started' });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to start WhatsApp client', error: err.message });
+  }
 });
 
 module.exports = router;

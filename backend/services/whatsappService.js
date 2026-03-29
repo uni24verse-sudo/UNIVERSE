@@ -9,30 +9,34 @@ class WhatsAppService {
         dataPath: path.join(__dirname, '../.wwebjs_auth')
       }),
       puppeteer: {
+        headless: true,
         handleSIGINT: false,
-        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-extensions'],
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-accelerated-2d-canvas',
+          '--no-first-run',
+          '--no-zygote',
+          '--single-process', 
+          '--disable-gpu'
+        ],
       }
     });
 
     this.qrCode = null;
-    this.status = 'initializing'; // initializing, qr_ready, connected, disconnected
+    this.status = 'disconnected'; // disconnected, initializing, qr_ready, connected
 
-    console.log('--- WhatsApp Service Initializing... ---');
-    this.initialize();
+    this.setupEventListeners();
   }
 
-  initialize() {
-    console.log('Attempting to initialize WhatsApp client...');
+  setupEventListeners() {
     this.client.on('qr', (qr) => {
-      console.log('WhatsApp QR Code received by service. Converting to DataURL...');
-      // Generate a Data URL for the QR code so it can be easily displayed in the frontend
       qrcode.toDataURL(qr, (err, url) => {
         if (!err) {
           this.qrCode = url;
           this.status = 'qr_ready';
-          console.log('✅ WhatsApp QR Code generated successfully. Scan it from the dashboard.');
-        } else {
-          console.error('❌ Error generating QR DataURL:', err);
+          console.log('✅ WhatsApp QR Code generated and shared for scanning.');
         }
       });
     });
@@ -55,16 +59,27 @@ class WhatsAppService {
     this.client.on('disconnected', (reason) => {
       this.status = 'disconnected';
       console.log('⚠️ WhatsApp disconnected (Reason):', reason);
-      // Try to re-initialize
-      console.log('Re-initializing WhatsApp client...');
-      this.client.initialize();
     });
+  }
 
-    this.client.initialize().then(() => {
-      console.log('initialization process started...');
-    }).catch(err => {
-      console.error('❌ CRITICAL: Failed to initialize WhatsApp client:', err.message);
-    });
+  async start() {
+    if (this.status === 'connected' || this.status === 'initializing' || this.status === 'qr_ready') {
+      console.log(`WhatsApp already in state: ${this.status}. Skipping initialization.`);
+      return;
+    }
+
+    console.log('--- WhatsApp Service: Manual Start Triggered ---');
+    this.status = 'initializing';
+    
+    try {
+      console.log('Launching Puppeteer browser...');
+      await this.client.initialize();
+      console.log('WhatsApp initialization command sent to client.');
+    } catch (err) {
+      this.status = 'disconnected';
+      console.error('❌ CRITICAL: Failed to start WhatsApp client:', err.message);
+      throw err;
+    }
   }
 
   getStatus() {
@@ -76,12 +91,11 @@ class WhatsAppService {
 
   async sendMessage(number, message) {
     if (this.status !== 'connected') {
-      console.warn('WhatsApp not connected. Cannot send message.');
+      console.warn('WhatsApp not connected. Cannot send message to:', number);
       return false;
     }
 
     try {
-      // Sanitize number: Remove non-numeric characters and ensure it has 91 prefix for India
       let cleanNumber = number.replace(/\D/g, '');
       if (cleanNumber.length === 10) {
         cleanNumber = '91' + cleanNumber;
@@ -89,7 +103,7 @@ class WhatsAppService {
       
       const chatId = cleanNumber + '@c.us';
       await this.client.sendMessage(chatId, message);
-      console.log(`WhatsApp message sent to ${cleanNumber}`);
+      console.log(`WhatsApp message sent successfully to ${cleanNumber}`);
       return true;
     } catch (err) {
       console.error('Error sending WhatsApp message:', err);
@@ -98,19 +112,21 @@ class WhatsAppService {
   }
 
   async sendOrderAlert(admin, order) {
-    if (!admin.whatsappNumber) return;
+    if (!admin.whatsappNumber) {
+      console.log('Skipping WhatsApp alert: No whatsappNumber for admin.');
+      return;
+    }
 
     const message = `🔔 *UniVerse Order Alert!*\n\n` +
       `New Order *#${order.orderNumber}* has been received.\n` +
       `💰 Amount: ₹${order.totalAmount}\n` +
       `👤 Customer: ${order.customerName || 'Customer'}\n` +
       `🏪 Store: ${order.store?.name || 'Your Store'}\n\n` +
-      `👉 View and manage directly on your dashboard: https://universeorder.co.in/vendor/dashboard`;
+      `👉 Manage here: https://www.universeorder.co.in/vendor/dashboard`;
 
     return this.sendMessage(admin.whatsappNumber, message);
   }
 }
 
-// Singleton instance
 const whatsappService = new WhatsAppService();
 module.exports = whatsappService;
