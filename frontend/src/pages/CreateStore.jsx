@@ -8,6 +8,7 @@ const CreateStore = () => {
   const [name, setName] = useState('');
   const [category, setCategory] = useState('');
   const [market, setMarket] = useState('');
+  const [upiId, setUpiId] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { token, vendor } = useContext(AuthContext);
@@ -19,7 +20,7 @@ const CreateStore = () => {
     setError('');
 
     try {
-      await axios.post((import.meta.env.VITE_API_URL || 'http://localhost:5000') + '/api/store/create', { name, category, market }, {
+      await axios.post((import.meta.env.VITE_API_URL || 'http://localhost:5000') + '/api/store/create', { name, category, market, upiId }, {
         headers: { Authorization: `Bearer ${token}` }
       });
       navigate('/vendor/dashboard');
@@ -97,8 +98,24 @@ const CreateStore = () => {
                 <option value="Block34 Market" style={{ background: '#1e1b4b' }}>Block34 Market</option>
                 <option value="Hospital Market" style={{ background: '#1e1b4b' }}>Hospital Market</option>
                 <option value="BH6 Market" style={{ background: '#1e1b4b' }}>BH6 Market</option>
-                <option value="Apartment Market" style={{ background: '#1e1b4b' }}>Apartment Market</option>
               </select>
+            </div>
+            <div className="form-group" style={{ marginBottom: '1.5rem' }}>
+              <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem', fontWeight: '700' }}>
+                <ShieldCheck size={18} color="var(--primary)" /> UPI ID for Payouts
+              </label>
+              <input 
+                type="text" 
+                className="form-input" 
+                placeholder="e.g. mobile@upi"
+                value={upiId}
+                onChange={(e) => setUpiId(e.target.value)}
+                style={{ height: '58px', borderRadius: '16px', fontSize: '1.125rem' }}
+                required 
+              />
+              <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.75rem' }}>
+                • Required for your monthly revenue settlements.
+              </p>
             </div>
 
             {error && (

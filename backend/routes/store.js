@@ -26,13 +26,14 @@ const bufferToStream = (buffer) => {
 // Create a Store
 router.post('/create', auth, async (req, res) => {
   try {
-    const { name, category, market } = req.body;
+    const { name, category, market, upiId } = req.body;
 
     const newStore = new Store({
       admin: req.admin._id,
       name,
       category: category || 'General',
       market: market || 'BH1 Market',
+      upiId: upiId || '',
       products: []
     });
 
@@ -138,7 +139,7 @@ router.get('/all/list', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const store = await Store.findById(req.params.id)
-      .populate('admin', 'name upiId phonepeMerchantId phonepeSaltKey paytmMerchantId paytmMerchantKey');
+      .populate('admin', 'name phonepeMerchantId phonepeSaltKey paytmMerchantId paytmMerchantKey');
     
     if (!store) return res.status(404).json({ message: 'Store not found' });
 
@@ -148,7 +149,7 @@ router.get('/:id', async (req, res) => {
       storeObj.paymentStatus = {
         hasPhonePe: !!(storeObj.admin.phonepeMerchantId && storeObj.admin.phonepeSaltKey),
         hasPaytm: !!(storeObj.admin.paytmMerchantId && storeObj.admin.paytmMerchantKey),
-        upiId: storeObj.admin.upiId
+        upiId: store.upiId
       };
       // Remove sensitive/private fields before sending to public
       delete storeObj.admin.phonepeMerchantId;
@@ -374,7 +375,7 @@ router.put('/:storeId/toggle-status', auth, async (req, res) => {
 // Update Store Details
 router.put('/:storeId/update-details', auth, async (req, res) => {
   try {
-    const { name, category, packagingCharge, market } = req.body;
+    const { name, category, packagingCharge, market, upiId } = req.body;
     const store = await Store.findOne({ _id: req.params.storeId, admin: req.admin._id });
     if (!store) return res.status(404).json({ message: 'Store not found' });
 
@@ -382,6 +383,7 @@ router.put('/:storeId/update-details', auth, async (req, res) => {
     if (category) store.category = category;
     if (packagingCharge !== undefined) store.packagingCharge = Number(packagingCharge);
     if (market) store.market = market;
+    if (upiId !== undefined) store.upiId = upiId;
     
     await store.save();
     res.json(store);

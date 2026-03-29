@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { User, Mail, Lock, UserPlus, Store } from 'lucide-react';
+import { User, Mail, Lock, UserPlus } from 'lucide-react';
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -96,7 +96,7 @@ const Register = () => {
               </div>
             </div>
             
-            <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+            <div className="form-group" style={{ marginBottom: '2rem' }}>
               <label className="form-label">Password</label>
               <div style={{ position: 'relative' }}>
                 <div style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }}>
@@ -115,8 +115,6 @@ const Register = () => {
                 />
               </div>
             </div>
-
-
 
             {error && <div className="error-msg" style={{ marginBottom: '1.5rem', padding: '1rem', borderRadius: '12px' }}>{error}</div>}
             {success && <div className="error-msg" style={{ marginBottom: '1.5rem', padding: '1rem', borderRadius: '12px', color: 'var(--secondary)', background: 'rgba(16, 185, 129, 0.1)', borderColor: 'rgba(16, 185, 129, 0.2)' }}>{success}</div>}

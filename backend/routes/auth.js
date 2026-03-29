@@ -66,8 +66,6 @@ router.post('/login', async (req, res) => {
 router.put('/update-profile', auth, async (req, res) => {
   try {
     const { 
-      name, telegramChatId,
-      phonepeMerchantId, phonepeSaltKey, phonepeSaltIndex,
       paytmMerchantId, paytmMerchantKey, paytmWebsite, paytmEnv
     } = req.body;
     

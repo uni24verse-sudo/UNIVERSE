@@ -24,6 +24,7 @@ const SuperAdminPanel = () => {
   const [vendors, setVendors] = useState([]);
   const [orders, setOrders] = useState([]);
   const [stores, setStores] = useState([]);
+  const [financeData, setFinanceData] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -37,17 +38,19 @@ const SuperAdminPanel = () => {
       const headers = { Authorization: `Bearer ${token}` };
       const url = import.meta.env.VITE_API_URL || 'http://localhost:5000';
       
-      const [statsRes, vendorsRes, ordersRes, storesRes] = await Promise.all([
+      const [statsRes, vendorsRes, ordersRes, storesRes, financeRes] = await Promise.all([
         axios.get(`${url}/api/super-admin/stats`, { headers }),
         axios.get(`${url}/api/super-admin/vendors`, { headers }),
         axios.get(`${url}/api/super-admin/orders`, { headers }),
-        axios.get(`${url}/api/super-admin/stores`, { headers })
+        axios.get(`${url}/api/super-admin/stores`, { headers }),
+        axios.get(`${url}/api/super-admin/finance/summary`, { headers })
       ]);
 
       setStats(statsRes.data);
       setVendors(vendorsRes.data);
       setOrders(ordersRes.data);
       setStores(storesRes.data);
+      setFinanceData(financeRes.data);
     } catch (err) {
       if (err.response?.status === 403) {
         alert('Forbidden: You are not a super admin.');
@@ -98,6 +101,7 @@ const SuperAdminPanel = () => {
             { id: 'overview', icon: Activity, label: 'Platform Overview' },
             { id: 'vendors', icon: Users, label: 'Vendor Registry' },
             { id: 'stores', icon: Store, label: 'Store Directory' },
+            { id: 'finance', icon: Banknote, label: 'Finance Tracker' },
             { id: 'orders', icon: ShoppingBag, label: 'Global Orders' }
           ].map(tab => (
             <button 
@@ -336,7 +340,7 @@ const SuperAdminPanel = () => {
                           <p style={{ fontSize: '1.25rem', fontWeight: '900', margin: 0 }}>{store.daysLeftInTrial} <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Days Remaining</span></p>
                         ) : (
                           <div style={{ color: 'white' }}>
-                            <p style={{ fontSize: '0.75rem', color: '#ef4444', fontWeight: '800', marginBottom: '0.25rem' }}>SUBSCRIPTION ACTIVE (3.5%)</p>
+                            <p style={{ fontSize: '0.75rem', color: '#ef4444', fontWeight: '800', marginBottom: '0.25rem' }}>SUBSCRIPTION ACTIVE (5%)</p>
                             <p style={{ fontSize: '1.5rem', fontWeight: '900', color: 'var(--secondary)', margin: 0 }}>₹{store.estimatedFees} <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Pending Fees</span></p>
                           </div>
                         )}
@@ -443,6 +447,89 @@ const SuperAdminPanel = () => {
               </table>
             </div>
            </div>
+        )}
+
+        {/* FINANCE TAB */}
+        {activeTab === 'finance' && (
+          <div>
+            <header style={{ marginBottom: '2rem' }}>
+              <h1 style={{ fontSize: '2rem', fontWeight: '900' }}>Finance & Revenue Distribution</h1>
+              <p style={{ color: 'var(--text-secondary)' }}>Monthly billing cycles and commission settlement status.</p>
+            </header>
+
+            <div style={{ background: '#111', borderRadius: '24px', border: '1px solid #333', overflow: 'hidden' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                <thead>
+                  <tr style={{ background: '#1a1a1a', borderBottom: '1px solid #333' }}>
+                    <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Stall & UPI</th>
+                    <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Monthly Gross</th>
+                    <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Gateway Fee (2%)</th>
+                    <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Platform Profit (3%)</th>
+                    <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Transfer Amount</th>
+                    <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem', textAlign: 'right' }}>Settlement</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {financeData.map(f => (
+                    <tr key={f.storeId} style={{ borderBottom: '1px solid #222' }}>
+                      <td style={{ padding: '1.25rem' }}>
+                        <div style={{ fontWeight: '700', color: 'white' }}>{f.storeName}</div>
+                        <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>{f.ownerName}</div>
+                        <div style={{ color: 'var(--primary)', fontSize: '0.75rem', fontWeight: '700', marginTop: '0.25rem', background: 'rgba(99, 102, 241, 0.1)', padding: '0.1rem 0.4rem', borderRadius: '4px', display: 'inline-block' }}>{f.upiId}</div>
+                        {f.isTrialActive && (
+                          <div style={{ marginTop: '0.25rem', display: 'block', fontSize: '0.65rem', color: '#10b981', fontWeight: '900' }}>• TRIAL ACTIVE (2% ONLY)</div>
+                        )}
+                      </td>
+                      <td style={{ padding: '1.25rem' }}>
+                        <div style={{ fontWeight: '600' }}>₹{f.totalRevenue.toLocaleString()}</div>
+                      </td>
+                      <td style={{ padding: '1.25rem', color: 'var(--text-secondary)' }}>
+                        <div style={{ fontWeight: '600' }}>₹{f.gatewayFee.toLocaleString()}</div>
+                      </td>
+                      <td style={{ padding: '1.25rem', color: f.platformProfit > 0 ? '#f59e0b' : '#333' }}>
+                        <div style={{ fontWeight: '800' }}>{f.platformProfit > 0 ? `₹${f.platformProfit.toLocaleString()}` : '₹0 (Trial)'}</div>
+                      </td>
+                      <td style={{ padding: '1.25rem', color: '#10b981' }}>
+                        <div style={{ fontWeight: '900', fontSize: '1.1rem' }}>₹{f.netPayable.toLocaleString()}</div>
+                      </td>
+                      <td style={{ padding: '1.25rem', textAlign: 'right' }}>
+                        {f.settlementStatus === 'paid' ? (
+                          <span style={{ color: '#10b981', fontWeight: '800', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.5rem' }}>
+                            <CheckCircle size={16} /> SETTLED
+                          </span>
+                        ) : (
+                          <button
+                            onClick={async () => {
+                              if (window.confirm(`Mark ₹${f.netPayable.toLocaleString()} as settled for ${f.storeName}?`)) {
+                                try {
+                                  const url = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+                                  await axios.post(`${url}/api/super-admin/finance/settle`, {
+                                    storeId: f.storeId,
+                                    month: new Date().getMonth() + 1,
+                                    year: new Date().getFullYear(),
+                                    totalRevenue: f.totalRevenue,
+                                    commissionAmount: f.commission,
+                                    netPayable: f.netPayable
+                                  }, { headers: { Authorization: `Bearer ${token}` } });
+                                  fetchDashboardData();
+                                } catch (err) { alert('Settlement failed'); }
+                              }
+                            }}
+                            style={{ padding: '0.5rem 1rem', background: 'transparent', border: '1px solid var(--primary)', color: 'var(--primary)', borderRadius: '8px', cursor: 'pointer', fontWeight: '700', fontSize: '0.75rem' }}
+                          >
+                            SETTLE DUES
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                  {financeData.length === 0 && (
+                    <tr><td colSpan="5" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>No financial data available for this month.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
         )}
       </main>
     </div>

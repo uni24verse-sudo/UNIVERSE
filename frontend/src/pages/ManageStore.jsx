@@ -17,6 +17,7 @@ const ManageStore = () => {
   const [storeCategory, setStoreCategory] = useState('');
   const [storeMarket, setStoreMarket] = useState('');
   const [storePackagingCharge, setStorePackagingCharge] = useState(0);
+  const [storeUpi, setStoreUpi] = useState('');
   const [isEditingStore, setIsEditingStore] = useState(false);
   const [updatingStore, setUpdatingStore] = useState(false);
   const [storeImageFile, setStoreImageFile] = useState(null);
@@ -68,6 +69,7 @@ const ManageStore = () => {
           setStoreName(defaultStore.name);
           setStoreCategory(defaultStore.category || 'General');
           setStoreMarket(defaultStore.market || 'BH1 Market');
+          setStoreUpi(defaultStore.upiId || '');
         } else {
           navigate('/vendor/store/create');
         }
@@ -88,6 +90,7 @@ const ManageStore = () => {
       setStoreCategory(selected.category || 'General');
       setStoreMarket(selected.market || 'BH1 Market');
       setStorePackagingCharge(selected.packagingCharge || 0);
+      setStoreUpi(selected.upiId || '');
       setIsEditingStore(false);
     }
   };
@@ -195,7 +198,7 @@ const ManageStore = () => {
     try {
       // Update Store Details
       const storeRes = await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/store/${store._id}/update-details`, 
-        { name: storeName, category: storeCategory, packagingCharge: storePackagingCharge, market: storeMarket },
+        { name: storeName, category: storeCategory, packagingCharge: storePackagingCharge, market: storeMarket, upiId: storeUpi },
         { headers: { Authorization: `Bearer ${token}` } }
       );
       
@@ -207,8 +210,8 @@ const ManageStore = () => {
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      setStore(prev => ({ ...prev, name: storeRes.data.name, category: storeRes.data.category, packagingCharge: storeRes.data.packagingCharge, market: storeRes.data.market }));
-      setStores(prev => prev.map(s => s._id === store._id ? { ...s, name: storeRes.data.name, category: storeRes.data.category, packagingCharge: storeRes.data.packagingCharge, market: storeRes.data.market } : s));
+      setStore(prev => ({ ...prev, name: storeRes.data.name, category: storeRes.data.category, packagingCharge: storeRes.data.packagingCharge, market: storeRes.data.market, upiId: storeRes.data.upiId }));
+      setStores(prev => prev.map(s => s._id === store._id ? { ...s, name: storeRes.data.name, category: storeRes.data.category, packagingCharge: storeRes.data.packagingCharge, market: storeRes.data.market, upiId: storeRes.data.upiId } : s));
       updateVendor(adminRes.data.admin);
       setIsEditingStore(false);
     } catch (err) {
@@ -623,6 +626,18 @@ const ManageStore = () => {
                         style={{ height: '40px', borderRadius: '10px', fontSize: '0.875rem' }}
                       />
                     </div>
+                    <div>
+                      <label className="form-label" style={{ fontSize: '0.75rem' }}>UPI ID for Payouts</label>
+                      <input 
+                        type="text" 
+                        className="form-input" 
+                        placeholder="upi@bank"
+                        value={storeUpi} 
+                        onChange={e => setStoreUpi(e.target.value)}
+                        style={{ height: '40px', borderRadius: '10px', fontSize: '0.875rem' }}
+                        required
+                      />
+                    </div>
                   </div>
                   <div style={{ display: 'flex', gap: '0.5rem' }}>
                     <button type="submit" className="btn btn-primary" style={{ padding: '0.5rem', height: 'auto', borderRadius: '10px', fontSize: '0.875rem', flex: 1 }}>
@@ -650,9 +665,13 @@ const ManageStore = () => {
                     </div>
                   </div>
                   <div style={{ padding: '1rem', background: 'rgba(255,255,255,0.03)', borderRadius: '14px', display: 'flex', justifyContent: 'flex-start' }}>
-                    <div>
+                    <div style={{ flex: 1 }}>
                       <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Packaging Fee</p>
                       <p style={{ fontWeight: '700', color: 'var(--secondary)' }}>₹{store.packagingCharge || 0}</p>
+                    </div>
+                    <div style={{ flex: 1, textAlign: 'right' }}>
+                      <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>UPI Payout ID</p>
+                      <p style={{ fontWeight: '700', color: 'var(--primary)' }}>{store.upiId || 'Not Set'}</p>
                     </div>
                   </div>
                 </div>

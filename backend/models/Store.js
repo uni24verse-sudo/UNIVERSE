@@ -34,6 +34,13 @@ const StoreSchema = new mongoose.Schema({
   isTrialStarted: { type: Boolean, default: false },
   trialStartDate: { type: Date },
   trialEndDate: { type: Date },
+  subscriptionStatus: { 
+    type: String, 
+    enum: ['trial', 'active', 'suspended'], 
+    default: 'trial' 
+  },
+  commissionRate: { type: Number, default: 5 },
+  upiId: { type: String, default: '' },
   products: [ProductSchema]
 }, { timestamps: true });
 
