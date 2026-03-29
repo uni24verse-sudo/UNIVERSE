@@ -5,21 +5,53 @@ const telegramService = require('../services/telegramService');
 const Admin = require('../models/Admin');
 const auth = require('../middleware/auth');
 
-// Test Telegram alert
+// Test & Diagnose Telegram
 router.post('/test-telegram', auth, async (req, res) => {
+  const axios = require('axios');
   try {
     const admin = await Admin.findById(req.admin._id);
-    if (!admin.telegramChatId) {
-      return res.status(400).json({ message: 'No Telegram Chat ID saved. Please save it first.' });
+    
+    const token = process.env.TELEGRAM_BOT_TOKEN;
+    const chatId = admin.telegramChatId;
+
+    // Verbose diagnostic info
+    const diagnostics = {
+      hasToken: !!token,
+      tokenPreview: token ? token.substring(0, 10) + '...' : 'NOT SET',
+      hasChatId: !!chatId,
+      chatId: chatId || 'NOT SET',
+    };
+
+    if (!token) {
+      return res.status(500).json({ message: 'TELEGRAM_BOT_TOKEN is not set on Render!', diagnostics });
     }
-    const result = await telegramService.sendMessage(admin.telegramChatId, '✅ <b>UniVerse Test Alert!</b>\nYour Telegram notifications are working perfectly! 🎉');
-    if (result) {
-      res.json({ message: 'Test message sent! Check your Telegram.' });
-    } else {
-      res.status(500).json({ message: 'Failed to send. Check if TELEGRAM_BOT_TOKEN is set on Render and that you have started the bot.' });
+    if (!chatId) {
+      return res.status(400).json({ message: 'No Telegram Chat ID saved.', diagnostics });
+    }
+
+    // Hit the Telegram API directly and return the raw response
+    try {
+      const url = `https://api.telegram.org/bot${token}/sendMessage`;
+      const telegramRes = await axios.post(url, {
+        chat_id: chatId,
+        text: '✅ <b>UniVerse Test Alert!</b>\nYour Telegram notifications are working! 🎉',
+        parse_mode: 'HTML'
+      });
+      res.json({ 
+        message: 'Test message sent! Check your Telegram.', 
+        telegramResponse: telegramRes.data,
+        diagnostics
+      });
+    } catch (telegramErr) {
+      // Return the raw Telegram error so we can diagnose it
+      res.status(500).json({ 
+        message: 'Telegram API rejected the request.',
+        telegramError: telegramErr.response?.data || telegramErr.message,
+        diagnostics
+      });
     }
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ message: 'Server error: ' + err.message });
   }
 });
 

@@ -42,7 +42,10 @@ const VendorNotifications = () => {
       setTimeout(() => setTestStatus(null), 5000);
     } catch (err) {
       setTestStatus('error');
-      const msg = err.response?.data?.message || 'Test failed. Check Render logs.';
+      const telegramErr = err.response?.data?.telegramError;
+      const msg = telegramErr 
+        ? `Telegram says: ${JSON.stringify(telegramErr)}` 
+        : err.response?.data?.message || 'Test failed. Check Render logs.';
       alert('❌ ' + msg);
       setTimeout(() => setTestStatus(null), 3000);
     }
