@@ -81,6 +81,7 @@ router.put('/update-profile', auth, async (req, res) => {
     if (name) admin.name = name;
     if (whatsappNumber !== undefined) admin.whatsappNumber = whatsappNumber;
     if (whatsappApiKey !== undefined) admin.whatsappApiKey = whatsappApiKey;
+    if (telegramChatId !== undefined) admin.telegramChatId = telegramChatId;
     
     // Update Payment Credentials
     if (phonepeMerchantId !== undefined) admin.phonepeMerchantId = phonepeMerchantId;

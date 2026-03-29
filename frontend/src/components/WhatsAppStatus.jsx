@@ -13,6 +13,7 @@ const VendorNotifications = () => {
 
   const isTelegramActive = vendor?.telegramChatId;
   const isWhatsappActive = vendor?.whatsappNumber && vendor?.whatsappApiKey;
+  const [testStatus, setTestStatus] = useState(null);
 
   const handleUpdateNotifications = async (e) => {
     e.preventDefault();
@@ -28,6 +29,22 @@ const VendorNotifications = () => {
       alert('Failed to update settings');
     } finally {
       setIsUpdating(false);
+    }
+  };
+
+  const sendTestAlert = async () => {
+    setTestStatus('sending');
+    try {
+      await axios.post((import.meta.env.VITE_API_URL || 'http://localhost:5000') + '/api/whatsapp/test-telegram', {},
+        { headers: { Authorization: `Bearer ${token}` }}
+      );
+      setTestStatus('success');
+      setTimeout(() => setTestStatus(null), 5000);
+    } catch (err) {
+      setTestStatus('error');
+      const msg = err.response?.data?.message || 'Test failed. Check Render logs.';
+      alert('❌ ' + msg);
+      setTimeout(() => setTestStatus(null), 3000);
     }
   };
 
@@ -74,12 +91,25 @@ const VendorNotifications = () => {
       )}
 
       {isTelegramActive && (
-        <div style={{ background: 'rgba(16, 185, 129, 0.05)', color: 'var(--secondary)', padding: '1rem', borderRadius: '16px', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
-          <CheckCircle2 size={24} />
-          <div>
-            <p style={{ margin: 0, fontWeight: '700', fontSize: '0.9rem' }}>Telegram Alerts Ready</p>
-            <p style={{ margin: 0, fontSize: '0.75rem', opacity: 0.8 }}>Notifications are sent to your Telegram instantly.</p>
+        <div style={{ background: 'rgba(16, 185, 129, 0.05)', color: 'var(--secondary)', padding: '1rem', borderRadius: '16px', marginBottom: '1.5rem', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
+            <CheckCircle2 size={24} />
+            <div>
+              <p style={{ margin: 0, fontWeight: '700', fontSize: '0.9rem' }}>Automation Ready</p>
+              <p style={{ margin: 0, fontSize: '0.75rem', opacity: 0.8 }}>Your orders will be sent to Telegram instantly.</p>
+            </div>
           </div>
+          <button 
+            onClick={sendTestAlert}
+            disabled={testStatus === 'sending'}
+            style={{ 
+              width: '100%', background: 'rgba(16, 185, 129, 0.15)', border: '1px solid rgba(16, 185, 129, 0.3)',
+              color: 'var(--secondary)', borderRadius: '10px', padding: '0.5rem 1rem',
+              fontWeight: '700', fontSize: '0.75rem', cursor: 'pointer'
+            }}
+          >
+            {testStatus === 'sending' ? '📤 Sending...' : testStatus === 'success' ? '✅ Sent! Check Telegram' : '🧪 Send Test Alert'}
+          </button>
         </div>
       )}
 
