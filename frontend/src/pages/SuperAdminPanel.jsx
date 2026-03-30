@@ -286,6 +286,15 @@ const SuperAdminPanel = () => {
                     <span style={{ fontSize: '0.75rem', padding: '0.2rem 0.6rem', background: 'rgba(99, 102, 241, 0.1)', color: 'var(--primary)', borderRadius: '6px', fontWeight: '700' }}>{store.category}</span>
                     <span style={{ fontSize: '0.75rem', padding: '0.2rem 0.6rem', background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', borderRadius: '6px', fontWeight: '700' }}>{store.market || 'BH1 Market'}</span>
                     <span style={{ fontSize: '0.75rem', padding: '0.2rem 0.6rem', background: '#222', color: 'var(--text-secondary)', borderRadius: '6px', fontWeight: '600' }}>{store.productCount} SKUs</span>
+                    {store.telegramChatId ? (
+                      <span style={{ fontSize: '0.75rem', padding: '0.2rem 0.6rem', background: 'rgba(0, 136, 204, 0.1)', color: '#0088cc', borderRadius: '6px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                        <Send size={12} /> Telegram Active
+                      </span>
+                    ) : (
+                      <span style={{ fontSize: '0.75rem', padding: '0.2rem 0.6rem', background: 'rgba(239, 68, 68, 0.05)', color: 'var(--text-secondary)', borderRadius: '6px', fontWeight: '600', opacity: 0.5 }}>
+                        Telegram Missing
+                      </span>
+                    )}
                   </div>
 
                   {/* Manual Ranking Control */}

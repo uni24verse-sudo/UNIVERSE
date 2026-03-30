@@ -137,6 +137,11 @@ const VendorNotifications = ({ store }) => {
               borderRadius: '12px', padding: '0.75rem 1rem', color: 'white', fontSize: '0.9rem', outline: 'none'
             }}
           />
+          {telegramChatId && telegramChatId.includes(':') && (
+            <p style={{ color: '#ef4444', fontSize: '0.65rem', marginTop: '0.5rem', fontWeight: '800' }}>
+              ⚠️ Bot Token detected! Please use your numeric <b>Chat ID</b> instead.
+            </p>
+          )}
         </div>
         <button
           type="submit"

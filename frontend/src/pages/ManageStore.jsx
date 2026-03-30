@@ -638,7 +638,6 @@ const ManageStore = () => {
                         value={storeUpi} 
                         onChange={e => setStoreUpi(e.target.value)}
                         style={{ height: '40px', borderRadius: '10px', fontSize: '0.875rem' }}
-                        required
                       />
                     </div>
                     <div>
@@ -651,6 +650,11 @@ const ManageStore = () => {
                         onChange={e => setStoreTelegramChatId(e.target.value)}
                         style={{ height: '40px', borderRadius: '10px', fontSize: '0.875rem' }}
                       />
+                      {storeTelegramChatId && storeTelegramChatId.includes(':') && (
+                        <p style={{ color: '#ef4444', fontSize: '0.65rem', marginTop: '0.5rem', fontWeight: '800' }}>
+                          ⚠️ Oops! This looks like a Bot Token. Please paste your <b>Chat ID</b> (numbers only).
+                        </p>
+                      )}
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: '0.5rem' }}>
