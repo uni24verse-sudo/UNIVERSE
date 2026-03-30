@@ -46,9 +46,16 @@ router.post('/test-telegram', auth, async (req, res) => {
       });
       res.json({ message: `Test message sent for ${storeName}! Check your Telegram.`, telegramResponse: telegramRes.data, diagnostics });
     } catch (telegramErr) {
+      const errorData = telegramErr.response?.data || {};
+      let customMessage = 'Telegram API rejected the request.';
+      
+      if (errorData.description?.includes('chat not found')) {
+        customMessage = 'Chat not found. Please ensure the vendor has clicked "START" on your Telegram bot first!';
+      }
+
       res.status(500).json({
-        message: 'Telegram API rejected the request.',
-        telegramError: telegramErr.response?.data || telegramErr.message,
+        message: customMessage,
+        telegramError: errorData,
         diagnostics
       });
     }
