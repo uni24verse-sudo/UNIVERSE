@@ -26,6 +26,7 @@ const SuperAdminPanel = () => {
   const [stores, setStores] = useState([]);
   const [financeData, setFinanceData] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [orderFilter, setOrderFilter] = useState('All');
 
   useEffect(() => {
     if (!token) return navigate('/super-admin/login');
@@ -368,11 +369,38 @@ const SuperAdminPanel = () => {
               <p style={{ color: 'var(--text-secondary)' }}>Live view of the last 100 transactions across all platform stores.</p>
             </header>
 
+            {/* Filter Tabs */}
+            <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
+              {['All', 'Pending', 'Confirmed', 'Completed', 'Cancelled'].map(status => (
+                <button
+                  key={status}
+                  onClick={() => setOrderFilter(status)}
+                  style={{
+                    padding: '0.5rem 1.25rem',
+                    borderRadius: '100px',
+                    border: orderFilter === status ? `1px solid var(--primary)` : '1px solid #333',
+                    background: orderFilter === status ? 'rgba(99, 102, 241, 0.1)' : 'transparent',
+                    color: orderFilter === status ? 'white' : 'var(--text-secondary)',
+                    cursor: 'pointer',
+                    fontSize: '0.85rem',
+                    fontWeight: '700',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  {status}
+                  <span style={{ marginLeft: '0.5rem', opacity: 0.5, fontSize: '0.75rem' }}>
+                    {status === 'All' ? orders.length : orders.filter(o => o.status === status).length}
+                  </span>
+                </button>
+              ))}
+            </div>
+
             <div style={{ background: '#111', borderRadius: '24px', border: '1px solid #333', overflow: 'hidden' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                 <thead>
                   <tr style={{ background: '#1a1a1a', borderBottom: '1px solid #333' }}>
                     <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Order ID & Time</th>
+                    <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Customer Profile</th>
                     <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Store</th>
                     <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Items</th>
                     <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Amount & Payment</th>
@@ -380,11 +408,17 @@ const SuperAdminPanel = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {orders.map(o => (
+                  {orders
+                    .filter(o => orderFilter === 'All' ? true : o.status === orderFilter)
+                    .map(o => (
                     <tr key={o._id} style={{ borderBottom: '1px solid #222' }}>
                       <td style={{ padding: '1.25rem' }}>
                         <div style={{ fontWeight: '700', fontFamily: 'monospace', color: 'white' }}>#{o.orderNumber}</div>
                         <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', marginTop: '0.25rem' }}>{new Date(o.createdAt).toLocaleString()}</div>
+                      </td>
+                      <td style={{ padding: '1.25rem' }}>
+                         <div style={{ fontWeight: '700', color: 'white' }}>{o.customerName || 'Anonymous'}</div>
+                         <div style={{ color: 'var(--secondary)', fontSize: '0.8rem', marginTop: '0.25rem' }}>📞 {o.customerPhone || 'No Phone'}</div>
                       </td>
                       <td style={{ padding: '1.25rem' }}>
                         <div style={{ fontWeight: '600', color: 'var(--primary)' }}>{o.store?.name || 'Deleted Store'}</div>
@@ -440,8 +474,8 @@ const SuperAdminPanel = () => {
                       </td>
                     </tr>
                   ))}
-                  {orders.length === 0 && (
-                    <tr><td colSpan="5" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>No orders across the platform yet.</td></tr>
+                  {orders.filter(o => orderFilter === 'All' ? true : o.status === orderFilter).length === 0 && (
+                    <tr><td colSpan="6" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>No orders found for this status.</td></tr>
                   )}
                 </tbody>
               </table>

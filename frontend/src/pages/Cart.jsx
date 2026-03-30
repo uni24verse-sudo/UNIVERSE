@@ -18,6 +18,7 @@ const Cart = () => {
   const [customerName, setCustomerName] = useState('');
   const [orderPlaced, setOrderPlaced] = useState(false);
   const [currentOrder, setCurrentOrder] = useState(null);
+  const [validationError, setValidationError] = useState('');
 
   // Calculate order totals
   const subtotal = total;
@@ -51,14 +52,16 @@ const Cart = () => {
   };
 
   const handleCheckout = async () => {
+    if (!customerName.trim()) {
+      setValidationError('Please enter your name to proceed');
+      return;
+    }
     if (!customerPhone || customerPhone.length < 10) {
-      alert('Please enter a valid 10-digit phone number');
+      setValidationError('Please enter a valid 10-digit phone number');
       return;
     }
-    if (!customerName) {
-      alert('Please enter your name');
-      return;
-    }
+
+    setValidationError('');
 
     setLoading(true);
 
@@ -337,7 +340,10 @@ const Cart = () => {
                     type="text"
                     placeholder="Enter your name"
                     value={customerName}
-                    onChange={(e) => setCustomerName(e.target.value)}
+                    onChange={(e) => {
+                      setCustomerName(e.target.value);
+                      if (validationError) setValidationError('');
+                    }}
                     style={{
                       width: '100%',
                       padding: '0.75rem',
@@ -361,7 +367,11 @@ const Cart = () => {
                     type="tel"
                     placeholder="Enter 10-digit number"
                     value={customerPhone}
-                    onChange={(e) => setCustomerPhone(e.target.value)}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, '');
+                      setCustomerPhone(val);
+                      if (validationError) setValidationError('');
+                    }}
                     maxLength={10}
                     style={{
                       width: '100%',
@@ -387,11 +397,30 @@ const Cart = () => {
                 </div>
               </div>
 
+              {validationError && (
+                <div style={{
+                  marginTop: '1.5rem',
+                  padding: '1rem',
+                  background: 'rgba(239, 68, 68, 0.1)',
+                  border: '1px solid rgba(239, 68, 68, 0.2)',
+                  borderRadius: '12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.75rem',
+                  color: '#ef4444',
+                  fontSize: '0.85rem',
+                  fontWeight: '700'
+                }}>
+                  <AlertCircle size={18} />
+                  {validationError}
+                </div>
+              )}
+
               <button
                 onClick={handleCheckout}
                 className="btn btn-primary"
-                disabled={loading || !customerName || !customerPhone}
-                style={{ marginTop: '1.5rem', height: '60px', borderRadius: '16px', fontSize: '1.125rem', width: '100%' }}
+                disabled={loading}
+                style={{ marginTop: '1.5rem', height: '60px', borderRadius: '16px', fontSize: '1.125rem', width: '100%', opacity: loading ? 0.7 : 1 }}
               >
                 {loading ? 'Processing...' : (
                   <>
