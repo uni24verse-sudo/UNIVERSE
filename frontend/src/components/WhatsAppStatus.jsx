@@ -6,12 +6,14 @@ import { Send, CheckCircle2, Info, Key } from 'lucide-react';
 const VendorNotifications = ({ store }) => {
   const { vendor, token, updateVendor } = useContext(AuthContext);
   const [telegramChatId, setTelegramChatId] = useState(store?.telegramChatId || '');
+  const [telegramBotToken, setTelegramBotToken] = useState(store?.telegramBotToken || '');
   const [isUpdating, setIsUpdating] = useState(false);
   const [testStatus, setTestStatus] = useState(null);
  
   // Update local state when store prop changes
   React.useEffect(() => {
     setTelegramChatId(store?.telegramChatId || '');
+    setTelegramBotToken(store?.telegramBotToken || '');
   }, [store]);
  
   const isActive = !!telegramChatId;
@@ -24,7 +26,7 @@ const VendorNotifications = ({ store }) => {
       // Save to STORE level
       await axios.put(
         `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/store/${store._id}/update-details`,
-        { telegramChatId },
+        { telegramChatId, telegramBotToken },
         { headers: { Authorization: `Bearer ${token}` } }
       );
       
@@ -140,6 +142,27 @@ const VendorNotifications = ({ store }) => {
           {telegramChatId && telegramChatId.includes(':') && (
             <p style={{ color: '#ef4444', fontSize: '0.65rem', marginTop: '0.5rem', fontWeight: '800' }}>
               ⚠️ Bot Token detected! Please use your numeric <b>Chat ID</b> instead.
+            </p>
+          )}
+        </div>
+
+        <div style={{ marginBottom: '1.25rem' }}>
+          <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
+            Custom Bot Token (Optional)
+          </label>
+          <input
+            type="text"
+            placeholder="from @BotFather"
+            value={telegramBotToken}
+            onChange={(e) => setTelegramBotToken(e.target.value)}
+            style={{
+              width: '100%', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--surface-border)',
+              borderRadius: '12px', padding: '0.75rem 1rem', color: 'white', fontSize: '0.9rem', outline: 'none'
+            }}
+          />
+          {telegramBotToken && !telegramBotToken.includes(':') && (
+            <p style={{ color: '#ef4444', fontSize: '0.65rem', marginTop: '0.5rem', fontWeight: '800' }}>
+              ⚠️ Custom tokens usually contain a colon (e.g. 123:ABC).
             </p>
           )}
         </div>

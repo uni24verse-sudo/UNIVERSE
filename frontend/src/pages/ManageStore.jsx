@@ -19,6 +19,7 @@ const ManageStore = () => {
   const [storePackagingCharge, setStorePackagingCharge] = useState(0);
   const [storeUpi, setStoreUpi] = useState('');
   const [storeTelegramChatId, setStoreTelegramChatId] = useState('');
+  const [storeTelegramBotToken, setStoreTelegramBotToken] = useState('');
   const [isEditingStore, setIsEditingStore] = useState(false);
   const [updatingStore, setUpdatingStore] = useState(false);
   const [storeImageFile, setStoreImageFile] = useState(null);
@@ -72,6 +73,7 @@ const ManageStore = () => {
           setStoreMarket(defaultStore.market || 'BH1 Market');
           setStoreUpi(defaultStore.upiId || '');
           setStoreTelegramChatId(defaultStore.telegramChatId || '');
+          setStoreTelegramBotToken(defaultStore.telegramBotToken || '');
         } else {
           navigate('/vendor/store/create');
         }
@@ -94,6 +96,7 @@ const ManageStore = () => {
       setStorePackagingCharge(selected.packagingCharge || 0);
       setStoreUpi(selected.upiId || '');
       setStoreTelegramChatId(selected.telegramChatId || '');
+      setStoreTelegramBotToken(selected.telegramBotToken || '');
       setIsEditingStore(false);
     }
   };
@@ -201,7 +204,7 @@ const ManageStore = () => {
     try {
       // Update Store Details
       const storeRes = await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/store/${store._id}/update-details`, 
-        { name: storeName, category: storeCategory, packagingCharge: storePackagingCharge, market: storeMarket, upiId: storeUpi, telegramChatId: storeTelegramChatId },
+        { name: storeName, category: storeCategory, packagingCharge: storePackagingCharge, market: storeMarket, upiId: storeUpi, telegramChatId: storeTelegramChatId, telegramBotToken: storeTelegramBotToken },
         { headers: { Authorization: `Bearer ${token}` } }
       );
       
@@ -213,8 +216,8 @@ const ManageStore = () => {
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      setStore(prev => ({ ...prev, name: storeRes.data.name, category: storeRes.data.category, packagingCharge: storeRes.data.packagingCharge, market: storeRes.data.market, upiId: storeRes.data.upiId, telegramChatId: storeRes.data.telegramChatId }));
-      setStores(prev => prev.map(s => s._id === store._id ? { ...s, name: storeRes.data.name, category: storeRes.data.category, packagingCharge: storeRes.data.packagingCharge, market: storeRes.data.market, upiId: storeRes.data.upiId, telegramChatId: storeRes.data.telegramChatId } : s));
+      setStore(prev => ({ ...prev, name: storeRes.data.name, category: storeRes.data.category, packagingCharge: storeRes.data.packagingCharge, market: storeRes.data.market, upiId: storeRes.data.upiId, telegramChatId: storeRes.data.telegramChatId, telegramBotToken: storeRes.data.telegramBotToken }));
+      setStores(prev => prev.map(s => s._id === store._id ? { ...s, name: storeRes.data.name, category: storeRes.data.category, packagingCharge: storeRes.data.packagingCharge, market: storeRes.data.market, upiId: storeRes.data.upiId, telegramChatId: storeRes.data.telegramChatId, telegramBotToken: storeRes.data.telegramBotToken } : s));
       updateVendor(adminRes.data.admin);
       setIsEditingStore(false);
     } catch (err) {
@@ -656,6 +659,22 @@ const ManageStore = () => {
                         </p>
                       )}
                     </div>
+                    <div>
+                      <label className="form-label" style={{ fontSize: '0.75rem' }}>Bot API Token (Optional / Advanced)</label>
+                      <input 
+                        type="text" 
+                        className="form-input" 
+                        placeholder="from @BotFather"
+                        value={storeTelegramBotToken || ''} 
+                        onChange={e => setStoreTelegramBotToken(e.target.value)}
+                        style={{ height: '40px', borderRadius: '10px', fontSize: '0.875rem' }}
+                      />
+                      {storeTelegramBotToken && !storeTelegramBotToken.includes(':') && (
+                        <p style={{ color: '#ef4444', fontSize: '0.65rem', marginTop: '0.5rem', fontWeight: '800' }}>
+                          ⚠️ Bot Tokens usually contain a colon (e.g. 123:ABC).
+                        </p>
+                      )}
+                    </div>
                   </div>
                   <div style={{ display: 'flex', gap: '0.5rem' }}>
                     <button type="submit" className="btn btn-primary" style={{ padding: '0.5rem', height: 'auto', borderRadius: '10px', fontSize: '0.875rem', flex: 1 }}>
@@ -682,14 +701,14 @@ const ManageStore = () => {
                       <p style={{ fontWeight: '700' }}>{store.market || 'BH1 Market'}</p>
                     </div>
                   </div>
-                  <div style={{ padding: '1rem', background: 'rgba(255,255,255,0.03)', borderRadius: '14px', display: 'flex', justifyContent: 'flex-start' }}>
+                  <div style={{ padding: '1rem', background: 'rgba(255,255,255,0.03)', borderRadius: '14px', display: 'flex', gap: '1rem' }}>
                     <div style={{ flex: 1 }}>
-                      <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Packaging Fee</p>
-                      <p style={{ fontWeight: '700', color: 'var(--secondary)' }}>₹{store.packagingCharge || 0}</p>
-                    </div>
-                    <div style={{ flex: 1, textAlign: 'right' }}>
                       <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Telegram ID</p>
                       <p style={{ fontWeight: '700', color: '#0088cc' }}>{store.telegramChatId || 'Not Set'}</p>
+                    </div>
+                    <div style={{ flex: 1, textAlign: 'right' }}>
+                      <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Bot Status</p>
+                      <p style={{ fontWeight: '700', color: store.telegramBotToken ? 'var(--primary)' : 'var(--text-secondary)' }}>{store.telegramBotToken ? 'Custom Bot' : 'System Bot'}</p>
                     </div>
                   </div>
                   <div style={{ padding: '1rem', background: 'rgba(255,255,255,0.03)', borderRadius: '14px' }}>

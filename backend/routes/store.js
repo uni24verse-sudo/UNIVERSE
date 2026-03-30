@@ -367,7 +367,7 @@ router.put('/:storeId/toggle-status', auth, async (req, res) => {
 // Update Store Details
 router.put('/:storeId/update-details', auth, async (req, res) => {
   try {
-    const { name, category, packagingCharge, market, upiId, telegramChatId } = req.body;
+    const { name, category, packagingCharge, market, upiId, telegramChatId, telegramBotToken } = req.body;
     const store = await Store.findOne({ _id: req.params.storeId, admin: req.admin._id });
     if (!store) return res.status(404).json({ message: 'Store not found' });
 
@@ -377,6 +377,7 @@ router.put('/:storeId/update-details', auth, async (req, res) => {
     if (market) store.market = market;
     if (upiId !== undefined) store.upiId = upiId;
     if (telegramChatId !== undefined) store.telegramChatId = telegramChatId;
+    if (telegramBotToken !== undefined) store.telegramBotToken = telegramBotToken;
     
     await store.save();
     res.json(store);

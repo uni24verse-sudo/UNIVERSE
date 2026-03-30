@@ -12,14 +12,17 @@ class TelegramService {
    * @param {string} chatId - Recipient's Telegram Chat ID
    * @param {string} text - Message text (supports HTML)
    */
-  async sendMessage(chatId, text) {
-    if (!chatId || !this.token) {
+  async sendMessage(chatId, text, tokenOverride = null) {
+    const finalToken = tokenOverride || this.token;
+    const finalApiUrl = tokenOverride ? `https://api.telegram.org/bot${tokenOverride}` : this.apiUrl;
+
+    if (!chatId || !finalToken) {
       console.warn('Skipping Telegram: Missing Chat ID or Bot Token.');
       return false;
     }
 
     try {
-      const url = `${this.apiUrl}/sendMessage`;
+      const url = `${finalApiUrl}/sendMessage`;
       const response = await axios.post(url, {
         chat_id: chatId,
         text: text,
@@ -62,8 +65,9 @@ class TelegramService {
       `📞 Phone: <b>${order.customerPhone || 'N/A'}</b>\n` +
       `🏪 Store: ${store?.name || 'Your Store'}\n\n` +
       `👉 <b><a href="https://www.universeorder.co.in/vendor/dashboard">Open Dashboard</a></b>`;
+    const botToken = store?.telegramBotToken || null;
  
-    return this.sendMessage(chatId, message);
+    return this.sendMessage(chatId, message, botToken);
   }
 }
 

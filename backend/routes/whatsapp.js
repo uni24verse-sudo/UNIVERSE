@@ -10,11 +10,10 @@ router.post('/test-telegram', auth, async (req, res) => {
   try {
     const { storeId } = req.body;
     const admin = await Admin.findById(req.admin._id);
-    const token = process.env.TELEGRAM_BOT_TOKEN;
-    
+    let token = process.env.TELEGRAM_BOT_TOKEN;
     let chatId = admin.telegramChatId;
     let storeName = 'Admin Level';
- 
+  
     if (storeId) {
       const Store = require('../models/Store');
       const store = await Store.findOne({ _id: storeId, admin: req.admin._id });
@@ -22,6 +21,9 @@ router.post('/test-telegram', auth, async (req, res) => {
         if (store.telegramChatId) {
           chatId = store.telegramChatId;
           storeName = store.name;
+        }
+        if (store.telegramBotToken) {
+          token = store.telegramBotToken;
         }
       }
     }
