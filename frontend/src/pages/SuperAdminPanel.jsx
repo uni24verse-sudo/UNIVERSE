@@ -13,7 +13,8 @@ import {
   Ban,
   Trash2,
   CheckCircle,
-  Activity
+  Activity,
+  Send
 } from 'lucide-react';
 
 const SuperAdminPanel = () => {
