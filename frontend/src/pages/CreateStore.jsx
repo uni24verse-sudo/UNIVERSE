@@ -97,8 +97,10 @@ const CreateStore = () => {
                 <option value="" disabled style={{ background: '#1e1b4b' }}>Select Market</option>
                 <option value="BH1 Market" style={{ background: '#1e1b4b' }}>BH1 Market</option>
                 <option value="Block34 Market" style={{ background: '#1e1b4b' }}>Block34 Market</option>
-                <option value="Hospital Market" style={{ background: '#1e1b4b' }}>Hospital Market</option>
+                <option value="LIT Market" style={{ background: '#1e1b4b' }}>LIT Market</option>
+                <option value="Mall Market" style={{ background: '#1e1b4b' }}>Mall Market</option>
                 <option value="BH6 Market" style={{ background: '#1e1b4b' }}>BH6 Market</option>
+                <option value="Apartment Market" style={{ background: '#1e1b4b' }}>Apartment Market</option>
               </select>
             </div>
             <div className="form-group" style={{ marginBottom: '1.5rem' }}>

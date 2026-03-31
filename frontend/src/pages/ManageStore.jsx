@@ -614,7 +614,8 @@ const ManageStore = () => {
                     >
                       <option value="BH1 Market">BH1 Market</option>
                       <option value="Block34 Market">Block34 Market</option>
-                      <option value="Hospital Market">Hospital Market</option>
+                      <option value="LIT Market">LIT Market</option>
+                      <option value="Mall Market">Mall Market</option>
                       <option value="BH6 Market">BH6 Market</option>
                       <option value="Apartment Market">Apartment Market</option>
                     </select>

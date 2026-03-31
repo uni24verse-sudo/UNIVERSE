@@ -104,7 +104,7 @@ const Home = () => {
         <div className="market-grid" style={{ 
           marginBottom: '3.5rem' 
         }}>
-           {['All', 'BH1 Market', 'Block34 Market', 'Hospital Market', 'BH6 Market', 'Apartment Market'].map(market => (
+           {['All', 'BH1 Market', 'Block34 Market', 'LIT Market', 'Mall Market', 'BH6 Market', 'Apartment Market'].map(market => (
              <button
               key={market}
               onClick={() => setSelectedMarket(market)}
