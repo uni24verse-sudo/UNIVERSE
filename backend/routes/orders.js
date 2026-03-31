@@ -10,6 +10,8 @@ const notificationService = require('../services/notificationService');
 const generateOrderNumber = () => Math.floor(1000 + Math.random() * 9000).toString();
 
 // Create a new Order (Public Customer endpoint)
+// NOTE: For Razorpay checkouts, use the /api/payments/razorpay/verify endpoint
+// which creates the order ONLY after successful payment to avoid DB clutter.
 router.post('/create', async (req, res) => {
   try {
     const { storeId, items, totalAmount, paymentMethod, customerPhone, customerName, orderType, packagingChargeApplied } = req.body;

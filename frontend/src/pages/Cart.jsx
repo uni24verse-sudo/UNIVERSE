@@ -66,7 +66,19 @@ const Cart = () => {
     setLoading(true);
 
     try {
-      // Step 1: Create order in our backend
+      // Step 1: Create Razorpay order (Backend no longer saves to DB at this point)
+      const paymentRes = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/payments/razorpay/create-order`, {
+        amount: finalTotal,
+        storeId: storeId
+      });
+
+      if (!paymentRes.data.success) {
+        alert('Failed to initiate payment. Please try again.');
+        setLoading(false);
+        return;
+      }
+
+      // Prepare order data for verification step
       const orderData = {
         storeId,
         items: cart,
@@ -78,42 +90,29 @@ const Cart = () => {
         packagingChargeApplied: deliveryFee > 0
       };
 
-      const orderRes = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/orders/create`, orderData);
-      const savedOrder = orderRes.data;
-
-      // Step 2: Create Razorpay order
-      const paymentRes = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/payments/razorpay/create-order`, {
-        orderId: savedOrder._id
-      });
-
-      if (!paymentRes.data.success) {
-        alert('Failed to initiate payment. Please try again.');
-        setLoading(false);
-        return;
-      }
-
-      // Step 3: Open Razorpay checkout
+      // Step 2: Open Razorpay checkout
       const options = {
         key: paymentRes.data.keyId,
         amount: paymentRes.data.amount,
         currency: paymentRes.data.currency,
         name: store?.name || 'UniVerse',
-        description: `Order #${savedOrder.orderNumber}`,
+        description: `Order from ${store?.name || 'UniVerse'}`,
         order_id: paymentRes.data.razorpayOrderId,
         handler: async function (response) {
-          // Step 4: Verify payment on backend
+          // Step 3: Verify payment and CREATE order on backend
           try {
             const verifyRes = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/payments/razorpay/verify`, {
               razorpay_order_id: response.razorpay_order_id,
               razorpay_payment_id: response.razorpay_payment_id,
               razorpay_signature: response.razorpay_signature,
-              orderId: savedOrder._id
+              orderData: orderData
             });
 
             if (verifyRes.data.success) {
+              const savedOrder = verifyRes.data.order;
               // Add to recent orders for tracking
               const recentOrders = JSON.parse(localStorage.getItem('universe_recent_orders') || '[]');
-              const newOrder = {
+              const newRecentOrder = {
                 id: savedOrder._id,
                 orderNumber: savedOrder.orderNumber,
                 storeName: store?.name || 'Store',
@@ -123,7 +122,7 @@ const Cart = () => {
               };
               
               // Only keep unique orders, limit to 5
-              const updatedRecent = [newOrder, ...recentOrders.filter(o => o.id !== savedOrder._id)].slice(0, 5);
+              const updatedRecent = [newRecentOrder, ...recentOrders.filter(o => o.id !== savedOrder._id)].slice(0, 5);
               localStorage.setItem('universe_recent_orders', JSON.stringify(updatedRecent));
               
               clearCart();
@@ -146,8 +145,7 @@ const Cart = () => {
         modal: {
           ondismiss: function () {
             setLoading(false);
-            // Delete the pending order if payment is cancelled
-            axios.delete(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/orders/${savedOrder._id}`).catch(() => {});
+            // No need to delete order anymore as it wasn't created yet
           }
         }
       };
@@ -157,8 +155,8 @@ const Cart = () => {
       setLoading(false);
 
     } catch (error) {
-      console.error('Error creating order:', error);
-      alert('Failed to create order. Please try again.');
+      console.error('Error initiating checkout:', error);
+      alert('Failed to initiate checkout. Please try again.');
       setLoading(false);
     }
   };

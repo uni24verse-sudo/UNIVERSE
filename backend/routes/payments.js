@@ -12,27 +12,29 @@ const razorpay = new Razorpay({
   key_secret: paymentConfig.razorpay.keySecret
 });
 
-// 1. CREATE RAZORPAY ORDER
+// Helper to generate a unique 4-digit order number
+const generateOrderNumber = () => Math.floor(1000 + Math.random() * 9000).toString();
+
+// 1. CREATE RAZORPAY ORDER (Directly, without saving to DB yet)
 router.post('/razorpay/create-order', async (req, res) => {
   try {
-    const { orderId } = req.body;
-    const order = await Order.findById(orderId).populate('store');
-    if (!order) return res.status(404).json({ message: 'Order not found' });
+    const { amount, storeId } = req.body;
+    
+    if (!amount || !storeId) {
+      return res.status(400).json({ message: 'Amount and storeId are required' });
+    }
+
+    const store = await Store.findById(storeId);
+    if (!store) return res.status(404).json({ message: 'Store not found' });
 
     const razorpayOrder = await razorpay.orders.create({
-      amount: Math.round(order.totalAmount * 100), // Razorpay expects paise
+      amount: Math.round(amount * 100), // Razorpay expects paise
       currency: 'INR',
-      receipt: `order_${order.orderNumber}_${Date.now()}`,
+      receipt: `order_rcpt_${Date.now()}`,
       notes: {
-        orderId: order._id.toString(),
-        orderNumber: order.orderNumber,
-        storeId: order.store._id.toString()
+        storeId: storeId.toString()
       }
     });
-
-    order.transactionId = razorpayOrder.id;
-    order.paymentProvider = 'Razorpay';
-    await order.save();
 
     res.json({
       success: true,
@@ -48,10 +50,14 @@ router.post('/razorpay/create-order', async (req, res) => {
   }
 });
 
-// 2. VERIFY RAZORPAY PAYMENT
+// 2. VERIFY RAZORPAY PAYMENT & CREATE ORDER
 router.post('/razorpay/verify', async (req, res) => {
   try {
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, orderId } = req.body;
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, orderData } = req.body;
+
+    if (!orderData) {
+      return res.status(400).json({ message: 'Order data is required for verification' });
+    }
 
     // Verify signature
     const body = razorpay_order_id + '|' + razorpay_payment_id;
@@ -64,37 +70,48 @@ router.post('/razorpay/verify', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Payment verification failed' });
     }
 
-    // Payment verified - update order
-    const order = await Order.findById(orderId).populate({
-      path: 'store',
-      populate: { path: 'admin' }
+    // Payment verified - NOW Create the Order in DB
+    const { storeId, items, totalAmount, paymentMethod, customerPhone, customerName, orderType, packagingChargeApplied } = orderData;
+
+    const store = await Store.findById(storeId).populate('admin');
+    if (!store) return res.status(404).json({ message: 'Store not found' });
+
+    const newOrder = new Order({
+      store: storeId,
+      orderNumber: generateOrderNumber(),
+      items,
+      totalAmount,
+      paymentMethod: paymentMethod || 'Razorpay',
+      customerPhone,
+      customerName,
+      orderType,
+      packagingChargeApplied,
+      paymentStatus: 'Confirmed',
+      status: 'Pending',
+      transactionId: razorpay_payment_id,
+      paymentProvider: 'Razorpay'
     });
 
-    if (!order) return res.status(404).json({ message: 'Order not found' });
-
-    order.paymentStatus = 'Confirmed';
-    order.status = 'Pending';
-    order.transactionId = razorpay_payment_id;
-    await order.save();
+    const savedOrder = await newOrder.save();
 
     // Notify vendor via Socket.io
     const io = req.app.get('io');
-    io.to(order.store._id.toString()).emit('new_order', order);
+    io.to(storeId.toString()).emit('new_order', savedOrder);
 
     // Notify vendor via Telegram
-    if (order.store) {
-      telegramService.sendOrderAlert(order.store, order).catch(err => {
+    if (store) {
+      telegramService.sendOrderAlert(store, savedOrder).catch(err => {
         console.error('Telegram alert failed:', err.message);
       });
     }
 
-    console.log(`Order #${order.orderNumber} successfully paid via Razorpay.`);
+    console.log(`Order #${savedOrder.orderNumber} successfully created after payment verification.`);
 
-    res.json({ success: true, message: 'Payment verified successfully', order });
+    res.json({ success: true, message: 'Order created successfully', order: savedOrder });
 
   } catch (error) {
-    console.error('Razorpay Verification Error:', error);
-    res.status(500).json({ message: 'Payment verification failed' });
+    console.error('Razorpay Verification & Creation Error:', error);
+    res.status(500).json({ message: 'Order creation failed after payment' });
   }
 });
 
