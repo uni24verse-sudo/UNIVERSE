@@ -204,6 +204,20 @@ const Dashboard = () => {
     .filter(o => o.status === 'Completed')
     .reduce((acc, curr) => acc + curr.totalAmount, 0);
 
+  const now = new Date();
+  const startOfWeek = new Date(now);
+  startOfWeek.setDate(now.getDate() - now.getDay());
+  startOfWeek.setHours(0, 0, 0, 0);
+
+  const weeklyRevenue = orders
+    .filter(o => o.status === 'Completed' && new Date(o.createdAt) >= startOfWeek)
+    .reduce((acc, curr) => acc + curr.totalAmount, 0);
+
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const monthlyRevenue = orders
+    .filter(o => o.status === 'Completed' && new Date(o.createdAt) >= startOfMonth)
+    .reduce((acc, curr) => acc + curr.totalAmount, 0);
+
   const pendingOrders = orders.filter(o => o.status === 'Pending').length;
   const confirmedOrders = orders.filter(o => o.status === 'Confirmed').length;
   const completedOrders = orders.filter(o => o.status === 'Completed').length;
@@ -676,8 +690,14 @@ const Dashboard = () => {
 
               <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '24px', position: 'relative', overflow: 'hidden' }}>
                 <div style={{ position: 'absolute', right: '-10px', bottom: '-10px', opacity: 0.05 }}><ShoppingBag size={100} /></div>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: '600', marginBottom: '1rem' }}>Active Orders</p>
-                <h3 style={{ fontSize: '1.75rem', margin: 0 }}>{pendingOrders}</h3>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: '600', marginBottom: '1rem' }}>Weekly Revenue</p>
+                <h3 style={{ fontSize: '1.75rem', margin: 0 }}>₹{weeklyRevenue}</h3>
+              </div>
+
+              <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '24px', position: 'relative', overflow: 'hidden' }}>
+                <div style={{ position: 'absolute', right: '-10px', bottom: '-10px', opacity: 0.05 }}><TrendingUp size={100} /></div>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: '600', marginBottom: '1rem' }}>Monthly Revenue</p>
+                <h3 style={{ fontSize: '1.75rem', margin: 0 }}>₹{monthlyRevenue}</h3>
               </div>
 
               <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '24px', position: 'relative', overflow: 'hidden' }}>
