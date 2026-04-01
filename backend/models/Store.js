@@ -29,6 +29,7 @@ const StoreSchema = new mongoose.Schema({
   image: { type: String },
   qrLink: { type: String },
   isOpen: { type: Boolean, default: true },
+  isHidden: { type: Boolean, default: false },
   packagingCharge: { type: Number, default: 0 },
   priority: { type: Number, default: 0 },
   isTrialStarted: { type: Boolean, default: false },

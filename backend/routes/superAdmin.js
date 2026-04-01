@@ -197,6 +197,21 @@ router.put('/store/:id/toggle-status', async (req, res) => {
     }
 });
 
+// 5c. Force Toggle Store Hidden Status
+router.put('/store/:id/toggle-hidden', async (req, res) => {
+    try {
+        const store = await Store.findById(req.params.id);
+        if (!store) return res.status(404).json({ message: 'Store not found' });
+
+        store.isHidden = !store.isHidden;
+        await store.save();
+
+        res.json({ message: `Store forcefully ${store.isHidden ? 'hidden' : 'unhidden'}`, isHidden: store.isHidden });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
 // 6. Global Order Abort
 router.put('/order/:id/cancel', async (req, res) => {
     try {

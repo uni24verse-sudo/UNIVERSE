@@ -87,7 +87,7 @@ router.get('/global/search', async (req, res) => {
     const escapedQuery = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const regex = new RegExp(escapedQuery, 'i');
 
-    const stores = await Store.find({}, 'name category products _id isOpen image market priority')
+    const stores = await Store.find({ isHidden: { $ne: true } }, 'name category products _id isOpen image market priority')
       .populate('admin', 'name')
       .sort({ priority: 1, createdAt: -1 });
     const matchedStores = [];
@@ -126,7 +126,7 @@ router.get('/global/search', async (req, res) => {
 // Get all stores (Public)
 router.get('/all/list', async (req, res) => {
   try {
-    const stores = await Store.find({}, 'name market products admin category isOpen image priority')
+    const stores = await Store.find({ isHidden: { $ne: true } }, 'name market products admin category isOpen image priority')
       .populate('admin', 'name')
       .sort({ priority: 1, createdAt: -1 })
       .exec();
@@ -141,7 +141,7 @@ router.get('/:id', async (req, res) => {
   try {
     const store = await Store.findById(req.params.id).populate('admin', 'name');
     
-    if (!store) return res.status(404).json({ message: 'Store not found' });
+    if (!store || store.isHidden) return res.status(404).json({ message: 'Store not found' });
 
     const storeObj = store.toObject();
     if (storeObj.admin) {

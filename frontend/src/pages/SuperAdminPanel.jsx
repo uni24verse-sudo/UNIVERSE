@@ -14,7 +14,9 @@ import {
   Trash2,
   CheckCircle,
   Activity,
-  Send
+  Send,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 
 const SuperAdminPanel = () => {
@@ -268,6 +270,17 @@ const SuperAdminPanel = () => {
                       </p>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                      <button 
+                         onClick={async () => {
+                           try {
+                             await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/super-admin/store/${store._id}/toggle-hidden`, {}, { headers: { Authorization: `Bearer ${token}` } });
+                             fetchDashboardData();
+                           } catch(err) { alert('Action failed'); }
+                         }}
+                         style={{ padding: '0.25rem 0.5rem', fontSize: '0.7rem', textTransform: 'uppercase', fontWeight: '800', background: 'rgba(255,255,255,0.05)', color: store.isHidden ? '#10b981' : '#f59e0b', border: `1px solid ${store.isHidden ? 'rgba(16, 185, 129, 0.3)' : 'rgba(245, 158, 11, 0.3)'}`, borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                      >
+                         {store.isHidden ? <><Eye size={12}/> Unhide</> : <><EyeOff size={12}/> Hide</>}
+                      </button>
                       <button 
                          onClick={async () => {
                            try {
