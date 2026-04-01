@@ -66,7 +66,8 @@ const ManageStore = () => {
         });
         setStores(res.data);
         if (res.data.length > 0) {
-          const defaultStore = res.data[0];
+          const savedStoreId = localStorage.getItem('preferredStoreId');
+          const defaultStore = res.data.find(s => s._id === savedStoreId) || res.data[0];
           setStore(defaultStore);
           setStoreName(defaultStore.name);
           setStoreCategory(defaultStore.category || 'General');
@@ -87,6 +88,7 @@ const ManageStore = () => {
   }, [token, navigate, vendor]);
 
   const changeStore = (storeId) => {
+    localStorage.setItem('preferredStoreId', storeId);
     const selected = stores.find(s => s._id === storeId);
     if (selected) {
       setStore(selected);

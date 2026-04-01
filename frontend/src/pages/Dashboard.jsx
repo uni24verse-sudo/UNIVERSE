@@ -78,8 +78,9 @@ const Dashboard = () => {
         
         setStores(storesRes.data);
         if (storesRes.data.length > 0) {
-          // Default to first store or keep previously selected
-          setStore(storesRes.data[0]);
+          const savedStoreId = localStorage.getItem('preferredStoreId');
+          const savedStore = storesRes.data.find(s => s._id === savedStoreId);
+          setStore(savedStore || storesRes.data[0]);
         } else {
           setStore(null);
         }
@@ -400,6 +401,7 @@ const Dashboard = () => {
                 onChange={(e) => {
                   const selected = stores.find(s => s._id === e.target.value);
                   setStore(selected);
+                  localStorage.setItem('preferredStoreId', e.target.value);
                 }}
                 style={{
                   padding: '0.6rem 1rem',
