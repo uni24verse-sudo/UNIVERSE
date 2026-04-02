@@ -289,7 +289,8 @@ router.put('/:storeId/product/:productId/toggle', auth, async (req, res) => {
     const product = store.products.id(req.params.productId);
     if (!product) return res.status(404).json({ message: 'Product not found' });
 
-    product.isAvailable = !product.isAvailable;
+    // If isAvailable is undefined (old records), it behaves as true. Toggling it should make it false.
+    product.isAvailable = product.isAvailable === false ? true : false;
     await store.save();
 
     res.json({ message: 'Product updated successfully', store });

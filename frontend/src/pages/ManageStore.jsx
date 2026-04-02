@@ -183,6 +183,7 @@ const ManageStore = () => {
         headers: { Authorization: `Bearer ${token}` }
       });
       setStore(res.data.store);
+      setStores(prev => prev.map(s => s._id === store._id ? res.data.store : s));
     } catch (err) {
       alert('Failed to update availability');
     }
@@ -1125,8 +1126,8 @@ const ManageStore = () => {
                             padding: '0.6rem', 
                             borderRadius: '12px', 
                             border: '1px solid transparent', 
-                            background: p.isAvailable ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)', 
-                            color: p.isAvailable ? 'var(--secondary)' : 'var(--error)', 
+                            background: p.isAvailable !== false ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)', 
+                            color: p.isAvailable !== false ? 'var(--secondary)' : 'var(--error)', 
                             cursor: 'pointer',
                             display: 'flex',
                             alignItems: 'center',
@@ -1135,7 +1136,7 @@ const ManageStore = () => {
                             fontWeight: '600'
                           }}
                         >
-                          {p.isAvailable ? <><Eye size={14} /> Available</> : <><EyeOff size={14} /> Hidden</>}
+                          {p.isAvailable !== false ? <><Eye size={14} /> Available</> : <><EyeOff size={14} /> Hidden</>}
                         </button>
                         <button 
                           onClick={() => deleteProduct(p._id, p.name)}
