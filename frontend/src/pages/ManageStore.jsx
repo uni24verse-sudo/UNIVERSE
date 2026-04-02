@@ -1136,7 +1136,7 @@ const ManageStore = () => {
                             fontWeight: '600'
                           }}
                         >
-                          {p.isAvailable !== false ? <><Eye size={14} /> Available</> : <><EyeOff size={14} /> Hidden</>}
+                          {p.isAvailable !== false ? <><Check size={14} /> In Stock</> : <><X size={14} /> Out of Stock</>}
                         </button>
                         <button 
                           onClick={() => deleteProduct(p._id, p.name)}

@@ -34,17 +34,16 @@ const StoreMenu = () => {
   if (loading) return <div className="auth-wrapper">Loading Menu...</div>;
   if (!store) return <div className="auth-wrapper"><h3>Store not found or unavailable.</h3></div>;
 
-  const availableProducts = store?.products.filter(p => p.isAvailable !== false) || [];
   const totalItems = cart.reduce((acc, item) => acc + item.quantity, 0);
-  const comboExists = availableProducts.some(p => p.isCombo);
-  const categories = store ? ['All', ...(comboExists ? ['Combos'] : []), ...new Set(availableProducts.map(p => p.category || 'Uncategorized'))] : [];
+  const comboExists = store?.products.some(p => p.isCombo);
+  const categories = store ? ['All', ...(comboExists ? ['Combos'] : []), ...new Set(store.products.map(p => p.category || 'Uncategorized'))] : [];
   
-  const filteredProducts = availableProducts.filter(p => {
+  const filteredProducts = store?.products.filter(p => {
     const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase());
     if (activeCategory === 'All') return matchesSearch;
     if (activeCategory === 'Combos') return p.isCombo && matchesSearch;
     return (p.category || 'Uncategorized') === activeCategory && matchesSearch;
-  });
+  }) || [];
 
   const getImageUrl = (img) => {
     if (!img) return 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=1000&q=80';
