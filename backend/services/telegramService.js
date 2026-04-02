@@ -57,8 +57,12 @@ class TelegramService {
  
     const itemList = order.items?.map(item => `• ${item.name} <b>(x${item.quantity})</b>`).join('\n') || '';
 
+    const orderTypeEmoji = order.orderType === 'Take Away' ? '🛍️' : '🍽️';
+    const orderTypeLabel = order.orderType || 'Dine In';
+
     const message = `🔔 <b>UniVerse Order Alert!</b>\n\n` +
-      `New Order <b>#${order.orderNumber}</b> received.\n` +
+      `New Order <b>#${order.orderNumber}</b> received.\n\n` +
+      `${orderTypeEmoji} <b>Order Type: ${orderTypeLabel}</b>\n\n` +
       `📦 <b>Items Ordered:</b>\n${itemList}\n\n` +
       `💰 Amount: <b>₹${order.totalAmount}</b>\n` +
       `👤 Customer: ${order.customerName || 'Customer'}\n` +

@@ -50,7 +50,10 @@ const StoreMenu = () => {
     return img.startsWith('/uploads') ? `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${img}` : img;
   };
 
+  const storeClosed = store.isOpen === false;
+
   const handleAddToCartClick = (product) => {
+    if (storeClosed) return;
     if (product.isAvailable === false) return;
     if (product.variants && product.variants.length > 0) {
       setSelectedProduct(product);
@@ -222,9 +225,7 @@ const StoreMenu = () => {
         <div className="store-menu-grid" style={{ 
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fill, minmax(100%, 1fr))',
-          gap: '1.5rem',
-          opacity: store.isOpen !== false ? 1 : 0.6, 
-          pointerEvents: store.isOpen !== false ? 'auto' : 'none' 
+          gap: '1.5rem'
         }}>
           {activeCategory === 'All' && comboExists && !searchQuery && (
             <div 
@@ -367,18 +368,18 @@ const StoreMenu = () => {
                     <button 
                       className="btn btn-primary" 
                       onClick={() => handleAddToCartClick(product)}
-                      disabled={isUnavailable}
+                      disabled={isUnavailable || storeClosed}
                       style={{ 
                         padding: '0.5rem', 
                         height: '36px', 
                         fontSize: '0.875rem', 
-                        boxShadow: isUnavailable ? 'none' : '0 8px 20px rgba(99, 102, 241, 0.4)',
+                        boxShadow: (isUnavailable || storeClosed) ? 'none' : '0 8px 20px rgba(99, 102, 241, 0.4)',
                         borderRadius: '8px',
-                        background: isUnavailable ? 'rgba(255,255,255,0.05)' : 'var(--primary)',
-                        color: isUnavailable ? 'rgba(255,255,255,0.3)' : 'white'
+                        background: (isUnavailable || storeClosed) ? 'rgba(255,255,255,0.05)' : 'var(--primary)',
+                        color: (isUnavailable || storeClosed) ? 'rgba(255,255,255,0.3)' : 'white'
                       }}
                     >
-                      {isUnavailable ? 'SOLD OUT' : (product.variants && product.variants.length > 0 ? 'OPTIONS +' : <><Plus size={14} /> ADD</>)}
+                      {storeClosed ? '🔒 CLOSED' : isUnavailable ? 'SOLD OUT' : (product.variants && product.variants.length > 0 ? 'OPTIONS +' : <><Plus size={14} /> ADD</>)}
                     </button>
                   </div>
                 </div>
@@ -422,12 +423,14 @@ const StoreMenu = () => {
             <button 
               className="btn btn-primary" 
               onClick={() => {
+                if (storeClosed) return;
                 addToCart(selectedProduct, id, selectedVariant);
                 setShowVariantModal(false);
               }}
-              style={{ width: '100%', height: '54px', borderRadius: '16px', fontSize: '1.125rem' }}
+              disabled={storeClosed}
+              style={{ width: '100%', height: '54px', borderRadius: '16px', fontSize: '1.125rem', opacity: storeClosed ? 0.5 : 1 }}
             >
-              Add to Cart - ₹{selectedVariant?.price}
+              {storeClosed ? '🔒 Store is Closed' : `Add to Cart - ₹${selectedVariant?.price}`}
             </button>
           </div>
         </div>

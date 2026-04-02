@@ -22,7 +22,9 @@ import {
   Menu,
   QrCode,
   Globe,
-  AlertCircle
+  AlertCircle,
+  Utensils,
+  Package
 } from 'lucide-react';
 
 
@@ -626,9 +628,32 @@ const Dashboard = () => {
                                   <span style={{ marginLeft: '4px', color: '#f59e0b' }}>● UNPAID</span>
                                 )}
                               </span>
+                              {/* Order Type Badge */}
+                              <span style={{
+                                padding: '0.3rem 0.75rem',
+                                borderRadius: '8px',
+                                fontSize: '0.7rem',
+                                fontWeight: '900',
+                                textTransform: 'uppercase',
+                                background: order.orderType === 'Take Away' 
+                                  ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(251, 191, 36, 0.15))' 
+                                  : 'linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(139, 92, 246, 0.15))',
+                                color: order.orderType === 'Take Away' ? '#fbbf24' : '#a78bfa',
+                                border: `1.5px solid ${order.orderType === 'Take Away' ? 'rgba(251, 191, 36, 0.4)' : 'rgba(167, 139, 246, 0.4)'}`,
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.3rem',
+                                boxShadow: order.orderType === 'Take Away' 
+                                  ? '0 2px 8px rgba(245, 158, 11, 0.15)' 
+                                  : '0 2px 8px rgba(99, 102, 241, 0.15)'
+                              }}>
+                                {order.orderType === 'Take Away' ? <Package size={11} /> : <Utensils size={11} />}
+                                {order.orderType || 'Dine In'}
+                              </span>
                             </div>
                             <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>
                               {getTimeAgo(order.createdAt)} • {order.items.length} Items
+                              {order.customerName && <span style={{ color: 'var(--primary)', fontWeight: '700' }}> • {order.customerName}</span>}
                             </p>
                           </div>
                           
