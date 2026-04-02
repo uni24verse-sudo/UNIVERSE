@@ -34,11 +34,12 @@ const StoreMenu = () => {
   if (loading) return <div className="auth-wrapper">Loading Menu...</div>;
   if (!store) return <div className="auth-wrapper"><h3>Store not found or unavailable.</h3></div>;
 
+  const availableProducts = store?.products.filter(p => p.isAvailable !== false) || [];
   const totalItems = cart.reduce((acc, item) => acc + item.quantity, 0);
-  const comboExists = store?.products.some(p => p.isCombo);
-  const categories = store ? ['All', ...(comboExists ? ['Combos'] : []), ...new Set(store.products.map(p => p.category || 'Uncategorized'))] : [];
+  const comboExists = availableProducts.some(p => p.isCombo);
+  const categories = store ? ['All', ...(comboExists ? ['Combos'] : []), ...new Set(availableProducts.map(p => p.category || 'Uncategorized'))] : [];
   
-  const filteredProducts = store?.products.filter(p => {
+  const filteredProducts = availableProducts.filter(p => {
     const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase());
     if (activeCategory === 'All') return matchesSearch;
     if (activeCategory === 'Combos') return p.isCombo && matchesSearch;
@@ -51,6 +52,7 @@ const StoreMenu = () => {
   };
 
   const handleAddToCartClick = (product) => {
+    if (product.isAvailable === false) return;
     if (product.variants && product.variants.length > 0) {
       setSelectedProduct(product);
       setSelectedVariant(product.variants[0]); // Default to first
@@ -266,95 +268,124 @@ const StoreMenu = () => {
             </div>
           )}
 
-          {filteredProducts.map(product => (
-            <div key={product._id} className="glass-card" style={{ 
-              display: 'flex', 
-              padding: '1.25rem',
-              gap: '1.25rem',
-              borderRadius: '24px',
-              border: '1px solid var(--surface-border)'
-            }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                   <div style={{ width: '12px', height: '12px', border: '1px solid #10b981', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10b981' }}></div>
-                   </div>
-                   <span style={{ fontSize: '0.75rem', color: 'var(--secondary)', fontWeight: '600' }}>{product.category || 'Special'}</span>
-                   {product.isCombo && <span style={{ fontSize: '0.65rem', padding: '0.15rem 0.5rem', background: 'rgba(239, 68, 68, 0.1)', color: 'var(--error)', borderRadius: '6px', fontWeight: '800', marginLeft: 'auto' }}>🎁 COMBO DEAL</span>}
-                </div>
-                <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.25rem', fontWeight: '700' }}>{product.name}</h3>
-                {product.variants && product.variants.length > 0 ? (
-                  <p style={{ fontWeight: '700', fontSize: '1.125rem', marginBottom: product.isCombo ? '0.5rem' : '1rem', color: 'var(--text-secondary)' }}>From ₹{Math.min(...product.variants.map(v => v.price))}</p>
-                ) : (
-                  <p style={{ fontWeight: '700', fontSize: '1.125rem', marginBottom: product.isCombo ? '0.5rem' : '1rem' }}>₹{product.price}</p>
+          {filteredProducts.map(product => {
+            const isUnavailable = product.isAvailable === false;
+            return (
+              <div key={product._id} className="glass-card" style={{ 
+                display: 'flex', 
+                padding: '1.25rem',
+                gap: '1.25rem',
+                borderRadius: '24px',
+                border: '1px solid var(--surface-border)',
+                opacity: isUnavailable ? 0.6 : 1,
+                filter: isUnavailable ? 'grayscale(1)' : 'none',
+                pointerEvents: isUnavailable ? 'none' : 'auto',
+                position: 'relative',
+                overflow: 'hidden'
+              }}>
+                {isUnavailable && (
+                   <div style={{
+                     position: 'absolute',
+                     top: '50%',
+                     left: '50%',
+                     transform: 'translate(-50%, -50%) rotate(-15deg)',
+                     background: '#ef4444',
+                     color: 'white',
+                     padding: '0.4rem 1.2rem',
+                     borderRadius: '8px',
+                     fontWeight: '900',
+                     fontSize: '0.75rem',
+                     zIndex: 10,
+                     boxShadow: '0 4px 15px rgba(0,0,0,0.3)',
+                     border: '2px solid white',
+                     whiteSpace: 'nowrap'
+                   }}>OUT OF STOCK</div>
                 )}
-                
-                {product.isCombo && (
-                  <div style={{ marginBottom: '1rem', background: 'rgba(0,0,0,0.2)', padding: '0.75rem', borderRadius: '12px' }}>
-                    {product.comboItems && product.comboItems.length > 0 && (
-                      <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                        <span style={{ color: 'white', fontWeight: '600', display: 'block', marginBottom: '0.25rem' }}>Includes:</span>
-                        {product.comboItems.map((ci, idx) => (
-                          <div key={idx} style={{ marginBottom: '0.2rem' }}>• {ci.quantity} {ci.name}</div>
-                        ))}
-                      </div>
-                    )}
-                    {product.freeItems && product.freeItems.length > 0 && (
-                      <div style={{ fontSize: '0.8rem', color: '#10b981', marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid rgba(16, 185, 129, 0.2)' }}>
-                        <span style={{ fontWeight: '700', display: 'block', marginBottom: '0.25rem' }}>+ Free:</span>
-                        {product.freeItems.map((fi, idx) => (
-                          <div key={idx} style={{ marginBottom: '0.2rem' }}>• {fi.quantity} {fi.name}</div>
-                        ))}
-                      </div>
-                    )}
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                    <div style={{ width: '12px', height: '12px', border: `1px solid ${isUnavailable ? '#94a3b8' : '#10b981'}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: isUnavailable ? '#94a3b8' : '#10b981' }}></div>
+                    </div>
+                    <span style={{ fontSize: '0.75rem', color: isUnavailable ? 'var(--text-secondary)' : 'var(--secondary)', fontWeight: '600' }}>{product.category || 'Special'}</span>
+                    {product.isCombo && <span style={{ fontSize: '0.65rem', padding: '0.15rem 0.5rem', background: 'rgba(239, 68, 68, 0.1)', color: 'var(--error)', borderRadius: '6px', fontWeight: '800', marginLeft: 'auto' }}>🎁 COMBO DEAL</span>}
                   </div>
-                )}
-                
-                {!product.isCombo && (
-                  <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: '1rem' }}>
-                    Authentic flavor prepared with fresh ingredients. A favorite among locals.
-                  </p>
-                )}
-              </div>
+                  <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.25rem', fontWeight: '700' }}>{product.name}</h3>
+                  {product.variants && product.variants.length > 0 ? (
+                    <p style={{ fontWeight: '700', fontSize: '1.125rem', marginBottom: product.isCombo ? '0.5rem' : '1rem', color: 'var(--text-secondary)' }}>From ₹{Math.min(...product.variants.map(v => v.price))}</p>
+                  ) : (
+                    <p style={{ fontWeight: '700', fontSize: '1.125rem', marginBottom: product.isCombo ? '0.5rem' : '1rem' }}>₹{product.price}</p>
+                  )}
+                  
+                  {product.isCombo && (
+                    <div style={{ marginBottom: '1rem', background: 'rgba(0,0,0,0.2)', padding: '0.75rem', borderRadius: '12px' }}>
+                      {product.comboItems && product.comboItems.length > 0 && (
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                          <span style={{ color: 'white', fontWeight: '600', display: 'block', marginBottom: '0.25rem' }}>Includes:</span>
+                          {product.comboItems.map((ci, idx) => (
+                            <div key={idx} style={{ marginBottom: '0.2rem' }}>• {ci.quantity} {ci.name}</div>
+                          ))}
+                        </div>
+                      )}
+                      {product.freeItems && product.freeItems.length > 0 && (
+                        <div style={{ fontSize: '0.8rem', color: '#10b981', marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid rgba(16, 185, 129, 0.2)' }}>
+                          <span style={{ fontWeight: '700', display: 'block', marginBottom: '0.25rem' }}>+ Free:</span>
+                          {product.freeItems.map((fi, idx) => (
+                            <div key={idx} style={{ marginBottom: '0.2rem' }}>• {fi.quantity} {fi.name}</div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  
+                  {!product.isCombo && (
+                    <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: '1rem' }}>
+                      Authentic flavor prepared with fresh ingredients. A favorite among locals.
+                    </p>
+                  )}
+                </div>
 
-              <div style={{ width: '120px', position: 'relative', flexShrink: 0 }}>
-                {product.image ? (
-                   <img 
-                    src={product.image} 
-                    alt={product.name} 
-                    style={{ width: '120px', height: '120px', objectFit: 'cover', borderRadius: '16px', background: 'var(--glass-bg)' }}
-                    onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} 
-                   />
-                ) : null}
-                <div style={{ 
-                  display: product.image ? 'none' : 'flex', 
-                  width: '120px', 
-                  height: '120px', 
-                  background: 'var(--glass-bg)', 
-                  borderRadius: '16px', 
-                  alignItems: 'center', 
-                  justifyContent: 'center',
-                  fontSize: '2rem'
-                }}>🍲</div>
+                <div style={{ width: '120px', position: 'relative', flexShrink: 0 }}>
+                  {product.image ? (
+                    <img 
+                      src={product.image} 
+                      alt={product.name} 
+                      style={{ width: '120px', height: '120px', objectFit: 'cover', borderRadius: '16px', background: 'var(--glass-bg)' }}
+                      onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} 
+                    />
+                  ) : null}
+                  <div style={{ 
+                    display: product.image ? 'none' : 'flex', 
+                    width: '120px', 
+                    height: '120px', 
+                    background: 'var(--glass-bg)', 
+                    borderRadius: '16px', 
+                    alignItems: 'center', 
+                    justifyContent: 'center',
+                    fontSize: '2rem'
+                  }}>🍲</div>
 
-                <div style={{ position: 'absolute', bottom: '-10px', left: '50%', transform: 'translateX(-50%)', width: '90%' }}>
-                  <button 
-                    className="btn btn-primary" 
-                    onClick={() => handleAddToCartClick(product)}
-                    style={{ 
-                      padding: '0.5rem', 
-                      height: '36px', 
-                      fontSize: '0.875rem', 
-                      boxShadow: '0 8px 20px rgba(99, 102, 241, 0.4)',
-                      borderRadius: '8px'
-                    }}
-                  >
-                    {product.variants && product.variants.length > 0 ? 'OPTIONS +' : <><Plus size={14} /> ADD</>}
-                  </button>
+                  <div style={{ position: 'absolute', bottom: '-10px', left: '50%', transform: 'translateX(-50%)', width: '90%' }}>
+                    <button 
+                      className="btn btn-primary" 
+                      onClick={() => handleAddToCartClick(product)}
+                      disabled={isUnavailable}
+                      style={{ 
+                        padding: '0.5rem', 
+                        height: '36px', 
+                        fontSize: '0.875rem', 
+                        boxShadow: isUnavailable ? 'none' : '0 8px 20px rgba(99, 102, 241, 0.4)',
+                        borderRadius: '8px',
+                        background: isUnavailable ? 'rgba(255,255,255,0.05)' : 'var(--primary)',
+                        color: isUnavailable ? 'rgba(255,255,255,0.3)' : 'white'
+                      }}
+                    >
+                      {isUnavailable ? 'SOLD OUT' : (product.variants && product.variants.length > 0 ? 'OPTIONS +' : <><Plus size={14} /> ADD</>)}
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
