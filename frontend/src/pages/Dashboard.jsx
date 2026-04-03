@@ -24,9 +24,44 @@ import {
   Globe,
   AlertCircle,
   Utensils,
-  Package
 } from 'lucide-react';
 
+const CountdownTimer = ({ deadline }) => {
+  const [timeLeft, setTimeLeft] = useState(0);
+
+  useEffect(() => {
+    if (!deadline) return;
+    const interval = setInterval(() => {
+      const remaining = Math.max(0, new Date(deadline).getTime() - Date.now());
+      setTimeLeft(remaining);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [deadline]);
+
+  if (!deadline && timeLeft <= 0) return null;
+  if (deadline && timeLeft <= 0) return <span style={{ color: 'var(--error)', fontWeight: '800', fontSize: '0.9rem' }}>Expired...</span>;
+
+  const minutes = Math.floor(timeLeft / 60000);
+  const seconds = Math.floor((timeLeft % 60000) / 1000);
+  
+  return (
+    <span style={{ 
+      color: minutes === 0 && seconds < 60 ? 'var(--error)' : 'var(--primary)',
+      fontWeight: '900',
+      background: 'rgba(255,255,255,0.05)',
+      padding: '0.4rem 0.75rem',
+      borderRadius: '8px',
+      border: `1px solid ${minutes === 0 && seconds < 60 ? 'rgba(239, 68, 68, 0.3)' : 'rgba(99, 102, 241, 0.3)'}`,
+      fontFamily: 'monospace',
+      fontSize: '1rem',
+      display: 'flex',
+      alignItems: 'center',
+      gap: '0.4rem'
+    }}>
+      <Clock size={16} /> {minutes}:{seconds.toString().padStart(2, '0')}
+    </span>
+  );
+};
 
 const Dashboard = () => {
   const { token, vendor, logout } = useContext(AuthContext);
@@ -674,9 +709,12 @@ const Dashboard = () => {
                         </div>
 
                         {order.status !== 'Completed' && order.status !== 'Cancelled' && (
-                          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                           <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
                              {order.status === 'Pending' && (
-                               <button onClick={() => updateOrderStatus(order._id, 'Confirmed')} className="btn btn-primary" style={{ flex: 1, padding: '0.75rem', borderRadius: '12px', fontSize: '0.875rem' }}>Accept</button>
+                               <>
+                                 <button onClick={() => updateOrderStatus(order._id, 'Confirmed')} className="btn btn-primary" style={{ flex: 1, padding: '0.75rem', borderRadius: '12px', fontSize: '0.875rem' }}>Accept</button>
+                                 <CountdownTimer deadline={order.acceptDeadline} />
+                               </>
                              )}
                              {order.status === 'Confirmed' && (
                                <button onClick={() => updateOrderStatus(order._id, 'Completed')} className="btn btn-secondary" style={{ flex: 1, padding: '0.75rem', borderRadius: '12px', fontSize: '0.875rem', background: 'var(--secondary)', color: 'white' }}>Mark Ready</button>

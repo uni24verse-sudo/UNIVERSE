@@ -79,5 +79,24 @@ io.on('connection', (socket) => {
   });
 });
 
+const Order = require('./models/Order');
+
+// Background job to cancel expired orders
+setInterval(async () => {
+  try {
+    const expiredOrders = await Order.find({ status: 'Pending', acceptDeadline: { $lt: new Date() } });
+    for (const order of expiredOrders) {
+      order.status = 'Cancelled';
+      await order.save();
+      // Notify vendor and customer
+      io.to(order.store.toString()).emit('order_status_update', order);
+      io.to(order._id.toString()).emit('order_status_update', order);
+      console.log(`Auto-cancelled order #${order.orderNumber} due to 3-min timeout.`);
+    }
+  } catch (err) {
+    console.error('Order timeout check error:', err);
+  }
+}, 10000); // Check every 10 seconds
+
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));

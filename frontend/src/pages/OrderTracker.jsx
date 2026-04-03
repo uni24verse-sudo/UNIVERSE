@@ -4,6 +4,44 @@ import axios from 'axios';
 import { io } from 'socket.io-client';
 import { CheckCircle2, Clock, ChefHat, PackageCheck, ArrowLeft, Home, Receipt, X, Phone, MessageCircle } from 'lucide-react';
 
+const CountdownTimer = ({ deadline }) => {
+  const [timeLeft, setTimeLeft] = useState(0);
+
+  useEffect(() => {
+    if (!deadline) return;
+    const interval = setInterval(() => {
+      const remaining = Math.max(0, new Date(deadline).getTime() - Date.now());
+      setTimeLeft(remaining);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [deadline]);
+
+  if (!deadline && timeLeft <= 0) return null;
+  if (deadline && timeLeft <= 0) return <span style={{ color: 'var(--error)' }}>Timer Expired...</span>;
+
+  const minutes = Math.floor(timeLeft / 60000);
+  const seconds = Math.floor((timeLeft % 60000) / 1000);
+  
+  return (
+    <div style={{
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: '0.5rem',
+      background: minutes === 0 && seconds < 60 ? 'rgba(239, 68, 68, 0.1)' : 'rgba(99, 102, 241, 0.1)',
+      color: minutes === 0 && seconds < 60 ? 'var(--error)' : 'var(--primary)',
+      padding: '0.5rem 1rem',
+      borderRadius: '12px',
+      fontWeight: '800',
+      fontSize: '1.25rem',
+      marginTop: '1rem',
+      border: `1px solid ${minutes === 0 && seconds < 60 ? 'rgba(239, 68, 68, 0.3)' : 'rgba(99, 102, 241, 0.3)'}`
+    }}>
+      <Clock size={20} /> 
+      {minutes}:{seconds.toString().padStart(2, '0')}
+    </div>
+  );
+};
+
 const OrderTracker = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -204,11 +242,18 @@ const OrderTracker = () => {
         <h2 style={{ fontSize: '2rem', fontWeight: '800', marginBottom: '0.5rem' }}>
           {order.status === 'Payment Pending' ? 'Processing Payment...' : order.status}
         </h2>
-        <p style={{ color: 'var(--text-secondary)', fontSize: '1rem', marginBottom: '3rem' }}>
+        <p style={{ color: 'var(--text-secondary)', fontSize: '1rem', marginBottom: order.status === 'Pending' ? '1rem' : '3rem' }}>
           {order.status === 'Payment Pending' ? 'Your payment is being processed' :
            order.status === 'Cancelled' ? 'This order has been cancelled by the vendor' :
            statusSteps[currentStepIndex >= 0 ? currentStepIndex : 0].desc}
         </p>
+
+        {order.status === 'Pending' && (
+          <div style={{ marginBottom: '3rem' }}>
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>Auto-cancels if not accepted soon</p>
+            <CountdownTimer deadline={order.acceptDeadline} />
+          </div>
+        )}
 
         {/* Timeline */}
         {order.status !== 'Payment Pending' && order.status !== 'Cancelled' && (

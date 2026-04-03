@@ -89,7 +89,8 @@ router.post('/razorpay/verify', async (req, res) => {
       paymentStatus: 'Confirmed',
       status: 'Pending',
       transactionId: razorpay_payment_id,
-      paymentProvider: 'Razorpay'
+      paymentProvider: 'Razorpay',
+      acceptDeadline: new Date(Date.now() + 3 * 60 * 1000)
     });
 
     const savedOrder = await newOrder.save();
