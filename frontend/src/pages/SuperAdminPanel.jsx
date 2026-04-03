@@ -522,6 +522,7 @@ const SuperAdminPanel = () => {
                     <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Monthly Gross</th>
                     <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Gateway Fee (2%)</th>
                     <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Platform Profit (3%)</th>
+                    <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Cancel Penalty (4%)</th>
                     <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Transfer Amount</th>
                     <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem', textAlign: 'right' }}>Settlement</th>
                   </tr>
@@ -545,6 +546,18 @@ const SuperAdminPanel = () => {
                       </td>
                       <td style={{ padding: '1.25rem', color: f.platformProfit > 0 ? '#f59e0b' : '#333' }}>
                         <div style={{ fontWeight: '800' }}>{f.platformProfit > 0 ? `₹${f.platformProfit.toLocaleString()}` : '₹0 (Trial)'}</div>
+                      </td>
+                      <td style={{ padding: '1.25rem' }}>
+                        {f.cancellationPenalty > 0 ? (
+                          <div>
+                            <div style={{ fontWeight: '800', color: '#ef4444' }}>₹{f.cancellationPenalty.toLocaleString()}</div>
+                            <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+                              {f.cancelledCount} cancelled (₹{f.cancelledOrdersTotal?.toLocaleString()})
+                            </div>
+                          </div>
+                        ) : (
+                          <div style={{ fontWeight: '600', color: '#333' }}>₹0</div>
+                        )}
                       </td>
                       <td style={{ padding: '1.25rem', color: '#10b981' }}>
                         <div style={{ fontWeight: '900', fontSize: '1.1rem' }}>₹{f.netPayable.toLocaleString()}</div>
@@ -581,7 +594,7 @@ const SuperAdminPanel = () => {
                     </tr>
                   ))}
                   {financeData.length === 0 && (
-                    <tr><td colSpan="5" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>No financial data available for this month.</td></tr>
+                    <tr><td colSpan="7" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>No financial data available for this month.</td></tr>
                   )}
                 </tbody>
               </table>

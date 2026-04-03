@@ -2,13 +2,14 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { io } from 'socket.io-client';
-import { CheckCircle2, Clock, ChefHat, PackageCheck, ArrowLeft, Home, Receipt, X } from 'lucide-react';
+import { CheckCircle2, Clock, ChefHat, PackageCheck, ArrowLeft, Home, Receipt, X, Phone, MessageCircle } from 'lucide-react';
 
 const OrderTracker = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [showRefundCard, setShowRefundCard] = useState(true);
 
   useEffect(() => {
     const fetchOrder = async () => {
@@ -74,6 +75,95 @@ const OrderTracker = () => {
 
   return (
     <div style={{ minHeight: '100vh', padding: '2rem 1rem', maxWidth: '600px', margin: '0 auto' }}>
+
+      {/* Floating Refund Contact Card - Only for Cancelled Orders */}
+      {order.status === 'Cancelled' && showRefundCard && (
+        <div style={{
+          position: 'fixed',
+          bottom: '1.5rem',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          width: 'calc(100% - 2rem)',
+          maxWidth: '560px',
+          zIndex: 9999,
+          animation: 'slideUp 0.4s ease-out'
+        }}>
+          <div style={{
+            background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.12), rgba(220, 38, 38, 0.08))',
+            backdropFilter: 'blur(24px)',
+            border: '1.5px solid rgba(239, 68, 68, 0.35)',
+            borderRadius: '24px',
+            padding: '1.5rem',
+            boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5), 0 0 40px rgba(239, 68, 68, 0.1)',
+            position: 'relative'
+          }}>
+            {/* Close Button */}
+            <button 
+              onClick={() => setShowRefundCard(false)}
+              style={{ 
+                position: 'absolute', top: '0.75rem', right: '0.75rem', 
+                background: 'rgba(255,255,255,0.08)', border: 'none', color: 'rgba(255,255,255,0.5)', 
+                width: '28px', height: '28px', borderRadius: '50%', 
+                display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' 
+              }}
+            >
+              <X size={14} />
+            </button>
+
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+              <div style={{
+                width: '44px', height: '44px', borderRadius: '14px',
+                background: 'linear-gradient(135deg, #ef4444, #dc2626)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                boxShadow: '0 4px 15px rgba(239, 68, 68, 0.3)'
+              }}>
+                <MessageCircle size={22} color="white" />
+              </div>
+              <div>
+                <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: '800', color: 'white' }}>Need an Instant Refund?</h4>
+                <p style={{ margin: 0, fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)' }}>Your order was cancelled • Contact us now</p>
+              </div>
+            </div>
+
+            {/* Info Text */}
+            <p style={{ 
+              fontSize: '0.8rem', color: 'rgba(255,255,255,0.65)', lineHeight: '1.5', marginBottom: '1rem',
+              padding: '0.75rem', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)'
+            }}>
+              Your payment of <span style={{ color: '#ef4444', fontWeight: '800' }}>₹{order.totalAmount}</span> will be refunded. 
+              Call or WhatsApp us for <span style={{ color: '#10b981', fontWeight: '700' }}>instant processing</span>.
+            </p>
+
+            {/* Phone Numbers */}
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <a href="tel:7985397373" style={{
+                flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
+                padding: '0.85rem', borderRadius: '14px',
+                background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(16, 185, 129, 0.08))',
+                border: '1px solid rgba(16, 185, 129, 0.3)',
+                color: '#10b981', fontWeight: '800', fontSize: '0.85rem',
+                textDecoration: 'none', transition: 'all 0.2s',
+                boxShadow: '0 4px 12px rgba(16, 185, 129, 0.1)'
+              }}>
+                <Phone size={16} /> 7985397373
+              </a>
+              <a href="tel:8295886832" style={{
+                flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
+                padding: '0.85rem', borderRadius: '14px',
+                background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(59, 130, 246, 0.08))',
+                border: '1px solid rgba(59, 130, 246, 0.3)',
+                color: '#3b82f6', fontWeight: '800', fontSize: '0.85rem',
+                textDecoration: 'none', transition: 'all 0.2s',
+                boxShadow: '0 4px 12px rgba(59, 130, 246, 0.1)'
+              }}>
+                <Phone size={16} /> 8295886832
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
+
       <header style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '2.5rem' }}>
         <button onClick={() => navigate('/')} style={{ background: 'var(--glass-bg)', border: '1px solid var(--surface-border)', color: 'white', padding: '0.6rem', borderRadius: '12px', cursor: 'pointer' }}>
            <ArrowLeft size={20} />
@@ -116,7 +206,7 @@ const OrderTracker = () => {
         </h2>
         <p style={{ color: 'var(--text-secondary)', fontSize: '1rem', marginBottom: '3rem' }}>
           {order.status === 'Payment Pending' ? 'Your payment is being processed' :
-           order.status === 'Cancelled' ? 'This order has been cancelled' :
+           order.status === 'Cancelled' ? 'This order has been cancelled by the vendor' :
            statusSteps[currentStepIndex >= 0 ? currentStepIndex : 0].desc}
         </p>
 

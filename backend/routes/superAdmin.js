@@ -281,14 +281,27 @@ router.get('/finance/summary', async (req, res) => {
         const stores = await Store.find().populate('admin', 'name email');
         
         const financeData = await Promise.all(stores.map(async (store) => {
-            // Find monthly confirmed/completed orders for this store
+            // Find monthly completed orders for this store
             const monthlyOrders = await Order.find({
                 store: store._id,
                 status: 'Completed',
                 createdAt: { $gte: startDate, $lte: endDate }
             });
 
+            // Find monthly cancelled orders (vendor-cancelled, payment was confirmed)
+            const cancelledOrders = await Order.find({
+                store: store._id,
+                status: 'Cancelled',
+                paymentStatus: 'Confirmed',
+                createdAt: { $gte: startDate, $lte: endDate }
+            });
+
             const totalMonthlyRevenue = monthlyOrders.reduce((sum, order) => sum + order.totalAmount, 0);
+            const cancelledOrdersTotal = cancelledOrders.reduce((sum, order) => sum + order.totalAmount, 0);
+            
+            // Cancellation Penalty: 4% of cancelled order value (2% gateway + 2% penalty)
+            const cancellationPenalty = cancelledOrdersTotal * 0.04;
+            const cancelledCount = cancelledOrders.length;
             
             // Tiered Commission Logic:
             // Month 1 (Trial): 2% Gateway Fee only, 0% Profit.
@@ -302,7 +315,7 @@ router.get('/finance/summary', async (req, res) => {
             
             const gatewayFee = totalMonthlyRevenue * gatewayRate;
             const platformProfit = totalMonthlyRevenue * profitRate;
-            const totalDeduction = gatewayFee + platformProfit;
+            const totalDeduction = gatewayFee + platformProfit + cancellationPenalty;
             const netPayable = totalMonthlyRevenue - totalDeduction;
 
             // Check if already settled in our historical model
@@ -317,6 +330,9 @@ router.get('/finance/summary', async (req, res) => {
                 totalRevenue: totalMonthlyRevenue,
                 gatewayFee,
                 platformProfit,
+                cancellationPenalty,
+                cancelledCount,
+                cancelledOrdersTotal,
                 totalDeduction,
                 netPayable,
                 isTrialActive,
