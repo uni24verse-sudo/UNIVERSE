@@ -59,7 +59,7 @@ const PrivacyPolicy = () => {
           </div>
           
           <h1 style={{ fontSize: '2.5rem', fontWeight: '900', marginBottom: '0.5rem', letterSpacing: '-0.02em' }}>Privacy Policy</h1>
-          <p style={{ color: 'var(--text-secondary)' }}>Last Updated: March 2026</p>
+          <p style={{ color: 'var(--text-secondary)' }}>Last Updated: April 2026</p>
         </div>
 
         {/* Content Card */}
@@ -124,6 +124,43 @@ const PrivacyPolicy = () => {
             By visiting our Platform or by providing your information, you consent to the collection, use, storage, disclosure and otherwise processing of your information on the Platform in accordance with this Privacy Policy.
           </p>
 
+          <h2 style={{ color: 'white', fontSize: '1.4rem', marginBottom: '1.25rem' }}>6. Payment & Transaction Data</h2>
+          <div style={{ marginBottom: '2.5rem' }}>
+            <p style={{ marginBottom: '1rem' }}>
+              When you make a payment on the Platform, the following data is collected and processed:
+            </p>
+            <ul style={{ paddingLeft: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <li>Transaction ID and payment reference numbers from our payment gateway partner (Razorpay).</li>
+              <li>Order details including items, quantities, total amount, order type (Dine In / Take Away), and store information.</li>
+              <li>Customer name and phone number provided at checkout for order identification and communication.</li>
+              <li>Payment status and confirmation data for order fulfillment and dispute resolution.</li>
+            </ul>
+            <p style={{ marginTop: '1rem' }}>
+              We do <strong style={{ color: 'white' }}>not</strong> store your card details, UPI PIN, or banking credentials. All payment processing is handled securely by Razorpay, our RBI-compliant payment gateway partner.
+            </p>
+          </div>
+
+          <h2 style={{ color: 'white', fontSize: '1.4rem', marginBottom: '1.25rem' }}>7. Refund & Cancellation Data</h2>
+          <div style={{ marginBottom: '2.5rem' }}>
+            <p style={{ marginBottom: '1rem' }}>
+              In case of order cancellations and refund requests, we process the following additional data:
+            </p>
+            <ul style={{ paddingLeft: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <li>Cancellation reason and initiator (vendor or customer).</li>
+              <li>Refund amount and processing status.</li>
+              <li>Communication records between customer and support team for refund processing.</li>
+              <li>Vendor penalty records for vendor-initiated cancellations (4% deduction on cancelled order value).</li>
+            </ul>
+            <p style={{ marginTop: '1rem' }}>
+              This data is retained for a minimum of 180 days for accounting and dispute resolution purposes.
+            </p>
+          </div>
+
+          <h2 style={{ color: 'white', fontSize: '1.4rem', marginBottom: '1.25rem' }}>8. Vendor Financial Data</h2>
+          <p style={{ marginBottom: '2.5rem' }}>
+            For vendors operating on the Platform, we collect and process additional financial data including UPI IDs for settlement, monthly revenue figures, commission calculations, gateway fees, cancellation penalties, and settlement history. This data is shared with our payment partners solely for the purpose of processing vendor payouts and is not disclosed to any third party.
+          </p>
+
           <div style={{ 
             background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(16, 185, 129, 0.1) 100%)', 
             padding: '2rem', 
@@ -135,8 +172,9 @@ const PrivacyPolicy = () => {
               <p><strong style={{ color: 'white' }}>Designation:</strong> Grievance Officer</p>
               <p><strong style={{ color: 'white' }}>Company:</strong> Universe</p>
               <p><strong style={{ color: 'white' }}>Address:</strong> Lucknow, Uttar Pradesh</p>
-              <p><strong style={{ color: 'white' }}>Email:</strong> support@universeorder.co.in</p>
-              <p><strong style={{ color: 'white' }}>Phone:</strong> Mon - Fri (9:00 - 18:00)</p>
+              <p><strong style={{ color: 'white' }}>Email:</strong> uni24verse@gmail.com</p>
+              <p><strong style={{ color: 'white' }}>Phone:</strong> <span style={{ color: 'var(--secondary)' }}>7985397373</span> / <span style={{ color: 'var(--secondary)' }}>8295886832</span></p>
+              <p><strong style={{ color: 'white' }}>Hours:</strong> Mon - Fri (9:00 - 18:00)</p>
             </div>
           </div>
         </div>

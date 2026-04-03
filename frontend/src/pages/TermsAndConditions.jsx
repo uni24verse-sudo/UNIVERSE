@@ -59,7 +59,7 @@ const TermsAndConditions = () => {
           </div>
           
           <h1 style={{ fontSize: '2.5rem', fontWeight: '900', marginBottom: '0.5rem', letterSpacing: '-0.02em' }}>Terms & Conditions</h1>
-          <p style={{ color: 'var(--text-secondary)' }}>Last Updated: March 2026</p>
+          <p style={{ color: 'var(--text-secondary)' }}>Last Updated: April 2026</p>
         </div>
 
         {/* Content Card */}
@@ -116,15 +116,84 @@ const TermsAndConditions = () => {
             Notwithstanding anything contained in these Terms of Use, the parties shall not be liable for any failure to perform an obligation under these Terms if performance is prevented or delayed by a force majeure event.
           </p>
 
-          <h2 style={{ color: 'white', fontSize: '1.4rem', marginBottom: '1.25rem' }}>6. Governing Law & Jurisdiction</h2>
+          <h2 style={{ color: 'white', fontSize: '1.4rem', marginBottom: '1.25rem' }}>6. Order Cancellation & Refund Policy</h2>
+          <div style={{ marginBottom: '2rem' }}>
+            <p style={{ marginBottom: '1rem' }}>
+              Orders placed on the Platform are subject to acceptance by the respective Vendor. Once an order is confirmed and payment is processed, the following cancellation and refund terms apply:
+            </p>
+            <ol style={{ paddingLeft: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <li><strong style={{ color: 'white' }}>Vendor-Initiated Cancellation:</strong> If a Vendor cancels a confirmed and paid order, the customer is entitled to a full refund of the order amount. To process the refund instantly, customers may contact our support team at <span style={{ color: 'var(--secondary)', fontWeight: '700' }}>7985397373</span> or <span style={{ color: 'var(--secondary)', fontWeight: '700' }}>8295886832</span>.</li>
+              <li><strong style={{ color: 'white' }}>Customer-Initiated Cancellation:</strong> Customers may cancel an order only while it is in "Payment Pending" status. Once payment is confirmed and the order is received by the vendor, cancellations by customers are not permitted.</li>
+              <li><strong style={{ color: 'white' }}>Refund Timeline:</strong> Refunds for vendor-cancelled orders are processed within 5-7 business days. For instant refund processing, customers should contact our support numbers listed above.</li>
+              <li><strong style={{ color: 'white' }}>No Refund Scenarios:</strong> Refunds will not be issued for completed orders, orders cancelled by the customer after payment confirmation, or orders where the customer has already collected the items.</li>
+            </ol>
+          </div>
+
+          <h2 style={{ color: 'white', fontSize: '1.4rem', marginBottom: '1.25rem' }}>7. Vendor Commission & Fee Structure</h2>
+          <div style={{ marginBottom: '2rem' }}>
+            <p style={{ marginBottom: '1rem' }}>
+              The following fee structure applies to all Vendors operating on the UniVerse Platform:
+            </p>
+            <div style={{ background: 'rgba(255,255,255,0.02)', padding: '1.5rem', borderRadius: '16px', border: '1px solid var(--surface-border)', marginBottom: '1rem' }}>
+              <h4 style={{ color: 'white', marginBottom: '1rem', fontSize: '1rem' }}>Standard Fees</h4>
+              <ul style={{ paddingLeft: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                <li><strong style={{ color: 'white' }}>Payment Gateway Fee:</strong> 2% of total order value is deducted as payment gateway processing charges on all completed orders.</li>
+                <li><strong style={{ color: 'white' }}>Platform Commission:</strong> 3% of total order value is charged as platform service fee on all completed orders (waived during the free trial period).</li>
+                <li><strong style={{ color: 'white' }}>Free Trial Period:</strong> New vendors receive a 30-day free trial during which the platform commission (3%) is waived. Only the 2% payment gateway fee applies during this period.</li>
+              </ul>
+            </div>
+            <div style={{ background: 'rgba(239, 68, 68, 0.05)', padding: '1.5rem', borderRadius: '16px', border: '1px solid rgba(239, 68, 68, 0.15)' }}>
+              <h4 style={{ color: '#ef4444', marginBottom: '1rem', fontSize: '1rem' }}>⚠️ Cancellation Penalty</h4>
+              <ul style={{ paddingLeft: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                <li><strong style={{ color: 'white' }}>Vendor-Cancelled Orders:</strong> When a vendor cancels an order that has already been paid by the customer, a total deduction of <strong style={{ color: '#ef4444' }}>4% of the cancelled order value</strong> will be applied to the vendor's monthly gross settlement.</li>
+                <li><strong style={{ color: 'white' }}>Breakdown:</strong> 2% Payment Gateway Charge (non-recoverable processing fee) + 2% Cancellation Penalty Fee (platform penalty for order disruption).</li>
+                <li><strong style={{ color: 'white' }}>Settlement Deduction:</strong> The cancellation penalty is deducted from the vendor's monthly gross revenue at the time of settlement.</li>
+              </ul>
+            </div>
+          </div>
+
+          <h2 style={{ color: 'white', fontSize: '1.4rem', marginBottom: '1.25rem' }}>8. Order Types & Service Modes</h2>
+          <div style={{ marginBottom: '2rem' }}>
+            <p style={{ marginBottom: '1rem' }}>
+              The Platform supports the following order types:
+            </p>
+            <ul style={{ paddingLeft: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <li><strong style={{ color: 'white' }}>Dine In:</strong> The customer will consume the order at the vendor's premises. No additional packaging charges apply.</li>
+              <li><strong style={{ color: 'white' }}>Take Away:</strong> The customer will collect the order for off-premise consumption. Vendors may apply a packaging charge as configured in their store settings.</li>
+            </ul>
+          </div>
+
+          <h2 style={{ color: 'white', fontSize: '1.4rem', marginBottom: '1.25rem' }}>9. Store Availability</h2>
+          <div style={{ marginBottom: '2rem' }}>
+            <p style={{ marginBottom: '1rem' }}>
+              Vendors may toggle their store between "Online" and "Offline" status at any time. When a store is offline:
+            </p>
+            <ul style={{ paddingLeft: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <li>Customers can browse the menu but cannot place new orders.</li>
+              <li>Items marked as "Out of Stock" by the vendor will remain visible on the menu with an appropriate indicator, but cannot be added to the cart.</li>
+              <li>The Platform is not responsible for any inconvenience caused by a vendor choosing to go offline.</li>
+            </ul>
+          </div>
+
+          <h2 style={{ color: 'white', fontSize: '1.4rem', marginBottom: '1.25rem' }}>10. Governing Law & Jurisdiction</h2>
           <p style={{ marginBottom: '2rem' }}>
             These Terms and any dispute or claim relating to it, or its enforceability, shall be governed by and construed in accordance with the laws of India. All disputes arising out of or in connection with these Terms shall be subject to the exclusive jurisdiction of the courts in Uttar Pradesh, India.
           </p>
 
-          <h2 style={{ color: 'white', fontSize: '1.4rem', marginBottom: '1.25rem' }}>7. Contact Information</h2>
-          <p>
-            All concerns or communications relating to these Terms must be communicated to us using the contact information provided on this website.
-          </p>
+          <h2 style={{ color: 'white', fontSize: '1.4rem', marginBottom: '1.25rem' }}>11. Contact Information</h2>
+          <div style={{ 
+            background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(16, 185, 129, 0.1) 100%)', 
+            padding: '1.5rem', 
+            borderRadius: '20px',
+            border: '1px solid rgba(255,255,255,0.05)'
+          }}>
+            <p style={{ marginBottom: '0.75rem' }}>All concerns or communications relating to these Terms must be communicated to us:</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '0.9rem' }}>
+              <p><strong style={{ color: 'white' }}>Phone:</strong> <span style={{ color: 'var(--secondary)' }}>7985397373</span> / <span style={{ color: 'var(--secondary)' }}>8295886832</span></p>
+              <p><strong style={{ color: 'white' }}>Email:</strong> uni24verse@gmail.com</p>
+              <p><strong style={{ color: 'white' }}>Website:</strong> <span style={{ color: 'var(--primary)' }}>https://www.universeorder.co.in</span></p>
+            </div>
+          </div>
         </div>
       </div>
     </div>
