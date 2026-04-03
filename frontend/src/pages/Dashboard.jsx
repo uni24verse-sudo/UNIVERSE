@@ -24,6 +24,7 @@ import {
   Globe,
   AlertCircle,
   Utensils,
+  Package
 } from 'lucide-react';
 
 const CountdownTimer = ({ deadline, onAccept }) => {
