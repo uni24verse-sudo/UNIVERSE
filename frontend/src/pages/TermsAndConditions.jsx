@@ -123,8 +123,9 @@ const TermsAndConditions = () => {
             </p>
             <ol style={{ paddingLeft: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
               <li><strong style={{ color: 'white' }}>Vendor-Initiated Cancellation:</strong> If a Vendor cancels a confirmed and paid order, the customer is entitled to a full refund of the order amount. To process the refund instantly, customers may contact our support team at <span style={{ color: 'var(--secondary)', fontWeight: '700' }}>7985397373</span> or <span style={{ color: 'var(--secondary)', fontWeight: '700' }}>8295886832</span>.</li>
+              <li><strong style={{ color: 'white' }}>Auto-Cancellation (3-Minute Rule):</strong> To ensure prompt service, vendors must accept orders within 3 minutes of placement. If an order is not accepted within this timeframe, it will be automatically cancelled by the system, and the customer will be entitled to a full instant refund upon contacting support.</li>
               <li><strong style={{ color: 'white' }}>Customer-Initiated Cancellation:</strong> Customers may cancel an order only while it is in "Payment Pending" status. Once payment is confirmed and the order is received by the vendor, cancellations by customers are not permitted.</li>
-              <li><strong style={{ color: 'white' }}>Refund Timeline:</strong> Refunds for vendor-cancelled orders are processed within 5-7 business days. For instant refund processing, customers should contact our support numbers listed above.</li>
+              <li><strong style={{ color: 'white' }}>Refund Timeline:</strong> Refunds for vendor-cancelled or auto-cancelled orders are processed within 5-7 business days. For instant refund processing, customers should contact our support numbers listed above.</li>
               <li><strong style={{ color: 'white' }}>No Refund Scenarios:</strong> Refunds will not be issued for completed orders, orders cancelled by the customer after payment confirmation, or orders where the customer has already collected the items.</li>
             </ol>
           </div>
@@ -145,7 +146,7 @@ const TermsAndConditions = () => {
             <div style={{ background: 'rgba(239, 68, 68, 0.05)', padding: '1.5rem', borderRadius: '16px', border: '1px solid rgba(239, 68, 68, 0.15)' }}>
               <h4 style={{ color: '#ef4444', marginBottom: '1rem', fontSize: '1rem' }}>⚠️ Cancellation Penalty</h4>
               <ul style={{ paddingLeft: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                <li><strong style={{ color: 'white' }}>Vendor-Cancelled Orders:</strong> When a vendor cancels an order that has already been paid by the customer, a total deduction of <strong style={{ color: '#ef4444' }}>4% of the cancelled order value</strong> will be applied to the vendor's monthly gross settlement.</li>
+                <li><strong style={{ color: 'white' }}>Vendor & Auto-Cancelled Orders:</strong> When a vendor manually cancels an order, or when an order is automatically cancelled because the vendor failed to accept it within the 3-minute deadline, a total deduction of <strong style={{ color: '#ef4444' }}>4% of the cancelled order value</strong> will be applied to the vendor's monthly gross settlement.</li>
                 <li><strong style={{ color: 'white' }}>Breakdown:</strong> 2% Payment Gateway Charge (non-recoverable processing fee) + 2% Cancellation Penalty Fee (platform penalty for order disruption).</li>
                 <li><strong style={{ color: 'white' }}>Settlement Deduction:</strong> The cancellation penalty is deducted from the vendor's monthly gross revenue at the time of settlement.</li>
               </ul>
