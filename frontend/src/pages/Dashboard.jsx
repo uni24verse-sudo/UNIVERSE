@@ -165,7 +165,12 @@ const Dashboard = () => {
       };
 
       socket.on('new_order', handleNewOrder);
-      return () => socket.off('new_order', handleNewOrder);
+      socket.on('order_status_update', handleNewOrder);
+      
+      return () => {
+        socket.off('new_order', handleNewOrder);
+        socket.off('order_status_update', handleNewOrder);
+      };
     }
   }, [store, socket, connected]);
 
