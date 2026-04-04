@@ -111,29 +111,31 @@ const Home = () => {
                 width: '100%',
                 padding: '1.25rem 0.5rem',
                 borderRadius: '16px',
-                background: selectedMarket === market ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.2)',
-                color: selectedMarket === market ? 'white' : 'rgba(255, 255, 255, 0.5)',
-                border: `1px solid ${selectedMarket === market ? 'rgba(255, 255, 255, 0.2)' : 'rgba(255, 255, 255, 0.03)'}`,
+                background: selectedMarket === market ? 'rgba(255, 255, 255, 0.15)' : 'rgba(255, 255, 255, 0.05)',
+                color: selectedMarket === market ? '#ffffff' : 'rgba(255, 255, 255, 0.75)',
+                border: `1px solid ${selectedMarket === market ? 'rgba(255, 255, 255, 0.4)' : 'rgba(255, 255, 255, 0.1)'}`,
                 cursor: 'pointer',
                 fontWeight: selectedMarket === market ? '700' : '600',
                 fontSize: '0.9rem',
                 letterSpacing: '0.5px',
                 transition: 'all 0.2s ease',
-                boxShadow: selectedMarket === market ? '0 4px 12px rgba(0, 0, 0, 0.2)' : 'none',
+                boxShadow: selectedMarket === market ? '0 4px 15px rgba(255, 255, 255, 0.05), inset 0 1px 2px rgba(255,255,255,0.1)' : '0 4px 12px rgba(0, 0, 0, 0.1)',
                 backdropFilter: 'blur(20px)',
                 WebkitBackdropFilter: 'blur(20px)',
                 textAlign: 'center'
               }}
               onMouseEnter={(e) => {
                 if (selectedMarket !== market) {
-                   e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
-                   e.currentTarget.style.color = 'rgb(255, 255, 255)';
+                   e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+                   e.currentTarget.style.color = '#ffffff';
+                   e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)';
                 }
               }}
               onMouseLeave={(e) => {
                 if (selectedMarket !== market) {
-                   e.currentTarget.style.background = 'rgba(0, 0, 0, 0.2)';
-                   e.currentTarget.style.color = 'rgba(255, 255, 255, 0.5)';
+                   e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+                   e.currentTarget.style.color = 'rgba(255, 255, 255, 0.75)';
+                   e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
                 }
               }}
              >
