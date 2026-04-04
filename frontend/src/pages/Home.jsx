@@ -101,57 +101,57 @@ const Home = () => {
 
       <main style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 2rem 6rem 2rem' }}>
         {/* Market Navigation */}
-        <div style={{ display: 'flex', marginBottom: '3.5rem', width: '100%' }}>
-          <div className="filter-scroll" style={{ 
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.25rem',
-            overflowX: 'auto',
-            padding: '0.35rem',
-            background: 'rgba(255,255,255,0.02)',
-            borderRadius: '16px',
-            border: '1px solid rgba(255,255,255,0.05)',
-            boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.2)',
-            backdropFilter: 'blur(10px)',
-            WebkitOverflowScrolling: 'touch',
-            maxWidth: '100%'
-          }}>
-             {['All', 'BH1 Market', 'Block34 Market', 'LIT Market', 'Mall Market', 'BH6 Market', 'Apartment Market'].map(market => (
-               <button
-                key={market}
-                onClick={() => setSelectedMarket(market)}
-                style={{
-                  flexShrink: 0,
-                  padding: '0.6rem 1.25rem',
-                  borderRadius: '12px',
-                  background: selectedMarket === market ? 'white' : 'transparent',
-                  color: selectedMarket === market ? '#0f172a' : 'var(--text-secondary)',
-                  border: 'none',
-                  cursor: 'pointer',
-                  fontWeight: selectedMarket === market ? '700' : '600',
-                  fontSize: '0.85rem',
-                  letterSpacing: '0.3px',
-                  transition: 'all 0.2s ease',
-                  boxShadow: selectedMarket === market ? '0 4px 15px rgba(0,0,0,0.1)' : 'none',
-                  whiteSpace: 'nowrap'
-                }}
-                onMouseEnter={(e) => {
-                  if (selectedMarket !== market) {
-                     e.currentTarget.style.color = 'white';
-                     e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (selectedMarket !== market) {
-                     e.currentTarget.style.color = 'var(--text-secondary)';
-                     e.currentTarget.style.background = 'transparent';
-                  }
-                }}
-               >
-                 {market === 'All' ? 'All Areas' : market.replace(' Market', '')}
-               </button>
-             ))}
-          </div>
+        <div className="filter-scroll" style={{ 
+          display: 'flex',
+          gap: '2.5rem',
+          overflowX: 'auto',
+          borderBottom: '1px solid rgba(255,255,255,0.08)',
+          paddingBottom: '0rem',
+          marginBottom: '3rem',
+          WebkitOverflowScrolling: 'touch'
+        }}>
+           {['All', 'BH1 Market', 'Block34 Market', 'LIT Market', 'Mall Market', 'BH6 Market', 'Apartment Market'].map(market => (
+             <button
+              key={market}
+              onClick={() => setSelectedMarket(market)}
+              style={{
+                flexShrink: 0,
+                background: 'none',
+                border: 'none',
+                color: selectedMarket === market ? 'white' : 'var(--text-secondary)',
+                padding: '0 0.5rem 1rem 0.5rem',
+                cursor: 'pointer',
+                fontWeight: selectedMarket === market ? '800' : '600',
+                fontSize: selectedMarket === market ? '1.05rem' : '1rem',
+                letterSpacing: '0.5px',
+                transition: 'all 0.3s ease',
+                whiteSpace: 'nowrap',
+                position: 'relative'
+              }}
+              onMouseEnter={(e) => {
+                if (selectedMarket !== market) e.currentTarget.style.color = '#e2e8f0';
+              }}
+              onMouseLeave={(e) => {
+                if (selectedMarket !== market) e.currentTarget.style.color = 'var(--text-secondary)';
+              }}
+             >
+               {market === 'All' ? 'All Areas' : market.replace(' Market', '')}
+               
+               {/* Active Indicator Underline */}
+               {selectedMarket === market && (
+                 <div style={{
+                   position: 'absolute',
+                   bottom: '-1px',
+                   left: '0',
+                   right: '0',
+                   height: '3px',
+                   background: 'var(--primary)',
+                   borderRadius: '3px 3px 0 0',
+                   boxShadow: '0 -2px 10px rgba(99, 102, 241, 0.5)'
+                 }} />
+               )}
+             </button>
+           ))}
         </div>
 
         <style>{`
