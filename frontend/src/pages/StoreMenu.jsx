@@ -93,12 +93,10 @@ const StoreMenu = () => {
           
           <div style={{ textAlign: 'center', flex: 1 }}>
             <h1 style={{ fontSize: '1.25rem', margin: 0, fontWeight: '700' }}>{store.name}</h1>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', justifyContent: 'center', fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.1rem' }}>
-              <span style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}><Star size={10} fill="currentColor" /> 4.8</span>
-              <span>•</span>
-              <span>20-30 mins</span>
-              <span>•</span>
-              <span style={{ color: 'var(--primary)', fontWeight: '600' }}>{store.market || 'BH1 Market'}</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', justifyContent: 'center', fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.4rem', fontWeight: '500' }}>
+              <span><Clock size={12} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px' }} />20-30 mins</span>
+              <span style={{ opacity: 0.5 }}>•</span>
+              <span style={{ color: 'var(--primary)', fontWeight: '700', padding: '0.2rem 0.6rem', background: 'rgba(99, 102, 241, 0.1)', borderRadius: '100px' }}>{store.market || 'BH1 Market'}</span>
             </div>
           </div>
           <div style={{ width: '42px' }}></div> {/* Spacer for symmetry */}
@@ -140,14 +138,16 @@ const StoreMenu = () => {
             style={{ 
               width: '100%', 
               padding: '1.25rem 1.25rem 1.25rem 3.5rem', 
-              borderRadius: '20px', 
+              borderRadius: '100px', 
               background: 'rgba(255,255,255,0.03)', 
-              border: '1px solid var(--surface-border)', 
+              border: '1px solid rgba(255,255,255,0.08)', 
               color: 'white', 
               fontSize: '1rem',
+              fontWeight: '500',
               outline: 'none',
-              boxShadow: '0 10px 30px rgba(0,0,0,0.2)',
-              transition: 'all 0.3s ease'
+              boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.1), 0 8px 24px rgba(0,0,0,0.2)',
+              backdropFilter: 'blur(12px)',
+              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
             }} 
             onFocus={(e) => {
                e.target.style.background = 'rgba(15, 23, 42, 0.8)';
@@ -271,17 +271,35 @@ const StoreMenu = () => {
           {filteredProducts.map(product => {
             const isUnavailable = product.isAvailable === false;
             return (
-              <div key={product._id} className="glass-card" style={{ 
+              <div key={product._id} style={{ 
                 display: 'flex', 
-                padding: '1.25rem',
-                gap: '1.25rem',
-                borderRadius: '24px',
-                border: '1px solid var(--surface-border)',
+                padding: '1.5rem',
+                gap: '1.5rem',
+                borderRadius: '28px',
+                background: 'linear-gradient(145deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%)',
+                border: '1px solid rgba(255,255,255,0.06)',
+                boxShadow: '0 10px 40px rgba(0,0,0,0.2)',
+                backdropFilter: 'blur(20px)',
                 opacity: isUnavailable ? 0.6 : 1,
                 filter: isUnavailable ? 'grayscale(1)' : 'none',
                 pointerEvents: isUnavailable ? 'none' : 'auto',
                 position: 'relative',
-                overflow: 'hidden'
+                overflow: 'hidden',
+                transition: 'transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.4s cubic-bezier(0.4, 0, 0.2, 1)'
+              }}
+              onMouseEnter={(e) => {
+                if (!isUnavailable) {
+                  e.currentTarget.style.transform = 'translateY(-6px)';
+                  e.currentTarget.style.boxShadow = '0 25px 50px rgba(99, 102, 241, 0.15)';
+                  e.currentTarget.style.borderColor = 'rgba(99, 102, 241, 0.3)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!isUnavailable) {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 10px 40px rgba(0,0,0,0.2)';
+                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)';
+                }
               }}>
                 {isUnavailable && (
                    <div style={{
@@ -370,13 +388,18 @@ const StoreMenu = () => {
                       onClick={() => handleAddToCartClick(product)}
                       disabled={isUnavailable || storeClosed}
                       style={{ 
-                        padding: '0.5rem', 
-                        height: '36px', 
-                        fontSize: '0.875rem', 
-                        boxShadow: (isUnavailable || storeClosed) ? 'none' : '0 8px 20px rgba(99, 102, 241, 0.4)',
-                        borderRadius: '8px',
-                        background: (isUnavailable || storeClosed) ? 'rgba(255,255,255,0.05)' : 'var(--primary)',
-                        color: (isUnavailable || storeClosed) ? 'rgba(255,255,255,0.3)' : 'white'
+                        padding: '0.6rem', 
+                        height: '42px', 
+                        fontSize: '0.85rem', 
+                        fontWeight: '800',
+                        letterSpacing: '0.5px',
+                        boxShadow: (isUnavailable || storeClosed) ? 'none' : '0 8px 25px rgba(99, 102, 241, 0.5)',
+                        borderRadius: '12px',
+                        background: (isUnavailable || storeClosed) ? 'rgba(255,255,255,0.05)' : 'linear-gradient(135deg, var(--primary) 0%, #818cf8 100%)',
+                        color: (isUnavailable || storeClosed) ? 'rgba(255,255,255,0.3)' : 'white',
+                        border: 'none',
+                        transition: 'all 0.3s ease',
+                        cursor: (isUnavailable || storeClosed) ? 'not-allowed' : 'pointer'
                       }}
                     >
                       {storeClosed ? '🔒 CLOSED' : isUnavailable ? 'SOLD OUT' : (product.variants && product.variants.length > 0 ? 'OPTIONS +' : <><Plus size={14} /> ADD</>)}
