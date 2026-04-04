@@ -101,53 +101,60 @@ const Home = () => {
 
       <main style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 2rem 6rem 2rem' }}>
         {/* Market Navigation */}
-        <div className="market-grid" style={{ 
-          marginBottom: '3.5rem' 
+        <div className="filter-scroll" style={{ 
+          display: 'flex',
+          gap: '0.75rem',
+          overflowX: 'auto',
+          paddingBottom: '1rem',
+          marginBottom: '2.5rem',
+          WebkitOverflowScrolling: 'touch'
         }}>
            {['All', 'BH1 Market', 'Block34 Market', 'LIT Market', 'Mall Market', 'BH6 Market', 'Apartment Market'].map(market => (
              <button
               key={market}
               onClick={() => setSelectedMarket(market)}
-              className="market-btn"
               style={{
-                width: '100%',
-                padding: '0.75rem 0',
-                borderRadius: '16px',
-                background: selectedMarket === market ? 'var(--primary)' : 'var(--glass-bg)',
+                flexShrink: 0,
+                padding: '0.75rem 1.75rem',
+                borderRadius: '100px',
+                background: selectedMarket === market ? 'linear-gradient(135deg, var(--primary) 0%, #8b5cf6 100%)' : 'rgba(255,255,255,0.03)',
                 color: selectedMarket === market ? 'white' : 'var(--text-secondary)',
-                border: `1px solid ${selectedMarket === market ? 'var(--primary)' : 'var(--surface-border)'}`,
+                border: `1px solid ${selectedMarket === market ? 'transparent' : 'rgba(255,255,255,0.1)'}`,
                 cursor: 'pointer',
-                fontWeight: '700',
-                fontSize: '0.8rem',
-                transition: 'var(--transition)',
-                boxShadow: selectedMarket === market ? '0 10px 20px rgba(99, 102, 241, 0.2)' : 'none',
-                textAlign: 'center'
+                fontWeight: selectedMarket === market ? '800' : '600',
+                fontSize: '0.9rem',
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                boxShadow: selectedMarket === market ? '0 8px 20px rgba(99, 102, 241, 0.4), inset 0 1px 2px rgba(255,255,255,0.2)' : 'none',
+                whiteSpace: 'nowrap',
+                backdropFilter: 'blur(10px)'
+              }}
+              onMouseEnter={(e) => {
+                if (selectedMarket !== market) {
+                   e.currentTarget.style.background = 'rgba(255,255,255,0.08)';
+                   e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)';
+                   e.currentTarget.style.color = 'white';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (selectedMarket !== market) {
+                   e.currentTarget.style.background = 'rgba(255,255,255,0.03)';
+                   e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)';
+                   e.currentTarget.style.color = 'var(--text-secondary)';
+                }
               }}
              >
-               {market === 'All' ? 'All' : market.replace(' Market', '')}
+               {market === 'All' ? '🌟 All Areas' : market.replace(' Market', '')}
              </button>
            ))}
         </div>
 
         <style>{`
-          .market-grid {
-            display: grid;
-            grid-template-columns: repeat(6, 1fr);
-            gap: 1rem;
+          .filter-scroll::-webkit-scrollbar {
+            display: none;
           }
-          @media (max-width: 900px) {
-            .market-grid {
-              grid-template-columns: repeat(3, 1fr);
-            }
-          }
-           @media (max-width: 600px) {
-            .market-grid {
-              gap: 0.5rem;
-            }
-            .market-btn {
-              font-size: 0.75rem !important;
-              padding: 0.6rem 0 !important;
-            }
+          .filter-scroll {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
           }
           @media (max-width: 600px) {
             .hero-section {
