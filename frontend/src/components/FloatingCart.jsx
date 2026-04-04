@@ -32,31 +32,37 @@ const FloatingCart = () => {
       <div 
         onClick={() => navigate('/cart')} 
         style={{ 
-          background: 'var(--primary)', 
+          background: 'linear-gradient(135deg, #4f46e5 0%, #9333ea 100%)', 
           color: 'white', 
-          padding: '1rem 1.5rem', 
-          borderRadius: '24px', 
+          padding: '1rem 1.75rem', 
+          borderRadius: '100px', 
           display: 'flex', 
           justifyContent: 'space-between', 
           alignItems: 'center',
           cursor: 'pointer',
-          boxShadow: '0 20px 40px rgba(99, 102, 241, 0.4)',
-          border: '1px solid rgba(255,255,255,0.1)',
-          transition: 'transform 0.2s ease'
+          boxShadow: '0 20px 50px rgba(147, 51, 234, 0.5), inset 0 2px 10px rgba(255,255,255,0.2)',
+          border: '1px solid rgba(255,255,255,0.3)',
+          transition: 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease'
         }}
-        onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
-        onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.transform = 'scale(1.03)';
+          e.currentTarget.style.boxShadow = '0 25px 60px rgba(147, 51, 234, 0.6), inset 0 2px 10px rgba(255,255,255,0.3)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.transform = 'scale(1)';
+          e.currentTarget.style.boxShadow = '0 20px 50px rgba(147, 51, 234, 0.5), inset 0 2px 10px rgba(255,255,255,0.2)';
+        }}
       >
-         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <div style={{ background: 'rgba(255,255,255,0.2)', padding: '0.5rem', borderRadius: '12px' }}>
-              <ShoppingBag size={20} />
+         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <div style={{ background: 'rgba(255,255,255,0.15)', padding: '0.6rem', borderRadius: '50%', boxShadow: 'inset 0 2px 5px rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <ShoppingBag size={22} strokeWidth={2.5} />
             </div>
             <div>
-               <p style={{ margin: 0, fontWeight: '700', fontSize: '1rem' }}>{totalItems} Items</p>
-               <p style={{ margin: 0, fontSize: '0.75rem', opacity: 0.8 }}>₹{total} • View Cart</p>
+               <p style={{ margin: 0, fontWeight: '800', fontSize: '1.1rem', letterSpacing: '0.5px' }}>{totalItems} Items</p>
+               <p style={{ margin: 0, fontSize: '0.85rem', opacity: 0.9, fontWeight: '500' }}>₹{total} <span style={{ opacity: 0.5, margin: '0 0.2rem' }}>•</span> View Cart</p>
             </div>
          </div>
-         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: '700' }}>
+         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: '800', fontSize: '0.95rem', letterSpacing: '1px', background: 'rgba(255,255,255,0.15)', padding: '0.6rem 1.2rem', borderRadius: '100px' }}>
             NEXT &rarr;
          </div>
       </div>
