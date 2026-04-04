@@ -111,37 +111,29 @@ const Home = () => {
                 width: '100%',
                 padding: '1.25rem 0.5rem',
                 borderRadius: '16px',
-                background: selectedMarket === market ? 'var(--primary)' : 'rgba(255,255,255,0.03)',
-                color: selectedMarket === market ? 'white' : 'var(--text-secondary)',
-                border: `1px solid ${selectedMarket === market ? 'var(--primary)' : 'rgba(255,255,255,0.08)'}`,
+                background: selectedMarket === market ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.2)',
+                color: selectedMarket === market ? 'white' : 'rgba(255, 255, 255, 0.5)',
+                border: `1px solid ${selectedMarket === market ? 'rgba(255, 255, 255, 0.2)' : 'rgba(255, 255, 255, 0.03)'}`,
                 cursor: 'pointer',
-                fontWeight: selectedMarket === market ? '800' : '600',
+                fontWeight: selectedMarket === market ? '700' : '600',
                 fontSize: '0.9rem',
                 letterSpacing: '0.5px',
-                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                boxShadow: selectedMarket === market ? '0 10px 25px rgba(99, 102, 241, 0.4)' : 'inset 0 1px 1px rgba(255,255,255,0.05)',
-                backdropFilter: 'blur(12px)',
-                textAlign: 'center',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                position: 'relative',
-                overflow: 'hidden'
+                transition: 'all 0.2s ease',
+                boxShadow: selectedMarket === market ? '0 4px 12px rgba(0, 0, 0, 0.2)' : 'none',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                textAlign: 'center'
               }}
               onMouseEnter={(e) => {
                 if (selectedMarket !== market) {
-                   e.currentTarget.style.background = 'rgba(255,255,255,0.06)';
-                   e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)';
-                   e.currentTarget.style.color = 'white';
-                   e.currentTarget.style.transform = 'translateY(-2px)';
+                   e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+                   e.currentTarget.style.color = 'rgb(255, 255, 255)';
                 }
               }}
               onMouseLeave={(e) => {
                 if (selectedMarket !== market) {
-                   e.currentTarget.style.background = 'rgba(255,255,255,0.03)';
-                   e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
-                   e.currentTarget.style.color = 'var(--text-secondary)';
-                   e.currentTarget.style.transform = 'translateY(0)';
+                   e.currentTarget.style.background = 'rgba(0, 0, 0, 0.2)';
+                   e.currentTarget.style.color = 'rgba(255, 255, 255, 0.5)';
                 }
               }}
              >
@@ -153,13 +145,8 @@ const Home = () => {
         <style>{`
           .market-grid {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 1.25rem;
-          }
-          @media (max-width: 900px) {
-            .market-grid {
-              grid-template-columns: repeat(3, 1fr);
-            }
+            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+            gap: 1rem;
           }
           @media (max-width: 600px) {
             .market-grid {
@@ -167,7 +154,6 @@ const Home = () => {
               gap: 0.75rem;
             }
             .market-btn {
-              font-size: 0.8rem !important;
               padding: 1rem 0 !important;
             }
             .hero-section {
