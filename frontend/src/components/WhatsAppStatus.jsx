@@ -65,7 +65,7 @@ const VendorNotifications = ({ store }) => {
   };
  
   return (
-    <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '24px', border: '1px solid var(--surface-border)' }}>
+    <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '24px', border: '1px solid var(--surface-border)', background: '#ffffff' }}>
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
         <h3 style={{ margin: 0, fontSize: '1.125rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -115,9 +115,9 @@ const VendorNotifications = ({ store }) => {
             <Info size={14} /> 30-Second Telegram Setup
           </p>
           <ol style={{ margin: 0, paddingLeft: '1.2rem', fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-            <li>Open Telegram → search <strong style={{ color: 'white' }}>@userinfobot</strong></li>
-            <li>Send <strong style={{ color: 'white' }}>/start</strong> — it replies with your <strong style={{ color: 'white' }}>Id</strong></li>
-            <li>Search for <strong style={{ color: 'white' }}>your bot</strong> (created via @BotFather) and send <strong style={{ color: 'white' }}>/start</strong></li>
+            <li>Open Telegram → search <strong style={{ color: 'var(--text-primary)' }}>@userinfobot</strong></li>
+            <li>Send <strong style={{ color: 'var(--text-primary)' }}>/start</strong> — it replies with your <strong style={{ color: 'var(--text-primary)' }}>Id</strong></li>
+            <li>Search for <strong style={{ color: 'var(--text-primary)' }}>your bot</strong> (created via @BotFather) and send <strong style={{ color: 'var(--text-primary)' }}>/start</strong></li>
             <li>Paste the Id below and save!</li>
           </ol>
         </div>
@@ -135,8 +135,8 @@ const VendorNotifications = ({ store }) => {
             value={telegramChatId}
             onChange={(e) => setTelegramChatId(e.target.value)}
             style={{
-              width: '100%', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--surface-border)',
-              borderRadius: '12px', padding: '0.75rem 1rem', color: 'white', fontSize: '0.9rem', outline: 'none'
+              width: '100%', background: '#f8fafc', border: '1px solid var(--surface-border)',
+              borderRadius: '12px', padding: '0.75rem 1rem', color: 'var(--text-primary)', fontSize: '0.9rem', outline: 'none'
             }}
           />
           {telegramChatId && telegramChatId.includes(':') && (
@@ -156,8 +156,8 @@ const VendorNotifications = ({ store }) => {
             value={telegramBotToken}
             onChange={(e) => setTelegramBotToken(e.target.value)}
             style={{
-              width: '100%', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--surface-border)',
-              borderRadius: '12px', padding: '0.75rem 1rem', color: 'white', fontSize: '0.9rem', outline: 'none'
+              width: '100%', background: '#f8fafc', border: '1px solid var(--surface-border)',
+              borderRadius: '12px', padding: '0.75rem 1rem', color: 'var(--text-primary)', fontSize: '0.9rem', outline: 'none'
             }}
           />
           {telegramBotToken && !telegramBotToken.includes(':') && (

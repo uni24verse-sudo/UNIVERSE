@@ -344,7 +344,7 @@ const Dashboard = () => {
   };
 
    return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-dark)' }}>
+    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--background)' }}>
       <style>{`
         @keyframes pulse-glow {
           0% { box-shadow: 0 0 5px rgba(245, 158, 11, 0.4), inset 0 0 5px rgba(245, 158, 11, 0.2); border-color: rgba(245, 158, 11, 0.5); }
@@ -362,7 +362,7 @@ const Dashboard = () => {
       {/* Sidebar - Hidden on mobile, or shown as overlay */}
       <aside style={{ 
         width: '280px', 
-        background: 'rgba(15, 23, 42, 0.95)', 
+        background: '#ffffff', 
         borderRight: '1px solid var(--surface-border)', 
         display: isMobile ? (showSidebar ? 'flex' : 'none') : 'flex', 
         flexDirection: 'column', 
@@ -382,10 +382,10 @@ const Dashboard = () => {
           </button>
         )}
         <div style={{ padding: '2rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <div style={{ width: '40px', height: '40px', background: 'var(--primary)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Store color="white" size={24} />
+          <div style={{ width: '40px', height: '40px', background: 'rgba(239, 65, 35, 0.1)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Store color="var(--primary)" size={24} />
           </div>
-          <span style={{ fontSize: '1.25rem', fontWeight: '800', letterSpacing: '-0.02em' }}>UniVerse <span style={{ color: 'var(--primary)', fontSize: '0.75rem', verticalAlign: 'top' }}>PRO</span></span>
+          <span style={{ fontSize: '1.25rem', fontWeight: '900', letterSpacing: '-0.02em', color: 'var(--text-primary)', fontFamily: "'Poppins', sans-serif" }}>UNIVERSE <span style={{ color: 'var(--primary)', fontSize: '0.75rem', verticalAlign: 'top' }}>PRO</span></span>
         </div>
 
         <nav style={{ padding: '1rem', flex: 1 }}>
@@ -436,7 +436,7 @@ const Dashboard = () => {
             {isMobile && (
               <button 
                 onClick={() => setShowSidebar(true)}
-                style={{ background: 'var(--glass-bg)', border: '1px solid var(--surface-border)', color: 'white', padding: '0.6rem', borderRadius: '12px' }}
+                style={{ background: '#ffffff', border: '1px solid var(--surface-border)', color: 'var(--text-primary)', padding: '0.6rem', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}
               >
                 <Menu size={20} />
               </button>
@@ -473,8 +473,8 @@ const Dashboard = () => {
                 style={{
                   padding: '0.6rem 1rem',
                   borderRadius: '12px',
-                  background: 'var(--glass-bg)',
-                  color: 'white',
+                  background: '#ffffff',
+                  color: 'var(--text-primary)',
                   border: '1px solid var(--surface-border)',
                   fontWeight: '700',
                   outline: 'none',
@@ -627,7 +627,7 @@ const Dashboard = () => {
                         style={{ 
                         padding: '1.25rem', 
                         paddingLeft: '1.5rem',
-                        background: 'rgba(255,255,255,0.02)', 
+                        background: '#ffffff', 
                         borderRadius: '20px', 
                         border: '1px solid var(--surface-border)', 
                         borderLeft: `4px solid ${getStatusColor(order.status)}`,
@@ -727,7 +727,7 @@ const Dashboard = () => {
                           </div>
                         </div>
 
-                        <div style={{ background: 'rgba(255,255,255,0.02)', padding: '0.75rem 1rem', borderRadius: '12px', marginBottom: '1.25rem' }}>
+                        <div style={{ background: '#f8fafc', padding: '0.75rem 1rem', borderRadius: '12px', marginBottom: '1.25rem', border: '1px solid var(--surface-border)' }}>
                           {order.items.map((item, idx) => (
                             <div key={idx} style={{ marginBottom: idx === order.items.length - 1 ? 0 : '0.5rem' }}>
                               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem' }}>
@@ -828,13 +828,17 @@ const Dashboard = () => {
 
               <WhatsAppStatus store={store} />
 
-              <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '24px', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '0.5rem', background: 'var(--primary)', color: 'white' }}>
-                 <p style={{ fontSize: '0.875rem', fontWeight: '600', opacity: 0.8 }}>Store Visibility</p>
+              <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '24px', display: 'flex', flexDirection: 'column', gap: '0.75rem', background: store?.isOpen ? 'rgba(16, 185, 129, 0.05)' : 'rgba(239, 68, 68, 0.05)', border: `1px solid ${store?.isOpen ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)'}` }}>
+                 <p style={{ fontSize: '0.875rem', fontWeight: '600', color: 'var(--text-secondary)', margin: 0 }}>Store Visibility</p>
                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    <Globe size={24} />
-                    <span style={{ fontSize: '1.25rem', fontWeight: '900' }}>{store?.isOpen ? 'ONLINE' : 'OFFLINE'}</span>
+                    <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: store?.isOpen ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Globe size={20} color={store?.isOpen ? '#10b981' : '#ef4444'} />
+                    </div>
+                    <div>
+                      <span style={{ fontSize: '1.25rem', fontWeight: '900', color: store?.isOpen ? '#10b981' : '#ef4444', display: 'block' }}>{store?.isOpen ? 'ONLINE' : 'OFFLINE'}</span>
+                      <Link to={`/store/${store?._id}`} target="_blank" style={{ color: 'var(--primary)', fontSize: '0.75rem', textDecoration: 'underline', fontWeight: '700' }}>View Public Link</Link>
+                    </div>
                  </div>
-                 <Link to={`/store/${store?._id}`} target="_blank" style={{ color: 'white', fontSize: '0.75rem', textDecoration: 'underline' }}>View Public Link</Link>
               </div>
             </div>
           </div>
@@ -849,8 +853,7 @@ const Dashboard = () => {
           bottom: 0, 
           left: 0, 
           right: 0, 
-          background: 'rgba(15, 23, 42, 0.95)', 
-          backdropFilter: 'blur(20px)', 
+          background: '#ffffff', 
           borderTop: '1px solid var(--surface-border)', 
           padding: '0.75rem 0.5rem', 
           display: 'flex', 

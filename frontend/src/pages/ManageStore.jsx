@@ -400,11 +400,11 @@ const ManageStore = () => {
   const storeUrl = `${window.location.origin}/store/${store._id}`;
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-dark)' }}>
+    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--background)' }}>
       {/* Sidebar */}
       <aside style={{ 
         width: '280px', 
-        background: 'rgba(15, 23, 42, 0.95)', 
+        background: '#ffffff', 
         borderRight: '1px solid var(--surface-border)', 
         display: isMobile ? (showSidebar ? 'flex' : 'none') : 'flex', 
         flexDirection: 'column', 
@@ -424,10 +424,10 @@ const ManageStore = () => {
           </button>
         )}
         <div style={{ padding: '2rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <div style={{ width: '40px', height: '40px', background: 'var(--primary)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Store color="white" size={24} />
+          <div style={{ width: '40px', height: '40px', background: 'rgba(239, 65, 35, 0.1)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Store color="var(--primary)" size={24} />
           </div>
-          <span style={{ fontSize: '1.25rem', fontWeight: '800', letterSpacing: '-0.02em' }}>UniVerse <span style={{ color: 'var(--primary)', fontSize: '0.75rem', verticalAlign: 'top' }}>PRO</span></span>
+          <span style={{ fontSize: '1.25rem', fontWeight: '900', letterSpacing: '-0.02em', color: 'var(--text-primary)', fontFamily: "'Poppins', sans-serif" }}>UNIVERSE <span style={{ color: 'var(--primary)', fontSize: '0.75rem', verticalAlign: 'top' }}>PRO</span></span>
         </div>
 
         <nav style={{ padding: '1rem', flex: 1 }}>
@@ -468,12 +468,12 @@ const ManageStore = () => {
             {isMobile && (
               <button 
                 onClick={() => setShowSidebar(true)}
-                style={{ background: 'var(--glass-bg)', border: '1px solid var(--surface-border)', color: 'white', padding: '0.6rem', borderRadius: '12px' }}
+                style={{ background: '#ffffff', border: '1px solid var(--surface-border)', color: 'var(--text-primary)', padding: '0.6rem', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}
               >
                 <Menu size={20} />
               </button>
             )}
-            <button onClick={() => navigate('/vendor/dashboard')} style={{ background: 'var(--glass-bg)', border: '1px solid var(--surface-border)', color: 'white', padding: '0.6rem', borderRadius: '12px', cursor: 'pointer' }}>
+            <button onClick={() => navigate('/vendor/dashboard')} style={{ background: '#ffffff', border: '1px solid var(--surface-border)', color: 'var(--text-primary)', padding: '0.6rem', borderRadius: '12px', cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
                <ArrowLeft size={18} />
             </button>
             <div>
@@ -490,8 +490,8 @@ const ManageStore = () => {
                 style={{
                   padding: '0.6rem 1.2rem',
                   borderRadius: '12px',
-                  background: 'var(--glass-bg)',
-                  color: 'white',
+                  background: '#ffffff',
+                  color: 'var(--text-primary)',
                   border: '1px solid var(--surface-border)',
                   fontWeight: '700',
                   outline: 'none',
@@ -691,11 +691,11 @@ const ManageStore = () => {
                 </form>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                  <div style={{ padding: '1rem', background: 'rgba(255,255,255,0.03)', borderRadius: '14px' }}>
+                  <div style={{ padding: '1rem', background: '#f8fafc', borderRadius: '14px' }}>
                     <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Stall Name</p>
                     <p style={{ fontWeight: '700' }}>{store.name}</p>
                   </div>
-                  <div style={{ padding: '1rem', background: 'rgba(255,255,255,0.03)', borderRadius: '14px', display: 'flex', justifyContent: 'space-between' }}>
+                  <div style={{ padding: '1rem', background: '#f8fafc', borderRadius: '14px', display: 'flex', justifyContent: 'space-between' }}>
                     <div>
                       <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Category</p>
                       <p style={{ fontWeight: '700' }}>{store.category || 'General'}</p>
@@ -705,7 +705,7 @@ const ManageStore = () => {
                       <p style={{ fontWeight: '700' }}>{store.market || 'BH1 Market'}</p>
                     </div>
                   </div>
-                  <div style={{ padding: '1rem', background: 'rgba(255,255,255,0.03)', borderRadius: '14px', display: 'flex', gap: '1rem' }}>
+                  <div style={{ padding: '1rem', background: '#f8fafc', borderRadius: '14px', display: 'flex', gap: '1rem' }}>
                     <div style={{ flex: 1 }}>
                       <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Telegram ID</p>
                       <p style={{ fontWeight: '700', color: '#0088cc' }}>{store.telegramChatId || 'Not Set'}</p>
@@ -715,7 +715,7 @@ const ManageStore = () => {
                       <p style={{ fontWeight: '700', color: store.telegramBotToken ? 'var(--primary)' : 'var(--text-secondary)' }}>{store.telegramBotToken ? 'Custom Bot' : 'System Bot'}</p>
                     </div>
                   </div>
-                  <div style={{ padding: '1rem', background: 'rgba(255,255,255,0.03)', borderRadius: '14px' }}>
+                  <div style={{ padding: '1rem', background: '#f8fafc', borderRadius: '14px' }}>
                     <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>UPI Payout ID</p>
                     <p style={{ fontWeight: '700', color: 'var(--primary)' }}>{store.upiId || 'Not Set'}</p>
                   </div>
@@ -780,7 +780,7 @@ const ManageStore = () => {
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1.5rem', maxHeight: '300px', overflowY: 'auto', paddingRight: '0.5rem' }} className="hide-scrollbar">
                   {scannedItems.map((item, idx) => (
-                    <div key={idx} style={{ display: 'flex', gap: '1rem', alignItems: 'center', padding: '1rem', background: 'rgba(255,255,255,0.03)', borderRadius: '16px', border: '1px solid var(--surface-border)' }}>
+                    <div key={idx} style={{ display: 'flex', gap: '1rem', alignItems: 'center', padding: '1rem', background: '#f8fafc', borderRadius: '16px', border: '1px solid var(--surface-border)' }}>
                       <input 
                         type="checkbox" 
                         checked={item.selected} 
@@ -932,7 +932,7 @@ const ManageStore = () => {
                   </div>
                 </div>
 
-                <div style={{ gridColumn: '1 / span 2', background: 'rgba(255,255,255,0.02)', padding: '1rem', borderRadius: '14px', border: '1px solid var(--surface-border)' }}>
+                <div style={{ gridColumn: '1 / span 2', background: '#f8fafc', padding: '1rem', borderRadius: '14px', border: '1px solid var(--surface-border)' }}>
                   <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', marginBottom: hasVariants ? '1rem' : '0' }}>
                     <input type="checkbox" checked={hasVariants} onChange={(e) => setHasVariants(e.target.checked)} style={{ width: '20px', height: '20px', accentColor: 'var(--primary)' }} />
                     <span style={{ fontWeight: '700' }}>This product has multiple sizes/variants</span>
@@ -964,7 +964,7 @@ const ManageStore = () => {
                   )}
                 </div>
 
-                <div style={{ gridColumn: '1 / span 2', background: 'rgba(255,255,255,0.02)', padding: '1rem', borderRadius: '14px', border: '1px solid var(--surface-border)' }}>
+                <div style={{ gridColumn: '1 / span 2', background: '#f8fafc', padding: '1rem', borderRadius: '14px', border: '1px solid var(--surface-border)' }}>
                   <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', marginBottom: isComboDeal ? '1rem' : '0' }}>
                     <input type="checkbox" checked={isComboDeal} onChange={(e) => setIsComboDeal(e.target.checked)} style={{ width: '20px', height: '20px', accentColor: 'var(--primary)' }} />
                     <span style={{ fontWeight: '700' }}>🎁 Is this a Combo / Meal Deal?</span>
@@ -1058,7 +1058,7 @@ const ManageStore = () => {
                   store.products.map(p => (
                     <div key={p._id} style={{ 
                       padding: '1.25rem', 
-                      background: 'rgba(255,255,255,0.02)', 
+                      background: '#f8fafc', 
                       borderRadius: '24px', 
                       border: '1px solid var(--surface-border)',
                       display: 'flex',
@@ -1083,7 +1083,7 @@ const ManageStore = () => {
                              {p.variants && p.variants.length > 0 ? (
                                <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginTop: '0.25rem', marginBottom: '0.25rem' }}>
                                  {p.variants.map((v, i) => (
-                                   <span key={i} style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem', background: 'rgba(255,255,255,0.05)', borderRadius: '6px', color: 'white', fontWeight: '600' }}>{v.name}: ₹{v.price}</span>
+                                   <span key={i} style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem', background: 'var(--surface-border)', borderRadius: '6px', color: 'var(--text-primary)', fontWeight: '600' }}>{v.name}: ₹{v.price}</span>
                                  ))}
                                </div>
                              ) : (
@@ -1092,7 +1092,7 @@ const ManageStore = () => {
                              
                              {p.isCombo && p.comboItems && p.comboItems.length > 0 && (
                                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.2rem', paddingLeft: '0.5rem', borderLeft: '2px solid var(--surface-border)' }}>
-                                 <p style={{ margin: '0 0 0.2rem 0', color: 'white', fontWeight: '600' }}>Includes:</p>
+                                 <p style={{ margin: '0 0 0.2rem 0', color: 'var(--text-primary)', fontWeight: '600' }}>Includes:</p>
                                  {p.comboItems.map((ci, idx) => (
                                    <div key={idx} style={{ marginBottom: '0.1rem' }}>• {ci.quantity} {ci.name}</div>
                                  ))}
@@ -1115,7 +1115,7 @@ const ManageStore = () => {
                       <div style={{ display: 'flex', gap: '0.5rem', marginTop: 'auto' }}>
                         <button 
                           onClick={() => editProduct(p)}
-                          style={{ flex: 1, padding: '0.6rem', borderRadius: '12px', border: '1px solid var(--surface-border)', background: 'transparent', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }}
+                          style={{ flex: 1, padding: '0.6rem', borderRadius: '12px', border: '1px solid var(--surface-border)', background: 'transparent', color: 'var(--text-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }}
                         >
                           <Pencil size={14} /> Edit
                         </button>
@@ -1258,8 +1258,7 @@ const ManageStore = () => {
           bottom: 0, 
           left: 0, 
           right: 0, 
-          background: 'rgba(15, 23, 42, 0.95)', 
-          backdropFilter: 'blur(20px)', 
+          background: '#ffffff', 
           borderTop: '1px solid var(--surface-border)', 
           padding: '0.75rem 0.5rem', 
           display: 'flex', 
