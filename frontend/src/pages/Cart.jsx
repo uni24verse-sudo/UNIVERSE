@@ -140,7 +140,7 @@ const Cart = () => {
           contact: customerPhone
         },
         theme: {
-          color: '#6366f1'
+          color: '#ef4123'
         },
         modal: {
           ondismiss: function () {
