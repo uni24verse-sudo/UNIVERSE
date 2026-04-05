@@ -33,17 +33,11 @@ const Login = () => {
       <div className="auth-container" style={{ maxWidth: '400px' }}>
         <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
           <div style={{ 
-            width: '64px', 
-            height: '64px', 
-            background: 'var(--primary)', 
-            borderRadius: '18px', 
-            display: 'flex', 
-            alignItems: 'center', 
-            justifyContent: 'center', 
-            margin: '0 auto 1.5rem auto',
-            boxShadow: '0 10px 25px rgba(239, 65, 35, 0.3)'
+            width: '80px', 
+            height: '80px', 
+            margin: '0 auto 1.5rem auto'
           }}>
-            <Store color="white" size={32} />
+            <img src="/helmet-guy.png" alt="UNIVERSE Symbol" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
           </div>
           <h1 style={{ fontSize: '2.25rem', fontWeight: '800', marginBottom: '0.5rem', letterSpacing: '-0.02em' }}>Vendor Login</h1>
           <p style={{ color: 'var(--text-secondary)', fontSize: '1rem' }}>Manage your stall with UniVerse</p>

@@ -382,9 +382,7 @@ const Dashboard = () => {
           </button>
         )}
         <div style={{ padding: '2rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <div style={{ width: '40px', height: '40px', background: 'rgba(239, 65, 35, 0.1)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Store color="var(--primary)" size={24} />
-          </div>
+          <img src="/helmet-guy.png" alt="UNIVERSE Symbol" style={{ width: '36px', height: '36px', objectFit: 'contain' }} />
           <span style={{ fontSize: '1.25rem', fontWeight: '900', letterSpacing: '-0.02em', color: 'var(--text-primary)', fontFamily: "'Poppins', sans-serif" }}>UNIVERSE <span style={{ color: 'var(--primary)', fontSize: '0.75rem', verticalAlign: 'top' }}>PRO</span></span>
         </div>
 

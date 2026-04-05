@@ -30,9 +30,7 @@ const Footer = () => {
         {/* Brand Section */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <div style={{ width: '40px', height: '40px', background: 'rgba(239, 65, 35, 0.1)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Store color="var(--primary)" size={24} />
-            </div>
+            <img src="/helmet-guy.png" alt="UNIVERSE Symbol" style={{ width: '36px', height: '36px', objectFit: 'contain' }} />
             <span style={{ fontSize: '1.5rem', fontWeight: '900', letterSpacing: '-0.04em', fontFamily: "'Poppins', sans-serif" }}>UNIVERSE</span>
           </div>
           <p style={{ color: 'var(--text-secondary)', lineHeight: '1.6', fontSize: '0.9rem' }}>
