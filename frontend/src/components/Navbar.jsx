@@ -110,9 +110,21 @@ const Navbar = () => {
       {(!isSearchFocused || !isMobile) && (
         <div 
           onClick={() => navigate('/')}
-          style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', flexShrink: 0 }}
+          style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', flexShrink: 0, gap: '0.75rem' }}
         >
-          <img src={logoSymbol} alt="UNIVERSE Symbol" style={{ height: '44px', objectFit: 'contain' }} />
+          <img src={logoSymbol} alt="UNIVERSE Symbol" style={{ height: '60px', objectFit: 'contain', margin: '-8px 0' }} />
+          {!isMobile && (
+            <span style={{ 
+              fontFamily: "'Poppins', sans-serif", 
+              fontWeight: '900', 
+              fontSize: '1.6rem', 
+              letterSpacing: '-0.02em', 
+              color: 'var(--text-primary)',
+              lineHeight: 1
+            }}>
+              UNIVERSE
+            </span>
+          )}
         </div>
       )}
 
