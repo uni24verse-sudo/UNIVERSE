@@ -82,20 +82,20 @@ const SuperAdminPanel = () => {
   };
 
   if (loading) return (
-    <div className="auth-wrapper" style={{ background: '#0a0a0a' }}>
+    <div className="auth-wrapper" style={{ background: 'var(--background)' }}>
       <div className="pulse-container"><div className="pulse-dot"></div></div>
-      <p style={{ marginTop: '1rem', color: 'white' }}>Initializing Command Center...</p>
+      <p style={{ marginTop: '1rem', color: 'var(--text-primary)' }}>Initializing Command Center...</p>
     </div>
   );
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: '#0a0a0a', color: 'white' }}>
+    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--background)', color: 'var(--text-primary)' }}>
       {/* Sidebar */}
-      <aside style={{ width: '280px', background: '#111', borderRight: '1px solid #333', display: 'flex', flexDirection: 'column', position: 'fixed', height: '100vh', zIndex: 100 }}>
-        <div style={{ padding: '2rem', display: 'flex', alignItems: 'center', gap: '1rem', borderBottom: '1px solid #333' }}>
-          <Shield color="var(--primary)" size={32} />
+      <aside style={{ width: '280px', background: '#ffffff', borderRight: '1px solid var(--surface-border)', display: 'flex', flexDirection: 'column', position: 'fixed', height: '100vh', zIndex: 100 }}>
+        <div style={{ padding: '2rem', display: 'flex', alignItems: 'center', gap: '0.75rem', borderBottom: '1px solid var(--surface-border)' }}>
+          <img src="/helmet-guy.png" alt="UNIVERSE Symbol" style={{ width: '40px', height: '40px', objectFit: 'contain' }} />
           <div>
-            <span style={{ fontSize: '1.25rem', fontWeight: '800', letterSpacing: '-0.02em', display: 'block' }}>UniVerse</span>
+            <span style={{ fontSize: '1.25rem', fontWeight: '900', letterSpacing: '-0.02em', display: 'block', color: 'var(--text-primary)', fontFamily: "'Poppins', sans-serif" }}>UNIVERSE</span>
             <span style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Super Admin</span>
           </div>
         </div>
@@ -124,7 +124,7 @@ const SuperAdminPanel = () => {
           ))}
         </nav>
 
-        <div style={{ padding: '1rem', borderTop: '1px solid #333' }}>
+        <div style={{ padding: '1rem', borderTop: '1px solid var(--surface-border)' }}>
           <button onClick={() => { logout(); navigate('/super-admin/login'); }} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem', borderRadius: '12px', color: '#ef4444', background: 'rgba(239, 68, 68, 0.1)', border: 'none', cursor: 'pointer', fontWeight: '600' }}>
             <LogOut size={20} /> Terminate Session
           </button>
@@ -144,27 +144,27 @@ const SuperAdminPanel = () => {
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem', marginBottom: '3rem' }}>
               {/* Stat Cards */}
-              <div style={{ padding: '1.5rem', background: '#111', borderRadius: '24px', border: '1px solid #333' }}>
+              <div style={{ padding: '1.5rem', background: '#ffffff', borderRadius: '24px', border: '1px solid var(--surface-border)', boxShadow: '0 4px 12px rgba(0,0,0,0.02)' }}>
                 <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Banknote size={16} /> Total Platform Revenue</p>
                 <h3 style={{ fontSize: '2.5rem', fontWeight: '900', margin: 0, color: 'var(--secondary)' }}>₹{stats.totalRevenue}</h3>
                 <p style={{ marginTop: '0.5rem', color: '#10b981', fontSize: '0.875rem', fontWeight: '600' }}>+ ₹{stats.todayRevenue} today</p>
               </div>
 
-              <div style={{ padding: '1.5rem', background: '#111', borderRadius: '24px', border: '1px solid #333' }}>
+              <div style={{ padding: '1.5rem', background: '#ffffff', borderRadius: '24px', border: '1px solid var(--surface-border)', boxShadow: '0 4px 12px rgba(0,0,0,0.02)' }}>
                 <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Users size={16} /> Registered Vendors</p>
                 <h3 style={{ fontSize: '2.5rem', fontWeight: '900', margin: 0 }}>{stats.totalVendors}</h3>
                 <p style={{ marginTop: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Operating {stats.totalStores} stores</p>
               </div>
 
-              <div style={{ padding: '1.5rem', background: '#111', borderRadius: '24px', border: '1px solid #333' }}>
+              <div style={{ padding: '1.5rem', background: '#ffffff', borderRadius: '24px', border: '1px solid var(--surface-border)', boxShadow: '0 4px 12px rgba(0,0,0,0.02)' }}>
                 <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><TrendingUp size={16} /> Total Processed Orders</p>
                 <h3 style={{ fontSize: '2.5rem', fontWeight: '900', margin: 0 }}>{stats.totalOrders}</h3>
                 <p style={{ marginTop: '0.5rem', color: '#f59e0b', fontSize: '0.875rem', fontWeight: '600' }}>{stats.activeOrders} active right now</p>
               </div>
             </div>
             
-            <div style={{ padding: '3rem', background: '#111', borderRadius: '24px', border: '1px solid #333', textAlign: 'center' }}>
-              <Shield size={64} style={{ opacity: 0.1, margin: '0 auto 1.5rem' }} />
+            <div style={{ padding: '3rem', background: '#ffffff', borderRadius: '24px', border: '1px solid var(--surface-border)', textAlign: 'center' }}>
+              <Shield size={64} color="var(--primary)" style={{ opacity: 0.2, margin: '0 auto 1.5rem' }} />
               <h3 style={{ fontSize: '1.25rem' }}>System Operational</h3>
               <p style={{ color: 'var(--text-secondary)', marginTop: '0.5rem' }}>All backend services and sockets are actively listening.</p>
             </div>
@@ -179,10 +179,10 @@ const SuperAdminPanel = () => {
               <span style={{ padding: '0.5rem 1rem', background: '#111', border: '1px solid #333', borderRadius: '100px', fontSize: '0.875rem' }}>{vendors.length} Total Vendors</span>
             </header>
             
-            <div style={{ background: '#111', borderRadius: '24px', border: '1px solid #333', overflow: 'hidden' }}>
+            <div style={{ background: '#ffffff', borderRadius: '24px', border: '1px solid var(--surface-border)', overflow: 'hidden' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                 <thead>
-                  <tr style={{ background: '#1a1a1a', borderBottom: '1px solid #333' }}>
+                  <tr style={{ background: '#f8fafc', borderBottom: '1px solid var(--surface-border)' }}>
                     <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Vendor Details</th>
                     <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Associated Store</th>
                     <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Performance</th>
@@ -191,9 +191,9 @@ const SuperAdminPanel = () => {
                 </thead>
                 <tbody>
                   {vendors.map(v => (
-                    <tr key={v._id} style={{ borderBottom: '1px solid #222' }}>
+                    <tr key={v._id} style={{ borderBottom: '1px solid var(--surface-border)' }}>
                       <td style={{ padding: '1.25rem' }}>
-                        <div style={{ fontWeight: '700', fontSize: '1rem', color: 'white', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <div style={{ fontWeight: '700', fontSize: '1rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                           {v.name}
                           {v.isBanned && <span style={{ fontSize: '0.65rem', padding: '0.1rem 0.4rem', background: '#ef4444', color: 'white', borderRadius: '4px', fontWeight: '900', letterSpacing: '0.05em' }}>SUSPENDED</span>}
                         </div>
@@ -261,12 +261,12 @@ const SuperAdminPanel = () => {
             
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: '1.5rem' }}>
               {stores.map(store => (
-                <div key={store._id} style={{ padding: '1.5rem', background: '#111', borderRadius: '24px', border: '1px solid #333', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                <div key={store._id} style={{ padding: '1.5rem', background: '#ffffff', borderRadius: '24px', border: '1px solid var(--surface-border)', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <div>
                       <h3 style={{ fontSize: '1.25rem', fontWeight: '800', margin: '0 0 0.5rem 0' }}>{store.name}</h3>
                       <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        Managed by: <span style={{ color: 'white' }}>{store.admin?.name || 'Unknown'}</span>
+                        Managed by: <span style={{ color: 'var(--text-primary)' }}>{store.admin?.name || 'Unknown'}</span>
                       </p>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
@@ -299,7 +299,7 @@ const SuperAdminPanel = () => {
                   <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                     <span style={{ fontSize: '0.75rem', padding: '0.2rem 0.6rem', background: 'rgba(99, 102, 241, 0.1)', color: 'var(--primary)', borderRadius: '6px', fontWeight: '700' }}>{store.category}</span>
                     <span style={{ fontSize: '0.75rem', padding: '0.2rem 0.6rem', background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', borderRadius: '6px', fontWeight: '700' }}>{store.market || 'BH1 Market'}</span>
-                    <span style={{ fontSize: '0.75rem', padding: '0.2rem 0.6rem', background: '#222', color: 'var(--text-secondary)', borderRadius: '6px', fontWeight: '600' }}>{store.productCount} SKUs</span>
+                    <span style={{ fontSize: '0.75rem', padding: '0.2rem 0.6rem', background: '#f1f5f9', color: 'var(--text-secondary)', borderRadius: '6px', fontWeight: '600' }}>{store.productCount} SKUs</span>
                     {store.telegramChatId ? (
                       <span style={{ fontSize: '0.75rem', padding: '0.2rem 0.6rem', background: 'rgba(0, 136, 204, 0.1)', color: '#0088cc', borderRadius: '6px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
                         <Send size={12} /> Telegram Active
@@ -312,7 +312,7 @@ const SuperAdminPanel = () => {
                   </div>
 
                   {/* Manual Ranking Control */}
-                  <div style={{ padding: '1rem', background: '#1a1a1a', borderRadius: '16px', border: '1px solid #333' }}>
+                  <div style={{ padding: '1rem', background: '#f8fafc', borderRadius: '16px', border: '1px solid var(--surface-border)' }}>
                     <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.75rem', fontWeight: '800', textTransform: 'uppercase' }}>Store Ranking (Lower is Higher)</p>
                     <div style={{ display: 'flex', gap: '0.5rem' }}>
                       <input 
@@ -329,7 +329,7 @@ const SuperAdminPanel = () => {
                             fetchDashboardData();
                           } catch(err) { alert('Failed to update priority'); }
                         }}
-                        style={{ flex: 1, background: '#0a0a0a', border: '1px solid #444', borderRadius: '8px', padding: '0.5rem', color: 'white' }}
+                        style={{ flex: 1, background: '#ffffff', border: '1px solid var(--surface-border)', borderRadius: '8px', padding: '0.5rem', color: 'var(--text-primary)' }}
                       />
                       <div style={{ background: 'var(--primary)', color: 'white', padding: '0.5rem 1rem', borderRadius: '8px', fontSize: '0.75rem', fontWeight: '800', display: 'flex', alignItems: 'center' }}>Pos: {store.priority}</div>
                     </div>
@@ -363,7 +363,7 @@ const SuperAdminPanel = () => {
                         {store.daysLeftInTrial > 0 ? (
                           <p style={{ fontSize: '1.25rem', fontWeight: '900', margin: 0 }}>{store.daysLeftInTrial} <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Days Remaining</span></p>
                         ) : (
-                          <div style={{ color: 'white' }}>
+                          <div>
                             <p style={{ fontSize: '0.75rem', color: '#ef4444', fontWeight: '800', marginBottom: '0.25rem' }}>SUBSCRIPTION ACTIVE (5%)</p>
                             <p style={{ fontSize: '1.5rem', fontWeight: '900', color: 'var(--secondary)', margin: 0 }}>₹{store.estimatedFees} <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Pending Fees</span></p>
                           </div>
@@ -374,9 +374,9 @@ const SuperAdminPanel = () => {
                     )}
                   </div>
 
-                  <div style={{ padding: '1rem', background: '#1a1a1a', borderRadius: '12px', border: '1px solid #333', marginTop: 'auto' }}>
+                  <div style={{ padding: '1rem', background: '#f8fafc', borderRadius: '12px', border: '1px solid var(--surface-border)', marginTop: 'auto' }}>
                     <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem', textTransform: 'uppercase', fontWeight: '700' }}>Overall Stall Revenue</p>
-                    <p style={{ fontSize: '1.5rem', fontWeight: '900', color: 'white', margin: 0 }}>₹{store.totalRevenue}</p>
+                    <p style={{ fontSize: '1.5rem', fontWeight: '900', color: 'var(--text-primary)', margin: 0 }}>₹{store.totalRevenue}</p>
                   </div>
                 </div>
               ))}
@@ -401,9 +401,9 @@ const SuperAdminPanel = () => {
                   style={{
                     padding: '0.5rem 1.25rem',
                     borderRadius: '100px',
-                    border: orderFilter === status ? `1px solid var(--primary)` : '1px solid #333',
-                    background: orderFilter === status ? 'rgba(99, 102, 241, 0.1)' : 'transparent',
-                    color: orderFilter === status ? 'white' : 'var(--text-secondary)',
+                    border: orderFilter === status ? `1px solid var(--primary)` : '1px solid var(--surface-border)',
+                    background: orderFilter === status ? 'rgba(239, 65, 35, 0.1)' : 'transparent',
+                    color: orderFilter === status ? 'var(--primary)' : 'var(--text-secondary)',
                     cursor: 'pointer',
                     fontSize: '0.85rem',
                     fontWeight: '700',
@@ -418,10 +418,10 @@ const SuperAdminPanel = () => {
               ))}
             </div>
 
-            <div style={{ background: '#111', borderRadius: '24px', border: '1px solid #333', overflow: 'hidden' }}>
+            <div style={{ background: '#ffffff', borderRadius: '24px', border: '1px solid var(--surface-border)', overflow: 'hidden' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                 <thead>
-                  <tr style={{ background: '#1a1a1a', borderBottom: '1px solid #333' }}>
+                  <tr style={{ background: '#f8fafc', borderBottom: '1px solid var(--surface-border)' }}>
                     <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Order ID & Time</th>
                     <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Customer Profile</th>
                     <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Store</th>
@@ -434,13 +434,13 @@ const SuperAdminPanel = () => {
                   {orders
                     .filter(o => orderFilter === 'All' ? true : o.status === orderFilter)
                     .map(o => (
-                    <tr key={o._id} style={{ borderBottom: '1px solid #222' }}>
+                    <tr key={o._id} style={{ borderBottom: '1px solid var(--surface-border)' }}>
                       <td style={{ padding: '1.25rem' }}>
-                        <div style={{ fontWeight: '700', fontFamily: 'monospace', color: 'white' }}>#{o.orderNumber}</div>
+                        <div style={{ fontWeight: '700', fontFamily: 'monospace', color: 'var(--text-primary)' }}>#{o.orderNumber}</div>
                         <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', marginTop: '0.25rem' }}>{new Date(o.createdAt).toLocaleString()}</div>
                       </td>
                       <td style={{ padding: '1.25rem' }}>
-                         <div style={{ fontWeight: '700', color: 'white' }}>{o.customerName || 'Anonymous'}</div>
+                         <div style={{ fontWeight: '700', color: 'var(--text-primary)' }}>{o.customerName || 'Anonymous'}</div>
                          <div style={{ color: 'var(--secondary)', fontSize: '0.8rem', marginTop: '0.25rem' }}>📞 {o.customerPhone || 'No Phone'}</div>
                       </td>
                       <td style={{ padding: '1.25rem' }}>
@@ -453,7 +453,7 @@ const SuperAdminPanel = () => {
                         </div>
                       </td>
                       <td style={{ padding: '1.25rem' }}>
-                        <div style={{ fontWeight: '800', color: 'white' }}>₹{o.totalAmount}</div>
+                        <div style={{ fontWeight: '800', color: 'var(--text-primary)' }}>₹{o.totalAmount}</div>
                         <div style={{ fontSize: '0.75rem', marginTop: '0.25rem', fontWeight: '600', color: o.paymentMethod === 'UPI' ? '#3b82f6' : 'var(--text-secondary)' }}>
                            {o.paymentMethod} • {o.paymentStatus}
                         </div>
@@ -514,10 +514,10 @@ const SuperAdminPanel = () => {
               <p style={{ color: 'var(--text-secondary)' }}>Monthly billing cycles and commission settlement status.</p>
             </header>
 
-            <div style={{ background: '#111', borderRadius: '24px', border: '1px solid #333', overflow: 'hidden' }}>
+            <div style={{ background: '#ffffff', borderRadius: '24px', border: '1px solid var(--surface-border)', overflow: 'hidden' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                 <thead>
-                  <tr style={{ background: '#1a1a1a', borderBottom: '1px solid #333' }}>
+                  <tr style={{ background: '#f8fafc', borderBottom: '1px solid var(--surface-border)' }}>
                     <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Stall & UPI</th>
                     <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Monthly Gross</th>
                     <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Gateway Fee (2%)</th>
@@ -529,9 +529,9 @@ const SuperAdminPanel = () => {
                 </thead>
                 <tbody>
                   {financeData.map(f => (
-                    <tr key={f.storeId} style={{ borderBottom: '1px solid #222' }}>
+                    <tr key={f.storeId} style={{ borderBottom: '1px solid var(--surface-border)' }}>
                       <td style={{ padding: '1.25rem' }}>
-                        <div style={{ fontWeight: '700', color: 'white' }}>{f.storeName}</div>
+                        <div style={{ fontWeight: '700', color: 'var(--text-primary)' }}>{f.storeName}</div>
                         <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>{f.ownerName}</div>
                         <div style={{ color: 'var(--primary)', fontSize: '0.75rem', fontWeight: '700', marginTop: '0.25rem', background: 'rgba(99, 102, 241, 0.1)', padding: '0.1rem 0.4rem', borderRadius: '4px', display: 'inline-block' }}>{f.upiId}</div>
                         {f.isTrialActive && (

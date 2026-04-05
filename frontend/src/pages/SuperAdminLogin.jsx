@@ -33,15 +33,15 @@ const SuperAdminLogin = () => {
   };
 
   return (
-    <div className="auth-wrapper" style={{ background: '#0a0a0a', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <div className="auth-wrapper" style={{ background: 'var(--background)', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div className="glass-card auth-container" style={{ border: '1px solid rgba(99, 102, 241, 0.2)', boxShadow: '0 0 50px rgba(99, 102, 241, 0.1)' }}>
         
         {/* Brand Header */}
         <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
-          <div style={{ width: '80px', height: '80px', background: 'var(--primary)', borderRadius: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem', boxShadow: '0 10px 30px rgba(99, 102, 241, 0.4)' }}>
-            <Shield color="white" size={40} />
+          <div style={{ width: '80px', height: '80px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem' }}>
+            <img src="/helmet-guy.png" alt="UNIVERSE Symbol" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
           </div>
-          <h1 style={{ fontSize: '2rem', fontWeight: '900', letterSpacing: '-0.02em', marginBottom: '0.5rem', color: 'white' }}>Command Center</h1>
+          <h1 style={{ fontSize: '2rem', fontWeight: '900', letterSpacing: '-0.02em', marginBottom: '0.5rem', color: 'var(--text-primary)' }}>Command Center</h1>
           <p style={{ color: 'var(--text-secondary)' }}>Restricted Super Admin Access</p>
         </div>
 
@@ -59,10 +59,10 @@ const SuperAdminLogin = () => {
               style={{ 
                 width: '100%',
                 padding: '1rem',
-                background: 'rgba(255,255,255,0.03)', 
-                border: '1px solid rgba(255,255,255,0.1)',
+                background: '#f8fafc', 
+                border: '1px solid var(--surface-border)',
                 borderRadius: '12px',
-                color: 'white',
+                color: 'var(--text-primary)',
                 fontSize: '1rem'
               }}
             />
@@ -81,10 +81,10 @@ const SuperAdminLogin = () => {
                 style={{ 
                   width: '100%',
                   padding: '1rem 1rem 1rem 3rem',
-                  background: 'rgba(255,255,255,0.03)', 
-                  border: '1px solid rgba(255,255,255,0.1)',
+                  background: '#f8fafc', 
+                  border: '1px solid var(--surface-border)',
                   borderRadius: '12px',
-                  color: 'white',
+                  color: 'var(--text-primary)',
                   fontSize: '1rem'
                 }}
               />
@@ -101,9 +101,7 @@ const SuperAdminLogin = () => {
         </div>
       </div>
       
-      {/* Background Decor */}
-      <div style={{ position: 'fixed', top: '-20%', right: '-10%', width: '50vw', height: '50vw', background: 'radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, rgba(0,0,0,0) 70%)', borderRadius: '50%', zIndex: -1 }}></div>
-      <div style={{ position: 'fixed', bottom: '-20%', left: '-10%', width: '40vw', height: '40vw', background: 'radial-gradient(circle, rgba(16, 185, 129, 0.1) 0%, rgba(0,0,0,0) 70%)', borderRadius: '50%', zIndex: -1 }}></div>
+      {/* Removed decor for light mode cleanliness */}
     </div>
   );
 };
