@@ -96,7 +96,7 @@ const Navbar = () => {
       position: 'sticky',
       top: 0,
       zIndex: 1000,
-      background: 'rgba(15, 23, 42, 0.85)',
+      background: 'rgba(255, 255, 255, 0.85)',
       backdropFilter: 'blur(12px)',
       borderBottom: '1px solid var(--surface-border)',
       padding: '1rem 2rem',
@@ -109,12 +109,9 @@ const Navbar = () => {
       {(!isSearchFocused || !isMobile) && (
         <div 
           onClick={() => navigate('/')}
-          style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', flexShrink: 0 }}
+          style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', flexShrink: 0 }}
         >
-          <div style={{ width: '40px', height: '40px', background: 'var(--primary)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 16px rgba(99, 102, 241, 0.2)' }}>
-            <Store color="white" size={24} />
-          </div>
-          <span className="hide-on-mobile" style={{ fontSize: '1.5rem', fontWeight: '900', letterSpacing: '-0.04em', color: 'white' }}>UniVerse</span>
+          <img src="/src/assets/logo-full.png" alt="UNIVERSE" style={{ height: '52px', objectFit: 'contain' }} />
         </div>
       )}
 
@@ -134,14 +131,14 @@ const Navbar = () => {
         <div style={{
           display: 'flex',
           alignItems: 'center',
-          background: 'rgba(15, 23, 42, 0.95)',
+          background: 'rgba(255, 255, 255, 0.95)',
           border: '1px solid var(--surface-border)',
           borderRadius: '99px',
           padding: '0.5rem 1.25rem',
           transition: 'all 0.3s ease',
           backdropFilter: 'blur(20px)',
-          boxShadow: isSearchFocused ? '0 10px 40px rgba(0,0,0,0.6)' : 'none',
-          borderColor: isSearchFocused ? 'var(--primary)' : 'rgba(255,255,255,0.15)'
+          boxShadow: isSearchFocused ? '0 10px 40px rgba(0,0,0,0.1)' : 'none',
+          borderColor: isSearchFocused ? 'var(--primary)' : 'var(--surface-border)'
         }}>
           {isMobile && isSearchFocused ? (
             <button onClick={closeSearch} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', padding: '0.25rem', cursor: 'pointer', marginRight: '0.5rem', display: 'flex', alignItems: 'center' }}>
@@ -165,7 +162,7 @@ const Navbar = () => {
               flex: 1,
               background: 'transparent',
               border: 'none',
-              color: 'white',
+              color: 'var(--text-primary)',
               padding: '0.5rem 1rem',
               fontSize: '1rem',
               outline: 'none',
@@ -191,10 +188,10 @@ const Navbar = () => {
               top: 'calc(100% + 15px)',
               left: isMobile ? '-1rem' : 0,
               right: isMobile ? '-1rem' : 0,
-              background: 'rgba(11, 15, 26, 0.99)',
+              background: 'rgba(255, 255, 255, 0.99)',
               border: isMobile ? 'none' : '1px solid var(--surface-border)',
               borderRadius: isMobile ? 0 : '24px',
-              boxShadow: '0 20px 60px rgba(0,0,0,0.8)',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.1)',
               maxHeight: isMobile ? 'calc(100vh - 100px)' : '500px',
               overflowY: 'auto',
               zIndex: 1001,
@@ -245,7 +242,7 @@ const Navbar = () => {
                             <img src={getImageUrl(store.image)} alt={store.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                           </div>
                           <div style={{ flex: 1 }}>
-                            <h5 style={{ margin: 0, fontSize: '1rem', fontWeight: '700', color: 'white' }}>{store.name}</h5>
+                            <h5 style={{ margin: 0, fontSize: '1rem', fontWeight: '700', color: 'var(--text-primary)' }}>{store.name}</h5>
                              <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
                                <MapPin size={12} color="var(--primary)" /> {store.category || 'General'} • <span style={{ color: 'var(--primary)', fontWeight: '600' }}>{store.market}</span>
                              </p>
@@ -289,7 +286,7 @@ const Navbar = () => {
                             <ChefHat size={20} color="var(--primary)" />
                           </div>
                           <div style={{ flex: 1 }}>
-                            <h5 style={{ margin: 0, fontSize: '0.95rem', fontWeight: '700', color: 'white' }}>
+                            <h5 style={{ margin: 0, fontSize: '0.95rem', fontWeight: '700', color: 'var(--text-primary)' }}>
                               Found in <span style={{ color: 'var(--primary)' }}>{store.name}</span>
                               <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginLeft: '0.6rem', fontWeight: '600', background: 'rgba(99, 102, 241, 0.1)', padding: '0.2rem 0.5rem', borderRadius: '6px', border: '1px solid rgba(99, 102, 241, 0.2)' }}>
                                 {store.market}

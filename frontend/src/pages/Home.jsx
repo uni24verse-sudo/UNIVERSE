@@ -111,31 +111,31 @@ const Home = () => {
                 width: '100%',
                 padding: '1.25rem 0.5rem',
                 borderRadius: '16px',
-                background: selectedMarket === market ? 'rgba(99, 102, 241, 0.15)' : 'rgba(255, 255, 255, 0.05)',
-                color: selectedMarket === market ? '#ffffff' : 'rgba(255, 255, 255, 0.75)',
-                border: `1px solid ${selectedMarket === market ? 'var(--primary)' : 'rgba(255, 255, 255, 0.1)'}`,
+                background: selectedMarket === market ? 'rgba(239, 65, 35, 0.1)' : '#ffffff',
+                color: selectedMarket === market ? 'var(--primary)' : 'var(--text-secondary)',
+                border: `1px solid ${selectedMarket === market ? 'var(--primary)' : 'var(--surface-border)'}`,
                 cursor: 'pointer',
                 fontWeight: selectedMarket === market ? '700' : '600',
                 fontSize: '0.9rem',
                 letterSpacing: '0.5px',
                 transition: 'all 0.2s ease',
-                boxShadow: selectedMarket === market ? '0 4px 15px rgba(99, 102, 241, 0.2), inset 0 1px 5px rgba(99, 102, 241, 0.15)' : '0 4px 12px rgba(0, 0, 0, 0.1)',
+                boxShadow: selectedMarket === market ? '0 4px 15px rgba(239, 65, 35, 0.2), inset 0 1px 5px rgba(239, 65, 35, 0.1)' : '0 4px 12px rgba(0, 0, 0, 0.05)',
                 backdropFilter: 'blur(20px)',
                 WebkitBackdropFilter: 'blur(20px)',
                 textAlign: 'center'
               }}
               onMouseEnter={(e) => {
                 if (selectedMarket !== market) {
-                   e.currentTarget.style.background = 'rgba(99, 102, 241, 0.05)';
-                   e.currentTarget.style.color = '#ffffff';
-                   e.currentTarget.style.borderColor = 'rgba(99, 102, 241, 0.5)';
+                   e.currentTarget.style.background = 'rgba(239, 65, 35, 0.05)';
+                   e.currentTarget.style.color = 'var(--text-primary)';
+                   e.currentTarget.style.borderColor = 'rgba(239, 65, 35, 0.4)';
                 }
               }}
               onMouseLeave={(e) => {
                 if (selectedMarket !== market) {
-                   e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
-                   e.currentTarget.style.color = 'rgba(255, 255, 255, 0.75)';
-                   e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                   e.currentTarget.style.background = '#ffffff';
+                   e.currentTarget.style.color = 'var(--text-secondary)';
+                   e.currentTarget.style.borderColor = 'var(--surface-border)';
                 }
               }}
              >
