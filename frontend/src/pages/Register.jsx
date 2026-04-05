@@ -42,13 +42,13 @@ const Register = () => {
           <div style={{ 
             width: '64px', 
             height: '64px', 
-            background: 'var(--secondary)', 
+            background: 'var(--primary)', 
             borderRadius: '18px', 
             display: 'flex', 
             alignItems: 'center', 
             justifyContent: 'center', 
             margin: '0 auto 1.5rem auto',
-            boxShadow: '0 10px 25px rgba(16, 185, 129, 0.3)'
+            boxShadow: '0 10px 25px rgba(239, 65, 35, 0.3)'
           }}>
             <UserPlus color="white" size={32} />
           </div>

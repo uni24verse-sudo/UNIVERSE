@@ -41,7 +41,7 @@ const Login = () => {
             alignItems: 'center', 
             justifyContent: 'center', 
             margin: '0 auto 1.5rem auto',
-            boxShadow: '0 10px 25px rgba(99, 102, 241, 0.4)'
+            boxShadow: '0 10px 25px rgba(239, 65, 35, 0.3)'
           }}>
             <Store color="white" size={32} />
           </div>

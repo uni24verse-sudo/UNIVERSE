@@ -1,18 +1,19 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@500;600;700;800;900&display=swap');
 
 :root {
   --primary: #ef4123;
   --primary-hover: #d93d20;
+  --primary-shadow: rgba(239, 65, 35, 0.3);
   --secondary: #fcaf17;
-  --background: #fdfdfd;
+  --background: #fcfcfd;
   --surface: #ffffff;
-  --surface-border: rgba(0, 0, 0, 0.08);
-  --text-primary: #1d1d1b;
-  --text-secondary: #6b7280;
+  --surface-border: rgba(0, 0, 0, 0.06);
+  --text-primary: #121212;
+  --text-secondary: #64748b;
   --error: #ef4444;
-  --radius: 20px;
-  --transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-  --glass-bg: rgba(255, 255, 255, 0.8);
+  --radius: 24px;
+  --transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  --glass-bg: rgba(255, 255, 255, 0.9);
 }
 
 * {
@@ -59,10 +60,13 @@ body {
 }
 
 /* Typography */
+/* Typography */
 h1, h2, h3, h4 {
-  font-weight: 600;
+  font-family: 'Poppins', sans-serif;
+  font-weight: 800;
   margin-bottom: 1rem;
   color: var(--text-primary);
+  letter-spacing: -0.02em;
 }
 
 p {
@@ -104,43 +108,49 @@ p {
 
 /* Buttons */
 .btn {
+  font-family: 'Poppins', sans-serif;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   padding: 1rem 1.5rem;
-  border-radius: 12px;
-  font-weight: 600;
+  border-radius: 14px;
+  font-weight: 700;
   font-size: 0.95rem;
   cursor: pointer;
   transition: var(--transition);
   border: none;
   gap: 0.6rem;
   width: 100%;
-  letter-spacing: 0.01em;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
 }
 
 .btn:active {
-  transform: scale(0.98);
+  transform: scale(0.96);
 }
 
 .btn-primary {
   background: var(--primary);
   color: white;
+  box-shadow: 0 4px 12px var(--primary-shadow);
 }
 
 .btn-primary:hover {
   background: var(--primary-hover);
-  box-shadow: 0 4px 12px rgba(239, 65, 35, 0.4);
+  box-shadow: 0 10px 24px rgba(239, 65, 35, 0.4);
+  transform: translateY(-2px);
 }
 
 .btn-secondary {
-  background: white;
+  background: #f1f5f9;
   color: var(--text-primary);
   border: 1px solid var(--surface-border);
 }
 
 .btn-secondary:hover {
-  background: #f3f4f6;
+  background: #e2e8f0;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(0,0,0,0.06);
 }
 
 /* Auth Layout */
@@ -163,11 +173,8 @@ p {
 }
 
 .auth-header h1 {
-  font-size: 2rem;
-  background: linear-gradient(135deg, #1d1d1b, #4b5563);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
+  font-size: 2.2rem;
+  color: var(--text-primary);
   margin-bottom: 0.5rem;
 }
 

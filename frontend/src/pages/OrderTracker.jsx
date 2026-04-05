@@ -140,7 +140,7 @@ const OrderTracker = () => {
               onClick={() => setShowRefundCard(false)}
               style={{ 
                 position: 'absolute', top: '0.75rem', right: '0.75rem', 
-                background: 'rgba(255,255,255,0.08)', border: 'none', color: 'rgba(255,255,255,0.5)', 
+                background: 'rgba(0,0,0,0.05)', border: 'none', color: 'var(--text-primary)', 
                 width: '28px', height: '28px', borderRadius: '50%', 
                 display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' 
               }}
@@ -166,8 +166,8 @@ const OrderTracker = () => {
 
             {/* Info Text */}
             <p style={{ 
-              fontSize: '0.8rem', color: 'rgba(255,255,255,0.65)', lineHeight: '1.5', marginBottom: '1rem',
-              padding: '0.75rem', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)'
+              fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: '1.5', marginBottom: '1rem',
+              padding: '0.75rem', background: '#f8fafc', borderRadius: '12px', border: '1px solid var(--surface-border)'
             }}>
               Your payment of <span style={{ color: '#ef4444', fontWeight: '800' }}>₹{order.totalAmount}</span> will be refunded. 
               Call or WhatsApp us for <span style={{ color: '#10b981', fontWeight: '700' }}>instant processing</span>.
@@ -203,10 +203,10 @@ const OrderTracker = () => {
       )}
 
       <header style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '2.5rem' }}>
-        <button onClick={() => navigate('/')} style={{ background: 'var(--glass-bg)', border: '1px solid var(--surface-border)', color: 'white', padding: '0.6rem', borderRadius: '12px', cursor: 'pointer' }}>
+        <button onClick={() => navigate('/')} style={{ background: '#ffffff', border: '1px solid var(--surface-border)', color: 'var(--text-primary)', padding: '0.6rem', borderRadius: '12px', cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
            <ArrowLeft size={20} />
         </button>
-        <h1 style={{ fontSize: '1.5rem', fontWeight: '800', margin: 0 }}>Track Order</h1>
+        <h1 style={{ fontSize: '1.5rem', fontWeight: '800', margin: 0, color: 'var(--text-primary)' }}>Track Order</h1>
       </header>
 
       <div className="glass-card" style={{ padding: '2rem', borderRadius: '28px', textAlign: 'center', marginBottom: '2rem' }}>
@@ -272,18 +272,18 @@ const OrderTracker = () => {
                       width: '48px', 
                       height: '48px', 
                       borderRadius: '50%', 
-                      background: isCompleted || isActive ? 'var(--primary)' : 'var(--background)',
+                      background: isCompleted || isActive ? 'var(--primary)' : '#ffffff',
                       border: '2px solid',
                       borderColor: isCompleted || isActive ? 'var(--primary)' : 'var(--surface-border)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                       color: isCompleted || isActive ? 'white' : 'var(--text-secondary)',
-                      boxShadow: isActive ? '0 0 20px rgba(99, 102, 241, 0.4)' : 'none'
+                      boxShadow: isActive ? '0 0 20px rgba(239, 65, 35, 0.4)' : '0 4px 12px rgba(0,0,0,0.03)'
                     }}>
                       {isCompleted ? <CheckCircle2 size={24} /> : <Icon size={20} />}
                     </div>
-                    <span style={{ fontSize: '0.75rem', fontWeight: '600', color: isActive ? 'white' : 'var(--text-secondary)' }}>{step.label}</span>
+                    <span style={{ fontSize: '0.75rem', fontWeight: '800', color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)' }}>{step.label}</span>
                  </div>
                );
              })}
@@ -313,30 +313,30 @@ const OrderTracker = () => {
         </div>
 
         {/* Order Summary */}
-        <div style={{ textAlign: 'left', background: 'rgba(255,255,255,0.02)', padding: '1.5rem', borderRadius: '18px', border: '1px solid var(--surface-border)', marginBottom: '2rem' }}>
+        <div style={{ textAlign: 'left', background: '#f8fafc', padding: '1.5rem', borderRadius: '18px', border: '1px solid var(--surface-border)', marginBottom: '2rem' }}>
            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '1.25rem' }}>
               <Receipt size={18} color="var(--primary)" />
-              <h4 style={{ margin: 0 }}>Order Summary</h4>
+              <h4 style={{ margin: 0, color: 'var(--text-primary)' }}>Order Summary</h4>
            </div>
 
            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem', fontSize: '0.85rem' }}>
              <span style={{ color: 'var(--text-secondary)' }}>Store</span>
-             <span style={{ fontWeight: '700' }}>{order.store?.name || 'Store'}</span>
+             <span style={{ fontWeight: '800', color: 'var(--text-primary)' }}>{order.store?.name || 'Store'}</span>
            </div>
            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem', fontSize: '0.85rem' }}>
              <span style={{ color: 'var(--text-secondary)' }}>Order Type</span>
-             <span style={{ fontWeight: '700' }}>{order.orderType}</span>
+             <span style={{ fontWeight: '800', color: 'var(--text-primary)' }}>{order.orderType}</span>
            </div>
            
            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
              {order.items.map((item, idx) => (
-               <div key={idx} style={{ borderBottom: idx === order.items.length - 1 ? 'none' : '1px solid rgba(255,255,255,0.05)', paddingBottom: idx === order.items.length - 1 ? 0 : '0.75rem' }}>
+               <div key={idx} style={{ borderBottom: idx === order.items.length - 1 ? 'none' : '1px solid var(--surface-border)', paddingBottom: idx === order.items.length - 1 ? 0 : '0.75rem' }}>
                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.95rem' }}>
-                   <span style={{ fontWeight: '700', color: 'white' }}>
-                     {item.quantity}x {item.name} {item.variant && <span style={{ fontSize: '0.8rem', fontWeight: '600', color: 'var(--text-secondary)' }}>({item.variant})</span>}
+                   <span style={{ fontWeight: '800', color: 'var(--text-primary)' }}>
+                     {item.quantity}x {item.name} {item.variant && <span style={{ fontSize: '0.8rem', fontWeight: '700', color: 'var(--text-secondary)' }}>({item.variant})</span>}
                      {item.isCombo && <span style={{ fontSize: '0.6rem', padding: '0.1rem 0.4rem', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', borderRadius: '4px', fontWeight: '800', marginLeft: '0.5rem', verticalAlign: 'middle' }}>COMBO</span>}
                    </span>
-                   <span style={{ fontWeight: '700' }}>₹{item.price * item.quantity}</span>
+                   <span style={{ fontWeight: '800', color: 'var(--text-primary)' }}>₹{item.price * item.quantity}</span>
                  </div>
                  
                  {item.isCombo && (
@@ -361,7 +361,7 @@ const OrderTracker = () => {
              ))}
            </div>
            
-           <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '1.5rem', paddingTop: '1.25rem', borderTop: '1px dashed var(--surface-border)', fontWeight: '800', fontSize: '1.25rem' }}>
+           <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '1.5rem', paddingTop: '1.25rem', borderTop: '1px dashed var(--surface-border)', fontWeight: '900', fontSize: '1.25rem', color: 'var(--text-primary)' }}>
              <span>Total Paid</span>
              <span style={{ color: 'var(--secondary)' }}>₹{order.totalAmount}</span>
            </div>
