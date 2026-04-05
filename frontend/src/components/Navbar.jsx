@@ -4,6 +4,7 @@ import axios from 'axios';
 import { Store, Search, User, ShoppingBag, X, ChefHat, MapPin, ChevronRight, ArrowLeft } from 'lucide-react';
 import { CartContext } from '../context/CartContext';
 import { AuthContext } from '../context/AuthContext';
+import logoSymbol from '../assets/logo-symbol.png';
 
 const Navbar = () => {
   const navigate = useNavigate();
@@ -111,7 +112,7 @@ const Navbar = () => {
           onClick={() => navigate('/')}
           style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', flexShrink: 0 }}
         >
-          <img src="/src/assets/logo-full.png" alt="UNIVERSE" style={{ height: '52px', objectFit: 'contain' }} />
+          <img src={logoSymbol} alt="UNIVERSE Symbol" style={{ height: '44px', objectFit: 'contain' }} />
         </div>
       )}
 
