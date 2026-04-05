@@ -37,29 +37,19 @@ const FloatingBackground = () => {
   ];
 
   return (
-    <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0, overflow: 'hidden' }}>
+    <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: -1, overflow: 'hidden' }}>
       {icons.map((item, i) => (
         <div key={i} style={{
           position: 'absolute',
           top: item.top,
           left: item.left,
           color: 'var(--primary)',
-          opacity: 0.04,
-          animation: `float ${15 + i * 2}s infinite ease-in-out`,
-          animationDelay: `${i * -1.5}s`,
+          opacity: 0.08,
           transform: `rotate(${item.rot}deg)`
         }}>
           <item.Icon size={item.size} strokeWidth={1} />
         </div>
       ))}
-      <style>{`
-        @keyframes float {
-          0% { transform: translate(0, 0) rotate(0deg); }
-          33% { transform: translate(20px, -30px) rotate(10deg); }
-          66% { transform: translate(-10px, 20px) rotate(-10deg); }
-          100% { transform: translate(0, 0) rotate(0deg); }
-        }
-      `}</style>
     </div>
   );
 };
@@ -110,7 +100,7 @@ const Home = () => {
   );
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--background)', position: 'relative' }}>
+    <div style={{ minHeight: '100vh', position: 'relative' }}>
       <FloatingBackground />
 
       {/* Hero Section */}
