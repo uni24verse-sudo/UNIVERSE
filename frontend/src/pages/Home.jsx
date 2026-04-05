@@ -68,12 +68,12 @@ const Home = () => {
       <section className="hero-section" style={{ 
         padding: '6rem 2rem 4rem 2rem', 
         textAlign: 'center', 
-        background: 'linear-gradient(180deg, rgba(99, 102, 241, 0.1) 0%, rgba(15, 23, 42, 0) 100%)',
+        background: 'linear-gradient(180deg, rgba(239, 65, 35, 0.03) 0%, rgba(255, 255, 255, 0) 100%)',
         position: 'relative',
         overflow: 'hidden'
       }}>
-        <div style={{ position: 'absolute', top: '-10%', left: '-10%', width: '40%', height: '40%', background: 'radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, transparent 70%)', filter: 'blur(60px)' }}></div>
-        <div style={{ position: 'absolute', bottom: '-10%', right: '-10%', width: '30%', height: '30%', background: 'radial-gradient(circle, rgba(16, 185, 129, 0.1) 0%, transparent 70%)', filter: 'blur(60px)' }}></div>
+        <div style={{ position: 'absolute', top: '-10%', left: '-10%', width: '40%', height: '40%', background: 'radial-gradient(circle, rgba(239, 65, 35, 0.08) 0%, transparent 70%)', filter: 'blur(60px)' }}></div>
+        <div style={{ position: 'absolute', bottom: '-10%', right: '-10%', width: '30%', height: '30%', background: 'radial-gradient(circle, rgba(252, 175, 23, 0.05) 0%, transparent 70%)', filter: 'blur(60px)' }}></div>
         
         <div className="hero-badge" style={{ 
           display: 'inline-flex', 
@@ -81,12 +81,12 @@ const Home = () => {
           gap: '0.75rem', 
           padding: '0.5rem 1.25rem', 
           borderRadius: '99px', 
-          background: 'rgba(99, 102, 241, 0.1)', 
+          background: 'rgba(239, 65, 35, 0.08)', 
           color: 'var(--primary)',
           fontSize: '0.875rem',
           fontWeight: '700',
           marginBottom: '2rem',
-          border: '1px solid rgba(99, 102, 241, 0.2)'
+          border: '1px solid rgba(239, 65, 35, 0.2)'
         }}>
           <ChefHat size={16} /> Campus Favorites Delivered
         </div>
@@ -194,30 +194,30 @@ const Home = () => {
                   to={`/store/${store._id}`}
                   style={{ textDecoration: 'none', color: 'inherit' }}
                 >
-                  <div className="glass-card store-card" style={{ transition: 'var(--transition)', overflow: 'hidden', padding: '1.5rem', borderRadius: '32px', height: '100%', display: 'flex', flexDirection: 'column' }}>
-                    <div style={{ position: 'relative', height: '200px', borderRadius: '24px', overflow: 'hidden', marginBottom: '1.5rem', background: 'rgba(15,23,42,0.8)' }}>
-                      <img 
-                        src={getImageUrl(store.image)}
-                        alt={store.name}
-                        style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: isOpen ? 0.8 : 0.3 }}
-                        onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=500&q=60'; }}
-                      />
-                      {!isOpen && (
-                        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}>
-                          <span style={{ background: 'var(--error)', color: 'white', padding: '0.6rem 2rem', borderRadius: '100px', fontWeight: '900', letterSpacing: '0.1em', fontSize: '0.75rem' }}>CLOSED</span>
+                    <div className="glass-card store-card" style={{ transition: 'var(--transition)', overflow: 'hidden', padding: '1.25rem', borderRadius: '24px', height: '100%', display: 'flex', flexDirection: 'column', background: '#ffffff', border: '1px solid rgba(0,0,0,0.05)', boxShadow: '0 10px 30px rgba(0,0,0,0.03)' }}>
+                      <div style={{ position: 'relative', height: '200px', borderRadius: '16px', overflow: 'hidden', marginBottom: '1.25rem', background: '#f3f4f6' }}>
+                        <img 
+                          src={getImageUrl(store.image)}
+                          alt={store.name}
+                          style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: isOpen ? 1 : 0.4 }}
+                          onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=500&q=60'; }}
+                        />
+                        {!isOpen && (
+                          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.3)', backdropFilter: 'blur(4px)' }}>
+                            <span style={{ background: 'var(--error)', color: 'white', padding: '0.6rem 2rem', borderRadius: '100px', fontWeight: '900', letterSpacing: '0.1em', fontSize: '0.75rem', boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}>CLOSED</span>
+                          </div>
+                        )}
+                      
+                        <div style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'rgba(255,255,255,0.95)', backdropFilter: 'blur(10px)', padding: '0.4rem 0.6rem', borderRadius: '10px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                           <Star size={14} color="#f59e0b" fill="#f59e0b" />
+                           <span style={{ fontSize: '0.8rem', fontWeight: '800', color: 'var(--text-primary)' }}>4.8</span>
                         </div>
-                      )}
-                      
-                      <div style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(10px)', padding: '0.5rem 0.75rem', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                         <Star size={14} color="#fbbf24" fill="#fbbf24" />
-                         <span style={{ fontSize: '0.8rem', fontWeight: '800', color: 'white' }}>4.8</span>
-                      </div>
-                      
-                      {/* Market Highlight Badge */}
-                      <div style={{ position: 'absolute', bottom: '1rem', left: '1rem', background: 'rgba(99, 102, 241, 0.9)', backdropFilter: 'blur(8px)', padding: '0.5rem 1rem', borderRadius: '14px', display: 'flex', alignItems: 'center', gap: '0.4rem', boxShadow: '0 10px 20px rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.2)' }}>
-                        <MapPin size={12} color="white" />
-                        <span style={{ fontSize: '0.75rem', fontWeight: '900', color: 'white' }}>{store.market || 'BH1 Market'}</span>
-                      </div>
+                        
+                        {/* Market Highlight Badge */}
+                        <div style={{ position: 'absolute', bottom: '1rem', left: '1rem', background: 'rgba(255, 255, 255, 0.95)', backdropFilter: 'blur(8px)', padding: '0.4rem 0.8rem', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '0.4rem', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+                          <MapPin size={12} color="var(--primary)" />
+                          <span style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-primary)' }}>{store.market || 'Campus'}</span>
+                        </div>
                     </div>
 
                     <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
@@ -225,20 +225,20 @@ const Home = () => {
                         <h3 style={{ fontSize: '1.25rem', fontWeight: '900', margin: 0 }}>{store.name}</h3>
                         {isOpen && <CheckCircle2 size={18} color="var(--secondary)" />}
                       </div>
-                      <div style={{ marginBottom: '1.5rem' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--secondary)', fontSize: '0.8rem', marginTop: '0.4rem', fontWeight: '800', background: 'rgba(16,185,129,0.1)', width: 'fit-content', padding: '0.3rem 0.8rem', borderRadius: '8px' }}>
+                      <div style={{ marginBottom: '1.25rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--primary)', fontSize: '0.75rem', marginTop: '0.2rem', fontWeight: '800', background: 'rgba(239, 65, 35, 0.08)', width: 'fit-content', padding: '0.3rem 0.6rem', borderRadius: '6px' }}>
                            {store.category || 'General'}
                         </div>
                       </div>
                       
-                      <div style={{ marginTop: 'auto', paddingTop: '1.25rem', borderTop: '1px solid var(--surface-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                         <div style={{ display: 'flex', gap: '1rem', color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: '700' }}>
-                            <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><ShoppingBag size={14} /> {store.products?.length || 0} Items</span>
-                            <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><Clock size={14} /> 15m</span>
-                         </div>
-                         <div style={{ width: '32px', height: '32px', borderRadius: '10px', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)' }}>
-                            <ChevronRight size={18} />
-                         </div>
+                       <div style={{ marginTop: 'auto', paddingTop: '1rem', borderTop: '1px solid var(--surface-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                           <div style={{ display: 'flex', gap: '1rem', color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: '700' }}>
+                              <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><ShoppingBag size={14} /> {store.products?.length || 0} Items</span>
+                              <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><Clock size={14} /> 15m</span>
+                           </div>
+                           <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-primary)', transition: 'background 0.2s ease' }} onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(239, 65, 35, 0.1)'} onMouseLeave={(e) => e.currentTarget.style.background = '#f3f4f6'}>
+                              <ChevronRight size={16} color="var(--text-primary)" />
+                           </div>
                       </div>
                     </div>
                   </div>
