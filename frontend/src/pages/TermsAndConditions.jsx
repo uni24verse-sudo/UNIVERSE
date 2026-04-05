@@ -12,9 +12,9 @@ const TermsAndConditions = () => {
   return (
     <div style={{
       minHeight: '100vh',
-      background: 'var(--bg-dark)',
-      color: 'white',
-      padding: '4rem 1rem'
+      background: 'var(--background)',
+      color: 'var(--text-primary)',
+      padding: '4rem 1.5rem'
     }}>
       <div style={{
         maxWidth: '900px',
@@ -28,47 +28,52 @@ const TermsAndConditions = () => {
               display: 'flex',
               alignItems: 'center',
               gap: '0.5rem',
-              background: 'rgba(255,255,255,0.05)',
+              background: '#ffffff',
               border: '1px solid var(--surface-border)',
               color: 'var(--text-secondary)',
-              padding: '0.5rem 1rem',
+              padding: '0.6rem 1.25rem',
               borderRadius: '100px',
               cursor: 'pointer',
               marginBottom: '2rem',
               margin: '0 auto 2rem auto',
-              transition: 'var(--transition)'
+              fontWeight: '600',
+              fontSize: '0.875rem',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+              transition: 'all 0.2s ease'
             }}
-            onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.1)'}
-            onMouseLeave={(e) => e.target.style.background = 'rgba(255,255,255,0.05)'}
+            onMouseEnter={(e) => { e.target.style.background = '#f8fafc'; e.target.style.borderColor = 'var(--primary)'; e.target.style.color = 'var(--primary)'; }}
+            onMouseLeave={(e) => { e.target.style.background = '#ffffff'; e.target.style.borderColor = 'var(--surface-border)'; e.target.style.color = 'var(--text-secondary)'; }}
           >
             <ArrowLeft size={18} /> Back
           </button>
           
           <div style={{
-            width: '64px',
-            height: '64px',
-            background: 'rgba(99, 102, 241, 0.1)',
-            borderRadius: '20px',
+            width: '72px',
+            height: '72px',
+            background: 'rgba(239, 65, 35, 0.08)',
+            borderRadius: '24px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             margin: '0 auto 1.5rem auto',
-            border: '1px solid rgba(99, 102, 241, 0.2)'
+            border: '1px solid rgba(239, 65, 35, 0.15)'
           }}>
-            <FileText size={32} color="var(--primary)" />
+            <FileText size={36} color="var(--primary)" />
           </div>
           
-          <h1 style={{ fontSize: '2.5rem', fontWeight: '900', marginBottom: '0.5rem', letterSpacing: '-0.02em' }}>Terms & Conditions</h1>
-          <p style={{ color: 'var(--text-secondary)' }}>Last Updated: April 2026</p>
+          <h1 style={{ fontSize: '3rem', fontWeight: '900', marginBottom: '0.75rem', letterSpacing: '-0.03em', color: 'var(--text-primary)' }}>Terms & Conditions</h1>
+          <p style={{ color: 'var(--text-secondary)', fontWeight: '600' }}>Last Updated: April 2026</p>
         </div>
 
         {/* Content Card */}
-        <div className="glass-card" style={{
-          padding: '3rem',
+        <div style={{
+          background: '#ffffff',
+          padding: '3.5rem',
           borderRadius: '32px',
           border: '1px solid var(--surface-border)',
+          boxShadow: '0 10px 40px rgba(0,0,0,0.04)',
           lineHeight: '1.8',
-          fontSize: '1rem',
+          fontSize: '1.05rem',
           color: 'var(--text-secondary)'
         }}>
           <section style={{ marginBottom: '2.5rem' }}>
@@ -79,18 +84,18 @@ const TermsAndConditions = () => {
               This document is published in accordance with the provisions of Rule 3 (1) of the Information Technology (Intermediaries guidelines) Rules, 2011 that require publishing the rules and regulations, privacy policy and Terms of Use for access or usage of domain name <span style={{ color: 'var(--primary)' }}>https://www.universeorder.co.in</span> ('Website'), including the related mobile site and mobile application (hereinafter referred to as 'Platform').
             </p>
             <p>
-              The Platform is owned by **Universe**, a company incorporated under the Companies Act, 1956 with its registered office at Vrindavan Yojna, Lucknow, Uttar Pradesh (hereinafter referred to as ‘Platform Owner’, 'we', 'us', 'our').
+              The Platform is owned by **Universe**, a company incorporated under the Companies Act, 1956 with its registered office at Lovely Professional University, Phagwara, Punjab, India (hereinafter referred to as ‘Platform Owner’, 'we', 'us', 'our').
             </p>
           </section>
 
-          <h2 style={{ color: 'white', fontSize: '1.4rem', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <ShieldCheck size={20} color="var(--secondary)" /> 1. Agreement to Terms
+          <h2 style={{ color: 'var(--text-primary)', fontSize: '1.5rem', fontWeight: '800', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <ShieldCheck size={22} color="var(--primary)" /> 1. Agreement to Terms
           </h2>
           <p style={{ marginBottom: '2rem' }}>
             Your use of the Platform and services and tools are governed by the following terms and conditions (“Terms of Use”) as applicable to the Platform including the applicable policies which are incorporated herein by way of reference. If You transact on the Platform, You shall be subject to the policies that are applicable to the Platform for such transaction. By mere use of the Platform, You shall be contracting with the Platform Owner and these terms and conditions including the policies constitute Your binding obligations, with Platform Owner. These Terms of Use relate to your use of our website, goods (as applicable) or services (as applicable) (collectively, 'Services').
           </p>
 
-          <h2 style={{ color: 'white', fontSize: '1.4rem', marginBottom: '1.25rem' }}>2. Use of the Services</h2>
+          <h2 style={{ color: 'var(--text-primary)', fontSize: '1.5rem', fontWeight: '800', marginBottom: '1.25rem' }}>2. Use of the Services</h2>
           <ol style={{ paddingLeft: '1.5rem', marginBottom: '2rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <li>To access and use the Services, you agree to provide true, accurate and complete information to us during and after registration, and you shall be responsible for all acts done through the use of your registered account on the Platform.</li>
             <li>Neither we nor any third parties provide any warranty or guarantee as to the accuracy, timeliness, performance, completeness or suitability of the information and materials offered on this website or through the Services, for any specific purpose.</li>
@@ -101,70 +106,70 @@ const TermsAndConditions = () => {
             <li>You agree not to use the Platform and/ or Services for any purpose that is unlawful, illegal or forbidden by these Terms, or Indian or local laws that might apply to you.</li>
           </ol>
 
-          <h2 style={{ color: 'white', fontSize: '1.4rem', marginBottom: '1.25rem' }}>3. Third Party Links</h2>
+          <h2 style={{ color: 'var(--text-primary)', fontSize: '1.5rem', fontWeight: '800', marginBottom: '1.25rem' }}>3. Third Party Links</h2>
           <p style={{ marginBottom: '2rem' }}>
             You agree and acknowledge that website and the Services may contain links to other third party websites. On accessing these links, you will be governed by the terms of use, privacy policy and such other policies of such third party websites. These links are provided for your convenience for provide further information.
           </p>
 
-          <h2 style={{ color: 'white', fontSize: '1.4rem', marginBottom: '1.25rem' }}>4. Indemnification</h2>
+          <h2 style={{ color: 'var(--text-primary)', fontSize: '1.5rem', fontWeight: '800', marginBottom: '1.25rem' }}>4. Indemnification</h2>
           <p style={{ marginBottom: '2rem' }}>
             You shall indemnify and hold harmless Platform Owner, its affiliates, group companies (as applicable) and their respective officers, directors, agents, and employees, from any claim or demand, or actions including reasonable attorney's fees, made by any third party or penalty imposed due to or arising out of Your breach of this Terms of Use, privacy Policy and other Policies, or Your violation of any law, rules or regulations or the rights (including infringement of intellectual property rights) of a third party.
           </p>
 
-          <h2 style={{ color: 'white', fontSize: '1.4rem', marginBottom: '1.25rem' }}>5. Limitation of Liability</h2>
+          <h2 style={{ color: 'var(--text-primary)', fontSize: '1.5rem', fontWeight: '800', marginBottom: '1.25rem' }}>5. Limitation of Liability</h2>
           <p style={{ marginBottom: '2rem' }}>
             Notwithstanding anything contained in these Terms of Use, the parties shall not be liable for any failure to perform an obligation under these Terms if performance is prevented or delayed by a force majeure event.
           </p>
 
-          <h2 style={{ color: 'white', fontSize: '1.4rem', marginBottom: '1.25rem' }}>6. Order Cancellation & Refund Policy</h2>
+          <h2 style={{ color: 'var(--text-primary)', fontSize: '1.5rem', fontWeight: '800', marginBottom: '1.25rem' }}>6. Order Cancellation & Refund Policy</h2>
           <div style={{ marginBottom: '2rem' }}>
             <p style={{ marginBottom: '1rem' }}>
               Orders placed on the Platform are subject to acceptance by the respective Vendor. Once an order is confirmed and payment is processed, the following cancellation and refund terms apply:
             </p>
             <ol style={{ paddingLeft: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              <li><strong style={{ color: 'white' }}>Vendor-Initiated Cancellation:</strong> If a Vendor cancels a confirmed and paid order, the customer is entitled to a full refund of the order amount. To process the refund instantly, customers may contact our support team at <span style={{ color: 'var(--secondary)', fontWeight: '700' }}>7985397373</span> or <span style={{ color: 'var(--secondary)', fontWeight: '700' }}>8295886832</span>.</li>
-              <li><strong style={{ color: 'white' }}>Auto-Cancellation (3-Minute Rule):</strong> To ensure prompt service, vendors must accept orders within 3 minutes of placement. If an order is not accepted within this timeframe, it will be automatically cancelled by the system, and the customer will be entitled to a full instant refund upon contacting support.</li>
-              <li><strong style={{ color: 'white' }}>Customer-Initiated Cancellation:</strong> Customers may cancel an order only while it is in "Payment Pending" status. Once payment is confirmed and the order is received by the vendor, cancellations by customers are not permitted.</li>
-              <li><strong style={{ color: 'white' }}>Refund Timeline:</strong> Refunds for vendor-cancelled or auto-cancelled orders are processed within 5-7 business days. For instant refund processing, customers should contact our support numbers listed above.</li>
-              <li><strong style={{ color: 'white' }}>No Refund Scenarios:</strong> Refunds will not be issued for completed orders, orders cancelled by the customer after payment confirmation, or orders where the customer has already collected the items.</li>
+              <li><strong style={{ color: 'var(--text-primary)' }}>Vendor-Initiated Cancellation:</strong> If a Vendor cancels a confirmed and paid order, the customer is entitled to a full refund of the order amount. To process the refund instantly, customers may contact our support team at <span style={{ color: 'var(--primary)', fontWeight: '700' }}>7985397373</span> or <span style={{ color: 'var(--primary)', fontWeight: '700' }}>8295886832</span>.</li>
+              <li><strong style={{ color: 'var(--text-primary)' }}>Auto-Cancellation (3-Minute Rule):</strong> To ensure prompt service, vendors must accept orders within 3 minutes of placement. If an order is not accepted within this timeframe, it will be automatically cancelled by the system, and the customer will be entitled to a full instant refund upon contacting support.</li>
+              <li><strong style={{ color: 'var(--text-primary)' }}>Customer-Initiated Cancellation:</strong> Customers may cancel an order only while it is in "Payment Pending" status. Once payment is confirmed and the order is received by the vendor, cancellations by customers are not permitted.</li>
+              <li><strong style={{ color: 'var(--text-primary)' }}>Refund Timeline:</strong> Refunds for vendor-cancelled or auto-cancelled orders are processed within 5-7 business days. For instant refund processing, customers should contact our support numbers listed above.</li>
+              <li><strong style={{ color: 'var(--text-primary)' }}>No Refund Scenarios:</strong> Refunds will not be issued for completed orders, orders cancelled by the customer after payment confirmation, or orders where the customer has already collected the items.</li>
             </ol>
           </div>
 
-          <h2 style={{ color: 'white', fontSize: '1.4rem', marginBottom: '1.25rem' }}>7. Vendor Commission & Fee Structure</h2>
+          <h2 style={{ color: 'var(--text-primary)', fontSize: '1.5rem', fontWeight: '800', marginBottom: '1.25rem' }}>7. Vendor Commission & Fee Structure</h2>
           <div style={{ marginBottom: '2rem' }}>
             <p style={{ marginBottom: '1rem' }}>
               The following fee structure applies to all Vendors operating on the UniVerse Platform:
             </p>
-            <div style={{ background: 'rgba(255,255,255,0.02)', padding: '1.5rem', borderRadius: '16px', border: '1px solid var(--surface-border)', marginBottom: '1rem' }}>
-              <h4 style={{ color: 'white', marginBottom: '1rem', fontSize: '1rem' }}>Standard Fees</h4>
+            <div style={{ background: '#f8fafc', padding: '1.5rem', borderRadius: '16px', border: '1px solid var(--surface-border)', marginBottom: '1rem' }}>
+              <h4 style={{ color: 'var(--text-primary)', marginBottom: '1rem', fontSize: '1rem', fontWeight: '800' }}>Standard Fees</h4>
               <ul style={{ paddingLeft: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                <li><strong style={{ color: 'white' }}>Payment Gateway Fee:</strong> 2% of total order value is deducted as payment gateway processing charges on all completed orders.</li>
-                <li><strong style={{ color: 'white' }}>Platform Commission:</strong> 3% of total order value is charged as platform service fee on all completed orders (waived during the free trial period).</li>
-                <li><strong style={{ color: 'white' }}>Free Trial Period:</strong> New vendors receive a 30-day free trial during which the platform commission (3%) is waived. Only the 2% payment gateway fee applies during this period.</li>
+                <li><strong style={{ color: 'var(--text-primary)' }}>Payment Gateway Fee:</strong> 2% of total order value is deducted as payment gateway processing charges on all completed orders.</li>
+                <li><strong style={{ color: 'var(--text-primary)' }}>Platform Commission:</strong> 3% of total order value is charged as platform service fee on all completed orders (waived during the free trial period).</li>
+                <li><strong style={{ color: 'var(--text-primary)' }}>Free Trial Period:</strong> New vendors receive a 30-day free trial during which the platform commission (3%) is waived. Only the 2% payment gateway fee applies during this period.</li>
               </ul>
             </div>
             <div style={{ background: 'rgba(239, 68, 68, 0.05)', padding: '1.5rem', borderRadius: '16px', border: '1px solid rgba(239, 68, 68, 0.15)' }}>
-              <h4 style={{ color: '#ef4444', marginBottom: '1rem', fontSize: '1rem' }}>⚠️ Cancellation Penalty</h4>
+              <h4 style={{ color: '#ef4444', marginBottom: '1rem', fontSize: '1rem', fontWeight: '800' }}>⚠️ Cancellation Penalty</h4>
               <ul style={{ paddingLeft: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                <li><strong style={{ color: 'white' }}>Vendor & Auto-Cancelled Orders:</strong> When a vendor manually cancels an order, or when an order is automatically cancelled because the vendor failed to accept it within the 3-minute deadline, a total deduction of <strong style={{ color: '#ef4444' }}>4% of the cancelled order value</strong> will be applied to the vendor's monthly gross settlement.</li>
-                <li><strong style={{ color: 'white' }}>Breakdown:</strong> 2% Payment Gateway Charge (non-recoverable processing fee) + 2% Cancellation Penalty Fee (platform penalty for order disruption).</li>
-                <li><strong style={{ color: 'white' }}>Settlement Deduction:</strong> The cancellation penalty is deducted from the vendor's monthly gross revenue at the time of settlement.</li>
+                <li><strong style={{ color: 'var(--text-primary)' }}>Vendor & Auto-Cancelled Orders:</strong> When a vendor manually cancels an order, or when an order is automatically cancelled because the vendor failed to accept it within the 3-minute deadline, a total deduction of <strong style={{ color: '#ef4444' }}>4% of the cancelled order value</strong> will be applied to the vendor's monthly gross settlement.</li>
+                <li><strong style={{ color: 'var(--text-primary)' }}>Breakdown:</strong> 2% Payment Gateway Charge (non-recoverable processing fee) + 2% Cancellation Penalty Fee (platform penalty for order disruption).</li>
+                <li><strong style={{ color: 'var(--text-primary)' }}>Settlement Deduction:</strong> The cancellation penalty is deducted from the vendor's monthly gross revenue at the time of settlement.</li>
               </ul>
             </div>
           </div>
 
-          <h2 style={{ color: 'white', fontSize: '1.4rem', marginBottom: '1.25rem' }}>8. Order Types & Service Modes</h2>
+          <h2 style={{ color: 'var(--text-primary)', fontSize: '1.5rem', fontWeight: '800', marginBottom: '1.25rem' }}>8. Order Types & Service Modes</h2>
           <div style={{ marginBottom: '2rem' }}>
             <p style={{ marginBottom: '1rem' }}>
               The Platform supports the following order types:
             </p>
             <ul style={{ paddingLeft: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              <li><strong style={{ color: 'white' }}>Dine In:</strong> The customer will consume the order at the vendor's premises. No additional packaging charges apply.</li>
-              <li><strong style={{ color: 'white' }}>Take Away:</strong> The customer will collect the order for off-premise consumption. Vendors may apply a packaging charge as configured in their store settings.</li>
+              <li><strong style={{ color: 'var(--text-primary)' }}>Dine In:</strong> The customer will consume the order at the vendor's premises. No additional packaging charges apply.</li>
+              <li><strong style={{ color: 'var(--text-primary)' }}>Take Away:</strong> The customer will collect the order for off-premise consumption. Vendors may apply a packaging charge as configured in their store settings.</li>
             </ul>
           </div>
 
-          <h2 style={{ color: 'white', fontSize: '1.4rem', marginBottom: '1.25rem' }}>9. Store Availability</h2>
+          <h2 style={{ color: 'var(--text-primary)', fontSize: '1.5rem', fontWeight: '800', marginBottom: '1.25rem' }}>9. Store Availability</h2>
           <div style={{ marginBottom: '2rem' }}>
             <p style={{ marginBottom: '1rem' }}>
               Vendors may toggle their store between "Online" and "Offline" status at any time. When a store is offline:
@@ -176,23 +181,23 @@ const TermsAndConditions = () => {
             </ul>
           </div>
 
-          <h2 style={{ color: 'white', fontSize: '1.4rem', marginBottom: '1.25rem' }}>10. Governing Law & Jurisdiction</h2>
+          <h2 style={{ color: 'var(--text-primary)', fontSize: '1.5rem', fontWeight: '800', marginBottom: '1.25rem' }}>10. Governing Law & Jurisdiction</h2>
           <p style={{ marginBottom: '2rem' }}>
-            These Terms and any dispute or claim relating to it, or its enforceability, shall be governed by and construed in accordance with the laws of India. All disputes arising out of or in connection with these Terms shall be subject to the exclusive jurisdiction of the courts in Uttar Pradesh, India.
+            These Terms and any dispute or claim relating to it, or its enforceability, shall be governed by and construed in accordance with the laws of India. All disputes arising out of or in connection with these Terms shall be subject to the exclusive jurisdiction of the courts in Punjab, India.
           </p>
 
-          <h2 style={{ color: 'white', fontSize: '1.4rem', marginBottom: '1.25rem' }}>11. Contact Information</h2>
+          <h2 style={{ color: 'var(--text-primary)', fontSize: '1.5rem', fontWeight: '800', marginBottom: '1.25rem' }}>11. Contact Information</h2>
           <div style={{ 
-            background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(16, 185, 129, 0.1) 100%)', 
-            padding: '1.5rem', 
-            borderRadius: '20px',
-            border: '1px solid rgba(255,255,255,0.05)'
+            background: 'linear-gradient(135deg, rgba(239, 65, 35, 0.05) 0%, rgba(252, 175, 23, 0.05) 100%)', 
+            padding: '2.5rem', 
+            borderRadius: '24px',
+            border: '1px solid rgba(239, 65, 35, 0.1)'
           }}>
-            <p style={{ marginBottom: '0.75rem' }}>All concerns or communications relating to these Terms must be communicated to us:</p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '0.9rem' }}>
-              <p><strong style={{ color: 'white' }}>Phone:</strong> <span style={{ color: 'var(--secondary)' }}>7985397373</span> / <span style={{ color: 'var(--secondary)' }}>8295886832</span></p>
-              <p><strong style={{ color: 'white' }}>Email:</strong> uni24verse@gmail.com</p>
-              <p><strong style={{ color: 'white' }}>Website:</strong> <span style={{ color: 'var(--primary)' }}>https://www.universeorder.co.in</span></p>
+            <p style={{ marginBottom: '1rem', fontWeight: '600' }}>All concerns or communications relating to these Terms must be communicated to us:</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '0.95rem' }}>
+              <p><strong style={{ color: 'var(--text-primary)' }}>Phone:</strong> <span style={{ color: 'var(--primary)', fontWeight: '700' }}>7985397373</span> / <span style={{ color: 'var(--primary)', fontWeight: '700' }}>8295886832</span></p>
+              <p><strong style={{ color: 'var(--text-primary)' }}>Email:</strong> <span style={{ color: 'var(--primary)', fontWeight: '700' }}>uni24verse@gmail.com</span></p>
+              <p><strong style={{ color: 'var(--text-primary)' }}>Website:</strong> <span style={{ color: 'var(--primary)', fontWeight: '700' }}>https://www.universeorder.co.in</span></p>
             </div>
           </div>
         </div>

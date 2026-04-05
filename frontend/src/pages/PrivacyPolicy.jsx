@@ -12,9 +12,9 @@ const PrivacyPolicy = () => {
   return (
     <div style={{
       minHeight: '100vh',
-      background: 'var(--bg-dark)',
-      color: 'white',
-      padding: '4rem 1rem'
+      background: 'var(--background)',
+      color: 'var(--text-primary)',
+      padding: '4rem 1.5rem'
     }}>
       <div style={{
         maxWidth: '900px',
@@ -28,47 +28,52 @@ const PrivacyPolicy = () => {
               display: 'flex',
               alignItems: 'center',
               gap: '0.5rem',
-              background: 'rgba(255,255,255,0.05)',
+              background: '#ffffff',
               border: '1px solid var(--surface-border)',
               color: 'var(--text-secondary)',
-              padding: '0.5rem 1rem',
+              padding: '0.6rem 1.25rem',
               borderRadius: '100px',
               cursor: 'pointer',
               marginBottom: '2rem',
               margin: '0 auto 2rem auto',
-              transition: 'var(--transition)'
+              fontWeight: '600',
+              fontSize: '0.875rem',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+              transition: 'all 0.2s ease'
             }}
-            onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.1)'}
-            onMouseLeave={(e) => e.target.style.background = 'rgba(255,255,255,0.05)'}
+            onMouseEnter={(e) => { e.target.style.background = '#f8fafc'; e.target.style.borderColor = 'var(--primary)'; e.target.style.color = 'var(--primary)'; }}
+            onMouseLeave={(e) => { e.target.style.background = '#ffffff'; e.target.style.borderColor = 'var(--surface-border)'; e.target.style.color = 'var(--text-secondary)'; }}
           >
             <ArrowLeft size={18} /> Back
           </button>
           
           <div style={{
-            width: '64px',
-            height: '64px',
-            background: 'rgba(16, 185, 129, 0.1)',
-            borderRadius: '20px',
+            width: '72px',
+            height: '72px',
+            background: 'rgba(239, 65, 35, 0.08)',
+            borderRadius: '24px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             margin: '0 auto 1.5rem auto',
-            border: '1px solid rgba(16, 185, 129, 0.2)'
+            border: '1px solid rgba(239, 65, 35, 0.15)'
           }}>
-            <Shield size={32} color="var(--secondary)" />
+            <Shield size={36} color="var(--primary)" />
           </div>
           
-          <h1 style={{ fontSize: '2.5rem', fontWeight: '900', marginBottom: '0.5rem', letterSpacing: '-0.02em' }}>Privacy Policy</h1>
-          <p style={{ color: 'var(--text-secondary)' }}>Last Updated: April 2026</p>
+          <h1 style={{ fontSize: '3rem', fontWeight: '900', marginBottom: '0.75rem', letterSpacing: '-0.03em', color: 'var(--text-primary)' }}>Privacy Policy</h1>
+          <p style={{ color: 'var(--text-secondary)', fontWeight: '600' }}>Last Updated: April 2026</p>
         </div>
 
         {/* Content Card */}
-        <div className="glass-card" style={{
-          padding: '3rem',
+        <div style={{
+          background: '#ffffff',
+          padding: '3.5rem',
           borderRadius: '32px',
           border: '1px solid var(--surface-border)',
+          boxShadow: '0 10px 40px rgba(0,0,0,0.04)',
           lineHeight: '1.8',
-          fontSize: '1rem',
+          fontSize: '1.05rem',
           color: 'var(--text-secondary)'
         }}>
           <section style={{ marginBottom: '2.5rem' }}>
@@ -81,50 +86,50 @@ const PrivacyPolicy = () => {
           </section>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem', marginBottom: '3rem' }}>
-            <div style={{ background: 'rgba(255,255,255,0.02)', padding: '1.5rem', borderRadius: '20px', border: '1px solid var(--surface-border)' }}>
-              <h3 style={{ color: 'white', fontSize: '1.2rem', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <Eye size={18} color="var(--primary)" /> Collection
+            <div style={{ background: '#f8fafc', padding: '1.75rem', borderRadius: '24px', border: '1px solid var(--surface-border)' }}>
+              <h3 style={{ color: 'var(--text-primary)', fontSize: '1.25rem', fontWeight: '800', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <Eye size={20} color="var(--primary)" /> Collection
               </h3>
-              <p style={{ fontSize: '0.85rem' }}>
+              <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
                  We collect your personal data when you use our Platform, such as name, address, telephone/mobile number, email ID, and proof of identity.
               </p>
             </div>
-            <div style={{ background: 'rgba(255,255,255,0.02)', padding: '1.5rem', borderRadius: '20px', border: '1px solid var(--surface-border)' }}>
-              <h3 style={{ color: 'white', fontSize: '1.2rem', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <Lock size={18} color="var(--secondary)" /> Usage
+            <div style={{ background: '#f8fafc', padding: '1.75rem', borderRadius: '24px', border: '1px solid var(--surface-border)' }}>
+              <h3 style={{ color: 'var(--text-primary)', fontSize: '1.25rem', fontWeight: '800', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <Lock size={20} color="var(--secondary)" /> Usage
               </h3>
-              <p style={{ fontSize: '0.85rem' }}>
+              <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
                 We use personal data to provide the services you request, handle and fulfill orders, resolve disputes, and prevent fraud.
               </p>
             </div>
           </div>
 
-          <h2 style={{ color: 'white', fontSize: '1.4rem', marginBottom: '1.25rem' }}>1. Sharing of Personal Data</h2>
+          <h2 style={{ color: 'var(--text-primary)', fontSize: '1.5rem', fontWeight: '800', marginBottom: '1.25rem' }}>1. Sharing of Personal Data</h2>
           <p style={{ marginBottom: '1.5rem' }}>
             We may share your personal data with our group entities, affiliates, and third parties such as sellers, business partners, and third-party service providers (logistics partners, payment issuers). These disclosures are required for us to provide you access to our services, comply with legal obligations, and prevent illegal activities.
           </p>
 
-          <h2 style={{ color: 'white', fontSize: '1.4rem', marginBottom: '1.25rem' }}>2. Security Precautions</h2>
+          <h2 style={{ color: 'var(--text-primary)', fontSize: '1.5rem', fontWeight: '800', marginBottom: '1.25rem' }}>2. Security Precautions</h2>
           <p style={{ marginBottom: '1.5rem' }}>
             To protect your personal data from unauthorised access or disclosure, loss or misuse we adopt reasonable security practices and procedures. We adhere to our security guidelines to protect it against unauthorised access and offer the use of a secure server.
           </p>
 
-          <h2 style={{ color: 'white', fontSize: '1.4rem', marginBottom: '1.25rem' }}>3. Data Deletion and Retention</h2>
+          <h2 style={{ color: 'var(--text-primary)', fontSize: '1.5rem', fontWeight: '800', marginBottom: '1.25rem' }}>3. Data Deletion and Retention</h2>
           <p style={{ marginBottom: '1.5rem' }}>
             You have an option to delete your account by visiting your profile and settings on our Platform. We retain your personal data information for a period no longer than is required for the purpose for which it was collected or as required under any applicable law.
           </p>
 
-          <h2 style={{ color: 'white', fontSize: '1.4rem', marginBottom: '1.25rem' }}>4. Your Rights</h2>
+          <h2 style={{ color: 'var(--text-primary)', fontSize: '1.5rem', fontWeight: '800', marginBottom: '1.25rem' }}>4. Your Rights</h2>
           <p style={{ marginBottom: '1.5rem' }}>
             You may access, rectify, and update your personal data directly through the functionalities provided on the Platform.
           </p>
 
-          <h2 style={{ color: 'white', fontSize: '1.4rem', marginBottom: '1.25rem' }}>5. Consent</h2>
+          <h2 style={{ color: 'var(--text-primary)', fontSize: '1.5rem', fontWeight: '800', marginBottom: '1.25rem' }}>5. Consent</h2>
           <p style={{ marginBottom: '2.5rem' }}>
             By visiting our Platform or by providing your information, you consent to the collection, use, storage, disclosure and otherwise processing of your information on the Platform in accordance with this Privacy Policy.
           </p>
 
-          <h2 style={{ color: 'white', fontSize: '1.4rem', marginBottom: '1.25rem' }}>6. Payment & Transaction Data</h2>
+          <h2 style={{ color: 'var(--text-primary)', fontSize: '1.5rem', fontWeight: '800', marginBottom: '1.25rem' }}>6. Payment & Transaction Data</h2>
           <div style={{ marginBottom: '2.5rem' }}>
             <p style={{ marginBottom: '1rem' }}>
               When you make a payment on the Platform, the following data is collected and processed:
@@ -140,7 +145,7 @@ const PrivacyPolicy = () => {
             </p>
           </div>
 
-          <h2 style={{ color: 'white', fontSize: '1.4rem', marginBottom: '1.25rem' }}>7. Refund & Cancellation Data</h2>
+          <h2 style={{ color: 'var(--text-primary)', fontSize: '1.5rem', fontWeight: '800', marginBottom: '1.25rem' }}>7. Refund & Cancellation Data</h2>
           <div style={{ marginBottom: '2.5rem' }}>
             <p style={{ marginBottom: '1rem' }}>
               In case of order cancellations and refund requests, we process the following additional data:
@@ -156,25 +161,25 @@ const PrivacyPolicy = () => {
             </p>
           </div>
 
-          <h2 style={{ color: 'white', fontSize: '1.4rem', marginBottom: '1.25rem' }}>8. Vendor Financial Data</h2>
+          <h2 style={{ color: 'var(--text-primary)', fontSize: '1.5rem', fontWeight: '800', marginBottom: '1.25rem' }}>8. Vendor Financial Data</h2>
           <p style={{ marginBottom: '2.5rem' }}>
             For vendors operating on the Platform, we collect and process additional financial data including UPI IDs for settlement, monthly revenue figures, commission calculations, gateway fees, cancellation penalties, and settlement history. This data is shared with our payment partners solely for the purpose of processing vendor payouts and is not disclosed to any third party.
           </p>
 
           <div style={{ 
-            background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(16, 185, 129, 0.1) 100%)', 
-            padding: '2rem', 
+            background: 'linear-gradient(135deg, rgba(239, 65, 35, 0.05) 0%, rgba(252, 175, 23, 0.05) 100%)', 
+            padding: '2.5rem', 
             borderRadius: '24px',
-            border: '1px solid rgba(255,255,255,0.05)'
+            border: '1px solid rgba(239, 65, 35, 0.1)'
           }}>
-            <h3 style={{ color: 'white', fontSize: '1.2rem', marginBottom: '1rem' }}>Grievance Officer</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.9rem' }}>
-              <p><strong style={{ color: 'white' }}>Designation:</strong> Grievance Officer</p>
-              <p><strong style={{ color: 'white' }}>Company:</strong> Universe</p>
-              <p><strong style={{ color: 'white' }}>Address:</strong> Lucknow, Uttar Pradesh</p>
-              <p><strong style={{ color: 'white' }}>Email:</strong> uni24verse@gmail.com</p>
-              <p><strong style={{ color: 'white' }}>Phone:</strong> <span style={{ color: 'var(--secondary)' }}>7985397373</span> / <span style={{ color: 'var(--secondary)' }}>8295886832</span></p>
-              <p><strong style={{ color: 'white' }}>Hours:</strong> Mon - Fri (9:00 - 18:00)</p>
+            <h3 style={{ color: 'var(--text-primary)', fontSize: '1.25rem', fontWeight: '800', marginBottom: '1.25rem' }}>Grievance Officer</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '0.95rem' }}>
+              <p><strong style={{ color: 'var(--text-primary)' }}>Designation:</strong> Grievance Officer</p>
+              <p><strong style={{ color: 'var(--text-primary)' }}>Company:</strong> Universe</p>
+              <p><strong style={{ color: 'var(--text-primary)' }}>Address:</strong> Lovely Professional University, Phagwara, Punjab, India</p>
+              <p><strong style={{ color: 'var(--text-primary)' }}>Email:</strong> <span style={{ color: 'var(--primary)', fontWeight: '700' }}>uni24verse@gmail.com</span></p>
+              <p><strong style={{ color: 'var(--text-primary)' }}>Phone:</strong> <span style={{ color: 'var(--primary)', fontWeight: '700' }}>7985397373</span> / <span style={{ color: 'var(--primary)', fontWeight: '700' }}>8295886832</span></p>
+              <p><strong style={{ color: 'var(--text-primary)' }}>Hours:</strong> Mon - Fri (9:00 - 18:00)</p>
             </div>
           </div>
         </div>
