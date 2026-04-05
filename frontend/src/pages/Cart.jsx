@@ -191,13 +191,13 @@ const Cart = () => {
     <>
       <div style={{ minHeight: '100vh', padding: '2rem 1rem', maxWidth: '1000px', margin: '0 auto' }}>
         <div style={{ textAlign: 'right', marginBottom: '2rem' }}>
-          <div style={{ display: 'inline-block', padding: '0.5rem 1rem', background: 'rgba(99, 102, 241, 0.1)', borderRadius: '12px', fontSize: '0.75rem', fontWeight: '700', color: 'var(--primary)' }}>
+          <div style={{ display: 'inline-block', padding: '0.5rem 1rem', background: 'rgba(239, 65, 35, 0.08)', borderRadius: '12px', fontSize: '0.75rem', fontWeight: '700', color: 'var(--primary)' }}>
             Secure Checkout
           </div>
         </div>
 
         <header style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '2rem' }}>
-          <button onClick={() => navigate(-1)} style={{ background: 'var(--glass-bg)', border: '1px solid var(--surface-border)', color: 'white', padding: '0.6rem', borderRadius: '12px', cursor: 'pointer' }}>
+          <button onClick={() => navigate(-1)} style={{ background: '#ffffff', border: '1px solid var(--surface-border)', color: 'var(--text-primary)', padding: '0.6rem', borderRadius: '12px', cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
             <ArrowLeft size={20} />
           </button>
           <div>
@@ -241,17 +241,17 @@ const Cart = () => {
                       )}
                     </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', background: 'rgba(255,255,255,0.05)', padding: '0.4rem', borderRadius: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', background: '#f8fafc', padding: '0.4rem', borderRadius: '12px', border: '1px solid var(--surface-border)' }}>
                       <button
                         onClick={() => updateQuantity(item.cartItemId || item._id, -1)}
-                        style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', padding: '0.25rem' }}
+                        style={{ background: 'none', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', padding: '0.25rem' }}
                       >
                         <Minus size={16} />
                       </button>
-                      <span style={{ minWidth: '20px', textAlign: 'center', fontWeight: '700' }}>{item.quantity}</span>
+                      <span style={{ minWidth: '20px', textAlign: 'center', fontWeight: '700', color: 'var(--text-primary)' }}>{item.quantity}</span>
                       <button
                         onClick={() => updateQuantity(item.cartItemId || item._id, 1)}
-                        style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', padding: '0.25rem' }}
+                        style={{ background: 'none', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', padding: '0.25rem' }}
                       >
                         <Plus size={16} />
                       </button>
@@ -267,7 +267,7 @@ const Cart = () => {
                 ))}
               </div>
 
-              <div style={{ marginTop: '2rem', padding: '1.25rem', background: 'rgba(99, 102, 241, 0.05)', borderRadius: '16px', border: '1px solid rgba(99, 102, 241, 0.1)' }}>
+              <div style={{ marginTop: '2rem', padding: '1.25rem', background: '#f8fafc', borderRadius: '16px', border: '1px solid var(--surface-border)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
                   <span style={{ color: 'var(--text-secondary)' }}>Item Total</span>
                   <span>₹{total}</span>
@@ -300,9 +300,9 @@ const Cart = () => {
                   onClick={() => setOrderType('Dine In')}
                   style={{
                     flex: 1, padding: '1rem', borderRadius: '16px', fontWeight: '700', fontSize: '1rem',
-                    background: orderType === 'Dine In' ? 'rgba(99, 102, 241, 0.1)' : 'rgba(255,255,255,0.03)',
-                    border: `2px solid ${orderType === 'Dine In' ? 'var(--primary)' : 'transparent'}`,
-                    color: orderType === 'Dine In' ? 'white' : 'var(--text-secondary)',
+                    background: orderType === 'Dine In' ? 'rgba(239, 65, 35, 0.04)' : '#f8fafc',
+                    border: `2px solid ${orderType === 'Dine In' ? 'var(--primary)' : 'var(--surface-border)'}`,
+                    color: orderType === 'Dine In' ? 'var(--primary)' : 'var(--text-secondary)',
                     cursor: 'pointer', transition: 'all 0.2s'
                   }}
                 >
@@ -312,9 +312,9 @@ const Cart = () => {
                   onClick={() => setOrderType('Take Away')}
                   style={{
                     flex: 1, padding: '1rem', borderRadius: '16px', fontWeight: '700', fontSize: '1rem',
-                    background: orderType === 'Take Away' ? 'rgba(99, 102, 241, 0.1)' : 'rgba(255,255,255,0.03)',
-                    border: `2px solid ${orderType === 'Take Away' ? 'var(--primary)' : 'transparent'}`,
-                    color: orderType === 'Take Away' ? 'white' : 'var(--text-secondary)',
+                    background: orderType === 'Take Away' ? 'rgba(239, 65, 35, 0.04)' : '#f8fafc',
+                    border: `2px solid ${orderType === 'Take Away' ? 'var(--primary)' : 'var(--surface-border)'}`,
+                    color: orderType === 'Take Away' ? 'var(--primary)' : 'var(--text-secondary)',
                     cursor: 'pointer', transition: 'all 0.2s'
                   }}
                 >
@@ -346,11 +346,11 @@ const Cart = () => {
                       width: '100%',
                       padding: '0.75rem',
                       borderRadius: '12px',
-                      border: '1px solid rgba(99, 102, 241, 0.2)',
-                      background: 'rgba(255,255,255,0.05)',
+                      border: '1px solid var(--surface-border)',
+                      background: '#f8fafc',
                       fontSize: '0.9rem',
                       fontWeight: '600',
-                      color: 'white',
+                      color: 'var(--text-primary)',
                       outline: 'none',
                       boxSizing: 'border-box'
                     }}
@@ -375,11 +375,11 @@ const Cart = () => {
                       width: '100%',
                       padding: '0.75rem',
                       borderRadius: '12px',
-                      border: '1px solid rgba(99, 102, 241, 0.2)',
-                      background: 'rgba(255,255,255,0.05)',
+                      border: '1px solid var(--surface-border)',
+                      background: '#f8fafc',
                       fontSize: '0.9rem',
                       fontWeight: '600',
-                      color: 'white',
+                      color: 'var(--text-primary)',
                       outline: 'none',
                       boxSizing: 'border-box'
                     }}
@@ -387,10 +387,10 @@ const Cart = () => {
                 </div>
               </div>
 
-              <div style={{ marginTop: '1.5rem', padding: '1rem', background: 'rgba(99, 102, 241, 0.05)', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <div style={{ marginTop: '1.5rem', padding: '1rem', background: '#f8fafc', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '0.75rem', border: '1px solid var(--surface-border)' }}>
                 <ShieldCheck size={20} color="var(--primary)" />
                 <div>
-                  <p style={{ margin: 0, fontSize: '0.8rem', fontWeight: '700' }}>Secure Payment via Razorpay</p>
+                  <p style={{ margin: 0, fontSize: '0.8rem', fontWeight: '700', color: 'var(--text-primary)' }}>Secure Payment via Razorpay</p>
                   <p style={{ margin: 0, fontSize: '0.7rem', color: 'var(--text-secondary)' }}>UPI • Cards • Wallets • Net Banking</p>
                 </div>
               </div>
