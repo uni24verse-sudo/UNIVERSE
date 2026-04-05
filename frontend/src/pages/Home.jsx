@@ -12,9 +12,57 @@ import {
   CheckCircle2, 
   Tag, 
   ChevronRight,
-  Star
+  Star,
+  Pizza,
+  Coffee,
+  Utensils,
+  Cake,
+  IceCream,
+  Beef
 } from 'lucide-react';
 import Navbar from '../components/Navbar';
+
+const FloatingBackground = () => {
+  const icons = [
+    { Icon: Pizza, top: '10%', left: '5%', size: 60, rot: 15 },
+    { Icon: Coffee, top: '25%', left: '85%', size: 50, rot: -10 },
+    { Icon: Utensils, top: '60%', left: '8%', size: 45, rot: 30 },
+    { Icon: Cake, top: '75%', left: '80%', size: 70, rot: -20 },
+    { Icon: IceCream, top: '40%', left: '92%', size: 40, rot: 10 },
+    { Icon: Beef, top: '55%', left: '88%', size: 55, rot: -15 },
+    { Icon: Pizza, top: '85%', left: '15%', size: 50, rot: 45 },
+    { Icon: Coffee, top: '5%', left: '75%', size: 40, rot: -5 },
+    { Icon: Utensils, top: '15%', left: '45%', size: 30, rot: 10 },
+    { Icon: Cake, top: '45%', left: '2%', size: 55, rot: -30 },
+  ];
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0, overflow: 'hidden' }}>
+      {icons.map((item, i) => (
+        <div key={i} style={{
+          position: 'absolute',
+          top: item.top,
+          left: item.left,
+          color: 'var(--primary)',
+          opacity: 0.04,
+          animation: `float ${15 + i * 2}s infinite ease-in-out`,
+          animationDelay: `${i * -1.5}s`,
+          transform: `rotate(${item.rot}deg)`
+        }}>
+          <item.Icon size={item.size} strokeWidth={1} />
+        </div>
+      ))}
+      <style>{`
+        @keyframes float {
+          0% { transform: translate(0, 0) rotate(0deg); }
+          33% { transform: translate(20px, -30px) rotate(10deg); }
+          66% { transform: translate(-10px, 20px) rotate(-10deg); }
+          100% { transform: translate(0, 0) rotate(0deg); }
+        }
+      `}</style>
+    </div>
+  );
+};
 
 const Home = () => {
   const [stores, setStores] = useState([]);
@@ -62,7 +110,8 @@ const Home = () => {
   );
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg-dark)' }}>
+    <div style={{ minHeight: '100vh', background: 'var(--background)', position: 'relative' }}>
+      <FloatingBackground />
 
       {/* Hero Section */}
       <section className="hero-section" style={{ 
