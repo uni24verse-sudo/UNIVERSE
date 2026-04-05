@@ -161,6 +161,12 @@ const SuperAdminPanel = () => {
                 <h3 style={{ fontSize: '2.5rem', fontWeight: '900', margin: 0 }}>{stats.totalOrders}</h3>
                 <p style={{ marginTop: '0.5rem', color: '#f59e0b', fontSize: '0.875rem', fontWeight: '600' }}>{stats.activeOrders} active right now</p>
               </div>
+
+              <div style={{ padding: '1.5rem', background: '#ffffff', borderRadius: '24px', border: '1px solid var(--surface-border)', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', background: 'linear-gradient(135deg, #ffffff 0%, rgba(252, 175, 23, 0.05) 100%)' }}>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Activity size={16} color="var(--secondary)" /> Total Platform Profit</p>
+                <h3 style={{ fontSize: '2.5rem', fontWeight: '900', margin: 0, color: 'var(--primary)' }}>₹{stats.totalProfit || 0}</h3>
+                <p style={{ marginTop: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: '600' }}>Net earnings after trial & fees</p>
+              </div>
             </div>
             
             <div style={{ padding: '3rem', background: '#ffffff', borderRadius: '24px', border: '1px solid var(--surface-border)', textAlign: 'center' }}>
@@ -186,6 +192,7 @@ const SuperAdminPanel = () => {
                     <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Vendor Details</th>
                     <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Associated Store</th>
                     <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Performance</th>
+                    <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Platform Profit</th>
                     <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem', textAlign: 'right' }}>Destructive Actions</th>
                   </tr>
                 </thead>
@@ -217,6 +224,14 @@ const SuperAdminPanel = () => {
                       <td style={{ padding: '1.25rem' }}>
                         <div style={{ fontWeight: '800', color: 'var(--secondary)' }}>₹{v.stats.revenue} generated</div>
                         <div style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: '0.25rem' }}>Across {v.stats.orderCount} total orders</div>
+                      </td>
+                      <td style={{ padding: '1.25rem' }}>
+                        <div style={{ fontWeight: '900', color: 'var(--primary)', fontSize: '1.1rem' }}>₹{v.stats.profitGenerated || 0}</div>
+                        <div style={{ color: 'var(--text-secondary)', fontSize: '0.7rem', marginTop: '0.25rem', fontWeight: '600' }}>
+                          {v.store && v.store.isTrialStarted ? (
+                             new Date(v.store.trialEndDate) > new Date() ? 'Currently in Trial (0%)' : 'Post-Trial (3%)'
+                          ) : 'Trial Not Started'}
+                        </div>
                       </td>
                       <td style={{ padding: '1.25rem', textAlign: 'right' }}>
                         <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>

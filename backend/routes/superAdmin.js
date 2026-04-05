@@ -28,13 +28,40 @@ router.get('/stats', async (req, res) => {
     // Active orders across all stores
     const activeOrders = await Order.countDocuments({ status: { $in: ['Pending', 'Confirmed'] } });
 
+    const stores = await Store.find();
+    let totalProfit = 0;
+    const now = new Date();
+
+    for (const store of stores) {
+      const storeOrders = await Order.find({ store: store._id, status: 'Completed' });
+      const trialEnd = store.trialEndDate ? new Date(store.trialEndDate) : null;
+      const isTrialOver = store.isTrialStarted && trialEnd && now > trialEnd;
+
+      if (isTrialOver) {
+        // Only apply 3% to post-trial volume technically, 
+        // but for a global overview, we use the store's current status
+        const storeRevenue = storeOrders.reduce((sum, o) => sum + o.totalAmount, 0);
+        totalProfit += storeRevenue * 0.03;
+      }
+
+      // Add cancellation penalties (4% of cancelled volume)
+      const cancelledOrders = await Order.find({ 
+        store: store._id, 
+        status: 'Cancelled', 
+        paymentStatus: 'Confirmed' 
+      });
+      const cancelledVolume = cancelledOrders.reduce((sum, o) => sum + o.totalAmount, 0);
+      totalProfit += cancelledVolume * 0.04;
+    }
+
     res.json({
       totalVendors,
       totalStores,
       totalOrders,
       activeOrders,
       totalRevenue,
-      todayRevenue
+      todayRevenue,
+      totalProfit: Math.round(totalProfit)
     });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -57,6 +84,27 @@ router.get('/vendors', async (req, res) => {
           orderCount = await Order.countDocuments({ store: store._id });
       }
 
+      // Calculate profit contribution
+      let profitGenerated = 0;
+      const now = new Date();
+      const trialEnd = store ? (store.trialEndDate ? new Date(store.trialEndDate) : null) : null;
+      const isTrialOver = store && store.isTrialStarted && trialEnd && now > trialEnd;
+
+      if (isTrialOver) {
+        profitGenerated = revenue * 0.03;
+      }
+
+      // Add penalty profit from cancelled orders
+      if (store) {
+        const cancelledOrders = await Order.find({ 
+            store: store._id, 
+            status: 'Cancelled', 
+            paymentStatus: 'Confirmed' 
+        });
+        const cancelledVolume = cancelledOrders.reduce((sum, o) => sum + o.totalAmount, 0);
+        profitGenerated += cancelledVolume * 0.04;
+      }
+
       return {
         ...vendor.toObject(),
         store: store ? {
@@ -64,11 +112,14 @@ router.get('/vendors', async (req, res) => {
             name: store.name,
             market: store.market,
             isOpen: store.isOpen,
-            productCount: store.products.length
+            productCount: store.products.length,
+            isTrialStarted: store.isTrialStarted,
+            trialEndDate: store.trialEndDate
         } : null,
         stats: {
             revenue,
-            orderCount
+            orderCount,
+            profitGenerated: Math.round(profitGenerated)
         }
       };
     }));

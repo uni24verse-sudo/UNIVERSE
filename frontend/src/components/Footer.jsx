@@ -70,8 +70,8 @@ const Footer = () => {
               <Mail size={18} color="var(--primary)" /> uni24verse@gmail.com
             </a>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', lineHeight: '1.5' }}>
-              Vrindavan Yojna, Lucknow,<br />
-              Uttar Pradesh, India
+              Lovely Professional University, Phagwara,<br />
+              Punjab, India
             </p>
           </div>
         </div>
