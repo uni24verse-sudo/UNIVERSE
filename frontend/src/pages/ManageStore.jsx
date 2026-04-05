@@ -596,7 +596,7 @@ const ManageStore = () => {
                       className="form-input" 
                       value={storeCategory} 
                       onChange={e => setStoreCategory(e.target.value)}
-                      style={{ height: '40px', borderRadius: '10px', fontSize: '0.875rem', background: 'var(--glass-bg)', color: 'white' }}
+                      style={{ height: '40px', borderRadius: '10px', fontSize: '0.875rem', background: '#f8fafc', color: 'var(--text-primary)' }}
                     >
                       <option value="Snacks">Snacks & Fast Food</option>
                       <option value="Meals">Full Meals</option>
@@ -611,7 +611,7 @@ const ManageStore = () => {
                       className="form-input" 
                       value={storeMarket} 
                       onChange={e => setStoreMarket(e.target.value)}
-                      style={{ height: '40px', borderRadius: '10px', fontSize: '0.875rem', background: 'var(--glass-bg)', color: 'white' }}
+                      style={{ height: '40px', borderRadius: '10px', fontSize: '0.875rem', background: '#f8fafc', color: 'var(--text-primary)' }}
                     >
                       <option value="BH1 Market">BH1 Market</option>
                       <option value="Block34 Market">Block34 Market</option>

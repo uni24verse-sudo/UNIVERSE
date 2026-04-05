@@ -68,15 +68,15 @@ const CreateStore = () => {
                 className="form-input" 
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
-                style={{ height: '58px', borderRadius: '16px', fontSize: '1.125rem', appearance: 'none', background: 'var(--glass-bg)', border: '1px solid var(--surface-border)', color: 'white', padding: '0 1rem' }}
+                style={{ height: '58px', borderRadius: '16px', fontSize: '1.125rem', appearance: 'none', background: '#ffffff', border: '1px solid var(--surface-border)', color: 'var(--text-primary)', padding: '0 1rem' }}
                 required
               >
-                <option value="" disabled style={{ background: '#1e1b4b' }}>Select Category</option>
-                <option value="Snacks" style={{ background: '#1e1b4b' }}>Snacks & Fast Food</option>
-                <option value="Meals" style={{ background: '#1e1b4b' }}>Full Meals</option>
-                <option value="Beverages" style={{ background: '#1e1b4b' }}>Beverages & Drinks</option>
-                <option value="Desserts" style={{ background: '#1e1b4b' }}>Desserts & Sweets</option>
-                <option value="Other" style={{ background: '#1e1b4b' }}>Other</option>
+                <option value="" disabled>Select Category</option>
+                <option value="Snacks">Snacks & Fast Food</option>
+                <option value="Meals">Full Meals</option>
+                <option value="Beverages">Beverages & Drinks</option>
+                <option value="Desserts">Desserts & Sweets</option>
+                <option value="Other">Other</option>
               </select>
               <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                 <Sparkles size={12} color="var(--secondary)" /> This helps customers find you easily.
@@ -91,16 +91,16 @@ const CreateStore = () => {
                 className="form-input" 
                 value={market}
                 onChange={(e) => setMarket(e.target.value)}
-                style={{ height: '58px', borderRadius: '16px', fontSize: '1.125rem', appearance: 'none', background: 'var(--glass-bg)', border: '1px solid var(--surface-border)', color: 'white', padding: '0 1rem' }}
+                style={{ height: '58px', borderRadius: '16px', fontSize: '1.125rem', appearance: 'none', background: '#ffffff', border: '1px solid var(--surface-border)', color: 'var(--text-primary)', padding: '0 1rem' }}
                 required
               >
-                <option value="" disabled style={{ background: '#1e1b4b' }}>Select Market</option>
-                <option value="BH1 Market" style={{ background: '#1e1b4b' }}>BH1 Market</option>
-                <option value="Block34 Market" style={{ background: '#1e1b4b' }}>Block34 Market</option>
-                <option value="LIT Market" style={{ background: '#1e1b4b' }}>LIT Market</option>
-                <option value="Mall Market" style={{ background: '#1e1b4b' }}>Mall Market</option>
-                <option value="BH6 Market" style={{ background: '#1e1b4b' }}>BH6 Market</option>
-                <option value="Apartment Market" style={{ background: '#1e1b4b' }}>Apartment Market</option>
+                <option value="" disabled>Select Market</option>
+                <option value="BH1 Market">BH1 Market</option>
+                <option value="Block34 Market">Block34 Market</option>
+                <option value="LIT Market">LIT Market</option>
+                <option value="Mall Market">Mall Market</option>
+                <option value="BH6 Market">BH6 Market</option>
+                <option value="Apartment Market">Apartment Market</option>
               </select>
             </div>
             <div className="form-group" style={{ marginBottom: '1.5rem' }}>
