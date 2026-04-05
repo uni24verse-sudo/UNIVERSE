@@ -32,18 +32,17 @@ const FloatingCart = () => {
       <div 
         onClick={() => navigate('/cart')} 
         style={{ 
-          background: 'rgba(15, 23, 42, 0.85)', 
+          background: 'rgba(255, 255, 255, 0.95)', 
           backdropFilter: 'blur(20px)',
           WebkitBackdropFilter: 'blur(20px)',
-          color: 'white', 
           padding: '0.75rem 0.75rem 0.75rem 1.25rem', 
           borderRadius: '24px', 
           display: 'flex', 
           justifyContent: 'space-between', 
           alignItems: 'center',
           cursor: 'pointer',
-          boxShadow: '0 20px 40px rgba(0, 0, 0, 0.6), inset 0 1px 1px rgba(255,255,255,0.1)',
-          border: '1px solid rgba(255, 255, 255, 0.1)',
+          boxShadow: '0 20px 40px rgba(0,0,0,0.08), 0 4px 12px rgba(0,0,0,0.03)',
+          border: '1px solid rgba(0,0,0,0.05)',
           transition: 'transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)'
         }}
         onMouseEnter={(e) => {
@@ -54,11 +53,11 @@ const FloatingCart = () => {
         }}
       >
          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <div style={{ background: 'rgba(99, 102, 241, 0.15)', color: 'var(--primary)', padding: '0.6rem', borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ background: 'rgba(239, 65, 35, 0.08)', color: 'var(--primary)', padding: '0.6rem', borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <ShoppingBag size={22} strokeWidth={2.5} />
             </div>
             <div>
-               <p style={{ margin: 0, fontWeight: '700', fontSize: '1rem', color: 'white', letterSpacing: '0.2px' }}>{totalItems} Items</p>
+               <p style={{ margin: 0, fontWeight: '800', fontSize: '1rem', color: 'var(--text-primary)', letterSpacing: '0.2px' }}>{totalItems} Items</p>
                <p style={{ margin: '0.1rem 0 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: '600' }}>₹{total}</p>
             </div>
          </div>
@@ -66,13 +65,13 @@ const FloatingCart = () => {
            display: 'flex', 
            alignItems: 'center', 
            gap: '0.4rem', 
-           fontWeight: '700', 
+           fontWeight: '800', 
            fontSize: '0.9rem', 
            background: 'var(--primary)', 
            color: 'white', 
            padding: '0.8rem 1.25rem', 
            borderRadius: '16px', 
-           boxShadow: '0 4px 20px rgba(99, 102, 241, 0.4)',
+           boxShadow: '0 4px 20px rgba(239, 65, 35, 0.3)',
            letterSpacing: '0.5px'
          }}>
             View Cart

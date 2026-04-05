@@ -73,30 +73,30 @@ const StoreMenu = () => {
           alt={store.name} 
           style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
         />
-        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(11, 15, 26, 0.4) 0%, rgba(11, 15, 26, 1) 100%)' }}></div>
+        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(249, 250, 251, 0.2) 0%, rgba(249, 250, 251, 1) 100%)' }}></div>
       </div>
 
       {/* Store Info Subheader */}
       <div style={{ 
         position: 'relative', 
         zIndex: 90, 
-        background: 'rgba(11, 15, 26, 0.8)', 
+        background: 'rgba(255, 255, 255, 0.85)', 
         backdropFilter: 'blur(20px)',
         borderBottom: '1px solid var(--surface-border)',
         padding: '1rem',
         marginTop: '-40px'
       }}>
         <div style={{ maxWidth: '800px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <button onClick={() => navigate(-1)} style={{ background: 'var(--glass-bg)', border: '1px solid var(--surface-border)', color: 'white', padding: '0.6rem', borderRadius: '12px', cursor: 'pointer' }}>
+          <button onClick={() => navigate(-1)} style={{ background: '#ffffff', border: '1px solid var(--surface-border)', color: 'var(--text-primary)', padding: '0.6rem', borderRadius: '12px', cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
             <ArrowLeft size={18} />
           </button>
           
           <div style={{ textAlign: 'center', flex: 1 }}>
-            <h1 style={{ fontSize: '1.25rem', margin: 0, fontWeight: '700' }}>{store.name}</h1>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', justifyContent: 'center', fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.4rem', fontWeight: '500' }}>
+            <h1 style={{ fontSize: '1.25rem', margin: 0, fontWeight: '800', color: 'var(--text-primary)' }}>{store.name}</h1>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', justifyContent: 'center', fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.4rem', fontWeight: '600' }}>
               <span><Clock size={12} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px' }} />20-30 mins</span>
               <span style={{ opacity: 0.5 }}>•</span>
-              <span style={{ color: 'var(--primary)', fontWeight: '700', padding: '0.2rem 0.6rem', background: 'rgba(99, 102, 241, 0.1)', borderRadius: '100px' }}>{store.market || 'BH1 Market'}</span>
+              <span style={{ color: 'var(--primary)', fontWeight: '800', padding: '0.2rem 0.6rem', background: 'rgba(239, 65, 35, 0.08)', borderRadius: '100px' }}>{store.market || 'BH1 Market'}</span>
             </div>
           </div>
           <div style={{ width: '42px' }}></div> {/* Spacer for symmetry */}
@@ -139,31 +139,28 @@ const StoreMenu = () => {
               width: '100%', 
               padding: '1.25rem 1.25rem 1.25rem 3.5rem', 
               borderRadius: '100px', 
-              background: 'rgba(255,255,255,0.03)', 
-              border: '1px solid rgba(255,255,255,0.08)', 
-              color: 'white', 
+              background: '#ffffff', 
+              border: '1px solid var(--surface-border)', 
+              color: 'var(--text-primary)', 
               fontSize: '1rem',
               fontWeight: '500',
               outline: 'none',
-              boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.1), 0 8px 24px rgba(0,0,0,0.2)',
-              backdropFilter: 'blur(12px)',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.03)',
               transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
             }} 
             onFocus={(e) => {
-               e.target.style.background = 'rgba(15, 23, 42, 0.8)';
                e.target.style.borderColor = 'var(--primary)';
-               e.target.style.boxShadow = '0 10px 40px rgba(99, 102, 241, 0.2)';
+               e.target.style.boxShadow = '0 10px 30px rgba(239, 65, 35, 0.1)';
             }}
             onBlur={(e) => {
-               e.target.style.background = 'rgba(255,255,255,0.03)';
                e.target.style.borderColor = 'var(--surface-border)';
-               e.target.style.boxShadow = '0 10px 30px rgba(0,0,0,0.2)';
+               e.target.style.boxShadow = '0 4px 12px rgba(0,0,0,0.03)';
             }}
           />
           {searchQuery && (
             <button 
               onClick={() => setSearchQuery('')}
-              style={{ position: 'absolute', top: '50%', right: '1.25rem', transform: 'translateY(-50%)', background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', cursor: 'pointer', padding: '0.4rem', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              style={{ position: 'absolute', top: '50%', right: '1.25rem', transform: 'translateY(-50%)', background: '#f1f5f9', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', padding: '0.4rem', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
             >
               <X size={14} strokeWidth={3} />
             </button>
@@ -196,10 +193,10 @@ const StoreMenu = () => {
                 fontSize: '0.875rem',
                 fontWeight: '600',
                 cursor: 'pointer',
-                background: activeCategory === cat ? 'var(--primary)' : 'var(--glass-bg)',
+                background: activeCategory === cat ? 'var(--primary)' : '#ffffff',
                 color: activeCategory === cat ? 'white' : 'var(--text-secondary)',
                 transition: 'var(--transition)',
-                boxShadow: activeCategory === cat ? '0 10px 20px rgba(99, 102, 241, 0.2)' : 'none'
+                boxShadow: activeCategory === cat ? '0 10px 20px rgba(239, 65, 35, 0.2)' : 'none'
               }}
             >
               {cat}
@@ -232,10 +229,10 @@ const StoreMenu = () => {
               onClick={() => setActiveCategory('Combos')}
               style={{ 
                 gridColumn: '1 / -1', 
-                background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(16, 185, 129, 0.1) 100%)',
+                background: 'linear-gradient(135deg, rgba(239, 65, 35, 0.08) 0%, rgba(255,255,255,1) 100%)',
                 padding: '1.5rem',
                 borderRadius: '24px',
-                border: '1px solid rgba(99, 102, 241, 0.3)',
+                border: '1px solid rgba(239, 65, 35, 0.1)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
@@ -248,7 +245,7 @@ const StoreMenu = () => {
               onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
             >
               <div style={{ position: 'relative', zIndex: 1 }}>
-                <h4 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                <h4 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '0.6rem', color: 'var(--text-primary)' }}>
                   🎁 Meal Bundles & Combos
                 </h4>
                 <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Save more with our curated combo deals!</p>
@@ -260,7 +257,7 @@ const StoreMenu = () => {
                 borderRadius: '12px', 
                 fontWeight: '800', 
                 fontSize: '0.875rem',
-                boxShadow: '0 8px 20px rgba(99, 102, 241, 0.3)' 
+                boxShadow: '0 8px 20px rgba(239, 65, 35, 0.3)' 
               }}>
                 VIEW ALL &rarr;
               </div>
@@ -276,9 +273,9 @@ const StoreMenu = () => {
                 padding: '1.5rem',
                 gap: '1.5rem',
                 borderRadius: '28px',
-                background: 'linear-gradient(145deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%)',
-                border: '1px solid rgba(255,255,255,0.06)',
-                boxShadow: '0 10px 40px rgba(0,0,0,0.2)',
+                background: '#ffffff',
+                border: '1px solid rgba(0,0,0,0.05)',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.03)',
                 backdropFilter: 'blur(20px)',
                 opacity: isUnavailable ? 0.6 : 1,
                 filter: isUnavailable ? 'grayscale(1)' : 'none',
@@ -290,15 +287,15 @@ const StoreMenu = () => {
               onMouseEnter={(e) => {
                 if (!isUnavailable) {
                   e.currentTarget.style.transform = 'translateY(-6px)';
-                  e.currentTarget.style.boxShadow = '0 25px 50px rgba(99, 102, 241, 0.15)';
-                  e.currentTarget.style.borderColor = 'rgba(99, 102, 241, 0.3)';
+                  e.currentTarget.style.boxShadow = '0 20px 40px rgba(0,0,0,0.08)';
+                  e.currentTarget.style.borderColor = 'rgba(239, 65, 35, 0.1)';
                 }
               }}
               onMouseLeave={(e) => {
                 if (!isUnavailable) {
                   e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = '0 10px 40px rgba(0,0,0,0.2)';
-                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.03)';
+                  e.currentTarget.style.borderColor = 'rgba(0,0,0,0.05)';
                 }
               }}>
                 {isUnavailable && (
@@ -335,10 +332,10 @@ const StoreMenu = () => {
                   )}
                   
                   {product.isCombo && (
-                    <div style={{ marginBottom: '1rem', background: 'rgba(0,0,0,0.2)', padding: '0.75rem', borderRadius: '12px' }}>
+                    <div style={{ marginBottom: '1rem', background: '#f8fafc', padding: '0.75rem', borderRadius: '12px', border: '1px solid var(--surface-border)' }}>
                       {product.comboItems && product.comboItems.length > 0 && (
                         <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                          <span style={{ color: 'white', fontWeight: '600', display: 'block', marginBottom: '0.25rem' }}>Includes:</span>
+                          <span style={{ color: 'var(--text-primary)', fontWeight: '600', display: 'block', marginBottom: '0.25rem' }}>Includes:</span>
                           {product.comboItems.map((ci, idx) => (
                             <div key={idx} style={{ marginBottom: '0.2rem' }}>• {ci.quantity} {ci.name}</div>
                           ))}
@@ -367,7 +364,7 @@ const StoreMenu = () => {
                     <img 
                       src={product.image} 
                       alt={product.name} 
-                      style={{ width: '120px', height: '120px', objectFit: 'cover', borderRadius: '16px', background: 'var(--glass-bg)' }}
+                      style={{ width: '120px', height: '120px', objectFit: 'cover', borderRadius: '16px', background: '#f3f4f6' }}
                       onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} 
                     />
                   ) : null}
@@ -375,7 +372,7 @@ const StoreMenu = () => {
                     display: product.image ? 'none' : 'flex', 
                     width: '120px', 
                     height: '120px', 
-                    background: 'var(--glass-bg)', 
+                    background: '#f3f4f6', 
                     borderRadius: '16px', 
                     alignItems: 'center', 
                     justifyContent: 'center',
@@ -393,10 +390,10 @@ const StoreMenu = () => {
                         fontSize: '0.85rem', 
                         fontWeight: '800',
                         letterSpacing: '0.5px',
-                        boxShadow: (isUnavailable || storeClosed) ? 'none' : '0 8px 25px rgba(99, 102, 241, 0.5)',
+                        boxShadow: (isUnavailable || storeClosed) ? 'none' : '0 8px 25px rgba(239, 65, 35, 0.3)',
                         borderRadius: '12px',
-                        background: (isUnavailable || storeClosed) ? 'rgba(255,255,255,0.05)' : 'linear-gradient(135deg, var(--primary) 0%, #818cf8 100%)',
-                        color: (isUnavailable || storeClosed) ? 'rgba(255,255,255,0.3)' : 'white',
+                        background: (isUnavailable || storeClosed) ? '#f1f5f9' : 'var(--primary)',
+                        color: (isUnavailable || storeClosed) ? 'var(--text-secondary)' : 'white',
                         border: 'none',
                         transition: 'all 0.3s ease',
                         cursor: (isUnavailable || storeClosed) ? 'not-allowed' : 'pointer'
@@ -417,25 +414,25 @@ const StoreMenu = () => {
       {/* Variant Selection Modal */}
       {showVariantModal && selectedProduct && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)', zIndex: 2000, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
-          <div className="glass-card" style={{ width: '100%', maxWidth: '600px', background: '#0f172a', padding: '2rem', borderTopLeftRadius: '32px', borderTopRightRadius: '32px', animation: 'slideUp 0.3s ease-out' }}>
+          <div className="glass-card" style={{ width: '100%', maxWidth: '600px', background: '#ffffff', padding: '2rem', borderTopLeftRadius: '32px', borderTopRightRadius: '32px', animation: 'slideUp 0.3s ease-out' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
               <div>
-                <h3 style={{ margin: '0 0 0.25rem 0', fontSize: '1.5rem', fontWeight: '800' }}>Customize Size</h3>
+                <h3 style={{ margin: '0 0 0.25rem 0', fontSize: '1.5rem', fontWeight: '800', color: 'var(--text-primary)' }}>Customize Size</h3>
                 <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.875rem' }}>{selectedProduct.name}</p>
               </div>
-              <button onClick={() => setShowVariantModal(false)} style={{ background: 'var(--glass-bg)', border: 'none', color: 'white', padding: '0.5rem', borderRadius: '50%', cursor: 'pointer' }}>
+              <button onClick={() => setShowVariantModal(false)} style={{ background: '#f1f5f9', border: 'none', color: 'var(--text-primary)', padding: '0.5rem', borderRadius: '50%', cursor: 'pointer' }}>
                 <X size={20} />
               </button>
             </div>
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '2rem' }}>
               {selectedProduct.variants.map((v, i) => (
-                <label key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', background: selectedVariant === v ? 'rgba(99, 102, 241, 0.1)' : 'rgba(255,255,255,0.03)', border: `2px solid ${selectedVariant === v ? 'var(--primary)' : 'transparent'}`, borderRadius: '16px', cursor: 'pointer', transition: 'all 0.2s ease' }}>
+                <label key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', background: selectedVariant === v ? 'rgba(239, 65, 35, 0.08)' : '#f8fafc', border: `2px solid ${selectedVariant === v ? 'var(--primary)' : 'var(--surface-border)'}`, borderRadius: '16px', cursor: 'pointer', transition: 'all 0.2s ease' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                     <div style={{ width: '20px', height: '20px', borderRadius: '50%', border: `2px solid ${selectedVariant === v ? 'var(--primary)' : 'var(--text-secondary)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                        {selectedVariant === v && <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'var(--primary)' }}></div>}
                     </div>
-                    <span style={{ fontWeight: '700', fontSize: '1.125rem' }}>{v.name}</span>
+                    <span style={{ fontWeight: '700', fontSize: '1.125rem', color: 'var(--text-primary)' }}>{v.name}</span>
                   </div>
                   <span style={{ fontWeight: '800', color: 'var(--secondary)', fontSize: '1.125rem' }}>₹{v.price}</span>
                   <input type="radio" hidden checked={selectedVariant === v} onChange={() => setSelectedVariant(v)} />
