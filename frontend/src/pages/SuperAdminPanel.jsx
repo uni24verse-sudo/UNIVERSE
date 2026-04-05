@@ -176,7 +176,7 @@ const SuperAdminPanel = () => {
           <div>
             <header style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h1 style={{ fontSize: '2rem', fontWeight: '900' }}>Vendor Registry</h1>
-              <span style={{ padding: '0.5rem 1rem', background: '#111', border: '1px solid #333', borderRadius: '100px', fontSize: '0.875rem' }}>{vendors.length} Total Vendors</span>
+              <span style={{ padding: '0.5rem 1rem', background: '#ffffff', border: '1px solid var(--surface-border)', borderRadius: '100px', fontSize: '0.875rem', fontWeight: '600', color: 'var(--text-primary)' }}>{vendors.length} Total Vendors</span>
             </header>
             
             <div style={{ background: '#ffffff', borderRadius: '24px', border: '1px solid var(--surface-border)', overflow: 'hidden' }}>
