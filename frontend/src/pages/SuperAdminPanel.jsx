@@ -205,7 +205,7 @@ const SuperAdminPanel = () => {
                           <>
                             <div style={{ fontWeight: '600' }}>{v.store.name}</div>
                             <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
-                              <span style={{ fontSize: '0.75rem', background: 'rgba(99, 102, 241, 0.1)', color: 'var(--primary)', padding: '0.1rem 0.4rem', borderRadius: '4px', fontWeight: '700' }}>{v.store.market || 'BH1 Market'}</span>
+                              <span style={{ fontSize: '0.75rem', background: 'rgba(239, 65, 35, 0.1)', color: 'var(--primary)', padding: '0.1rem 0.4rem', borderRadius: '4px', fontWeight: '700' }}>{v.store.market || 'BH1 Market'}</span>
                               <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{v.store.productCount} Items</span>
                               <span style={{ fontSize: '0.75rem', color: v.store.isOpen ? '#10b981' : '#ef4444' }}>• {v.store.isOpen ? 'ONLINE' : 'OFFLINE'}</span>
                             </div>
@@ -297,7 +297,7 @@ const SuperAdminPanel = () => {
                   </div>
                   
                   <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: '0.75rem', padding: '0.2rem 0.6rem', background: 'rgba(99, 102, 241, 0.1)', color: 'var(--primary)', borderRadius: '6px', fontWeight: '700' }}>{store.category}</span>
+                    <span style={{ fontSize: '0.75rem', padding: '0.2rem 0.6rem', background: 'rgba(239, 65, 35, 0.1)', color: 'var(--primary)', borderRadius: '6px', fontWeight: '700' }}>{store.category}</span>
                     <span style={{ fontSize: '0.75rem', padding: '0.2rem 0.6rem', background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', borderRadius: '6px', fontWeight: '700' }}>{store.market || 'BH1 Market'}</span>
                     <span style={{ fontSize: '0.75rem', padding: '0.2rem 0.6rem', background: '#f1f5f9', color: 'var(--text-secondary)', borderRadius: '6px', fontWeight: '600' }}>{store.productCount} SKUs</span>
                     {store.telegramChatId ? (
@@ -533,7 +533,7 @@ const SuperAdminPanel = () => {
                       <td style={{ padding: '1.25rem' }}>
                         <div style={{ fontWeight: '700', color: 'var(--text-primary)' }}>{f.storeName}</div>
                         <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>{f.ownerName}</div>
-                        <div style={{ color: 'var(--primary)', fontSize: '0.75rem', fontWeight: '700', marginTop: '0.25rem', background: 'rgba(99, 102, 241, 0.1)', padding: '0.1rem 0.4rem', borderRadius: '4px', display: 'inline-block' }}>{f.upiId}</div>
+                        <div style={{ color: '#3b82f6', fontSize: '0.75rem', fontWeight: '700', marginTop: '0.25rem', background: 'rgba(59, 130, 246, 0.1)', padding: '0.1rem 0.4rem', borderRadius: '4px', display: 'inline-block' }}>{f.upiId}</div>
                         {f.isTrialActive && (
                           <div style={{ marginTop: '0.25rem', display: 'block', fontSize: '0.65rem', color: '#10b981', fontWeight: '900' }}>• TRIAL ACTIVE (2% ONLY)</div>
                         )}
