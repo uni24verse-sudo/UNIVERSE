@@ -68,7 +68,7 @@ const Footer = () => {
         <div>
           <h4 style={{ fontSize: '1.1rem', fontWeight: '700', marginBottom: '1.5rem' }}>Contact Us</h4>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <a href="mailto:support@universeorder.co.in" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: 'var(--text-secondary)', textDecoration: 'none', fontSize: '0.9rem' }}>
+            <a href="mailto:uni24verse@gmail.com" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: 'var(--text-secondary)', textDecoration: 'none', fontSize: '0.9rem' }}>
               <Mail size={18} color="var(--primary)" /> uni24verse@gmail.com
             </a>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', lineHeight: '1.5' }}>
