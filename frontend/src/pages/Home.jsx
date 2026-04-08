@@ -56,50 +56,6 @@ const FloatingBackground = () => {
   );
 };
 
-const TopPromoBanner = () => {
-  return (
-    <div style={{
-      background: 'linear-gradient(90deg, #ef4123 0%, #fcaf17 50%, #ef4123 100%)',
-      backgroundSize: '200% auto',
-      animation: 'gradientMove 3s linear infinite',
-      padding: '0.75rem 1rem',
-      textAlign: 'center',
-      color: 'white',
-      fontWeight: '800',
-      fontSize: '0.875rem',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: '0.75rem',
-      boxShadow: '0 4px 15px rgba(239, 65, 35, 0.3)',
-      position: 'relative',
-      zIndex: 100,
-      letterSpacing: '0.5px'
-    }}>
-      <Sparkles size={16} className="pulse" />
-      <span style={{ textShadow: '0 2px 4px rgba(0,0,0,0.2)' }}>
-        ORDER 15 MIN EARLY. EAT FRESH.
-      </span>
-      <Zap size={16} className="pulse" />
-      
-      <style>{`
-        @keyframes gradientMove {
-          0% { background-position: 0% center; }
-          100% { background-position: 200% center; }
-        }
-        .pulse {
-          animation: icon-pulse 2s infinite;
-        }
-        @keyframes icon-pulse {
-          0% { transform: scale(1); opacity: 1; }
-          50% { transform: scale(1.2); opacity: 0.8; }
-          100% { transform: scale(1); opacity: 1; }
-        }
-      `}</style>
-    </div>
-  );
-};
-
 const Home = () => {
   const [stores, setStores] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -147,7 +103,6 @@ const Home = () => {
 
   return (
     <div style={{ minHeight: '100vh', position: 'relative' }}>
-      <TopPromoBanner />
       <FloatingBackground />
 
       {/* Hero Section */}

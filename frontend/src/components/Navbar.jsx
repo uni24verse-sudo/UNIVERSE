@@ -6,7 +6,7 @@ import { CartContext } from '../context/CartContext';
 import { AuthContext } from '../context/AuthContext';
 import logoSymbol from '../assets/logo-symbol.png';
 
-const Navbar = () => {
+const Navbar = ({ bannerVisible }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { cart } = useContext(CartContext);
@@ -95,7 +95,7 @@ const Navbar = () => {
   return (
     <nav style={{
       position: 'sticky',
-      top: 0,
+      top: bannerVisible ? '43px' : 0,
       zIndex: 1000,
       background: 'rgba(255, 255, 255, 0.85)',
       backdropFilter: 'blur(12px)',
@@ -104,7 +104,8 @@ const Navbar = () => {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'space-between',
-      gap: '2rem'
+      gap: '2rem',
+      transition: 'top 0.3s ease'
     }}>
       {/* Brand Logo - Hidden when searching on mobile */}
       {(!isSearchFocused || !isMobile) && (
