@@ -25,7 +25,8 @@ import {
   Globe,
   AlertCircle,
   Utensils,
-  Package
+  Package,
+  Volume2
 } from 'lucide-react';
 
 const CountdownTimer = ({ deadline, onAccept }) => {
@@ -126,8 +127,20 @@ const Dashboard = () => {
     // Play a test sound to give feedback and satisfy browser interaction requirement
     if (newVal) {
       const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
-      audio.play().catch(e => console.log('Audio blocked:', e));
+      audio.play().catch(e => {
+        console.warn('Audio blocked by browser. Please interact with the page first.', e);
+        alert('Browser blocked audio. Please click anywhere on the page to enable sounds.');
+      });
     }
+  };
+
+  const playTestSound = () => {
+    const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+    audio.play().then(() => {
+      alert('Sound is working!');
+    }).catch(e => {
+      alert('Sound blocked! Please check your site permissions and click on the page first.');
+    });
   };
 
   useEffect(() => {
@@ -238,7 +251,8 @@ const Dashboard = () => {
     } catch (err) {
       // 3. Rollback on failure
       setOrders(previousOrders);
-      alert('Failed to update status. Please try again.');
+      console.error('Status Update Error:', err.response?.data || err.message);
+      alert(`Failed to update status: ${err.response?.data?.message || err.message}`);
     }
   };
 
@@ -598,8 +612,16 @@ const Dashboard = () => {
                 <div 
                   onClick={toggleSound}
                   style={{ width: '45px', height: '45px', borderRadius: '14px', background: soundEnabled ? 'rgba(16, 185, 129, 0.1)' : 'var(--glass-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--surface-border)', cursor: 'pointer' }}
+                  title="Toggle Alert Sounds"
                 >
                   <Bell size={20} color={soundEnabled ? 'var(--secondary)' : 'var(--text-secondary)'} />
+                </div>
+                <div 
+                  onClick={playTestSound}
+                  style={{ width: '45px', height: '45px', borderRadius: '14px', background: 'var(--glass-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--surface-border)', cursor: 'pointer' }}
+                  title="Test Sound"
+                >
+                  <Volume2 size={18} color="var(--text-secondary)" />
                 </div>
               </>
             )}
