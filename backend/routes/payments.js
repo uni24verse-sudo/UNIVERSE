@@ -15,6 +15,9 @@ const razorpay = new Razorpay({
 // Helper to generate a unique 4-digit order number
 const generateOrderNumber = () => Math.floor(1000 + Math.random() * 9000).toString();
 
+// Helper to generate a unique handover token
+const generateHandoverToken = () => Math.random().toString(36).substring(2, 10).toUpperCase();
+
 // 1. CREATE RAZORPAY ORDER (Directly, without saving to DB yet)
 router.post('/razorpay/create-order', async (req, res) => {
   try {
@@ -90,7 +93,8 @@ router.post('/razorpay/verify', async (req, res) => {
       status: 'Pending',
       transactionId: razorpay_payment_id,
       paymentProvider: 'Razorpay',
-      acceptDeadline: new Date(Date.now() + 3 * 60 * 1000)
+      acceptDeadline: new Date(Date.now() + 3 * 60 * 1000),
+      handoverToken: generateHandoverToken()
     });
 
     const savedOrder = await newOrder.save();

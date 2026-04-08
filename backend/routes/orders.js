@@ -9,6 +9,9 @@ const notificationService = require('../services/notificationService');
 // Helper to generate a unique 4-digit order number
 const generateOrderNumber = () => Math.floor(1000 + Math.random() * 9000).toString();
 
+// Helper to generate a unique handover token
+const generateHandoverToken = () => Math.random().toString(36).substring(2, 10).toUpperCase();
+
 // Create a new Order (Public Customer endpoint)
 // NOTE: For Razorpay checkouts, use the /api/payments/razorpay/verify endpoint
 // which creates the order ONLY after successful payment to avoid DB clutter.
@@ -30,7 +33,8 @@ router.post('/create', async (req, res) => {
       orderType,
       packagingChargeApplied,
       status: 'Payment Pending',
-      paymentStatus: 'Pending'
+      paymentStatus: 'Pending',
+      handoverToken: generateHandoverToken()
     });
 
     const savedOrder = await newOrder.save();
@@ -114,6 +118,48 @@ router.get('/:id', async (req, res) => {
     });
     if (!order) return res.status(404).json({ message: 'Order not found' });
     res.json(order);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// Verify Order Handover via QR (Protected)
+router.put('/verify-handover', auth, async (req, res) => {
+  try {
+    const { orderId, token } = req.body;
+
+    if (!orderId || !token) {
+      return res.status(400).json({ message: 'Order ID and Token are required' });
+    }
+
+    const order = await Order.findById(orderId).populate('store');
+    if (!order) return res.status(404).json({ message: 'Order not found' });
+
+    // Verify ownership
+    if (order.store.admin.toString() !== req.admin._id) {
+      return res.status(403).json({ message: 'Unauthorized: Only the vendor can verify this handover' });
+    }
+
+    // Verify token
+    if (order.handoverToken !== token) {
+      return res.status(400).json({ message: 'Invalid handover token' });
+    }
+
+    if (order.status === 'Completed') {
+      return res.status(400).json({ message: 'Order is already marked as completed' });
+    }
+
+    order.status = 'Completed';
+    const updatedOrder = await order.save();
+
+    // Notify customer about status update
+    const io = req.app.get('io');
+    io.to(updatedOrder._id.toString()).emit('order_status_update', updatedOrder);
+    
+    // Also notify vendors in the store room so dashboards update
+    io.to(order.store._id.toString()).emit('order_status_update', updatedOrder);
+
+    res.json({ success: true, message: 'Handover verified and order completed', order: updatedOrder });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

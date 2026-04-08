@@ -5,6 +5,7 @@ import { AuthContext } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
 import WhatsAppStatus from '../components/WhatsAppStatus';
 import { QRCodeSVG } from 'qrcode.react';
+import { Html5QrcodeScanner } from 'html5-qrcode';
 import { 
   LayoutDashboard, 
   Store, 
@@ -100,6 +101,9 @@ const Dashboard = () => {
   const [soundEnabled, setSoundEnabled] = useState(localStorage.getItem('orderSoundEnabled') !== 'false');
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
   const [showSidebar, setShowSidebar] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
+  const [verifyingScan, setVerifyingScan] = useState(false);
+  const [scanResult, setScanResult] = useState(null);
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 1024);
@@ -235,6 +239,76 @@ const Dashboard = () => {
       // 3. Rollback on failure
       setOrders(previousOrders);
       alert('Failed to update status. Please try again.');
+    }
+  };
+
+  useEffect(() => {
+    let scanner;
+    if (showScanner) {
+      // Small delay to ensure the container is rendered
+      const timeoutId = setTimeout(() => {
+        scanner = new Html5QrcodeScanner("reader", { 
+          fps: 10, 
+          qrbox: { width: 250, height: 250 },
+          rememberLastUsedCamera: true,
+          aspectRatio: 1.0
+        });
+
+        const onScanSuccess = async (decodedText) => {
+          try {
+            const data = JSON.parse(decodedText);
+            if (data.orderId && data.token) {
+              scanner.clear().catch(e => console.error(e));
+              handleVerifyHandover(data.orderId, data.token);
+            }
+          } catch (e) {
+            console.error("Invalid QR Code content", e);
+          }
+        };
+
+        const onScanFailure = (error) => {
+          // Silent failure - common during scanning
+        };
+
+        scanner.render(onScanSuccess, onScanFailure);
+      }, 300);
+
+      return () => {
+        clearTimeout(timeoutId);
+        if (scanner) {
+          scanner.clear().catch(e => console.error("Scanner clear error", e));
+        }
+      };
+    }
+  }, [showScanner]);
+
+  const handleVerifyHandover = async (orderId, handoverToken) => {
+    setVerifyingScan(true);
+    setScanResult(null);
+    try {
+      const response = await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/orders/verify-handover`, 
+        { orderId, token: handoverToken },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      if (response.data.success) {
+        setScanResult({ success: true, message: `Order #${response.data.order.orderNumber} Verified!` });
+        // Update local state
+        setOrders(prev => prev.map(o => o._id === orderId ? response.data.order : o));
+        
+        // Play success sound
+        new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3').play().catch(() => {});
+        
+        // Close scanner after pulse
+        setTimeout(() => {
+          setShowScanner(false);
+          setScanResult(null);
+        }, 2000);
+      }
+    } catch (err) {
+      setScanResult({ success: false, message: err.response?.data?.message || 'Verification failed' });
+    } finally {
+      setVerifyingScan(false);
     }
   };
 
@@ -528,11 +602,83 @@ const Dashboard = () => {
                 </div>
               </>
             )}
+            <div 
+              onClick={() => setShowScanner(true)}
+              style={{ 
+                display: 'flex', alignItems: 'center', gap: '0.4rem', 
+                padding: '0 1rem', height: '46px',
+                background: 'rgba(16, 185, 129, 0.1)', color: 'var(--secondary)', 
+                borderRadius: '12px', fontWeight: '700', cursor: 'pointer',
+                border: '1px solid rgba(16, 185, 129, 0.2)' 
+              }}
+            >
+              <QrCode size={18} /> {isMobile ? '' : 'Scan Handover'}
+            </div>
             <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--surface-border)', fontWeight: '800' }}>
               {vendor?.name?.charAt(0)}
             </div>
           </div>
         </header>
+
+        {/* QR Scanner Modal */}
+        {showScanner && (
+          <div style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(10px)',
+            zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: '1.5rem'
+          }}>
+            <div className="glass-card" style={{ 
+              width: '100%', maxWidth: '500px', padding: '2rem', 
+              borderRadius: '32px', textAlign: 'center', background: '#111' 
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+                <h3 style={{ margin: 0, color: 'white' }}>Scan Handover QR</h3>
+                <button 
+                  onClick={() => setShowScanner(false)}
+                  style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', padding: '0.5rem', borderRadius: '50%', cursor: 'pointer' }}
+                >
+                  <X size={24} />
+                </button>
+              </div>
+
+              {scanResult ? (
+                <div style={{ padding: '2rem' }}>
+                  <div style={{ 
+                    width: '80px', height: '80px', borderRadius: '50%', 
+                    background: scanResult.success ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem auto'
+                  }}>
+                    {scanResult.success ? <CheckCircle2 size={48} color="#10b981" /> : <X size={48} color="#ef4444" />}
+                  </div>
+                  <h4 style={{ color: 'white', fontSize: '1.25rem', marginBottom: '0.5rem' }}>{scanResult.success ? 'Success!' : 'Error'}</h4>
+                  <p style={{ color: 'var(--text-secondary)' }}>{scanResult.message}</p>
+                  {!scanResult.success && (
+                    <button 
+                      onClick={() => setScanResult(null)} 
+                      className="btn btn-primary" 
+                      style={{ marginTop: '2rem', width: 'auto', padding: '0.75rem 2rem' }}
+                    >
+                      Try Again
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <>
+                  <div id="reader" style={{ overflow: 'hidden', borderRadius: '24px', background: '#000', border: 'none' }}></div>
+                  <p style={{ color: 'var(--text-secondary)', marginTop: '2rem', fontSize: '0.875rem' }}>
+                    Position the customer's QR code within the frame to verify handover.
+                  </p>
+                  {verifyingScan && (
+                    <div style={{ marginTop: '1rem', color: 'var(--secondary)', fontWeight: '700' }}>
+                      Verifying on Server...
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        )}
 
         {!store ? (
           <div className="glass-card" style={{ padding: '5rem 2rem', textAlign: 'center', borderRadius: '40px' }}>

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { io } from 'socket.io-client';
+import { QRCodeSVG } from 'qrcode.react';
 import { CheckCircle2, Clock, ChefHat, PackageCheck, ArrowLeft, Home, Receipt, X, Phone, MessageCircle } from 'lucide-react';
 
 const CountdownTimer = ({ deadline }) => {
@@ -252,6 +253,74 @@ const OrderTracker = () => {
           <div style={{ marginBottom: '3rem' }}>
             <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>Auto-cancels if not accepted soon</p>
             <CountdownTimer deadline={order.acceptDeadline} />
+          </div>
+        )}
+
+        {/* Handover QR Code Section */}
+        {(order.status === 'Confirmed' || order.status === 'Completed') && (
+          <div style={{ 
+            background: 'white', 
+            padding: '2rem', 
+            borderRadius: '24px', 
+            marginBottom: '2rem',
+            border: `2px solid ${order.status === 'Completed' ? 'var(--secondary)' : 'var(--primary)'}`,
+            position: 'relative',
+            overflow: 'hidden'
+          }}>
+            <div style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              height: '6px',
+              background: order.status === 'Completed' ? 'var(--secondary)' : 'var(--primary)',
+              opacity: 0.8
+            }}></div>
+            
+            <h3 style={{ fontSize: '1.25rem', fontWeight: '800', marginBottom: '0.5rem', color: 'var(--text-primary)' }}>
+              {order.status === 'Completed' ? 'Handover Successful!' : 'Show this to Vendor'}
+            </h3>
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>
+              {order.status === 'Completed' 
+                ? 'Your order has been verified and handed over.' 
+                : 'The vendor will scan this QR to verify your handover.'}
+            </p>
+
+            <div style={{ 
+              background: 'white', 
+              padding: '1rem', 
+              borderRadius: '16px', 
+              display: 'inline-block',
+              boxShadow: '0 10px 30px rgba(0,0,0,0.08)',
+              filter: order.status === 'Completed' ? 'grayscale(1) opacity(0.5)' : 'none'
+            }}>
+              <QRCodeSVG 
+                value={JSON.stringify({ orderId: order._id, token: order.handoverToken })} 
+                size={180} 
+                level="H"
+                includeMargin={true}
+              />
+            </div>
+            
+            {order.status === 'Completed' && (
+              <div style={{ 
+                position: 'absolute', 
+                top: '50%', 
+                left: '50%', 
+                transform: 'translate(-50%, -50%) rotate(-15deg)',
+                border: '4px solid var(--secondary)',
+                color: 'var(--secondary)',
+                padding: '0.5rem 1rem',
+                borderRadius: '8px',
+                fontSize: '1.5rem',
+                fontWeight: '950',
+                textTransform: 'uppercase',
+                letterSpacing: '2px',
+                pointerEvents: 'none'
+              }}>
+                Verified
+              </div>
+            )}
           </div>
         )}
 

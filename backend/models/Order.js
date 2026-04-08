@@ -28,7 +28,8 @@ const OrderSchema = new mongoose.Schema({
   customerName: { type: String },
   transactionId: { type: String, unique: true, sparse: true },
   paymentProvider: { type: String, default: 'Razorpay' },
-  acceptDeadline: { type: Date }
+  acceptDeadline: { type: Date },
+  handoverToken: { type: String }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Order', OrderSchema);
