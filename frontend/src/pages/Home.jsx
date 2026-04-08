@@ -18,7 +18,9 @@ import {
   Utensils,
   Cake,
   IceCream,
-  Beef
+  Beef,
+  Sparkles,
+  Zap
 } from 'lucide-react';
 import Navbar from '../components/Navbar';
 
@@ -50,6 +52,50 @@ const FloatingBackground = () => {
           <item.Icon size={item.size} strokeWidth={1} />
         </div>
       ))}
+    </div>
+  );
+};
+
+const TopPromoBanner = () => {
+  return (
+    <div style={{
+      background: 'linear-gradient(90deg, #ef4123 0%, #fcaf17 50%, #ef4123 100%)',
+      backgroundSize: '200% auto',
+      animation: 'gradientMove 3s linear infinite',
+      padding: '0.75rem 1rem',
+      textAlign: 'center',
+      color: 'white',
+      fontWeight: '800',
+      fontSize: '0.875rem',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: '0.75rem',
+      boxShadow: '0 4px 15px rgba(239, 65, 35, 0.3)',
+      position: 'relative',
+      zIndex: 100,
+      letterSpacing: '0.5px'
+    }}>
+      <Sparkles size={16} className="pulse" />
+      <span style={{ textShadow: '0 2px 4px rgba(0,0,0,0.2)' }}>
+        ORDER 15 MIN EARLY. EAT FRESH.
+      </span>
+      <Zap size={16} className="pulse" />
+      
+      <style>{`
+        @keyframes gradientMove {
+          0% { background-position: 0% center; }
+          100% { background-position: 200% center; }
+        }
+        .pulse {
+          animation: icon-pulse 2s infinite;
+        }
+        @keyframes icon-pulse {
+          0% { transform: scale(1); opacity: 1; }
+          50% { transform: scale(1.2); opacity: 0.8; }
+          100% { transform: scale(1); opacity: 1; }
+        }
+      `}</style>
     </div>
   );
 };
@@ -101,6 +147,7 @@ const Home = () => {
 
   return (
     <div style={{ minHeight: '100vh', position: 'relative' }}>
+      <TopPromoBanner />
       <FloatingBackground />
 
       {/* Hero Section */}
@@ -133,6 +180,21 @@ const Home = () => {
         <h1 className="hero-title" style={{ fontSize: 'clamp(2.5rem, 8vw, 4.5rem)', fontWeight: '900', letterSpacing: '-0.04em', marginBottom: '1.5rem', lineHeight: '1.1' }}>
           Your Campus, <span style={{ color: 'var(--primary)' }}>Digitized.</span>
         </h1>
+        <div style={{ 
+          maxWidth: '500px', 
+          margin: '2rem auto', 
+          padding: '1.5rem', 
+          background: 'rgba(255, 255, 255, 0.7)', 
+          backdropFilter: 'blur(10px)', 
+          borderRadius: '24px', 
+          border: '1px solid rgba(239, 65, 35, 0.15)',
+          boxShadow: '0 15px 35px rgba(239, 65, 35, 0.1)',
+          animation: 'slideUp 0.8s ease-out'
+        }}>
+          <p style={{ color: 'var(--text-primary)', fontSize: '1.1rem', fontWeight: '700', margin: 0 }}>
+             🌟 <span style={{ color: 'var(--primary)' }}>Quick Tip:</span> Order at least 15 minutes ahead to skip the rush and enjoy it piping hot!
+          </p>
+        </div>
         {/* <p style={{ color: 'var(--text-secondary)', fontSize: '1.25rem', maxWidth: '600px', margin: '0 auto', lineHeight: '1.6' }}>
           Browse fresh menus, skip the queue, and pay seamlessly. The smarter way to support your local stalls.
         </p> */}
@@ -206,6 +268,10 @@ const Home = () => {
             .hero-title {
               margin-bottom: 1rem !important;
             }
+          }
+          @keyframes slideUp {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
           }
         `}</style>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3rem' }}>
