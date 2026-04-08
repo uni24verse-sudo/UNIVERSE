@@ -30,7 +30,7 @@ const TopPromoBanner = () => {
       background: 'linear-gradient(90deg, #ef4123 0%, #fcaf17 50%, #ef4123 100%)',
       backgroundSize: '200% auto',
       animation: 'gradientMove 3s linear infinite',
-      padding: '0rem 1rem',
+      padding: '0.75rem 1rem',
       textAlign: 'center',
       color: 'white',
       fontWeight: '800',
