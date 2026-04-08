@@ -95,7 +95,7 @@ const Navbar = ({ bannerVisible }) => {
   return (
     <nav style={{
       position: 'sticky',
-      top: bannerVisible ? '38px' : 0,
+      top: bannerVisible ? '43px' : 0,
       zIndex: 1000,
       background: 'rgba(255, 255, 255, 0.85)',
       backdropFilter: 'blur(12px)',
