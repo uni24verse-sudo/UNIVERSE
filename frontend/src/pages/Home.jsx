@@ -181,19 +181,47 @@ const Home = () => {
           Your Campus, <span style={{ color: 'var(--primary)' }}>Digitized.</span>
         </h1>
         <div style={{ 
-          maxWidth: '500px', 
-          margin: '2rem auto', 
-          padding: '1.5rem', 
-          background: 'rgba(255, 255, 255, 0.7)', 
-          backdropFilter: 'blur(10px)', 
-          borderRadius: '24px', 
-          border: '1px solid rgba(239, 65, 35, 0.15)',
-          boxShadow: '0 15px 35px rgba(239, 65, 35, 0.1)',
-          animation: 'slideUp 0.8s ease-out'
+          maxWidth: '540px', 
+          margin: '2.5rem auto', 
+          padding: '1.25rem 1.5rem', 
+          background: 'rgba(255, 255, 255, 0.4)', 
+          backdropFilter: 'blur(20px)', 
+          borderRadius: '28px', 
+          border: '1px solid rgba(255, 255, 255, 0.5)',
+          boxShadow: '0 20px 40px rgba(0, 0, 0, 0.04), inset 0 0 0 1px rgba(255, 255, 255, 0.4)',
+          animation: 'float 6s ease-in-out infinite, slideUp 0.8s ease-out',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '1.25rem',
+          textAlign: 'left',
+          position: 'relative',
+          overflow: 'hidden'
         }}>
-          <p style={{ color: 'var(--text-primary)', fontSize: '1.1rem', fontWeight: '700', margin: 0 }}>
-             🌟 <span style={{ color: 'var(--primary)' }}>Quick Tip:</span> Order at least 15 minutes ahead to skip the rush and enjoy it piping hot!
-          </p>
+          {/* Accent decoration */}
+          <div style={{ position: 'absolute', top: 0, left: 0, width: '4px', height: '100%', background: 'linear-gradient(to bottom, var(--primary), var(--secondary))' }}></div>
+          
+          <div style={{ 
+            width: '48px', 
+            height: '48px', 
+            borderRadius: '16px', 
+            background: 'linear-gradient(135deg, rgba(239, 65, 35, 0.1) 0%, rgba(252, 175, 23, 0.1) 100%)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+            border: '1px solid rgba(239, 65, 35, 0.2)'
+          }}>
+            <Sparkles size={24} color="var(--primary)" />
+          </div>
+
+          <div style={{ flex: 1 }}>
+             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                <span style={{ fontSize: '0.7rem', fontWeight: '900', letterSpacing: '0.1em', color: 'var(--primary)', textTransform: 'uppercase', background: 'rgba(239, 65, 35, 0.08)', padding: '0.2rem 0.5rem', borderRadius: '6px' }}>Quick Tip</span>
+             </div>
+             <p style={{ color: 'var(--text-primary)', fontSize: '1rem', fontWeight: '600', margin: 0, lineHeight: '1.4' }}>
+                Order <span style={{ color: 'var(--primary)' }}>15 mins</span> ahead to skip the rush and enjoy it piping hot!
+             </p>
+          </div>
         </div>
         {/* <p style={{ color: 'var(--text-secondary)', fontSize: '1.25rem', maxWidth: '600px', margin: '0 auto', lineHeight: '1.6' }}>
           Browse fresh menus, skip the queue, and pay seamlessly. The smarter way to support your local stalls.
@@ -272,6 +300,11 @@ const Home = () => {
           @keyframes slideUp {
             from { transform: translateY(20px); opacity: 0; }
             to { transform: translateY(0); opacity: 1; }
+          }
+          @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0px); }
           }
         `}</style>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3rem' }}>
