@@ -370,7 +370,7 @@ const Dashboard = () => {
     let filtered;
     switch (orderFilter) {
       case 'Active':
-        filtered = orders.filter(o => o.status === 'Pending' || o.status === 'Confirmed');
+        filtered = orders.filter(o => o.status === 'Pending' || o.status === 'Confirmed' || o.status === 'Ready');
         break;
       case 'Pending':
         filtered = orders.filter(o => o.status === 'Pending');
@@ -411,6 +411,7 @@ const Dashboard = () => {
     switch (status) {
       case 'Pending': return '#f59e0b';
       case 'Confirmed': return '#3b82f6';
+      case 'Ready': return '#8b5cf6'; // Indigo for Ready
       case 'Completed': return '#10b981';
       case 'Cancelled': return '#ef4444';
       default: return '#94a3b8';
@@ -888,7 +889,12 @@ const Dashboard = () => {
                                <CountdownTimer deadline={order.acceptDeadline} onAccept={() => updateOrderStatus(order._id, 'Confirmed')} />
                              )}
                              {order.status === 'Confirmed' && (
-                               <button onClick={() => updateOrderStatus(order._id, 'Completed')} className="btn btn-secondary" style={{ flex: 1, padding: '0.75rem', borderRadius: '12px', fontSize: '0.875rem', background: 'var(--secondary)', color: 'white' }}>Mark Ready</button>
+                               <button onClick={() => updateOrderStatus(order._id, 'Ready')} className="btn btn-secondary" style={{ flex: 1, padding: '0.75rem', borderRadius: '12px', fontSize: '0.875rem', background: '#3b82f6', color: 'white' }}>Mark Ready</button>
+                             )}
+                             {order.status === 'Ready' && (
+                               <div style={{ flex: 1, textAlign: 'center', padding: '0.75rem', borderRadius: '12px', background: 'rgba(139, 92, 246, 0.1)', color: '#8b5cf6', fontSize: '0.875rem', fontWeight: '800', border: '1px dashed #8b5cf6' }}>
+                                 Waiting for QR Scan
+                               </div>
                              )}
                              <button onClick={() => updateOrderStatus(order._id, 'Cancelled')} style={{ padding: '0.75rem 1.25rem', borderRadius: '12px', border: '1px solid rgba(239, 68, 68, 0.2)', background: 'transparent', color: 'var(--error)', fontSize: '0.875rem' }}>Cancel</button>
                           </div>

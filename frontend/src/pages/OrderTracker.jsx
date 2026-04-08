@@ -86,7 +86,8 @@ const OrderTracker = () => {
   const statusSteps = [
     { label: 'Pending', icon: Clock, color: '#f59e0b', desc: 'Vendor is reviewing your order' },
     { label: 'Confirmed', icon: ChefHat, color: '#3b82f6', desc: 'Great! Your order is being prepared' },
-    { label: 'Completed', icon: PackageCheck, color: '#10b981', desc: 'Your order is ready! Please collect it' }
+    { label: 'Ready', icon: PackageCheck, color: '#8b5cf6', desc: 'Order is ready for collection!' },
+    { label: 'Completed', icon: CheckCircle2, color: '#10b981', desc: 'Order handed over successfully' }
   ];
 
   const currentStepIndex = order ? statusSteps.findIndex(s => s.label === order.status) : -1;
@@ -257,7 +258,7 @@ const OrderTracker = () => {
         )}
 
         {/* Handover QR Code Section */}
-        {(order.status === 'Confirmed' || order.status === 'Completed') && (
+        {(order.status === 'Ready' || order.status === 'Completed') && (
           <div style={{ 
             background: 'white', 
             padding: '2rem', 
