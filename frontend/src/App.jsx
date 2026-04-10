@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { SocketProvider } from './context/SocketContext';
 import Login from './pages/Login';
@@ -69,6 +69,42 @@ const TopPromoBanner = () => {
   );
 };
 
+const AppLayout = () => {
+  const location = useLocation();
+  const isAdminPath = location.pathname.startsWith('/vendor') || location.pathname.startsWith('/super-admin');
+
+  return (
+    <div className="app-container" style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+      {!isAdminPath && <TopPromoBanner />}
+      <Navbar bannerVisible={!isAdminPath} />
+      <RecentOrders />
+      <NotificationsToast />
+      <FloatingCart />
+      <div style={{ flex: 1 }}>
+        <React.Suspense fallback={<div className="auth-wrapper"><div className="pulse-container"><div className="pulse-dot"></div></div></div>}>
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/vendor/login" element={<Login />} />
+            <Route path="/vendor/register" element={<Register />} />
+            <Route path="/vendor/dashboard" element={<Dashboard />} />
+            <Route path="/vendor/store/create" element={<CreateStore />} />
+            <Route path="/vendor/store/manage" element={<ManageStore />} />
+            <Route path="/super-admin/login" element={<SuperAdminLogin />} />
+            <Route path="/super-admin/panel" element={<SuperAdminPanel />} />
+            <Route path="/store/:id" element={<StoreMenu />} />
+            <Route path="/cart" element={<Cart />} />
+            <Route path="/order-tracker/:id" element={<OrderTracker />} />
+            <Route path="/terms" element={<TermsAndConditions />} />
+            <Route path="/privacy" element={<PrivacyPolicy />} />
+            <Route path="*" element={<Navigate to="/" />} />
+          </Routes>
+        </React.Suspense>
+      </div>
+      <Footer />
+    </div>
+  );
+};
+
 function App() {
   return (
     <AuthProvider>
@@ -76,34 +112,7 @@ function App() {
       <SocketProvider>
         <CartProvider>
           <Router>
-            <div className="app-container" style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-              <TopPromoBanner />
-              <Navbar bannerVisible={true} />
-              <RecentOrders />
-              <NotificationsToast />
-              <FloatingCart />
-              <div style={{ flex: 1 }}>
-                <React.Suspense fallback={<div className="auth-wrapper"><div className="pulse-container"><div className="pulse-dot"></div></div></div>}>
-                  <Routes>
-                    <Route path="/" element={<Home />} />
-                    <Route path="/vendor/login" element={<Login />} />
-                    <Route path="/vendor/register" element={<Register />} />
-                    <Route path="/vendor/dashboard" element={<Dashboard />} />
-                    <Route path="/vendor/store/create" element={<CreateStore />} />
-                    <Route path="/vendor/store/manage" element={<ManageStore />} />
-                    <Route path="/super-admin/login" element={<SuperAdminLogin />} />
-                    <Route path="/super-admin/panel" element={<SuperAdminPanel />} />
-                    <Route path="/store/:id" element={<StoreMenu />} />
-                    <Route path="/cart" element={<Cart />} />
-                    <Route path="/order-tracker/:id" element={<OrderTracker />} />
-                    <Route path="/terms" element={<TermsAndConditions />} />
-                    <Route path="/privacy" element={<PrivacyPolicy />} />
-                    <Route path="*" element={<Navigate to="/" />} />
-                  </Routes>
-                </React.Suspense>
-              </div>
-              <Footer />
-            </div>
+            <AppLayout />
           </Router>
         </CartProvider>
       </SocketProvider>
