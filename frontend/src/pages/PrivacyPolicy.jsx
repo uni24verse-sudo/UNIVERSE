@@ -62,7 +62,7 @@ const PrivacyPolicy = () => {
           </div>
           
           <h1 style={{ fontSize: '3rem', fontWeight: '900', marginBottom: '0.75rem', letterSpacing: '-0.03em', color: 'var(--text-primary)' }}>Privacy Policy</h1>
-          <p style={{ color: 'var(--text-secondary)', fontWeight: '600' }}>Last Updated: April 2026</p>
+          <p style={{ color: 'var(--text-secondary)', fontWeight: '600' }}>Last Updated: April 10, 2026</p>
         </div>
 
         {/* Content Card */}
@@ -135,9 +135,9 @@ const PrivacyPolicy = () => {
               When you make a payment on the Platform, the following data is collected and processed:
             </p>
             <ul style={{ paddingLeft: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              <li>Transaction ID and payment reference numbers from our payment gateway partner (Razorpay).</li>
               <li>Order details including items, quantities, total amount, order type (Dine In / Take Away), and store information.</li>
-              <li>Customer name and phone number provided at checkout for order identification and communication.</li>
+              <li>Customer name and phone number provided at checkout for order identification and system-wide tracking.</li>
+              <li><strong>Privacy Protocol:</strong> Customer personal details (Name and Phone) are isolated from vendors and are never shared with or displayed on vendor-facing dashboards or alerts.</li>
               <li>Payment status and confirmation data for order fulfillment and dispute resolution.</li>
             </ul>
             <p style={{ marginTop: '1rem' }}>
@@ -161,9 +161,13 @@ const PrivacyPolicy = () => {
             </p>
           </div>
 
-          <h2 style={{ color: 'var(--text-primary)', fontSize: '1.5rem', fontWeight: '800', marginBottom: '1.25rem' }}>8. Vendor Financial Data</h2>
           <p style={{ marginBottom: '2.5rem' }}>
             For vendors operating on the Platform, we collect and process additional financial data including UPI IDs for settlement, monthly revenue figures, commission calculations, gateway fees, cancellation penalties, and settlement history. This data is shared with our payment partners solely for the purpose of processing vendor payouts and is not disclosed to any third party.
+          </p>
+          
+          <h2 style={{ color: 'var(--text-primary)', fontSize: '1.5rem', fontWeight: '800', marginBottom: '1.25rem' }}>9. Vendor Data Isolation</h2>
+          <p style={{ marginBottom: '2.5rem' }}>
+            Universe enforces strict data isolation between customers and vendors. To protect your privacy, we ensure that vendors only receive essential order data (items, order number, and amount) required for fulfillment. Personal identifiers including customer names and phone numbers are strictly withheld from vendor dashboards, Telegram alerts, and all other vendor-facing communication channels.
           </p>
 
           <div style={{ 

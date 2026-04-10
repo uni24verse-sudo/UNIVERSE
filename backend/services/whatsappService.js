@@ -63,7 +63,6 @@ class WhatsAppService {
       `New Order *#${order.orderNumber}* received.\n` +
       `📦 *Items Ordered:*\n${itemList}\n\n` +
       `💰 Amount: ₹${order.totalAmount}\n` +
-      `👤 Customer: ${order.customerName || 'Customer'}\n` +
       `🏪 Store: ${order.store?.name || 'Your Store'}\n\n` +
       `👉 View: https://www.universeorder.co.in/vendor/dashboard`;
 

@@ -104,7 +104,7 @@ const NotificationsToast = () => {
           id: `order-${id}`,
           type: 'new_order',
           title: 'New Order Received!',
-          message: `Order #${orderData.orderNumber} from ${orderData.customerName || 'Customer'}`,
+          message: `Order #${orderData.orderNumber} received.`,
           data: orderData,
           actions: ['accept', 'reject', 'view']
         };

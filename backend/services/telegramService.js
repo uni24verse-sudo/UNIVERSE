@@ -66,8 +66,6 @@ class TelegramService {
       `${orderTypeEmoji} <b>Order Type: ${orderTypeLabel}</b>\n\n` +
       `📦 <b>Items Ordered:</b>\n${itemList}\n\n` +
       `💰 Amount: <b>₹${order.totalAmount}</b>\n` +
-      `👤 Customer: ${order.customerName || 'Customer'}\n` +
-      `📞 Phone: <b>${order.customerPhone || 'N/A'}</b>\n` +
       `🏪 Store: ${store?.name || 'Your Store'}\n\n` +
       `👉 <b><a href="https://www.universeorder.co.in/vendor/dashboard">Open Dashboard</a></b>`;
     const botToken = store?.telegramBotToken || null;

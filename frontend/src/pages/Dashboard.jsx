@@ -885,7 +885,6 @@ const Dashboard = () => {
                             </div>
                             <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>
                               {getTimeAgo(order.createdAt)} • {order.items.length} Items
-                              {order.customerName && <span style={{ color: 'var(--primary)', fontWeight: '700' }}> • {order.customerName}</span>}
                             </p>
                           </div>
                           
