@@ -56,7 +56,18 @@ class TelegramService {
       return;
     }
  
-    const itemList = order.items?.map(item => `• ${item.name} <b>(x${item.quantity})</b>`).join('\n') || '';
+    const itemList = order.items?.map(item => {
+      let text = `• ${item.name} <b>(x${item.quantity})</b>`;
+      if (item.isCombo) {
+        if (item.comboItems?.length > 0) {
+          text += item.comboItems.map(ci => `\n  - ${ci.quantity} ${ci.name}`).join('');
+        }
+        if (item.freeItems?.length > 0) {
+          text += item.freeItems.map(fi => `\n  + Free ${fi.quantity} ${fi.name}`).join('');
+        }
+      }
+      return text;
+    }).join('\n') || '';
 
     const orderTypeEmoji = order.orderType === 'Take Away' ? '🛍️' : '🍽️';
     const orderTypeLabel = order.orderType || 'Dine In';

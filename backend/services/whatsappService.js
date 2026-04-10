@@ -57,7 +57,18 @@ class WhatsAppService {
       return;
     }
 
-    const itemList = order.items?.map(item => `• ${item.name} *(x${item.quantity})*`).join('\n') || 'No items listed';
+    const itemList = order.items?.map(item => {
+      let text = `• ${item.name} *(x${item.quantity})*`;
+      if (item.isCombo) {
+        if (item.comboItems?.length > 0) {
+          text += item.comboItems.map(ci => `\n  - ${ci.quantity} ${ci.name}`).join('');
+        }
+        if (item.freeItems?.length > 0) {
+          text += item.freeItems.map(fi => `\n  + Free ${fi.quantity} ${fi.name}`).join('');
+        }
+      }
+      return text;
+    }).join('\n') || 'No items listed';
 
     const message = `🔔 *UniVerse Order Alert!*\n\n` +
       `New Order *#${order.orderNumber}* received.\n` +

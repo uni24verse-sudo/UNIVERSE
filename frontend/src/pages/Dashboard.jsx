@@ -900,6 +900,16 @@ const Dashboard = () => {
                                 <span style={{ fontWeight: '700' }}>{item.quantity}x {item.name} {item.variant && `(${item.variant})`}</span>
                                 <span style={{ color: 'var(--text-secondary)' }}>₹{item.price * item.quantity}</span>
                               </div>
+                              {item.isCombo && (
+                                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', paddingLeft: '1rem', marginTop: '0.2rem', borderLeft: '2px solid var(--surface-border)', marginLeft: '0.25rem' }}>
+                                  {item.comboItems?.map((ci, cidx) => (
+                                    <div key={cidx}>• {ci.quantity} {ci.name}</div>
+                                  ))}
+                                  {item.freeItems?.map((fi, fidx) => (
+                                    <div key={fidx} style={{ color: '#10b981' }}>+ Free {fi.quantity} {fi.name}</div>
+                                  ))}
+                                </div>
+                              )}
                             </div>
                           ))}
                         </div>
