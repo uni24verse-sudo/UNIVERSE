@@ -26,45 +26,28 @@ import { Sparkles, Zap } from 'lucide-react';
 
 const TopPromoBanner = () => {
   return (
-    <div style={{
-      background: 'linear-gradient(90deg, #ef4123 0%, #fcaf17 50%, #ef4123 100%)',
-      backgroundSize: '200% auto',
-      animation: 'gradientMove 3s linear infinite',
-      padding: '1rem',
+    <div className="promo-banner" style={{
+      padding: '0.75rem 1rem',
       textAlign: 'center',
       color: 'white',
       fontWeight: '800',
-      fontSize: '0.875rem',
+      fontSize: '0.8125rem',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
       gap: '0.75rem',
-      boxShadow: '0 4px 15px rgba(239, 65, 35, 0.3)',
+      boxShadow: '0 4px 15px rgba(239, 65, 35, 0.25)',
       position: 'sticky',
       top: 0,
       zIndex: 1100,
-      letterSpacing: '0.5px'
+      letterSpacing: '0.05em',
+      textTransform: 'uppercase'
     }}>
-      <Sparkles size={16} className="pulse" />
-      <span style={{ textShadow: '0 2px 4px rgba(0,0,0,0.2)' }}>
+      <Sparkles size={14} className="pulse" />
+      <span style={{ textShadow: '0 2px 4px rgba(0,0,0,0.15)' }}>
         ORDER 15 MIN EARLY. EAT FRESH.
       </span>
-      <Zap size={16} className="pulse" />
-      
-      <style>{`
-        @keyframes gradientMove {
-          0% { background-position: 0% center; }
-          100% { background-position: 200% center; }
-        }
-        .pulse {
-          animation: icon-pulse 2s infinite;
-        }
-        @keyframes icon-pulse {
-          0% { transform: scale(1); opacity: 1; }
-          50% { transform: scale(1.2); opacity: 0.8; }
-          100% { transform: scale(1); opacity: 1; }
-        }
-      `}</style>
+      <Zap size={14} className="pulse" />
     </div>
   );
 };
@@ -81,7 +64,31 @@ const AppLayout = () => {
       <NotificationsToast />
       <FloatingCart />
       <div style={{ flex: 1 }}>
-        <React.Suspense fallback={<div className="auth-wrapper"><div className="pulse-container"><div className="pulse-dot"></div></div></div>}>
+        <React.Suspense fallback={
+          <div className="auth-wrapper">
+            <div style={{ width: '100%', maxWidth: '800px', padding: '2rem' }}>
+              <div className="skeleton skeleton-title" style={{ marginBottom: '2rem' }}></div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                <div className="skeleton-card-wrapper">
+                  <div className="skeleton skeleton-img" style={{ height: '120px', width: '120px' }}></div>
+                  <div style={{ flex: 1 }}>
+                    <div className="skeleton skeleton-text" style={{ width: '30%', marginBottom: '1rem' }}></div>
+                    <div className="skeleton skeleton-text" style={{ width: '60%', marginBottom: '1rem' }}></div>
+                    <div className="skeleton skeleton-text" style={{ width: '100%', height: '40px' }}></div>
+                  </div>
+                </div>
+                <div className="skeleton-card-wrapper">
+                  <div className="skeleton skeleton-img" style={{ height: '120px', width: '120px' }}></div>
+                  <div style={{ flex: 1 }}>
+                    <div className="skeleton skeleton-text" style={{ width: '30%', marginBottom: '1rem' }}></div>
+                    <div className="skeleton skeleton-text" style={{ width: '60%', marginBottom: '1rem' }}></div>
+                    <div className="skeleton skeleton-text" style={{ width: '100%', height: '40px' }}></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        }>
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/vendor/login" element={<Login />} />

@@ -67,95 +67,76 @@ const StoreMenu = () => {
   return (
     <div style={{ minHeight: '100vh', paddingBottom: '120px' }}>
       {/* Banner Image */}
-      <div style={{ position: 'relative', height: '240px', width: '100%', overflow: 'hidden' }}>
+      <div className="store-banner-wrapper">
         <img 
           src={getImageUrl(store.image)} 
           alt={store.name} 
-          style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+          className="store-banner-img"
+          loading="lazy"
         />
-        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(249, 250, 251, 0.2) 0%, rgba(249, 250, 251, 1) 100%)' }}></div>
+        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(249, 250, 251, 0) 0%, rgba(251, 251, 251, 1) 100%)' }}></div>
       </div>
 
-      {/* Store Info Subheader */}
-      <div style={{ 
-        position: 'relative', 
-        zIndex: 90, 
-        background: 'rgba(255, 255, 255, 0.85)', 
-        backdropFilter: 'blur(20px)',
-        borderBottom: '1px solid var(--surface-border)',
-        padding: '1rem',
-        marginTop: '-40px'
-      }}>
-        <div style={{ maxWidth: '800px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <button onClick={() => navigate(-1)} style={{ background: '#ffffff', border: '1px solid var(--surface-border)', color: 'var(--text-primary)', padding: '0.6rem', borderRadius: '12px', cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
+      {/* Store Info Subheader - Sticky */}
+      <div className="store-header-sticky">
+        <div style={{ maxWidth: '800px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem 1rem' }}>
+          <button onClick={() => navigate(-1)} style={{ background: '#ffffff', border: '1px solid var(--surface-border)', color: 'var(--text-primary)', padding: '0.5rem', borderRadius: '12px', cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,0.04)', display: 'flex', alignItems: 'center' }}>
             <ArrowLeft size={18} />
           </button>
           
           <div style={{ textAlign: 'center', flex: 1 }}>
-            <h1 style={{ fontSize: '1.25rem', margin: 0, fontWeight: '800', color: 'var(--text-primary)' }}>{store.name}</h1>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', justifyContent: 'center', fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.4rem', fontWeight: '600' }}>
+            <h1 style={{ fontSize: '1.125rem', margin: 0, fontWeight: '800', color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>{store.name}</h1>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', justifyContent: 'center', fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.25rem', fontWeight: '600' }}>
               <span><Clock size={12} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px' }} />20-30 mins</span>
-              <span style={{ opacity: 0.5 }}>•</span>
-              <span style={{ color: 'var(--primary)', fontWeight: '800', padding: '0.2rem 0.6rem', background: 'rgba(239, 65, 35, 0.08)', borderRadius: '100px' }}>{store.market || 'BH1 Market'}</span>
+              <span style={{ opacity: 0.3 }}>•</span>
+              <span style={{ color: 'var(--primary)', fontWeight: '800' }}>{store.market || 'BH1 Market'}</span>
             </div>
           </div>
-          <div style={{ width: '42px' }}></div> {/* Spacer for symmetry */}
+          <div style={{ width: '38px' }}></div> {/* Spacer for symmetry */}
         </div>
       </div>
 
       <div style={{ padding: '2rem 1rem', maxWidth: '800px', margin: '0 auto' }}>
         {/* Store Banner/Info */}
-        <div className="glass-card" style={{ padding: '1.5rem', marginBottom: '2.5rem', borderRadius: '24px' }}>
+        <div className="glass-card animate-fade-in-up" style={{ padding: '1.5rem', marginBottom: '2rem', borderRadius: '24px' }}>
            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div>
-                <h2 style={{ margin: '0 0 0.5rem 0', fontSize: '1.75rem' }}>Menu</h2>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', margin: 0 }}>Discover delicious items from {store.name}</p>
+                <h2 style={{ margin: '0 0 0.5rem 0', fontSize: '1.5rem', letterSpacing: '-0.02em' }}>Menu</h2>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.8125rem', margin: 0 }}>Fresh from {store.name}</p>
               </div>
               {store.isOpen === false && (
                 <div style={{ 
-                  background: 'rgba(239, 68, 68, 0.1)', 
+                  background: 'rgba(239, 68, 68, 0.08)', 
                   color: 'var(--error)', 
-                  fontSize: '0.7rem', 
+                  fontSize: '0.625rem', 
                   padding: '0.4rem 0.8rem', 
                   borderRadius: '99px', 
                   fontWeight: '800',
-                  border: '1px solid rgba(239, 68, 68, 0.2)'
+                  border: '1px solid rgba(239, 68, 68, 0.15)',
+                  letterSpacing: '0.05em'
                 }}>OFFLINE</div>
               )}
            </div>
         </div>
 
         {/* Local Store Search Bar */}
-        <div style={{ marginBottom: '1.5rem', position: 'relative' }}>
-          <div style={{ position: 'absolute', top: '50%', left: '1.25rem', transform: 'translateY(-50%)', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center' }}>
-            <Search size={20} />
+        <div style={{ marginBottom: '1.5rem', position: 'relative' }} className="animate-fade-in-up">
+          <div style={{ position: 'absolute', top: '50%', left: '1.25rem', transform: 'translateY(-50%)', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', opacity: 0.6 }}>
+            <Search size={18} />
           </div>
           <input 
             type="text" 
-            placeholder={`Search ${store.name}'s menu...`} 
+            placeholder={`Search menu...`} 
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
+            className="form-input"
             style={{ 
-              width: '100%', 
-              padding: '1.25rem 1.25rem 1.25rem 3.5rem', 
-              borderRadius: '100px', 
-              background: '#ffffff', 
-              border: '1px solid var(--surface-border)', 
-              color: 'var(--text-primary)', 
-              fontSize: '1rem',
-              fontWeight: '500',
-              outline: 'none',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.03)',
-              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+              borderRadius: '100px',
+              paddingLeft: '3.25rem',
+              height: '52px',
+              background: '#ffffff',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.02)'
             }} 
-            onFocus={(e) => {
-               e.target.style.borderColor = 'var(--primary)';
-               e.target.style.boxShadow = '0 10px 30px rgba(239, 65, 35, 0.1)';
-            }}
-            onBlur={(e) => {
-               e.target.style.borderColor = 'var(--surface-border)';
-               e.target.style.boxShadow = '0 4px 12px rgba(0,0,0,0.03)';
-            }}
           />
           {searchQuery && (
             <button 
@@ -167,37 +148,20 @@ const StoreMenu = () => {
           )}
         </div>
 
-        {/* Category Navigation */}
-        <div style={{ 
-          display: 'flex', 
-          gap: '0.5rem', 
-          overflowX: 'auto', 
-          paddingBottom: '1.5rem', 
-          marginBottom: '1rem',
-          scrollbarWidth: 'none',
-          msOverflowStyle: 'none',
+        {/* Category Navigation - Sticky */}
+        <div className="category-nav-wrapper animate-fade-in-up" style={{ 
           position: 'sticky',
-          top: '80px',
-          zIndex: 90
-        }} className="hide-scrollbar">
+          top: '70px',
+          zIndex: 900,
+          background: 'var(--background)',
+          margin: '0 -1rem 1rem -1rem',
+          padding: '0.75rem 1rem'
+        }}>
           {categories.map(cat => (
             <button
               key={cat}
               onClick={() => setActiveCategory(cat)}
-              style={{
-                padding: '0.75rem 1.5rem',
-                borderRadius: '16px',
-                border: '1px solid',
-                borderColor: activeCategory === cat ? 'var(--primary)' : 'var(--surface-border)',
-                whiteSpace: 'nowrap',
-                fontSize: '0.875rem',
-                fontWeight: '600',
-                cursor: 'pointer',
-                background: activeCategory === cat ? 'var(--primary)' : '#ffffff',
-                color: activeCategory === cat ? 'white' : 'var(--text-secondary)',
-                transition: 'var(--transition)',
-                boxShadow: activeCategory === cat ? '0 10px 20px rgba(239, 65, 35, 0.2)' : 'none'
-              }}
+              className={`category-btn ${activeCategory === cat ? 'active' : ''}`}
             >
               {cat}
             </button>
@@ -222,11 +186,12 @@ const StoreMenu = () => {
         <div className="store-menu-grid" style={{ 
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fill, minmax(100%, 1fr))',
-          gap: '1.5rem'
+          gap: '1.25rem'
         }}>
           {activeCategory === 'All' && comboExists && !searchQuery && (
             <div 
               onClick={() => setActiveCategory('Combos')}
+              className="animate-fade-in-up"
               style={{ 
                 gridColumn: '1 / -1', 
                 background: 'linear-gradient(135deg, rgba(239, 65, 35, 0.08) 0%, rgba(255,255,255,1) 100%)',
@@ -241,165 +206,121 @@ const StoreMenu = () => {
                 overflow: 'hidden',
                 position: 'relative'
               }}
-              onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
+              onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.01)'}
               onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
             >
               <div style={{ position: 'relative', zIndex: 1 }}>
-                <h4 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '0.6rem', color: 'var(--text-primary)' }}>
+                <h4 style={{ margin: 0, fontSize: '1.125rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '0.6rem', color: 'var(--text-primary)' }}>
                   🎁 Meal Bundles & Combos
                 </h4>
-                <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Save more with our curated combo deals!</p>
+                <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>Save more with our curated combo deals!</p>
               </div>
               <div style={{ 
                 background: 'var(--primary)', 
                 color: 'white', 
                 padding: '0.6rem 1.25rem', 
-                borderRadius: '12px', 
+                borderRadius: '100px', 
                 fontWeight: '800', 
-                fontSize: '0.875rem',
-                boxShadow: '0 8px 20px rgba(239, 65, 35, 0.3)' 
+                fontSize: '0.75rem',
+                boxShadow: '0 8px 20px rgba(239, 65, 35, 0.2)' 
               }}>
                 VIEW ALL &rarr;
               </div>
-              <div style={{ position: 'absolute', right: '-20px', top: '-10px', fontSize: '5rem', opacity: 0.1, pointerEvents: 'none' }}>🎁</div>
             </div>
           )}
 
-          {filteredProducts.map(product => {
+          {filteredProducts.map((product, idx) => {
             const isUnavailable = product.isAvailable === false;
             return (
-              <div key={product._id} style={{ 
-                display: 'flex', 
-                padding: '1.5rem',
-                gap: '1.5rem',
-                borderRadius: '28px',
-                background: '#ffffff',
-                border: '1px solid rgba(0,0,0,0.05)',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.03)',
-                backdropFilter: 'blur(20px)',
-                opacity: isUnavailable ? 0.6 : 1,
-                filter: isUnavailable ? 'grayscale(1)' : 'none',
-                pointerEvents: isUnavailable ? 'none' : 'auto',
-                position: 'relative',
-                overflow: 'hidden',
-                transition: 'transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.4s cubic-bezier(0.4, 0, 0.2, 1)'
-              }}
-              onMouseEnter={(e) => {
-                if (!isUnavailable) {
-                  e.currentTarget.style.transform = 'translateY(-6px)';
-                  e.currentTarget.style.boxShadow = '0 20px 40px rgba(0,0,0,0.08)';
-                  e.currentTarget.style.borderColor = 'rgba(239, 65, 35, 0.1)';
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!isUnavailable) {
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.03)';
-                  e.currentTarget.style.borderColor = 'rgba(0,0,0,0.05)';
-                }
-              }}>
+              <div 
+                key={product._id} 
+                className="product-card animate-fade-in-up"
+                style={{ 
+                  animationDelay: `${idx * 0.05}s`,
+                  opacity: isUnavailable ? 0.6 : 1,
+                  filter: isUnavailable ? 'grayscale(0.8)' : 'none',
+                  pointerEvents: isUnavailable ? 'none' : 'auto',
+                }}
+              >
                 {isUnavailable && (
                    <div style={{
                      position: 'absolute',
-                     top: '50%',
-                     left: '50%',
-                     transform: 'translate(-50%, -50%) rotate(-15deg)',
-                     background: '#ef4444',
+                     top: '20px',
+                     right: '-35px',
+                     transform: 'rotate(45deg)',
+                     background: '#64748b',
                      color: 'white',
-                     padding: '0.4rem 1.2rem',
-                     borderRadius: '8px',
+                     padding: '0.25rem 3rem',
                      fontWeight: '900',
-                     fontSize: '0.75rem',
+                     fontSize: '0.625rem',
                      zIndex: 10,
-                     boxShadow: '0 4px 15px rgba(0,0,0,0.3)',
-                     border: '2px solid white',
-                     whiteSpace: 'nowrap'
-                   }}>OUT OF STOCK</div>
+                     letterSpacing: '0.1em'
+                   }}>SOLD OUT</div>
                 )}
                 <div style={{ flex: 1 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                    <div style={{ width: '12px', height: '12px', border: `1px solid ${isUnavailable ? '#94a3b8' : '#10b981'}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: isUnavailable ? '#94a3b8' : '#10b981' }}></div>
-                    </div>
-                    <span style={{ fontSize: '0.75rem', color: isUnavailable ? 'var(--text-secondary)' : 'var(--secondary)', fontWeight: '600' }}>{product.category || 'Special'}</span>
-                    {product.isCombo && <span style={{ fontSize: '0.65rem', padding: '0.15rem 0.5rem', background: 'rgba(239, 68, 68, 0.1)', color: 'var(--error)', borderRadius: '6px', fontWeight: '800', marginLeft: 'auto' }}>🎁 COMBO DEAL</span>}
+                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: isUnavailable ? '#94a3b8' : '#10b981' }}></div>
+                    <span style={{ fontSize: '0.6875rem', color: 'var(--text-secondary)', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{product.category || 'Special'}</span>
                   </div>
-                  <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.25rem', fontWeight: '700' }}>{product.name}</h3>
+                  <h3 style={{ margin: '0 0 0.25rem 0', fontSize: '1.125rem', fontWeight: '700' }}>{product.name}</h3>
+                  
                   {product.variants && product.variants.length > 0 ? (
-                    <p style={{ fontWeight: '700', fontSize: '1.125rem', marginBottom: product.isCombo ? '0.5rem' : '1rem', color: 'var(--text-secondary)' }}>From ₹{Math.min(...product.variants.map(v => v.price))}</p>
+                    <p style={{ fontWeight: '800', fontSize: '1.125rem', marginBottom: '0.75rem', color: 'var(--text-primary)' }}>₹{Math.min(...product.variants.map(v => v.price))}+</p>
                   ) : (
-                    <p style={{ fontWeight: '700', fontSize: '1.125rem', marginBottom: product.isCombo ? '0.5rem' : '1rem' }}>₹{product.price}</p>
+                    <p style={{ fontWeight: '800', fontSize: '1.125rem', marginBottom: '0.75rem', color: 'var(--text-primary)' }}>₹{product.price}</p>
                   )}
                   
-                  {product.isCombo && (
-                    <div style={{ marginBottom: '1rem', background: '#f8fafc', padding: '0.75rem', borderRadius: '12px', border: '1px solid var(--surface-border)' }}>
+                  {product.isCombo ? (
+                    <div style={{ marginBottom: '1rem', background: 'rgba(15, 23, 42, 0.02)', padding: '0.75rem', borderRadius: '12px', border: '1px solid var(--surface-border)' }}>
                       {product.comboItems && product.comboItems.length > 0 && (
-                        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                          <span style={{ color: 'var(--text-primary)', fontWeight: '600', display: 'block', marginBottom: '0.25rem' }}>Includes:</span>
-                          {product.comboItems.map((ci, idx) => (
-                            <div key={idx} style={{ marginBottom: '0.2rem' }}>• {ci.quantity} {ci.name}</div>
-                          ))}
-                        </div>
-                      )}
-                      {product.freeItems && product.freeItems.length > 0 && (
-                        <div style={{ fontSize: '0.8rem', color: '#10b981', marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid rgba(16, 185, 129, 0.2)' }}>
-                          <span style={{ fontWeight: '700', display: 'block', marginBottom: '0.25rem' }}>+ Free:</span>
-                          {product.freeItems.map((fi, idx) => (
-                            <div key={idx} style={{ marginBottom: '0.2rem' }}>• {fi.quantity} {fi.name}</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                          {product.comboItems.map((ci, k) => (
+                            <div key={k} style={{ marginBottom: '0.2rem' }}>• {ci.quantity} {ci.name}</div>
                           ))}
                         </div>
                       )}
                     </div>
-                  )}
-                  
-                  {!product.isCombo && (
-                    <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: '1rem' }}>
+                  ) : (
+                    <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: '1rem', display: '-webkit-box', WebkitLineClamp: '2', WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                       Authentic flavor prepared with fresh ingredients. A favorite among locals.
                     </p>
                   )}
                 </div>
 
-                <div style={{ width: '120px', position: 'relative', flexShrink: 0 }}>
+                <div className="product-img-container">
                   {product.image ? (
                     <img 
                       src={product.image} 
                       alt={product.name} 
-                      style={{ width: '120px', height: '120px', objectFit: 'cover', borderRadius: '16px', background: '#f3f4f6' }}
+                      className="product-img"
+                      loading="lazy"
                       onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} 
                     />
                   ) : null}
                   <div style={{ 
                     display: product.image ? 'none' : 'flex', 
-                    width: '120px', 
-                    height: '120px', 
-                    background: '#f3f4f6', 
-                    borderRadius: '16px', 
+                    width: '100%', 
+                    height: '100%', 
                     alignItems: 'center', 
                     justifyContent: 'center',
                     fontSize: '2rem'
                   }}>🍲</div>
 
-                  <div style={{ position: 'absolute', bottom: '-10px', left: '50%', transform: 'translateX(-50%)', width: '90%' }}>
+                  <div style={{ position: 'absolute', bottom: '8px', left: '50%', transform: 'translateX(-50%)', width: '85%' }}>
                     <button 
                       className="btn btn-primary" 
                       onClick={() => handleAddToCartClick(product)}
                       disabled={isUnavailable || storeClosed}
                       style={{ 
-                        padding: '0.6rem', 
-                        height: '42px', 
-                        fontSize: '0.85rem', 
+                        padding: '0.4rem', 
+                        height: '36px', 
+                        fontSize: '0.75rem', 
                         fontWeight: '800',
-                        letterSpacing: '0.5px',
-                        boxShadow: (isUnavailable || storeClosed) ? 'none' : '0 8px 25px rgba(239, 65, 35, 0.3)',
-                        borderRadius: '12px',
-                        background: (isUnavailable || storeClosed) ? '#f1f5f9' : 'var(--primary)',
-                        color: (isUnavailable || storeClosed) ? 'var(--text-secondary)' : 'white',
-                        border: 'none',
-                        transition: 'all 0.3s ease',
-                        cursor: (isUnavailable || storeClosed) ? 'not-allowed' : 'pointer'
+                        borderRadius: '100px',
+                        boxShadow: (isUnavailable || storeClosed) ? 'none' : '0 4px 12px var(--primary-shadow)'
                       }}
                     >
-                      {storeClosed ? '🔒 CLOSED' : isUnavailable ? 'SOLD OUT' : (product.variants && product.variants.length > 0 ? 'OPTIONS +' : <><Plus size={14} /> ADD</>)}
+                      {storeClosed ? 'CLOSED' : isUnavailable ? 'SOLD' : (product.variants && product.variants.length > 0 ? 'FIX +' : <><Plus size={12} /> ADD</>)}
                     </button>
                   </div>
                 </div>
@@ -413,28 +334,48 @@ const StoreMenu = () => {
 
       {/* Variant Selection Modal */}
       {showVariantModal && selectedProduct && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)', zIndex: 2000, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
-          <div className="glass-card" style={{ width: '100%', maxWidth: '600px', background: '#ffffff', padding: '2rem', borderTopLeftRadius: '32px', borderTopRightRadius: '32px', animation: 'slideUp 0.3s ease-out' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+        <div className="modal-overlay">
+          <div className="modal-content animate-fade-in-up">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
               <div>
-                <h3 style={{ margin: '0 0 0.25rem 0', fontSize: '1.5rem', fontWeight: '800', color: 'var(--text-primary)' }}>Customize Size</h3>
-                <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.875rem' }}>{selectedProduct.name}</p>
+                <h3 style={{ margin: '0 0 0.25rem 0', fontSize: '1.25rem', fontWeight: '800', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>Customize Selection</h3>
+                <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.8125rem', fontWeight: '500' }}>{selectedProduct.name}</p>
               </div>
-              <button onClick={() => setShowVariantModal(false)} style={{ background: '#f1f5f9', border: 'none', color: 'var(--text-primary)', padding: '0.5rem', borderRadius: '50%', cursor: 'pointer' }}>
+              <button onClick={() => setShowVariantModal(false)} style={{ background: '#f1f5f9', border: 'none', color: 'var(--text-primary)', padding: '0.5rem', borderRadius: '50%', cursor: 'pointer', display: 'flex' }}>
                 <X size={20} />
               </button>
             </div>
             
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '2rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '2.5rem' }}>
               {selectedProduct.variants.map((v, i) => (
-                <label key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', background: selectedVariant === v ? 'rgba(239, 65, 35, 0.08)' : '#f8fafc', border: `2px solid ${selectedVariant === v ? 'var(--primary)' : 'var(--surface-border)'}`, borderRadius: '16px', cursor: 'pointer', transition: 'all 0.2s ease' }}>
+                <label key={i} style={{ 
+                  display: 'flex', 
+                  justifyContent: 'space-between', 
+                  alignItems: 'center', 
+                  padding: '1.25rem', 
+                  background: selectedVariant === v ? 'hsla(var(--primary-h), var(--primary-s), var(--primary-l), 0.05)' : '#f8fafc', 
+                  border: `2px solid ${selectedVariant === v ? 'var(--primary)' : 'transparent'}`, 
+                  borderRadius: '20px', 
+                  cursor: 'pointer', 
+                  transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)' 
+                }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                    <div style={{ width: '20px', height: '20px', borderRadius: '50%', border: `2px solid ${selectedVariant === v ? 'var(--primary)' : 'var(--text-secondary)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                       {selectedVariant === v && <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'var(--primary)' }}></div>}
+                    <div style={{ 
+                      width: '20px', 
+                      height: '20px', 
+                      borderRadius: '50%', 
+                      border: `2px solid ${selectedVariant === v ? 'var(--primary)' : '#cbd5e1'}`, 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'center',
+                      background: selectedVariant === v ? 'var(--primary)' : 'transparent',
+                      transition: 'all 0.2s ease'
+                    }}>
+                       {selectedVariant === v && <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'white' }}></div>}
                     </div>
-                    <span style={{ fontWeight: '700', fontSize: '1.125rem', color: 'var(--text-primary)' }}>{v.name}</span>
+                    <span style={{ fontWeight: '700', fontSize: '1rem', color: selectedVariant === v ? 'var(--primary)' : 'var(--text-primary)' }}>{v.name}</span>
                   </div>
-                  <span style={{ fontWeight: '800', color: 'var(--secondary)', fontSize: '1.125rem' }}>₹{v.price}</span>
+                  <span style={{ fontWeight: '800', color: selectedVariant === v ? 'var(--primary)' : 'var(--text-primary)', fontSize: '1rem' }}>₹{v.price}</span>
                   <input type="radio" hidden checked={selectedVariant === v} onChange={() => setSelectedVariant(v)} />
                 </label>
               ))}
@@ -448,9 +389,9 @@ const StoreMenu = () => {
                 setShowVariantModal(false);
               }}
               disabled={storeClosed}
-              style={{ width: '100%', height: '54px', borderRadius: '16px', fontSize: '1.125rem', opacity: storeClosed ? 0.5 : 1 }}
+              style={{ width: '100%', height: '56px', borderRadius: '18px', fontSize: '1rem', letterSpacing: '0.02em' }}
             >
-              {storeClosed ? '🔒 Store is Closed' : `Add to Cart - ₹${selectedVariant?.price}`}
+              {storeClosed ? '🔒 STORE CLOSED' : `ADD SELECTION - ₹${selectedVariant?.price}`}
             </button>
           </div>
         </div>

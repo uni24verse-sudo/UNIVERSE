@@ -93,33 +93,20 @@ const Navbar = ({ bannerVisible }) => {
   };
 
   return (
-    <nav style={{
-      position: 'sticky',
-      top: bannerVisible ? '43px' : 0,
-      zIndex: 1000,
-      background: 'rgba(255, 255, 255, 0.85)',
-      backdropFilter: 'blur(12px)',
-      borderBottom: '1px solid var(--surface-border)',
-      padding: '1rem 2rem',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      gap: '2rem',
-      transition: 'top 0.3s ease'
-    }}>
+    <nav className="nav-container" style={{ top: bannerVisible ? '38px' : 0 }}>
       {/* Brand Logo - Hidden when searching on mobile */}
       {(!isSearchFocused || !isMobile) && (
         <div 
           onClick={() => navigate('/')}
           style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', flexShrink: 0, gap: '0.75rem' }}
         >
-          <img src={logoSymbol} alt="UNIVERSE Symbol" style={{ height: '60px', objectFit: 'contain', margin: '-8px 0' }} />
+          <img src={logoSymbol} alt="UNIVERSE Symbol" style={{ height: '48px', objectFit: 'contain' }} />
           {!isMobile && (
             <span style={{ 
               fontFamily: "'Poppins', sans-serif", 
               fontWeight: '900', 
-              fontSize: '1.6rem', 
-              letterSpacing: '-0.02em', 
+              fontSize: '1.4rem', 
+              letterSpacing: '-0.03em', 
               color: 'var(--text-primary)',
               lineHeight: 1
             }}>
@@ -132,211 +119,153 @@ const Navbar = ({ bannerVisible }) => {
       {/* Global Search Bar - Hidden on Store Pages */}
       {!location.pathname.startsWith('/store/') && (
         <div 
-          className={`search-container ${isSearchFocused ? 'focused' : ''}`}
-          style={{ 
-            flex: 1, 
-            maxWidth: isSearchFocused ? '800px' : '600px', 
-            position: 'relative',
-            zIndex: 1002,
-            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
-          }} 
+          className={`search-wrapper ${isSearchFocused ? 'focused' : ''}`}
           ref={dropdownRef}
         >
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          background: 'rgba(255, 255, 255, 0.95)',
-          border: '1px solid var(--surface-border)',
-          borderRadius: '99px',
-          padding: '0.5rem 1.25rem',
-          transition: 'all 0.3s ease',
-          backdropFilter: 'blur(20px)',
-          boxShadow: isSearchFocused ? '0 10px 40px rgba(0,0,0,0.1)' : 'none',
-          borderColor: isSearchFocused ? 'var(--primary)' : 'var(--surface-border)'
-        }}>
-          {isMobile && isSearchFocused ? (
-            <button onClick={closeSearch} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', padding: '0.25rem', cursor: 'pointer', marginRight: '0.5rem', display: 'flex', alignItems: 'center' }}>
-              <ArrowLeft size={20} />
-            </button>
-          ) : (
-            <Search size={20} color={isSearchFocused ? 'var(--primary)' : 'var(--text-secondary)'} style={{ minWidth: '20px' }} />
-          )}
-          
-          <input 
-            ref={searchInputRef}
-            type="text"
-            placeholder={isMobile ? "Search campus..." : "Search stores, cravings, specialties..."}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onFocus={() => { 
-                setIsSearchFocused(true); 
-                if (searchQuery.trim().length > 0) setShowDropdown(true); 
-            }}
-            style={{
-              flex: 1,
-              background: 'transparent',
-              border: 'none',
-              color: 'var(--text-primary)',
-              padding: '0.5rem 1rem',
-              fontSize: '1rem',
-              outline: 'none',
-              width: '100%'
-            }}
-          />
-          {searchQuery && (
-            <button 
-              onClick={() => { setSearchQuery(''); setShowDropdown(false); searchInputRef.current?.focus(); }}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.2rem', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)' }}
-            >
-              <X size={18} />
-            </button>
-          )}
-        </div>
-
-        {/* Global Search Results Dropdown/Overlay */}
-        {showDropdown && (
-          <div 
-            className="search-results-overlay"
-            style={{
-              position: 'absolute',
-              top: 'calc(100% + 15px)',
-              left: isMobile ? '-1rem' : 0,
-              right: isMobile ? '-1rem' : 0,
-              background: 'rgba(255, 255, 255, 0.99)',
-              border: isMobile ? 'none' : '1px solid var(--surface-border)',
-              borderRadius: isMobile ? 0 : '24px',
-              boxShadow: '0 20px 60px rgba(0,0,0,0.1)',
-              maxHeight: isMobile ? 'calc(100vh - 100px)' : '500px',
-              overflowY: 'auto',
-              zIndex: 1001,
-              display: 'flex',
-              flexDirection: 'column',
-              backdropFilter: 'blur(30px)',
-              animation: 'dropdownFade 0.2s ease-out',
-              paddingBottom: isMobile ? '2rem' : 0
-            }}
-          >
-            
-            {isSearching ? (
-              <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                <div className="pulse-container" style={{ margin: '0 auto 1rem', width: '30px', height: '30px' }}><div className="pulse-dot" style={{ width: '10px', height: '10px' }}></div></div>
-                <p>Searching the campus...</p>
-              </div>
-            ) : searchResults.stores.length === 0 && searchResults.dishes.length === 0 ? (
-              <div style={{ padding: '3rem 2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                <ChefHat size={32} color="var(--surface-border)" style={{ marginBottom: '1rem', opacity: 0.5 }} />
-                <p>No results found for "{searchQuery}"</p>
-                <p style={{ fontSize: '0.8rem', marginTop: '0.5rem' }}>Try searching for a category like "Meals" or a dish like "Dosa".</p>
-              </div>
+          <div className="search-inner">
+            {isMobile && isSearchFocused ? (
+              <button onClick={closeSearch} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', padding: '0.25rem', cursor: 'pointer', marginRight: '0.5rem', display: 'flex', alignItems: 'center' }}>
+                <ArrowLeft size={18} />
+              </button>
             ) : (
-              <div style={{ padding: '1rem 0' }}>
-                {/* Store Matches */}
-                {searchResults.stores.length > 0 && (
-                  <div style={{ padding: '0 1rem', marginBottom: searchResults.dishes.length > 0 ? '1rem' : 0 }}>
-                    <h4 style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.75rem', paddingLeft: '0.75rem' }}>Stalls & Outlets</h4>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <Search size={18} color={isSearchFocused ? 'var(--primary)' : 'var(--text-secondary)'} style={{ opacity: 0.7 }} />
+            )}
+            
+            <input 
+              ref={searchInputRef}
+              type="text"
+              placeholder={isMobile ? "Search campus..." : "Search stores or cravings..."}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onFocus={() => { 
+                  setIsSearchFocused(true); 
+                  if (searchQuery.trim().length > 0) setShowDropdown(true); 
+              }}
+              style={{
+                flex: 1,
+                background: 'transparent',
+                border: 'none',
+                color: 'var(--text-primary)',
+                padding: '0.5rem 0.75rem',
+                fontSize: '0.9375rem',
+                fontWeight: '500',
+                outline: 'none',
+                width: '100%'
+              }}
+            />
+            {searchQuery && (
+              <button 
+                onClick={() => { setSearchQuery(''); setShowDropdown(false); searchInputRef.current?.focus(); }}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.2rem', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)' }}
+              >
+                <X size={16} />
+              </button>
+            )}
+          </div>
+
+          {/* Global Search Results Dropdown */}
+          {showDropdown && (
+            <div className="search-results-overlay">
+              {isSearching ? (
+                <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                  <div className="skeleton skeleton-title" style={{ width: '40px', height: '40px', borderRadius: '50%', margin: '0 auto 1rem' }}></div>
+                  <p style={{ fontSize: '0.875rem' }}>Searching...</p>
+                </div>
+              ) : searchResults.stores.length === 0 && searchResults.dishes.length === 0 ? (
+                <div style={{ padding: '3rem 2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                  <ChefHat size={32} color="var(--surface-border)" style={{ marginBottom: '1rem', opacity: 0.5 }} />
+                  <p style={{ fontSize: '0.875rem' }}>No results found for "{searchQuery}"</p>
+                </div>
+              ) : (
+                <div style={{ padding: '0.75rem 0' }}>
+                  {/* Store Matches */}
+                  {searchResults.stores.length > 0 && (
+                    <div>
+                      <h4 style={{ fontSize: '0.625rem', fontWeight: '800', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.5rem', padding: '0 1.5rem' }}>Stalls</h4>
                       {searchResults.stores.map((store) => (
                         <div 
                           key={`store-${store._id}`}
                           onClick={() => handleResultClick(store._id)}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '1rem',
-                            padding: '0.75rem',
-                            borderRadius: '16px',
-                            cursor: 'pointer',
-                            transition: 'background 0.2s ease'
-                          }}
-                          className="search-result-item"
-                          onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
-                          onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                          className="result-item"
                         >
-                          <div style={{ width: '48px', height: '48px', borderRadius: '12px', overflow: 'hidden', flexShrink: 0 }}>
-                            <img src={getImageUrl(store.image)} alt={store.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          <div style={{ width: '40px', height: '40px', borderRadius: '10px', overflow: 'hidden', flexShrink: 0, background: '#f1f5f9' }}>
+                            <img src={getImageUrl(store.image)} alt={store.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} loading="lazy" />
                           </div>
                           <div style={{ flex: 1 }}>
-                            <h5 style={{ margin: 0, fontSize: '1rem', fontWeight: '700', color: 'var(--text-primary)' }}>{store.name}</h5>
-                             <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                               <MapPin size={12} color="var(--primary)" /> {store.category || 'General'} • <span style={{ color: 'var(--primary)', fontWeight: '600' }}>{store.market}</span>
+                            <h5 style={{ margin: 0, fontSize: '0.9375rem', fontWeight: '700', color: 'var(--text-primary)' }}>{store.name}</h5>
+                             <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                               <MapPin size={10} color="var(--primary)" /> {store.market}
                              </p>
                           </div>
-                          <ChevronRight size={18} color="var(--surface-border)" />
+                          <ChevronRight size={14} color="#cbd5e1" />
                         </div>
                       ))}
                     </div>
-                  </div>
-                )}
+                  )}
 
-                {/* Divider */}
-                {searchResults.stores.length > 0 && searchResults.dishes.length > 0 && (
-                  <div style={{ height: '1px', background: 'var(--surface-border)', margin: '1rem 0' }} />
-                )}
+                  {/* Divider */}
+                  {searchResults.stores.length > 0 && searchResults.dishes.length > 0 && (
+                    <div style={{ height: '1px', background: 'var(--surface-border)', margin: '0.75rem 1.5rem' }} />
+                  )}
 
-                {/* Dish Matches */}
-                {searchResults.dishes.length > 0 && (
-                  <div style={{ padding: '0 1rem' }}>
-                    <h4 style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.75rem', paddingLeft: '0.75rem' }}>Specific Items</h4>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  {/* Dish Matches */}
+                  {searchResults.dishes.length > 0 && (
+                    <div>
+                      <h4 style={{ fontSize: '0.625rem', fontWeight: '800', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.5rem', padding: '0 1.5rem' }}>Items</h4>
                       {searchResults.dishes.map((store) => (
                         <div 
                           key={`dish-store-${store._id}`}
                           onClick={() => handleResultClick(store._id)}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '1rem',
-                            padding: '0.75rem',
-                            borderRadius: '16px',
-                            cursor: 'pointer',
-                            transition: 'background 0.2s ease',
-                            background: 'rgba(99, 102, 241, 0.05)'
-                          }}
-                          className="search-result-item"
-                          onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(99, 102, 241, 0.1)'}
-                          onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(99, 102, 241, 0.05)'}
+                          className="result-item"
+                          style={{ background: 'hsla(var(--primary-h), var(--primary-s), var(--primary-l), 0.03)' }}
                         >
-                          <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                            <ChefHat size={20} color="var(--primary)" />
+                          <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, border: '1px solid var(--surface-border)' }}>
+                            <ChefHat size={18} color="var(--primary)" />
                           </div>
                           <div style={{ flex: 1 }}>
-                            <h5 style={{ margin: 0, fontSize: '0.95rem', fontWeight: '700', color: 'var(--text-primary)' }}>
-                              Found in <span style={{ color: 'var(--primary)' }}>{store.name}</span>
-                              <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginLeft: '0.6rem', fontWeight: '600', background: 'rgba(99, 102, 241, 0.1)', padding: '0.2rem 0.5rem', borderRadius: '6px', border: '1px solid rgba(99, 102, 241, 0.2)' }}>
-                                {store.market}
-                              </span>
+                            <h5 style={{ margin: 0, fontSize: '0.875rem', fontWeight: '700', color: 'var(--text-primary)' }}>
+                              In <span style={{ color: 'var(--primary)' }}>{store.name}</span>
                             </h5>
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.4rem' }}>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', marginTop: '0.25rem' }}>
                               {store.matchedProducts.map((p, pIdx) => (
-                                <span key={pIdx} style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', background: 'rgba(255,255,255,0.05)', padding: '0.2rem 0.5rem', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.1)' }}>
-                                  {p.name} <span style={{ color: 'var(--secondary)', fontWeight: '800' }}>₹{p.price}</span>
+                                <span key={pIdx} style={{ fontSize: '0.6875rem', color: 'var(--text-secondary)', fontWeight: '600' }}>
+                                  {p.name} <span style={{ color: 'var(--primary)' }}>₹{p.price}</span>
                                 </span>
                               ))}
                             </div>
                           </div>
-                          <ChevronRight size={18} color="var(--primary)" />
+                          <ChevronRight size={14} color="var(--primary)" />
                         </div>
                       ))}
                     </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       )}
 
-      {/* Right Icons - Only show Dashboard button if vendor is logged in */}
+      {/* Right Icons */}
       {(!isSearchFocused || !isMobile) && token && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexShrink: 0 }}>
           <button 
             onClick={() => navigate('/vendor/dashboard')}
-            style={{ background: '#f8fafc', border: '1px solid var(--surface-border)', padding: '0.6rem 1.25rem', borderRadius: '14px', fontSize: '0.875rem', fontWeight: '700', color: 'var(--primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', transition: 'background 0.2s' }}
-            onMouseEnter={(e) => e.currentTarget.style.background = '#f1f5f9'}
-            onMouseLeave={(e) => e.currentTarget.style.background = '#f8fafc'}
+            className="btn-secondary"
+            style={{ 
+              padding: '0.5rem 1rem', 
+              borderRadius: '12px', 
+              fontSize: '0.8125rem', 
+              fontWeight: '700', 
+              color: 'var(--primary)', 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '0.5rem',
+              width: 'auto',
+              background: '#f8fafc'
+            }}
           >
-            <User size={16} /> Dashboard
+            <User size={14} /> <span className="hide-on-mobile">Dashboard</span>
           </button>
         </div>
       )}
