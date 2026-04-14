@@ -183,9 +183,8 @@ const Home = () => {
                 <Link 
                   key={store._id} 
                   to={`/store/${store._id}`}
-                  style={{ textDecoration: 'none', color: 'inherit' }}
                   className="animate-fade-in-up"
-                  style={{ animationDelay: `${idx * 0.05}s` }}
+                  style={{ textDecoration: 'none', color: 'inherit', animationDelay: `${idx * 0.05}s` }}
                 >
                     <div className="glass-card store-card">
                       <div className="store-img-wrapper">
@@ -240,7 +239,6 @@ const Home = () => {
             })}
           </div>
         )}
-      </main>
       </main>
 
       {/* Vendor CTA Section */}
