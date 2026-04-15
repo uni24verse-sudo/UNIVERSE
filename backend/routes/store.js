@@ -126,9 +126,16 @@ router.get('/global/search', async (req, res) => {
 // Get all stores (Public)
 router.get('/all/list', async (req, res) => {
   try {
-    const stores = await Store.find({ isHidden: { $ne: true } }, 'name market products admin category isOpen image priority')
+    // Project only necessary fields. For products, we only need the count, 
+    // but Mongoose makes it easier to just fetch IDs or the whole array.
+    // To minimize payload, we'll exclude sub-fields of products that are heavy.
+    const stores = await Store.find(
+      { isHidden: { $ne: true } }, 
+      'name market admin category isOpen image priority products._id'
+    )
       .populate('admin', 'name')
       .sort({ priority: 1, createdAt: -1 })
+      .lean() // Use lean() for faster read-only queries
       .exec();
     res.json(stores);
   } catch (err) {

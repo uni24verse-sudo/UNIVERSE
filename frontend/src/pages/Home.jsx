@@ -56,6 +56,26 @@ const FloatingBackground = () => {
   );
 };
 
+const StoreCardSkeleton = () => (
+  <div className="glass-card store-card" style={{ height: '100%', minHeight: '380px' }}>
+    <div className="store-img-wrapper skeleton skeleton-img" style={{ height: '200px', marginBottom: '1.25rem' }}></div>
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div className="skeleton skeleton-text" style={{ width: '60%', height: '1.25rem' }}></div>
+        <div className="skeleton skeleton-circle" style={{ width: '16px', height: '16px' }}></div>
+      </div>
+      <div className="skeleton skeleton-text" style={{ width: '30%', height: '0.75rem' }}></div>
+      <div style={{ marginTop: 'auto', paddingTop: '1rem', borderTop: '1px solid var(--surface-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '1rem' }}>
+          <div className="skeleton skeleton-text" style={{ width: '40px', height: '0.75rem' }}></div>
+          <div className="skeleton skeleton-text" style={{ width: '40px', height: '0.75rem' }}></div>
+        </div>
+        <div className="skeleton" style={{ width: '28px', height: '28px', borderRadius: '8px' }}></div>
+      </div>
+    </div>
+  </div>
+);
+
 const Home = () => {
   const [stores, setStores] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -95,9 +115,35 @@ const Home = () => {
   };
 
   if (loading) return (
-    <div className="auth-wrapper">
-      <div className="pulse-container"><div className="pulse-dot"></div></div>
-      <p style={{ marginTop: '1rem' }}>Bringing you the best of your campus...</p>
+    <div style={{ minHeight: '100vh', position: 'relative' }}>
+      <FloatingBackground />
+      
+      <section className="hero-section">
+        <div className="hero-badge skeleton" style={{ width: '180px', height: '28px', margin: '0 auto 2rem auto', borderRadius: '99px' }}></div>
+        <div className="skeleton skeleton-title" style={{ width: '70%', height: '4rem', margin: '0 auto 1.5rem auto' }}></div>
+        <div className="hero-tip-card skeleton" style={{ width: '100%', maxWidth: '540px', height: '80px', margin: '2.5rem auto', borderRadius: '28px' }}></div>
+      </section>
+
+      <main style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 2rem 6rem 2rem' }}>
+        <div className="market-btn-container" style={{ opacity: 0.5 }}>
+           {[1, 2, 3, 4, 5, 6].map(i => (
+             <div key={i} className="skeleton" style={{ height: '56px', borderRadius: '20px' }}></div>
+           ))}
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3rem' }}>
+          <div>
+            <div className="skeleton skeleton-text" style={{ width: '200px', height: '2rem', marginBottom: '0.5rem' }}></div>
+            <div className="skeleton skeleton-text" style={{ width: '300px', height: '1rem' }}></div>
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '2rem' }}>
+          {[1, 2, 3, 4, 5, 6].map(i => (
+            <StoreCardSkeleton key={i} />
+          ))}
+        </div>
+      </main>
     </div>
   );
 

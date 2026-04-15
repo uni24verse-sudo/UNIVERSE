@@ -4,6 +4,27 @@ import axios from 'axios';
 import { CartContext } from '../context/CartContext';
 import { ArrowLeft, ShoppingBag, ChefHat, Info, Plus, Search, Star, Clock, Store, X } from 'lucide-react';
 
+const MenuSkeleton = () => (
+  <div style={{ minHeight: '100vh', paddingBottom: '120px' }}>
+    <div className="store-banner-wrapper skeleton" style={{ height: '240px' }}></div>
+    <div className="store-header-sticky" style={{ background: 'white' }}>
+      <div style={{ maxWidth: '800px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+        <div className="skeleton skeleton-text" style={{ width: '150px', height: '1.25rem' }}></div>
+      </div>
+    </div>
+    <div style={{ padding: '2rem 1rem', maxWidth: '800px', margin: '0 auto' }}>
+      <div className="skeleton" style={{ height: '80px', borderRadius: '24px', marginBottom: '2rem' }}></div>
+      <div className="skeleton" style={{ height: '52px', borderRadius: '100px', marginBottom: '1.5rem' }}></div>
+      <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '2rem', overflowX: 'hidden' }}>
+        {[1, 2, 3, 4].map(i => <div key={i} className="skeleton" style={{ width: '80px', height: '36px', borderRadius: '100px', flexShrink: 0 }}></div>)}
+      </div>
+      {[1, 2, 3].map(i => (
+        <div key={i} className="skeleton" style={{ height: '140px', borderRadius: '28px', marginBottom: '1.25rem' }}></div>
+      ))}
+    </div>
+  </div>
+);
+
 const StoreMenu = () => {
   const { id } = useParams();
   const [store, setStore] = useState(null);
@@ -31,7 +52,7 @@ const StoreMenu = () => {
     fetchStore();
   }, [id]);
 
-  if (loading) return <div className="auth-wrapper">Loading Menu...</div>;
+  if (loading) return <MenuSkeleton />;
   if (!store) return <div className="auth-wrapper"><h3>Store not found or unavailable.</h3></div>;
 
   const totalItems = cart.reduce((acc, item) => acc + item.quantity, 0);

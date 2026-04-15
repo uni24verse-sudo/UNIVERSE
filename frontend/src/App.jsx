@@ -1,26 +1,28 @@
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { SocketProvider } from './context/SocketContext';
-import Login from './pages/Login';
-import Register from './pages/Register';
-import Dashboard from './pages/Dashboard';
-import CreateStore from './pages/CreateStore';
-import ManageStore from './pages/ManageStore';
-import Home from './pages/Home';
-import StoreMenu from './pages/StoreMenu';
-import Cart from './pages/Cart';
-import OrderTracker from './pages/OrderTracker';
 import { CartProvider } from './context/CartContext';
-import RecentOrders from './components/RecentOrders';
-import SuperAdminLogin from './pages/SuperAdminLogin';
-import SuperAdminPanel from './pages/SuperAdminPanel';
+
+// Lazy load components for performance
+const Login = lazy(() => import('./pages/Login'));
+const Register = lazy(() => import('./pages/Register'));
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const CreateStore = lazy(() => import('./pages/CreateStore'));
+const ManageStore = lazy(() => import('./pages/ManageStore'));
+const Home = lazy(() => import('./pages/Home'));
+const StoreMenu = lazy(() => import('./pages/StoreMenu'));
+const Cart = lazy(() => import('./pages/Cart'));
+const OrderTracker = lazy(() => import('./pages/OrderTracker'));
+const SuperAdminLogin = lazy(() => import('./pages/SuperAdminLogin'));
+const SuperAdminPanel = lazy(() => import('./pages/SuperAdminPanel'));
+const TermsAndConditions = lazy(() => import('./pages/TermsAndConditions'));
+const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
+
 import Navbar from './components/Navbar';
-import TermsAndConditions from './pages/TermsAndConditions';
-import PrivacyPolicy from './pages/PrivacyPolicy';
+import RecentOrders from './components/RecentOrders';
 import Footer from './components/Footer';
 import NotificationsToast from './components/NotificationsToast';
-// import OneSignalInit from './components/OneSignalInit';
 import FloatingCart from './components/FloatingCart';
 import { Sparkles, Zap } from 'lucide-react';
 
