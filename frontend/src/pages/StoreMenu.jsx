@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { CartContext } from '../context/CartContext';
 import { ArrowLeft, ShoppingBag, ChefHat, Info, Plus, Search, Star, Clock, Store, X } from 'lucide-react';
+import QuantitySelector from '../components/QuantitySelector';
 
 const MenuSkeleton = () => (
   <div style={{ minHeight: '100vh', paddingBottom: '120px' }}>
@@ -328,21 +329,12 @@ const StoreMenu = () => {
                   }}>🍲</div>
 
                   <div style={{ position: 'absolute', bottom: '8px', left: '50%', transform: 'translateX(-50%)', width: '85%' }}>
-                    <button 
-                      className="btn btn-primary" 
-                      onClick={() => handleAddToCartClick(product)}
-                      disabled={isUnavailable || storeClosed}
-                      style={{ 
-                        padding: '0.4rem', 
-                        height: '36px', 
-                        fontSize: '0.75rem', 
-                        fontWeight: '800',
-                        borderRadius: '100px',
-                        boxShadow: (isUnavailable || storeClosed) ? 'none' : '0 4px 12px var(--primary-shadow)'
-                      }}
-                    >
-                      {storeClosed ? 'CLOSED' : isUnavailable ? 'SOLD' : (product.variants && product.variants.length > 0 ? 'FIX +' : <><Plus size={12} /> ADD</>)}
-                    </button>
+                    <QuantitySelector 
+                      product={product} 
+                      storeId={id} 
+                      onVariantClick={handleAddToCartClick}
+                      storeClosed={storeClosed}
+                    />
                   </div>
                 </div>
               </div>
