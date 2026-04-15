@@ -927,7 +927,9 @@ const Dashboard = () => {
                                  Waiting for QR Scan
                                </div>
                              )}
-                             <button onClick={() => updateOrderStatus(order._id, 'Cancelled')} style={{ padding: '0.75rem 1.25rem', borderRadius: '12px', border: '1px solid rgba(239, 68, 68, 0.2)', background: 'transparent', color: 'var(--error)', fontSize: '0.875rem' }}>Cancel</button>
+                             {order.status === 'Pending' && (
+                               <button onClick={() => updateOrderStatus(order._id, 'Cancelled')} style={{ padding: '0.75rem 1.25rem', borderRadius: '12px', border: '1px solid rgba(239, 68, 68, 0.2)', background: 'transparent', color: 'var(--error)', fontSize: '0.875rem' }}>Cancel</button>
+                             )}
                           </div>
                         )}
                       </div>
