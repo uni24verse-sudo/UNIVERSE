@@ -74,10 +74,13 @@ router.post('/razorpay/verify', async (req, res) => {
     }
 
     // Payment verified - NOW Create the Order in DB
-    const { storeId, items, totalAmount, paymentMethod, customerPhone, customerName, orderType, packagingChargeApplied } = orderData;
+    const { storeId, items, totalAmount, paymentMethod, customerPhone, customerName, orderType, packagingChargeApplied, isPreOrder, scheduledTime } = orderData;
 
     const store = await Store.findById(storeId).populate('admin');
     if (!store) return res.status(404).json({ message: 'Store not found' });
+
+    // Set acceptance deadline: 15 mins for pre-orders, 3 mins for ASAP
+    const deadlineMinutes = isPreOrder ? 15 : 3;
 
     const newOrder = new Order({
       store: storeId,
@@ -93,8 +96,10 @@ router.post('/razorpay/verify', async (req, res) => {
       status: 'Pending',
       transactionId: razorpay_payment_id,
       paymentProvider: 'Razorpay',
-      acceptDeadline: new Date(Date.now() + 3 * 60 * 1000),
-      handoverToken: generateHandoverToken()
+      acceptDeadline: new Date(Date.now() + deadlineMinutes * 60 * 1000),
+      handoverToken: generateHandoverToken(),
+      isPreOrder: isPreOrder || false,
+      scheduledTime: scheduledTime || null
     });
 
     const savedOrder = await newOrder.save();

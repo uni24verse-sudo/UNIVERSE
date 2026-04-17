@@ -16,11 +16,13 @@ const generateHandoverToken = () => Math.random().toString(36).substring(2, 10).
 // NOTE: For Razorpay checkouts, use the /api/payments/razorpay/verify endpoint
 // which creates the order ONLY after successful payment to avoid DB clutter.
 router.post('/create', async (req, res) => {
-  try {
-    const { storeId, items, totalAmount, paymentMethod, customerPhone, customerName, orderType, packagingChargeApplied } = req.body;
+    const { storeId, items, totalAmount, paymentMethod, customerPhone, customerName, orderType, packagingChargeApplied, isPreOrder, scheduledTime } = req.body;
 
     const store = await Store.findById(storeId).populate('admin');
     if (!store) return res.status(404).json({ message: 'Store not found' });
+
+    // Set acceptance deadline: 15 mins for pre-orders, 3 mins for ASAP
+    const deadlineMinutes = isPreOrder ? 15 : 3;
 
     const newOrder = new Order({
       store: storeId,
@@ -34,7 +36,10 @@ router.post('/create', async (req, res) => {
       packagingChargeApplied,
       status: 'Payment Pending',
       paymentStatus: 'Pending',
-      handoverToken: generateHandoverToken()
+      acceptDeadline: new Date(Date.now() + deadlineMinutes * 60 * 1000),
+      handoverToken: generateHandoverToken(),
+      isPreOrder: isPreOrder || false,
+      scheduledTime: scheduledTime || null
     });
 
     const savedOrder = await newOrder.save();

@@ -80,23 +80,84 @@ io.on('connection', (socket) => {
 });
 
 const Order = require('./models/Order');
+const Store = require('./models/Store');
+const telegramService = require('./services/telegramService');
 
-// Background job to cancel expired orders
+
+// Background job to handle timeouts and pre-order reminders
 setInterval(async () => {
   try {
-    const expiredOrders = await Order.find({ status: 'Pending', acceptDeadline: { $lt: new Date() } });
+    const now = new Date();
+
+    // 1. Cancel expired orders (ASAP and Pre-orders)
+    const expiredOrders = await Order.find({ status: 'Pending', acceptDeadline: { $lt: now } });
     for (const order of expiredOrders) {
       order.status = 'Cancelled';
       await order.save();
-      // Notify vendor and customer
       io.to(order.store.toString()).emit('order_status_update', order);
       io.to(order._id.toString()).emit('order_status_update', order);
-      console.log(`Auto-cancelled order #${order.orderNumber} due to 3-min timeout.`);
+      console.log(`Auto-cancelled order #${order.orderNumber} due to timeout.`);
+    }
+
+    // 2. Send Telegram reminders for pre-orders (30 mins before)
+    // We look for Confirmed pre-orders that haven't been reminded yet
+    const upcomingPreOrders = await Order.find({
+      isPreOrder: true,
+      status: 'Confirmed',
+      reminderSent: false,
+      scheduledTime: { $ne: null }
+    }).populate('store');
+
+    for (const order of upcomingPreOrders) {
+      const [hours, minutes] = order.scheduledTime.split(':').map(Number);
+      const scheduledDate = new Date();
+      scheduledDate.setHours(hours, minutes, 0, 0);
+
+      // If current time is within 30-35 mins of scheduled time
+      const diffMs = scheduledDate.getTime() - now.getTime();
+      const diffMins = diffMs / (1000 * 60);
+
+      if (diffMins > 0 && diffMins <= 30) {
+        const store = order.store;
+        if (store) {
+          await telegramService.sendPreOrderReminder(store, order);
+          order.reminderSent = true;
+          await order.save();
+          console.log(`Sent 30-min preparation reminder for Pre-Order #${order.orderNumber}`);
+        }
+      }
+    }
+
+    // 3. Send FINAL Telegram reminders for pre-orders (10 mins before)
+    const imminentPreOrders = await Order.find({
+      isPreOrder: true,
+      status: 'Confirmed',
+      reminder10Sent: false,
+      scheduledTime: { $ne: null }
+    }).populate('store');
+
+    for (const order of imminentPreOrders) {
+      const [hours, minutes] = order.scheduledTime.split(':').map(Number);
+      const scheduledDate = new Date();
+      scheduledDate.setHours(hours, minutes, 0, 0);
+
+      const diffMs = scheduledDate.getTime() - now.getTime();
+      const diffMins = diffMs / (1000 * 60);
+
+      if (diffMins > 0 && diffMins <= 10) {
+        const store = order.store;
+        if (store) {
+          await telegramService.sendPreOrderFinalAlert(store, order);
+          order.reminder10Sent = true;
+          await order.save();
+          console.log(`Sent 10-min FINAL reminder for Pre-Order #${order.orderNumber}`);
+        }
+      }
     }
   } catch (err) {
-    console.error('Order timeout check error:', err);
+    console.error('Background job error:', err);
   }
-}, 10000); // Check every 10 seconds
+}, 30000); // Check every 30 seconds for reminders
 
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));

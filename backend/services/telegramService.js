@@ -47,8 +47,6 @@ class TelegramService {
    * Specifically for new order alerts
    */
   async sendOrderAlert(store, order) {
-    // 1. Try store-level telegram ID
-    // 2. Fallback to admin-level ID (backward compatibility)
     const chatId = (store && store.telegramChatId) || (store && store.admin && store.admin.telegramChatId);
 
     if (!chatId) {
@@ -72,15 +70,81 @@ class TelegramService {
     const orderTypeEmoji = order.orderType === 'Take Away' ? '🛍️' : '🍽️';
     const orderTypeLabel = order.orderType || 'Dine In';
 
-    const message = `🔔 <b>UniVerse Order Alert!</b>\n\n` +
-      `New Order <b>#${order.orderNumber}</b> received.\n\n` +
-      `${orderTypeEmoji} <b>Order Type: ${orderTypeLabel}</b>\n\n` +
-      `📦 <b>Items Ordered:</b>\n${itemList}\n\n` +
-      `💰 Amount: <b>₹${order.totalAmount}</b>\n` +
-      `🏪 Store: ${store?.name || 'Your Store'}\n\n` +
-      `👉 <b><a href="https://www.universeorder.co.in/vendor/dashboard">Open Dashboard</a></b>`;
+    let message = '';
+    
+    if (order.isPreOrder) {
+      message = `━━━━━━━━━━━━━━━\n` +
+        `📅 <b>PRE-ORDER RECEIVED</b>\n` +
+        `🕒 <b>PICKUP: ${order.scheduledTime}</b>\n` +
+        `━━━━━━━━━━━━━━━\n\n` +
+        `New Order <b>#${order.orderNumber}</b>\n\n` +
+        `${orderTypeEmoji} <b>Type: ${orderTypeLabel}</b>\n` +
+        `📦 <b>Items:</b>\n${itemList}\n\n` +
+        `💰 Amount: <b>₹${order.totalAmount}</b>\n` +
+        `🏪 Store: ${store?.name || 'Your Store'}\n\n` +
+        `👉 <b><a href="https://www.universeorder.co.in/vendor/dashboard">Open Dashboard</a></b>`;
+    } else {
+      message = `🔔 <b>UniVerse Order Alert!</b>\n\n` +
+        `New Order <b>#${order.orderNumber}</b> received.\n\n` +
+        `${orderTypeEmoji} <b>Order Type: ${orderTypeLabel}</b>\n\n` +
+        `📦 <b>Items Ordered:</b>\n${itemList}\n\n` +
+        `💰 Amount: <b>₹${order.totalAmount}</b>\n` +
+        `🏪 Store: ${store?.name || 'Your Store'}\n\n` +
+        `👉 <b><a href="https://www.universeorder.co.in/vendor/dashboard">Open Dashboard</a></b>`;
+    }
+
     const botToken = store?.telegramBotToken || null;
- 
+    return this.sendMessage(chatId, message, botToken);
+  }
+
+  /**
+   * Specifically for pre-order reminders (30 mins before)
+   */
+  async sendPreOrderReminder(store, order) {
+    const chatId = (store && store.telegramChatId) || (store && store.admin && store.admin.telegramChatId);
+    if (!chatId) return;
+
+    const itemList = order.items?.map(item => {
+      let text = `• ${item.name} <b>(x${item.quantity})</b>`;
+      if (item.isCombo && item.comboItems?.length > 0) {
+        text += item.comboItems.map(ci => `\n  - ${ci.quantity} ${ci.name}`).join('');
+      }
+      return text;
+    }).join('\n') || '';
+
+    const message = `━━━━━━━━━━━━━━━━━━━━━━\n` +
+      `     ⏰ <b>PRE-ORDER REMINDER</b>\n` +
+      `━━━━━━━━━━━━━━━━━━━━━━\n` +
+      `🕒 <b>PICKUP IN: 30 MINUTES</b>\n` +
+      `🕘 <b>TARGET TIME: ${order.scheduledTime}</b>\n\n` +
+      `📍 <b>Order #${order.orderNumber} Items:</b>\n` +
+      `${itemList}\n\n` +
+      `👉 <i>Vendor, please start preparation to ensure on-time handover!</i>\n\n` +
+      `🏪 Store: ${store?.name || 'Your Store'}\n` +
+      `👉 <b><a href="https://www.universeorder.co.in/vendor/dashboard">Open Dashboard</a></b>`;
+
+    const botToken = store?.telegramBotToken || null;
+    return this.sendMessage(chatId, message, botToken);
+  }
+
+  /**
+   * Specifically for pre-order final warnings (10 mins before)
+   */
+  async sendPreOrderFinalAlert(store, order) {
+    const chatId = (store && store.telegramChatId) || (store && store.admin && store.admin.telegramChatId);
+    if (!chatId) return;
+
+    const message = `━━━━━━━━━━━━━━━━━━━━━━\n` +
+      `     🚨 <b>FINAL WARNING</b>\n` +
+      `━━━━━━━━━━━━━━━━━━━━━━\n` +
+      `🕒 <b>PICKUP IN: 10 MINUTES</b>\n` +
+      `🕘 <b>TARGET TIME: ${order.scheduledTime}</b>\n\n` +
+      `📍 <b>Order #${order.orderNumber}</b>\n` +
+      `👉 <i>Kitchen, finalize the order immediately! Customer will arrive shortly.</i>\n\n` +
+      `🏪 Store: ${store?.name || 'Your Store'}\n` +
+      `👉 <b><a href="https://www.universeorder.co.in/vendor/dashboard">Open Dashboard</a></b>`;
+
+    const botToken = store?.telegramBotToken || null;
     return this.sendMessage(chatId, message, botToken);
   }
 }

@@ -398,9 +398,13 @@ const Dashboard = () => {
       case 'Cancelled':
         filtered = orders.filter(o => o.status === 'Cancelled');
         break;
+      case 'Pre-Orders':
+        filtered = orders.filter(o => o.isPreOrder);
+        break;
       default:
         filtered = orders;
     }
+
     // Sort: Pending first, then Confirmed, then by newest
     return filtered.sort((a, b) => {
       const priority = { 'Pending': 0, 'Confirmed': 1, 'Completed': 2, 'Cancelled': 3 };
@@ -745,10 +749,12 @@ const Dashboard = () => {
                     { label: 'Active', count: pendingOrders + confirmedOrders, color: '#f59e0b' },
                     { label: 'Pending', count: pendingOrders, color: '#f59e0b' },
                     { label: 'Confirmed', count: confirmedOrders, color: '#3b82f6' },
+                    { label: 'Pre-Orders', count: orders.filter(o => o.isPreOrder).length, color: '#8b5cf6' },
                     { label: 'Completed', count: completedOrders, color: '#10b981' },
                     { label: 'Cancelled', count: cancelledOrders, color: '#ef4444' },
                     { label: 'All', count: orders.length, color: '#94a3b8' },
                   ].map(tab => (
+
                     <button
                       key={tab.label}
                       onClick={() => setOrderFilter(tab.label)}
@@ -796,11 +802,30 @@ const Dashboard = () => {
                         paddingLeft: '1.5rem',
                         background: '#ffffff', 
                         borderRadius: '20px', 
-                        border: '1px solid var(--surface-border)', 
-                        borderLeft: `4px solid ${getStatusColor(order.status)}`,
+                        border: `1px solid ${order.isPreOrder ? '#8b5cf666' : 'var(--surface-border)'}`, 
+                        borderLeft: `4px solid ${order.isPreOrder ? '#8b5cf6' : getStatusColor(order.status)}`,
                         transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                        position: 'relative'
+                        position: 'relative',
+                        boxShadow: order.isPreOrder ? '0 4px 12px rgba(139, 92, 246, 0.1)' : 'none'
                       }}>
+                        {order.isPreOrder && (
+                          <div style={{
+                            position: 'absolute',
+                            top: '-10px',
+                            right: '20px',
+                            background: '#8b5cf6',
+                            color: 'white',
+                            padding: '0.25rem 0.75rem',
+                            borderRadius: '100px',
+                            fontSize: '0.65rem',
+                            fontWeight: '900',
+                            boxShadow: '0 4px 10px rgba(139, 92, 246, 0.4)',
+                            zIndex: 10
+                          }}>
+                            📅 PRE-ORDER
+                          </div>
+                        )}
+
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
                           <div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.25rem', flexWrap: 'wrap' }}>
@@ -886,11 +911,23 @@ const Dashboard = () => {
                             <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>
                               {getTimeAgo(order.createdAt)} • {order.items.length} Items
                             </p>
-                          </div>
-                          
-                          <div style={{ textAlign: 'right' }}>
-                            <p style={{ fontSize: '1.25rem', fontWeight: '800', margin: 0 }}>₹{order.totalAmount}</p>
-                          </div>
+                            </div>
+                            
+                            <div style={{ textAlign: 'right' }}>
+                              {order.isPreOrder && (
+                                <div style={{ 
+                                  background: 'rgba(139, 92, 246, 0.1)', 
+                                  padding: '0.4rem 0.8rem', 
+                                  borderRadius: '10px', 
+                                  border: '1px solid rgba(139, 92, 246, 0.2)',
+                                  marginBottom: '0.5rem'
+                                }}>
+                                  <p style={{ margin: 0, fontSize: '0.65rem', fontWeight: '800', color: '#8b5cf6', textTransform: 'uppercase' }}>Pickup Time</p>
+                                  <p style={{ margin: 0, fontSize: '1rem', fontWeight: '900', color: '#8b5cf6' }}>{order.scheduledTime}</p>
+                                </div>
+                              )}
+                              <p style={{ fontSize: '1.25rem', fontWeight: '800', margin: 0 }}>₹{order.totalAmount}</p>
+                            </div>
                         </div>
 
                         <div style={{ background: '#f8fafc', padding: '0.75rem 1rem', borderRadius: '12px', marginBottom: '1.25rem', border: '1px solid var(--surface-border)' }}>

@@ -29,7 +29,11 @@ const OrderSchema = new mongoose.Schema({
   transactionId: { type: String, unique: true, sparse: true },
   paymentProvider: { type: String, default: 'Razorpay' },
   acceptDeadline: { type: Date },
-  handoverToken: { type: String }
+  handoverToken: { type: String },
+  isPreOrder: { type: Boolean, default: false },
+  scheduledTime: { type: String },
+  reminderSent: { type: Boolean, default: false },
+  reminder10Sent: { type: Boolean, default: false }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Order', OrderSchema);

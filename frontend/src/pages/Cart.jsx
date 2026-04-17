@@ -19,6 +19,9 @@ const Cart = () => {
   const [orderPlaced, setOrderPlaced] = useState(false);
   const [currentOrder, setCurrentOrder] = useState(null);
   const [validationError, setValidationError] = useState('');
+  const [isPreOrder, setIsPreOrder] = useState(false);
+  const [scheduledTime, setScheduledTime] = useState('12:00');
+
 
   // Calculate order totals
   const subtotal = total;
@@ -61,7 +64,27 @@ const Cart = () => {
       return;
     }
 
+    if (isPreOrder) {
+      const [hours, minutes] = scheduledTime.split(':').map(Number);
+      if (hours < 10 || hours >= 22) {
+        setValidationError('Pre-orders are only available between 10:00 AM and 10:00 PM');
+        return;
+      }
+      
+      const now = new Date();
+      const minimumTime = new Date(now.getTime() + 30 * 60 * 1000); // 30 min buffer
+      
+      const selected = new Date();
+      selected.setHours(hours, minutes, 0, 0);
+      
+      if (selected < minimumTime) {
+        setValidationError('Pre-orders must be scheduled at least 30 minutes in advance');
+        return;
+      }
+    }
+
     setValidationError('');
+
 
     setLoading(true);
 
@@ -87,8 +110,11 @@ const Cart = () => {
         customerPhone,
         customerName,
         orderType,
-        packagingChargeApplied: deliveryFee > 0
+        packagingChargeApplied: deliveryFee > 0,
+        isPreOrder,
+        scheduledTime: isPreOrder ? scheduledTime : null
       };
+
 
       // Step 2: Open Razorpay checkout
       const options = {
@@ -321,6 +347,76 @@ const Cart = () => {
                   🛍️ Take Away
                 </button>
               </div>
+            </div>
+
+            <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '24px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                  <Clock size={20} color="var(--primary)" /> Pre-order for Later?
+                </h3>
+                <div 
+                  onClick={() => setIsPreOrder(!isPreOrder)}
+                  style={{
+                    width: '50px',
+                    height: '26px',
+                    background: isPreOrder ? 'var(--primary)' : '#e2e8f0',
+                    borderRadius: '100px',
+                    position: 'relative',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease'
+                  }}
+                >
+                  <div style={{
+                    position: 'absolute',
+                    top: '3px',
+                    left: isPreOrder ? '26px' : '4px',
+                    width: '20px',
+                    height: '20px',
+                    background: 'white',
+                    borderRadius: '50%',
+                    transition: 'all 0.3s ease',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                  }} />
+                </div>
+              </div>
+
+              {isPreOrder && (
+                <div style={{ 
+                  padding: '1rem', 
+                  background: 'rgba(239, 65, 35, 0.04)', 
+                  borderRadius: '16px', 
+                  border: '1px solid rgba(239, 65, 35, 0.1)',
+                  marginTop: '1rem',
+                  animation: 'fadeIn 0.3s ease'
+                }}>
+                  <p style={{ margin: '0 0 1rem 0', fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: '600' }}>
+                    Select your preferred pickup time (10 AM - 10 PM)
+                  </p>
+                  <input
+                    type="time"
+                    value={scheduledTime}
+                    onChange={(e) => setScheduledTime(e.target.value)}
+                    min="10:00"
+                    max="22:00"
+                    style={{
+                      width: '100%',
+                      padding: '1rem',
+                      borderRadius: '12px',
+                      border: '2px solid var(--primary)',
+                      background: 'white',
+                      fontSize: '1.25rem',
+                      fontWeight: '800',
+                      color: 'var(--text-primary)',
+                      textAlign: 'center',
+                      outline: 'none'
+                    }}
+                  />
+                  <div style={{ marginTop: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--primary)', fontSize: '0.75rem', fontWeight: '700' }}>
+                    <AlertCircle size={14} />
+                    Note: Orders must be confirmed by vendor 15 mins before.
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '24px' }}>
