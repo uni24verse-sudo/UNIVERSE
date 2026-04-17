@@ -324,6 +324,9 @@ const SuperAdminPanel = () => {
                         Telegram Missing
                       </span>
                     )}
+                    <span style={{ fontSize: '0.75rem', padding: '0.2rem 0.6rem', background: store.isAutomated ? 'rgba(79, 70, 229, 0.1)' : 'rgba(245, 158, 11, 0.1)', color: store.isAutomated ? 'var(--primary)' : '#f59e0b', borderRadius: '6px', fontWeight: '800' }}>
+                      {store.isAutomated ? `⏰ Auto: ${store.openingTime}-${store.closingTime}` : '🛑 Manual Mode'}
+                    </span>
                   </div>
 
                   {/* Manual Ranking Control */}

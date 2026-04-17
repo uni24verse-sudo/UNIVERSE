@@ -155,6 +155,21 @@ setInterval(async () => {
         }
       }
     }
+
+    // 4. Automated Store Opening/Closing
+    const automatedStores = await Store.find({ isAutomated: true });
+    const currentHHMM = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+
+    for (const store of automatedStores) {
+      const shouldBeOpen = currentHHMM >= store.openingTime && currentHHMM < store.closingTime;
+      if (store.isOpen !== shouldBeOpen) {
+        store.isOpen = shouldBeOpen;
+        await store.save();
+        io.emit('store_status_update', { storeId: store._id, isOpen: shouldBeOpen });
+        console.log(`Automated: Store ${store.name} is now ${shouldBeOpen ? 'OPEN' : 'CLOSED'}`);
+      }
+    }
+
   } catch (err) {
     console.error('Background job error:', err);
   }

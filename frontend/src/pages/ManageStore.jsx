@@ -22,7 +22,11 @@ const ManageStore = () => {
   const [storeTelegramBotToken, setStoreTelegramBotToken] = useState('');
   const [isEditingStore, setIsEditingStore] = useState(false);
   const [updatingStore, setUpdatingStore] = useState(false);
+  const [storeOpeningTime, setStoreOpeningTime] = useState('10:00');
+  const [storeClosingTime, setStoreClosingTime] = useState('22:00');
+  const [storeIsAutomated, setStoreIsAutomated] = useState(true);
   const [storeImageFile, setStoreImageFile] = useState(null);
+
   const [updatingImage, setUpdatingImage] = useState(false);
   const storeImageInputRef = useRef(null);
   const [testingFCM, setTestingFCM] = useState(false);
@@ -75,6 +79,10 @@ const ManageStore = () => {
           setStoreUpi(defaultStore.upiId || '');
           setStoreTelegramChatId(defaultStore.telegramChatId || '');
           setStoreTelegramBotToken(defaultStore.telegramBotToken || '');
+          setStoreOpeningTime(defaultStore.openingTime || '10:00');
+          setStoreClosingTime(defaultStore.closingTime || '22:00');
+          setStoreIsAutomated(defaultStore.isAutomated !== false);
+
         } else {
           navigate('/vendor/store/create');
         }
@@ -99,7 +107,11 @@ const ManageStore = () => {
       setStoreUpi(selected.upiId || '');
       setStoreTelegramChatId(selected.telegramChatId || '');
       setStoreTelegramBotToken(selected.telegramBotToken || '');
+      setStoreOpeningTime(selected.openingTime || '10:00');
+      setStoreClosingTime(selected.closingTime || '22:00');
+      setStoreIsAutomated(selected.isAutomated !== false);
       setIsEditingStore(false);
+
     }
   };
 
@@ -207,9 +219,21 @@ const ManageStore = () => {
     try {
       // Update Store Details
       const storeRes = await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/store/${store._id}/update-details`, 
-        { name: storeName, category: storeCategory, packagingCharge: storePackagingCharge, market: storeMarket, upiId: storeUpi, telegramChatId: storeTelegramChatId, telegramBotToken: storeTelegramBotToken },
+        { 
+          name: storeName, 
+          category: storeCategory, 
+          packagingCharge: storePackagingCharge, 
+          market: storeMarket, 
+          upiId: storeUpi, 
+          telegramChatId: storeTelegramChatId, 
+          telegramBotToken: storeTelegramBotToken,
+          openingTime: storeOpeningTime,
+          closingTime: storeClosingTime,
+          isAutomated: storeIsAutomated
+        },
         { headers: { Authorization: `Bearer ${token}` } }
       );
+
       
       // Update Admin Profile
       const adminRes = await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/auth/update-profile`,
@@ -219,8 +243,21 @@ const ManageStore = () => {
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      setStore(prev => ({ ...prev, name: storeRes.data.name, category: storeRes.data.category, packagingCharge: storeRes.data.packagingCharge, market: storeRes.data.market, upiId: storeRes.data.upiId, telegramChatId: storeRes.data.telegramChatId, telegramBotToken: storeRes.data.telegramBotToken }));
-      setStores(prev => prev.map(s => s._id === store._id ? { ...s, name: storeRes.data.name, category: storeRes.data.category, packagingCharge: storeRes.data.packagingCharge, market: storeRes.data.market, upiId: storeRes.data.upiId, telegramChatId: storeRes.data.telegramChatId, telegramBotToken: storeRes.data.telegramBotToken } : s));
+      setStore(prev => ({ 
+        ...prev, 
+        name: storeRes.data.name, 
+        category: storeRes.data.category, 
+        packagingCharge: storeRes.data.packagingCharge, 
+        market: storeRes.data.market, 
+        upiId: storeRes.data.upiId, 
+        telegramChatId: storeRes.data.telegramChatId, 
+        telegramBotToken: storeRes.data.telegramBotToken,
+        openingTime: storeRes.data.openingTime,
+        closingTime: storeRes.data.closingTime,
+        isAutomated: storeRes.data.isAutomated
+      }));
+      setStores(prev => prev.map(s => s._id === store._id ? { ...s, name: storeRes.data.name, category: storeRes.data.category, packagingCharge: storeRes.data.packagingCharge, market: storeRes.data.market, upiId: storeRes.data.upiId, telegramChatId: storeRes.data.telegramChatId, telegramBotToken: storeRes.data.telegramBotToken, openingTime: storeRes.data.openingTime, closingTime: storeRes.data.closingTime, isAutomated: storeRes.data.isAutomated } : s));
+
       updateVendor(adminRes.data.admin);
       setIsEditingStore(false);
     } catch (err) {
@@ -716,8 +753,21 @@ const ManageStore = () => {
                   <div style={{ padding: '1rem', background: '#f8fafc', borderRadius: '14px' }}>
                     <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>UPI Payout ID</p>
                     <p style={{ fontWeight: '700', color: 'var(--primary)' }}>{store.upiId || 'Not Set'}</p>
+                  <div style={{ padding: '1rem', background: '#f8fafc', borderRadius: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Operating Hours</p>
+                      <p style={{ fontWeight: '700' }}>
+                        {store.isAutomated ? `${store.openingTime} - ${store.closingTime}` : 'Manual Management'}
+                      </p>
+                    </div>
+                    {store.isAutomated && (
+                      <span style={{ fontSize: '0.65rem', padding: '0.2rem 0.5rem', background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', borderRadius: '6px', fontWeight: '800' }}>
+                        AUTO-MODE
+                      </span>
+                    )}
                   </div>
                 </div>
+
               )}
             </div>
 

@@ -365,9 +365,11 @@ router.put('/:storeId/toggle-status', auth, async (req, res) => {
     if (!store) return res.status(404).json({ message: 'Store not found' });
 
     store.isOpen = !store.isOpen;
+    // Manual toggle disables automation for this store
+    store.isAutomated = false;
     await store.save();
 
-    res.json({ message: `Store is now ${store.isOpen ? 'Open' : 'Closed'}`, isOpen: store.isOpen });
+    res.json({ message: `Store is now ${store.isOpen ? 'Open' : 'Closed'}`, isOpen: store.isOpen, isAutomated: store.isAutomated });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -376,7 +378,7 @@ router.put('/:storeId/toggle-status', auth, async (req, res) => {
 // Update Store Details
 router.put('/:storeId/update-details', auth, async (req, res) => {
   try {
-    const { name, category, packagingCharge, market, upiId, telegramChatId, telegramBotToken } = req.body;
+    const { name, category, packagingCharge, market, upiId, telegramChatId, telegramBotToken, openingTime, closingTime, isAutomated } = req.body;
     const store = await Store.findOne({ _id: req.params.storeId, admin: req.admin._id });
     if (!store) return res.status(404).json({ message: 'Store not found' });
 
@@ -387,6 +389,9 @@ router.put('/:storeId/update-details', auth, async (req, res) => {
     if (upiId !== undefined) store.upiId = upiId;
     if (telegramChatId !== undefined) store.telegramChatId = telegramChatId;
     if (telegramBotToken !== undefined) store.telegramBotToken = telegramBotToken;
+    if (openingTime) store.openingTime = openingTime;
+    if (closingTime) store.closingTime = closingTime;
+    if (isAutomated !== undefined) store.isAutomated = isAutomated;
     
     await store.save();
     res.json(store);
