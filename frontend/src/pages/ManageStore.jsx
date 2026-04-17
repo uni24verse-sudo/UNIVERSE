@@ -692,14 +692,9 @@ const ManageStore = () => {
                         onChange={e => setStoreTelegramChatId(e.target.value)}
                         style={{ height: '40px', borderRadius: '10px', fontSize: '0.875rem' }}
                       />
-                      {storeTelegramChatId && storeTelegramChatId.includes(':') && (
-                        <p style={{ color: '#ef4444', fontSize: '0.65rem', marginTop: '0.5rem', fontWeight: '800' }}>
-                          ⚠️ Oops! This looks like a Bot Token. Please paste your <b>Chat ID</b> (numbers only).
-                        </p>
-                      )}
                     </div>
                     <div>
-                      <label className="form-label" style={{ fontSize: '0.75rem' }}>Bot API Token (Optional / Advanced)</label>
+                      <label className="form-label" style={{ fontSize: '0.75rem' }}>Bot API Token (Optional)</label>
                       <input 
                         type="text" 
                         className="form-input" 
@@ -708,10 +703,45 @@ const ManageStore = () => {
                         onChange={e => setStoreTelegramBotToken(e.target.value)}
                         style={{ height: '40px', borderRadius: '10px', fontSize: '0.875rem' }}
                       />
-                      {storeTelegramBotToken && !storeTelegramBotToken.includes(':') && (
-                        <p style={{ color: '#ef4444', fontSize: '0.65rem', marginTop: '0.5rem', fontWeight: '800' }}>
-                          ⚠️ Bot Tokens usually contain a colon (e.g. 123:ABC).
-                        </p>
+                    </div>
+
+                    <div style={{ padding: '1rem', background: 'rgba(99, 102, 241, 0.05)', borderRadius: '16px', border: '1px solid rgba(99, 102, 241, 0.1)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                        <div>
+                          <p style={{ margin: 0, fontWeight: '700', fontSize: '0.9rem' }}>Auto Open/Close</p>
+                          <p style={{ margin: 0, fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Automatically manage stall status based on hours</p>
+                        </div>
+                        <input 
+                          type="checkbox" 
+                          checked={storeIsAutomated} 
+                          onChange={(e) => setStoreIsAutomated(e.target.checked)}
+                          style={{ width: '20px', height: '20px', cursor: 'pointer', accentColor: 'var(--primary)' }}
+                        />
+                      </div>
+                      
+                      {storeIsAutomated && (
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                          <div>
+                            <label className="form-label" style={{ fontSize: '0.7rem' }}>Opening Time</label>
+                            <input 
+                              type="time" 
+                              className="form-input" 
+                              value={storeOpeningTime} 
+                              onChange={e => setStoreOpeningTime(e.target.value)}
+                              style={{ height: '36px', borderRadius: '8px', fontSize: '0.8rem' }}
+                            />
+                          </div>
+                          <div>
+                            <label className="form-label" style={{ fontSize: '0.7rem' }}>Closing Time</label>
+                            <input 
+                              type="time" 
+                              className="form-input" 
+                              value={storeClosingTime} 
+                              onChange={e => setStoreClosingTime(e.target.value)}
+                              style={{ height: '36px', borderRadius: '8px', fontSize: '0.8rem' }}
+                            />
+                          </div>
+                        </div>
                       )}
                     </div>
                   </div>
@@ -750,10 +780,13 @@ const ManageStore = () => {
                       <p style={{ fontWeight: '700', color: store.telegramBotToken ? 'var(--primary)' : 'var(--text-secondary)' }}>{store.telegramBotToken ? 'Custom Bot' : 'System Bot'}</p>
                     </div>
                   </div>
-                  <div style={{ padding: '1rem', background: '#f8fafc', borderRadius: '14px' }}>
-                    <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>UPI Payout ID</p>
-                    <p style={{ fontWeight: '700', color: 'var(--primary)' }}>{store.upiId || 'Not Set'}</p>
-                  <div style={{ padding: '1rem', background: '#f8fafc', borderRadius: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ padding: '1rem', background: '#f8fafc', borderRadius: '14px', display: 'flex', border: '1px solid #f1f5f9' }}>
+                    <div style={{ flex: 1 }}>
+                      <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>UPI Payout ID</p>
+                      <p style={{ fontWeight: '700', color: 'var(--primary)' }}>{store.upiId || 'Not Set'}</p>
+                    </div>
+                  </div>
+                  <div style={{ padding: '1rem', background: '#f8fafc', borderRadius: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid rgba(99, 102, 241, 0.1)' }}>
                     <div>
                       <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Operating Hours</p>
                       <p style={{ fontWeight: '700' }}>
@@ -767,7 +800,6 @@ const ManageStore = () => {
                     )}
                   </div>
                 </div>
-
               )}
             </div>
 
