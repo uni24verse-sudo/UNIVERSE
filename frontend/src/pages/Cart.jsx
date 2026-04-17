@@ -5,8 +5,10 @@ import axios from 'axios';
 import {
   Trash2, Plus, Minus, ArrowLeft, CreditCard, Coins, ShoppingBag,
   ChevronRight, ShieldCheck, Store, Clock, User, Phone,
-  CheckCircle, AlertCircle, X, Utensils
+  CheckCircle, AlertCircle, X, Utensils,
+  Sun, CloudSun, Moon, Coffee
 } from 'lucide-react';
+
 
 const Cart = () => {
   const { cart, storeId, updateQuantity, removeFromCart, total, clearCart } = useContext(CartContext);
@@ -20,7 +22,9 @@ const Cart = () => {
   const [currentOrder, setCurrentOrder] = useState(null);
   const [validationError, setValidationError] = useState('');
   const [isPreOrder, setIsPreOrder] = useState(false);
-  const [scheduledTime, setScheduledTime] = useState('12:00');
+  const [scheduledTime, setScheduledTime] = useState('');
+  const [availableSlots, setAvailableSlots] = useState([]);
+
 
 
   // Calculate order totals
@@ -54,6 +58,54 @@ const Cart = () => {
     }
   };
 
+  const generateTimeSlots = useCallback(() => {
+    const slots = [];
+    const now = new Date();
+    const minTime = new Date(now.getTime() + 30 * 60 * 1000); // 30 min buffer
+
+    // Range: 10:00 to 22:00 (10 AM to 10 PM)
+    for (let h = 10; h <= 21; h++) {
+      for (let m = 0; m < 60; m += 15) {
+        const slotDate = new Date();
+        slotDate.setHours(h, m, 0, 0);
+
+        if (slotDate >= minTime) {
+          const hh = h.toString().padStart(2, '0');
+          const mm = m.toString().padStart(2, '0');
+          const period = h >= 12 ? 'PM' : 'AM';
+          const displayedHour = h > 12 ? h - 12 : (h === 0 ? 12 : h);
+          
+          slots.push({
+            value: `${hh}:${mm}`,
+            label: `${displayedHour}:${mm} ${period}`,
+            period
+          });
+        }
+      }
+    }
+    // Handle 10:00 PM case separately if needed
+    const closingTime = new Date();
+    closingTime.setHours(22, 0, 0, 0);
+    if (closingTime >= minTime) {
+      slots.push({ value: "22:00", label: "10:00 PM", period: "PM" });
+    }
+
+    setAvailableSlots(slots);
+    if (slots.length > 0 && !scheduledTime) {
+      // Don't auto-set to avoid accidental selection, let user pick
+    }
+  }, [scheduledTime]);
+
+  useEffect(() => {
+    if (isPreOrder) {
+      generateTimeSlots();
+      // Refresh slots every minute to ensure buffer stays accurate
+      const interval = setInterval(generateTimeSlots, 60000);
+      return () => clearInterval(interval);
+    }
+  }, [isPreOrder, generateTimeSlots]);
+
+
   const handleCheckout = async () => {
     if (!customerName.trim()) {
       setValidationError('Please enter your name to proceed');
@@ -65,27 +117,12 @@ const Cart = () => {
     }
 
     if (isPreOrder) {
-      const [hours, minutes] = scheduledTime.split(':').map(Number);
-      if (hours < 10 || hours >= 22) {
-        setValidationError('Pre-orders are only available between 10:00 AM and 10:00 PM');
-        return;
-      }
-      
-      const now = new Date();
-      const minimumTime = new Date(now.getTime() + 30 * 60 * 1000); // 30 min buffer
-      
-      const selected = new Date();
-      selected.setHours(hours, minutes, 0, 0);
-      
-      if (selected < minimumTime) {
-        if (selected < now) {
-          setValidationError('Please select a future time for today. Pre-orders are for today only.');
-        } else {
-          setValidationError('Pre-orders must be scheduled at least 30 minutes in advance');
-        }
+      if (!scheduledTime) {
+        setValidationError('Please select a pickup time slot');
         return;
       }
     }
+
 
     setValidationError('');
 
@@ -386,41 +423,84 @@ const Cart = () => {
 
               {isPreOrder && (
                 <div style={{ 
-                  padding: '1rem', 
+                  padding: '1.25rem', 
                   background: 'rgba(239, 65, 35, 0.04)', 
-                  borderRadius: '16px', 
+                  borderRadius: '20px', 
                   border: '1px solid rgba(239, 65, 35, 0.1)',
-                  marginTop: '1rem',
+                  marginTop: '1.25rem',
                   animation: 'fadeIn 0.3s ease'
                 }}>
-                  <p style={{ margin: '0 0 1rem 0', fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: '600' }}>
-                    Select your preferred pickup time (10 AM - 10 PM)
-                  </p>
-                  <input
-                    type="time"
-                    value={scheduledTime}
-                    onChange={(e) => setScheduledTime(e.target.value)}
-                    min="10:00"
-                    max="22:00"
-                    style={{
-                      width: '100%',
-                      padding: '1rem',
-                      borderRadius: '12px',
-                      border: '2px solid var(--primary)',
-                      background: 'white',
-                      fontSize: '1.25rem',
-                      fontWeight: '800',
-                      color: 'var(--text-primary)',
-                      textAlign: 'center',
-                      outline: 'none'
-                    }}
-                  />
-                  <div style={{ marginTop: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--primary)', fontSize: '0.75rem', fontWeight: '700' }}>
-                    <AlertCircle size={14} />
-                    Note: Orders must be confirmed by vendor 15 mins before.
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
+                    <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-primary)', fontWeight: '700' }}>
+                      Select Pickup Slot
+                    </p>
+                    <span style={{ fontSize: '0.65rem', padding: '0.2rem 0.5rem', background: 'rgba(239, 65, 35, 0.1)', color: 'var(--primary)', borderRadius: '6px', fontWeight: '800' }}>
+                      TODAY ONLY
+                    </span>
+                  </div>
+
+                  {availableSlots.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '1rem', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                      <AlertCircle size={20} style={{ marginBottom: '0.5rem', opacity: 0.5 }} />
+                      <p>Too late for today's pre-orders.<br/>Please choose Dine In or Take Away.</p>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                      {/* Morning, Afternoon, Evening categorizations */}
+                      {[
+                        { title: 'Morning', icon: <Coffee size={14} />, slots: availableSlots.filter(s => parseInt(s.value.split(':')[0]) < 12) },
+                        { title: 'Afternoon', icon: <Sun size={14} />, slots: availableSlots.filter(s => {
+                          const h = parseInt(s.value.split(':')[0]);
+                          return h >= 12 && h < 17;
+                        })},
+                        { title: 'Evening', icon: <Moon size={14} />, slots: availableSlots.filter(s => parseInt(s.value.split(':')[0]) >= 17) }
+                      ].filter(cat => cat.slots.length > 0).map(cat => (
+                        <div key={cat.title}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.7rem', fontWeight: '800', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>
+                            {cat.icon} {cat.title}
+                          </div>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', gap: '0.6rem' }}>
+                            {cat.slots.map(slot => (
+                              <button
+                                key={slot.value}
+                                onClick={() => {
+                                  setScheduledTime(slot.value);
+                                  if (validationError) setValidationError('');
+                                }}
+                                style={{
+                                  padding: '0.6rem 0.4rem',
+                                  borderRadius: '12px',
+                                  border: `1.5px solid ${scheduledTime === slot.value ? 'var(--primary)' : 'var(--surface-border)'}`,
+                                  background: scheduledTime === slot.value ? 'var(--primary)' : 'white',
+                                  color: scheduledTime === slot.value ? 'white' : 'var(--text-primary)',
+                                  fontSize: '0.8rem',
+                                  fontWeight: '700',
+                                  cursor: 'pointer',
+                                  transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                                  boxShadow: scheduledTime === slot.value ? '0 4px 12px rgba(239, 65, 35, 0.2)' : 'none'
+                                }}
+                              >
+                                {slot.label.replace(' AM', '').replace(' PM', '')}
+                                <span style={{ fontSize: '0.6rem', opacity: 0.8, marginLeft: '2px' }}>{slot.period}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div style={{ marginTop: '1.25rem', padding: '0.75rem', background: '#fff', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '0.5rem', border: '1px solid rgba(239, 65, 35, 0.1)' }}>
+                    <Clock size={16} color="var(--primary)" />
+                    <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: '600', lineHeight: 1.4 }}>
+                      Selected pickup: <span style={{ color: 'var(--primary)', fontWeight: '800' }}>{
+                        scheduledTime ? availableSlots.find(s => s.value === scheduledTime)?.label : 'None'
+                      }</span>
+                    </p>
                   </div>
                 </div>
               )}
+
             </div>
 
             <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '24px' }}>
