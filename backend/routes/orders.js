@@ -16,6 +16,7 @@ const generateHandoverToken = () => Math.random().toString(36).substring(2, 10).
 // NOTE: For Razorpay checkouts, use the /api/payments/razorpay/verify endpoint
 // which creates the order ONLY after successful payment to avoid DB clutter.
 router.post('/create', async (req, res) => {
+  try {
     const { storeId, items, totalAmount, paymentMethod, customerPhone, customerName, orderType, packagingChargeApplied, isPreOrder, scheduledTime } = req.body;
 
     const store = await Store.findById(storeId).populate('admin');
