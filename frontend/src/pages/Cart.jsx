@@ -78,7 +78,11 @@ const Cart = () => {
       selected.setHours(hours, minutes, 0, 0);
       
       if (selected < minimumTime) {
-        setValidationError('Pre-orders must be scheduled at least 30 minutes in advance');
+        if (selected < now) {
+          setValidationError('Please select a future time for today. Pre-orders are for today only.');
+        } else {
+          setValidationError('Pre-orders must be scheduled at least 30 minutes in advance');
+        }
         return;
       }
     }

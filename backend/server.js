@@ -141,10 +141,11 @@ setInterval(async () => {
       const scheduledDate = new Date();
       scheduledDate.setHours(hours, minutes, 0, 0);
 
+      // Strict same-day: we only care about orders for today
       const diffMs = scheduledDate.getTime() - now.getTime();
       const diffMins = diffMs / (1000 * 60);
 
-      if (diffMins > 0 && diffMins <= 10) {
+      if (diffMins > -15 && diffMins <= 10) { // Allow firing even if slightly late (up to 15 mins past target)
         const store = order.store;
         if (store) {
           await telegramService.sendPreOrderFinalAlert(store, order);
