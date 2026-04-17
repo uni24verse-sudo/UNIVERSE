@@ -329,6 +329,69 @@ const SuperAdminPanel = () => {
                     </span>
                   </div>
 
+                  {/* Stall Hours & Automation */}
+                  <div style={{ padding: '1rem', background: 'rgba(99, 102, 241, 0.05)', borderRadius: '16px', border: '1px solid rgba(99, 102, 241, 0.1)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                      <div>
+                        <p style={{ margin: 0, fontWeight: '800', fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--primary)' }}>Stall Automation</p>
+                        <p style={{ margin: 0, fontSize: '0.65rem', color: 'var(--text-secondary)' }}>Automatically manage status</p>
+                      </div>
+                      <input 
+                        type="checkbox" 
+                        defaultChecked={store.isAutomated} 
+                        onChange={async (e) => {
+                          try {
+                            await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/super-admin/store/${store._id}/update-details`, 
+                              { isAutomated: e.target.checked }, 
+                              { headers: { Authorization: `Bearer ${token}` } }
+                            );
+                            fetchDashboardData();
+                          } catch(err) { alert('Failed to update automation'); }
+                        }}
+                        style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: 'var(--primary)' }}
+                      />
+                    </div>
+                    
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                      <div>
+                        <label style={{ fontSize: '0.65rem', display: 'block', marginBottom: '0.25rem', fontWeight: '700' }}>Opens at</label>
+                        <input 
+                          type="time" 
+                          defaultValue={store.openingTime || '10:00'}
+                          onBlur={async (e) => {
+                            if (e.target.value === store.openingTime) return;
+                            try {
+                              await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/super-admin/store/${store._id}/update-details`, 
+                                { openingTime: e.target.value }, 
+                                { headers: { Authorization: `Bearer ${token}` } }
+                              );
+                              fetchDashboardData();
+                            } catch(err) { alert('Failed to update time'); }
+                          }}
+                          style={{ width: '100%', background: '#fff', border: '1px solid var(--surface-border)', borderRadius: '6px', padding: '0.4rem', fontSize: '0.75rem' }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: '0.65rem', display: 'block', marginBottom: '0.25rem', fontWeight: '700' }}>Closes at</label>
+                        <input 
+                          type="time" 
+                          defaultValue={store.closingTime || '22:00'}
+                          onBlur={async (e) => {
+                            if (e.target.value === store.closingTime) return;
+                            try {
+                              await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/super-admin/store/${store._id}/update-details`, 
+                                { closingTime: e.target.value }, 
+                                { headers: { Authorization: `Bearer ${token}` } }
+                              );
+                              fetchDashboardData();
+                            } catch(err) { alert('Failed to update time'); }
+                          }}
+                          style={{ width: '100%', background: '#fff', border: '1px solid var(--surface-border)', borderRadius: '6px', padding: '0.4rem', fontSize: '0.75rem' }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
                   {/* Manual Ranking Control */}
                   <div style={{ padding: '1rem', background: '#f8fafc', borderRadius: '16px', border: '1px solid var(--surface-border)' }}>
                     <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.75rem', fontWeight: '800', textTransform: 'uppercase' }}>Store Ranking (Lower is Higher)</p>
@@ -340,7 +403,7 @@ const SuperAdminPanel = () => {
                           const val = e.target.value;
                           if (val == store.priority) return;
                           try {
-                            await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/super-admin/store/${store._id}/priority`, 
+                            await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/super-admin/store/${store._id}/update-details`, 
                               { priority: val }, 
                               { headers: { Authorization: `Bearer ${token}` } }
                             );

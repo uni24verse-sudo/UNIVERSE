@@ -282,17 +282,22 @@ router.put('/order/:id/cancel', async (req, res) => {
     }
 });
 
-// 7. Update Store Priority (Manual Ranking)
-router.put('/store/:id/priority', async (req, res) => {
+// 7. Update Store Details (generic)
+router.put('/store/:id/update-details', async (req, res) => {
     try {
-        const { priority } = req.body;
+        const { priority, openingTime, closingTime, isAutomated, name, market } = req.body;
         const store = await Store.findById(req.params.id);
         if (!store) return res.status(404).json({ message: 'Store not found' });
 
-        store.priority = Number(priority) || 0;
+        if (priority !== undefined) store.priority = Number(priority);
+        if (openingTime) store.openingTime = openingTime;
+        if (closingTime) store.closingTime = closingTime;
+        if (isAutomated !== undefined) store.isAutomated = isAutomated;
+        if (name) store.name = name;
+        if (market) store.market = market;
+        
         await store.save();
-
-        res.json({ message: 'Store priority updated successfully', store });
+        res.json({ message: 'Store updated successfully', store });
     } catch (err) {
         res.status(500).json({ message: err.message });
     }
