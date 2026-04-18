@@ -185,7 +185,9 @@ const Cart = () => {
                 storeName: store?.name || 'Store',
                 market: store?.market || 'Campus',
                 timestamp: Date.now(),
-                status: 'Pending'
+                status: 'Pending',
+                isPreOrder: savedOrder.isPreOrder,
+                scheduledTime: savedOrder.scheduledTime
               };
               
               // Only keep unique orders, limit to 5

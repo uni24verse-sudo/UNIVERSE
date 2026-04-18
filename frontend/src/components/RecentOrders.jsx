@@ -17,13 +17,26 @@ const RecentOrders = () => {
   useEffect(() => {
     const loadOrders = async () => {
       const stored = JSON.parse(localStorage.getItem('universe_recent_orders') || '[]');
-      const twoHoursAgo = Date.now() - 2 * 60 * 60 * 1000;
-      const active = stored.filter(o => o.timestamp > twoHoursAgo);
+      const now = Date.now();
+      const twoHoursAgo = now - 2 * 60 * 60 * 1000;
+      const twentyFourHoursAgo = now - 24 * 60 * 60 * 1000;
+      
+      // Filter logic:
+      // 1. All active (non-finished) orders stay visible for today.
+      // 2. Completed/Cancelled orders stay for 2 hours for history.
+      const active = stored.filter(o => {
+        const isFinished = ['Completed', 'Cancelled'].includes(o.status);
+        const isRecent = o.timestamp > twoHoursAgo;
+        const isToday = o.timestamp > twentyFourHoursAgo;
+        
+        return isToday && (!isFinished || isRecent);
+      });
       
       // Rehydrate: Fetch latest status for active orders
       const rehydrated = await Promise.all(active.map(async (order) => {
         try {
           const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/orders/${order.id}`);
+          // If status just changed to final, we might want to preserve it for 2 hours from NOW
           return { ...order, status: res.data.status };
         } catch (err) {
           console.error(`Failed to refresh status for ${order.id}`, err);
@@ -31,10 +44,18 @@ const RecentOrders = () => {
         }
       }));
 
-      if (JSON.stringify(rehydrated) !== JSON.stringify(stored)) {
-        localStorage.setItem('universe_recent_orders', JSON.stringify(rehydrated));
+      // Re-filter after rehydration (in case an old order just got completed)
+      const finalOrders = rehydrated.filter(o => {
+        const isFinished = ['Completed', 'Cancelled'].includes(o.status);
+        const isRecent = o.timestamp > twoHoursAgo;
+        const isToday = o.timestamp > twentyFourHoursAgo;
+        return isToday && (!isFinished || isRecent);
+      });
+
+      if (JSON.stringify(finalOrders) !== JSON.stringify(stored)) {
+        localStorage.setItem('universe_recent_orders', JSON.stringify(finalOrders));
       }
-      setOrders(rehydrated);
+      setOrders(finalOrders);
     };
 
     if (!shouldHide) {
@@ -61,10 +82,19 @@ const RecentOrders = () => {
 
             // Update Local Storage
             const stored = JSON.parse(localStorage.getItem('universe_recent_orders') || '[]');
-            const updated = stored.map(o => o.id === updatedOrder._id ? { ...o, status: updatedOrder.status } : o);
+            const isNowFinished = ['Completed', 'Cancelled'].includes(updatedOrder.status);
+            const updated = stored.map(o => o.id === updatedOrder._id ? { 
+              ...o, 
+              status: updatedOrder.status,
+              timestamp: isNowFinished ? Date.now() : o.timestamp // Reset clock for history
+            } : o);
             localStorage.setItem('universe_recent_orders', JSON.stringify(updated));
             
-            return prev.map(o => o.id === updatedOrder._id ? { ...o, status: updatedOrder.status } : o);
+            return prev.map(o => o.id === updatedOrder._id ? { 
+              ...o, 
+              status: updatedOrder.status,
+              timestamp: isNowFinished ? Date.now() : o.timestamp 
+            } : o);
           }
           return prev;
         });
