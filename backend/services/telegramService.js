@@ -128,6 +128,36 @@ class TelegramService {
   }
 
   /**
+   * Specifically for pre-order 15-min reminders
+   */
+  async sendPreOrder15MinReminder(store, order) {
+    const chatId = (store && store.telegramChatId) || (store && store.admin && store.admin.telegramChatId);
+    if (!chatId) return;
+
+    const itemList = order.items?.map(item => {
+      let text = `• ${item.name} <b>(x${item.quantity})</b>`;
+      if (item.isCombo && item.comboItems?.length > 0) {
+        text += item.comboItems.map(ci => `\n  - ${ci.quantity} ${ci.name}`).join('');
+      }
+      return text;
+    }).join('\n') || '';
+
+    const message = `━━━━━━━━━━━━━━━━━━━━━━\n` +
+      `     ⏰ <b>PRE-ORDER REMINDER</b>\n` +
+      `━━━━━━━━━━━━━━━━━━━━━━\n` +
+      `🕒 <b>PICKUP IN: 15 MINUTES</b>\n` +
+      `🕘 <b>TARGET TIME: ${order.scheduledTime}</b>\n\n` +
+      `📍 <b>Order #${order.orderNumber} Items:</b>\n` +
+      `${itemList}\n\n` +
+      `👉 <i>Kitchen, please ensure the order is ready for handover in 15 mins!</i>\n\n` +
+      `🏪 Store: ${store?.name || 'Your Store'}\n` +
+      `👉 <b><a href="https://www.universeorder.co.in/vendor/dashboard">Open Dashboard</a></b>`;
+
+    const botToken = store?.telegramBotToken || null;
+    return this.sendMessage(chatId, message, botToken);
+  }
+
+  /**
    * Specifically for pre-order final warnings (10 mins before)
    */
   async sendPreOrderFinalAlert(store, order) {

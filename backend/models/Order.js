@@ -33,6 +33,7 @@ const OrderSchema = new mongoose.Schema({
   isPreOrder: { type: Boolean, default: false },
   scheduledTime: { type: String },
   reminderSent: { type: Boolean, default: false },
+  reminder15Sent: { type: Boolean, default: false },
   reminder10Sent: { type: Boolean, default: false }
 }, { timestamps: true });
 

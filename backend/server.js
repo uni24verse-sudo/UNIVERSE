@@ -87,10 +87,13 @@ const telegramService = require('./services/telegramService');
 // Background job to handle timeouts and pre-order reminders
 setInterval(async () => {
   try {
-    const now = new Date();
-
+    // Standardize to Indian Standard Time (IST)
+    const nowIST = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Kolkata"}));
+    
     // 1. Cancel expired orders (ASAP and Pre-orders)
-    const expiredOrders = await Order.find({ status: 'Pending', acceptDeadline: { $lt: now } });
+    // acceptDeadline is stored as a Date object in MongoDB (usually UTC)
+    // We compare it against current server time which is also UTC-comparable
+    const expiredOrders = await Order.find({ status: 'Pending', acceptDeadline: { $lt: new Date() } });
     for (const order of expiredOrders) {
       order.status = 'Cancelled';
       await order.save();
@@ -99,36 +102,36 @@ setInterval(async () => {
       console.log(`Auto-cancelled order #${order.orderNumber} due to timeout.`);
     }
 
-    // 2. Send Telegram reminders for pre-orders (30 mins before)
-    // We look for Confirmed pre-orders that haven't been reminded yet
-    const upcomingPreOrders = await Order.find({
+    // 2. Pre-Order Telegram Reminders (15 mins and 10 mins before)
+    // Process 15-min reminders
+    const preOrder15 = await Order.find({
       isPreOrder: true,
       status: 'Confirmed',
-      reminderSent: false,
+      reminder15Sent: false,
       scheduledTime: { $ne: null }
     }).populate('store');
 
-    for (const order of upcomingPreOrders) {
+    for (const order of preOrder15) {
       const [hours, minutes] = order.scheduledTime.split(':').map(Number);
-      const scheduledDate = new Date();
+      const scheduledDate = new Date(nowIST);
       scheduledDate.setHours(hours, minutes, 0, 0);
 
-      // If current time is within 30-35 mins of scheduled time
-      const diffMs = scheduledDate.getTime() - now.getTime();
+      const diffMs = scheduledDate.getTime() - nowIST.getTime();
       const diffMins = diffMs / (1000 * 60);
 
-      if (diffMins > 0 && diffMins <= 30) {
+      // Trigger if pickup is in 10-15 minutes
+      if (diffMins > 0 && diffMins <= 15) {
         const store = order.store;
         if (store) {
-          await telegramService.sendPreOrderReminder(store, order);
-          order.reminderSent = true;
+          await telegramService.sendPreOrder15MinReminder(store, order);
+          order.reminder15Sent = true;
           await order.save();
-          console.log(`Sent 30-min preparation reminder for Pre-Order #${order.orderNumber}`);
+          console.log(`Sent 15-min preparation reminder for Pre-Order #${order.orderNumber}`);
         }
       }
     }
 
-    // 3. Send FINAL Telegram reminders for pre-orders (10 mins before)
+    // Process 10-min reminders
     const imminentPreOrders = await Order.find({
       isPreOrder: true,
       status: 'Confirmed',
@@ -138,14 +141,14 @@ setInterval(async () => {
 
     for (const order of imminentPreOrders) {
       const [hours, minutes] = order.scheduledTime.split(':').map(Number);
-      const scheduledDate = new Date();
+      const scheduledDate = new Date(nowIST);
       scheduledDate.setHours(hours, minutes, 0, 0);
 
-      // Strict same-day: we only care about orders for today
-      const diffMs = scheduledDate.getTime() - now.getTime();
+      const diffMs = scheduledDate.getTime() - nowIST.getTime();
       const diffMins = diffMs / (1000 * 60);
 
-      if (diffMins > -15 && diffMins <= 10) { // Allow firing even if slightly late (up to 15 mins past target)
+      // Trigger if pickup is in 0-10 minutes (with a small buffer for missed jobs)
+      if (diffMins > -5 && diffMins <= 10) {
         const store = order.store;
         if (store) {
           await telegramService.sendPreOrderFinalAlert(store, order);
@@ -156,24 +159,25 @@ setInterval(async () => {
       }
     }
 
-    // 4. Automated Store Opening/Closing
+    // 3. Automated Store Opening/Closing (IST Based)
     const automatedStores = await Store.find({ isAutomated: true });
-    const currentHHMM = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+    const currentHHMM = nowIST.getHours().toString().padStart(2, '0') + ':' + nowIST.getMinutes().toString().padStart(2, '0');
 
     for (const store of automatedStores) {
+      // Comparison works because we use HH:mm in IST
       const shouldBeOpen = currentHHMM >= store.openingTime && currentHHMM < store.closingTime;
       if (store.isOpen !== shouldBeOpen) {
         store.isOpen = shouldBeOpen;
         await store.save();
         io.emit('store_status_update', { storeId: store._id, isOpen: shouldBeOpen });
-        console.log(`Automated: Store ${store.name} is now ${shouldBeOpen ? 'OPEN' : 'CLOSED'}`);
+        console.log(`Automated (IST ${currentHHMM}): Store ${store.name} is now ${shouldBeOpen ? 'OPEN' : 'CLOSED'}`);
       }
     }
 
   } catch (err) {
     console.error('Background job error:', err);
   }
-}, 30000); // Check every 30 seconds for reminders
+}, 30000); // Check every 30 seconds
 
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
