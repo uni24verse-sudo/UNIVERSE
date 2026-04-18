@@ -26,7 +26,8 @@ import {
   AlertCircle,
   Utensils,
   Package,
-  Volume2
+  Volume2,
+  Search
 } from 'lucide-react';
 
 const CountdownTimer = ({ deadline, onAccept }) => {
@@ -105,6 +106,7 @@ const Dashboard = () => {
   const [showScanner, setShowScanner] = useState(false);
   const [verifyingScan, setVerifyingScan] = useState(false);
   const [scanResult, setScanResult] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 1024);
@@ -403,6 +405,15 @@ const Dashboard = () => {
         break;
       default:
         filtered = orders;
+    }
+
+    // Apply Search Filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      filtered = filtered.filter(o => 
+        (o.orderNumber && o.orderNumber.toLowerCase().includes(query)) ||
+        (o.customerPhone && o.customerPhone.includes(query))
+      );
     }
 
     // Sort: Pending first, then Confirmed, then by newest
@@ -741,6 +752,39 @@ const Dashboard = () => {
                       </span>
                     )}
                   </h3>
+                </div>
+                
+                {/* Quick Search Bar */}
+                <div style={{ position: 'relative', marginBottom: '1.5rem', width: '100%' }}>
+                  <Search size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)', opacity: 0.5 }} />
+                  <input 
+                    type="text" 
+                    placeholder="Search Order # or ID..." 
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '0.75rem 1rem 0.75rem 3rem',
+                      borderRadius: '16px',
+                      background: 'rgba(255,255,255,0.03)',
+                      border: '1px solid var(--surface-border)',
+                      color: 'var(--text-primary)',
+                      fontSize: '0.9rem',
+                      fontWeight: '600',
+                      outline: 'none',
+                      transition: 'all 0.2s ease',
+                      boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.02)'
+                    }}
+                    onFocus={(e) => e.target.style.borderColor = 'var(--primary)'}
+                    onBlur={(e) => e.target.style.borderColor = 'var(--surface-border)'}
+                  />
+                  {searchQuery && (
+                    <X 
+                      size={16} 
+                      onClick={() => setSearchQuery('')}
+                      style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--error)', cursor: 'pointer', background: 'rgba(239, 68, 68, 0.1)', padding: '0.2rem', borderRadius: '4px' }} 
+                    />
+                  )}
                 </div>
 
                 {/* Filter Tabs */}
