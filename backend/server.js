@@ -160,22 +160,33 @@ setInterval(async () => {
     }
 
     // 3. Automated Store Opening/Closing (IST Based)
-    const automatedStores = await Store.find({ isAutomated: true });
-    const currentHHMM = nowIST.getHours().toString().padStart(2, '0') + ':' + nowIST.getMinutes().toString().padStart(2, '0');
+    const automatedStores = await Store.find({ isAutomated: { $ne: false } });
+    
+    // Robust HH:mm calculation for IST
+    const currentHHMM = new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'Asia/Kolkata',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    }).format(new Date());
 
     for (const store of automatedStores) {
-      // Comparison works because we use HH:mm in IST
-      const shouldBeOpen = currentHHMM >= store.openingTime && currentHHMM < store.closingTime;
-      if (store.isOpen !== shouldBeOpen) {
-        store.isOpen = shouldBeOpen;
-        await store.save();
-        io.emit('store_status_update', { storeId: store._id, isOpen: shouldBeOpen });
-        console.log(`Automated (IST ${currentHHMM}): Store ${store.name} is now ${shouldBeOpen ? 'OPEN' : 'CLOSED'}`);
+      try {
+        // Comparison works because we use HH:mm in IST
+        const shouldBeOpen = currentHHMM >= store.openingTime && currentHHMM < store.closingTime;
+        if (store.isOpen !== shouldBeOpen) {
+          store.isOpen = shouldBeOpen;
+          await store.save();
+          io.emit('store_status_update', { storeId: store._id, isOpen: shouldBeOpen });
+          console.log(`Automated (IST ${currentHHMM}): Store ${store.name} is now ${shouldBeOpen ? 'OPEN' : 'CLOSED'}`);
+        }
+      } catch (storeErr) {
+        console.error(`Automation error for store ${store.name} (${store._id}):`, storeErr.message);
       }
     }
 
   } catch (err) {
-    console.error('Background job error:', err);
+    console.error('Background job global error:', err);
   }
 }, 30000); // Check every 30 seconds
 

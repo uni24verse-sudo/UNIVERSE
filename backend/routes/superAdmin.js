@@ -240,9 +240,11 @@ router.put('/store/:id/toggle-status', async (req, res) => {
         if (!store) return res.status(404).json({ message: 'Store not found' });
 
         store.isOpen = !store.isOpen;
+        // Force toggle disabling automation prevents flip-flopping
+        store.isAutomated = false;
         await store.save();
 
-        res.json({ message: `Store forcefully ${store.isOpen ? 'opened' : 'closed'}`, isOpen: store.isOpen });
+        res.json({ message: `Store forcefully ${store.isOpen ? 'opened' : 'closed'}`, isOpen: store.isOpen, isAutomated: store.isAutomated });
     } catch (err) {
         res.status(500).json({ message: err.message });
     }

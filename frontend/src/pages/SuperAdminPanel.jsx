@@ -338,7 +338,7 @@ const SuperAdminPanel = () => {
                       </div>
                       <input 
                         type="checkbox" 
-                        defaultChecked={store.isAutomated} 
+                        checked={store.isAutomated} 
                         onChange={async (e) => {
                           try {
                             await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/super-admin/store/${store._id}/update-details`, 
@@ -357,9 +357,12 @@ const SuperAdminPanel = () => {
                         <label style={{ fontSize: '0.65rem', display: 'block', marginBottom: '0.25rem', fontWeight: '700' }}>Opens at</label>
                         <input 
                           type="time" 
-                          defaultValue={store.openingTime || '10:00'}
+                          value={store.openingTime || '10:00'}
+                          onChange={(e) => {
+                            const updatedStores = stores.map(s => s._id === store._id ? {...s, openingTime: e.target.value} : s);
+                            setStores(updatedStores);
+                          }}
                           onBlur={async (e) => {
-                            if (e.target.value === store.openingTime) return;
                             try {
                               await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/super-admin/store/${store._id}/update-details`, 
                                 { openingTime: e.target.value }, 
@@ -375,9 +378,12 @@ const SuperAdminPanel = () => {
                         <label style={{ fontSize: '0.65rem', display: 'block', marginBottom: '0.25rem', fontWeight: '700' }}>Closes at</label>
                         <input 
                           type="time" 
-                          defaultValue={store.closingTime || '22:00'}
+                          value={store.closingTime || '22:00'}
+                          onChange={(e) => {
+                            const updatedStores = stores.map(s => s._id === store._id ? {...s, closingTime: e.target.value} : s);
+                            setStores(updatedStores);
+                          }}
                           onBlur={async (e) => {
-                            if (e.target.value === store.closingTime) return;
                             try {
                               await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/super-admin/store/${store._id}/update-details`, 
                                 { closingTime: e.target.value }, 
