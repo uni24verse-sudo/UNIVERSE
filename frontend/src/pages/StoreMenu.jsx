@@ -259,8 +259,8 @@ const StoreMenu = () => {
 
         <div className="store-menu-grid" style={{ 
           display: 'grid',
-          gridTemplateColumns: isExternal && activeCategory === 'All' && !searchQuery ? '1fr' : 'repeat(auto-fill, minmax(100%, 1fr))',
-          gap: '1.25rem'
+          gridTemplateColumns: isExternal && activeCategory === 'All' && !searchQuery ? 'repeat(auto-fill, minmax(100px, 1fr))' : 'repeat(auto-fill, minmax(160px, 1fr))',
+          gap: isExternal && activeCategory === 'All' && !searchQuery ? '0.75rem' : '1.25rem'
         }}>
           {activeCategory === 'All' && comboExists && !searchQuery && !isExternal && (
             <div 
@@ -437,14 +437,14 @@ const StoreMenu = () => {
                     <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{product.category || 'Specialty'}</span>
                   </div>
 
-                  <h3 style={{ margin: '0 0 0.4rem 0', fontSize: '1.15rem', fontWeight: '800', color: 'var(--text-primary)', letterSpacing: '-0.01em', lineHeight: '1.3' }}>{product.name}</h3>
+                  <h3 style={{ margin: '0 0 0.3rem 0', fontSize: '1rem', fontWeight: '800', color: 'var(--text-primary)', letterSpacing: '-0.01em', lineHeight: '1.2' }}>{product.name}</h3>
                   
-                  <div style={{ marginTop: 'auto', display: 'flex', alignItems: 'baseline', gap: '0.4rem' }}>
-                    <span style={{ fontSize: '0.85rem', fontWeight: '800', color: 'var(--primary)' }}>₹</span>
+                  <div style={{ marginTop: 'auto', display: 'flex', alignItems: 'baseline', gap: '0.3rem' }}>
+                    <span style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--primary)' }}>₹</span>
                     {product.variants && product.variants.length > 0 ? (
-                      <span style={{ fontWeight: '900', fontSize: '1.35rem', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>{Math.min(...product.variants.map(v => v.price))}<span style={{ fontSize: '0.9rem', marginLeft: '2px' }}>+</span></span>
+                      <span style={{ fontWeight: '900', fontSize: '1.15rem', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>{Math.min(...product.variants.map(v => v.price))}<span style={{ fontSize: '0.8rem', marginLeft: '1px' }}>+</span></span>
                     ) : (
-                      <span style={{ fontWeight: '900', fontSize: '1.35rem', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>{product.price}</span>
+                      <span style={{ fontWeight: '900', fontSize: '1.15rem', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>{product.price}</span>
                     )}
                   </div>
                   
