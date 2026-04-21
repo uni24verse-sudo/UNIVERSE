@@ -3,6 +3,7 @@ const router = express.Router();
 const auth = require('../middleware/auth');
 const Store = require('../models/Store');
 const Admin = require('../models/Admin');
+const telegramService = require('../services/telegramService');
 const multer = require('multer');
 const cloudinary = require('cloudinary').v2;
 const { Readable } = require('stream');
@@ -368,6 +369,9 @@ router.put('/:storeId/toggle-status', auth, async (req, res) => {
     // Manual toggle disables automation for this store
     store.isAutomated = false;
     await store.save();
+
+    // Notify via Telegram
+    await telegramService.sendStatusAlert(store, store.isOpen);
 
     res.json({ message: `Store is now ${store.isOpen ? 'Open' : 'Closed'}`, isOpen: store.isOpen, isAutomated: store.isAutomated });
   } catch (err) {

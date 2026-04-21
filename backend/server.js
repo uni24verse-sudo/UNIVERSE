@@ -178,6 +178,10 @@ setInterval(async () => {
           store.isOpen = shouldBeOpen;
           await store.save();
           io.emit('store_status_update', { storeId: store._id, isOpen: shouldBeOpen });
+          
+          // Notify via Telegram
+          await telegramService.sendStatusAlert(store, shouldBeOpen);
+          
           console.log(`Automated (IST ${currentHHMM}): Store ${store.name} is now ${shouldBeOpen ? 'OPEN' : 'CLOSED'}`);
         }
       } catch (storeErr) {

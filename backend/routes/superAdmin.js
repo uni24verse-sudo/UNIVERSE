@@ -4,6 +4,7 @@ const superAdminAuth = require('../middleware/superAdminAuth');
 const Admin = require('../models/Admin');
 const Store = require('../models/Store');
 const Order = require('../models/Order');
+const telegramService = require('../services/telegramService');
 
 // Apply super admin authentication middleware to all routes in this file
 router.use(superAdminAuth);
@@ -243,6 +244,9 @@ router.put('/store/:id/toggle-status', async (req, res) => {
         // Force toggle disabling automation prevents flip-flopping
         store.isAutomated = false;
         await store.save();
+
+        // Notify via Telegram
+        await telegramService.sendStatusAlert(store, store.isOpen);
 
         res.json({ message: `Store forcefully ${store.isOpen ? 'opened' : 'closed'}`, isOpen: store.isOpen, isAutomated: store.isAutomated });
     } catch (err) {

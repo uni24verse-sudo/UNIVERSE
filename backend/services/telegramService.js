@@ -174,7 +174,23 @@ class TelegramService {
       `🏪 Store: ${store?.name || 'Your Store'}\n` +
       `👉 <b><a href="https://www.universeorder.co.in/vendor/dashboard">Open Dashboard</a></b>`;
 
-    const botToken = store?.telegramBotToken || null;
+  /**
+   * Specifically for store status alerts (Open/Closed)
+   */
+  async sendStatusAlert(store, isOpen) {
+    const chatId = (store && store.telegramChatId) || (store && store.admin && store.admin.telegramChatId);
+    if (!chatId) return;
+
+    const statusEmoji = isOpen ? '🟢' : '🔴';
+    const statusText = isOpen ? 'OPEN' : 'CLOSED';
+    
+    const message = `━━━━━━━━━━━━━━━━━━━━━━\n` +
+      `${statusEmoji} <b>STALL STATUS UPDATE</b>\n` +
+      `━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+      `Your stall <b>"${store.name}"</b> is now <b>${statusText}</b>.\n\n` +
+      `👉 <b><a href="https://www.universeorder.co.in/vendor/dashboard">Open Dashboard</a></b>`;
+
+    const botToken = store.telegramBotToken || null;
     return this.sendMessage(chatId, message, botToken);
   }
 }
