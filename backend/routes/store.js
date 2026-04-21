@@ -27,13 +27,25 @@ const bufferToStream = (buffer) => {
 // Create a Store
 router.post('/create', auth, async (req, res) => {
   try {
-    const { name, category, market, upiId, telegramChatId } = req.body;
+    const { name, category, market, upiId, telegramChatId, locationId } = req.body;
+
+    let finalMarket = market || 'BH1 Market';
+    
+    // Automatically detect and align with external hubs if locationId is provided
+    if (locationId) {
+      const Location = require('../models/Location');
+      const loc = await Location.findById(locationId);
+      if (loc && loc.type === 'External') {
+        finalMarket = loc.name; // e.g., "Law Gate" instead of campus markets
+      }
+    }
 
     const newStore = new Store({
       admin: req.admin._id,
       name,
       category: category || 'General',
-      market: market || 'BH1 Market',
+      market: finalMarket,
+      locationId: locationId || null,
       upiId: upiId || '',
       telegramChatId: telegramChatId || '',
       products: []

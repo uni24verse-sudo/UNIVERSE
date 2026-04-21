@@ -21,7 +21,13 @@ const CreateStore = () => {
     setError('');
 
     try {
-      await axios.post((import.meta.env.VITE_API_URL || 'http://localhost:5000') + '/api/store/create', { name, category, market, upiId, telegramChatId }, {
+      const locationId = localStorage.getItem('universe_location_id');
+      const payload = { name, category, market, upiId, telegramChatId };
+      if (locationId) {
+        payload.locationId = locationId;
+      }
+      
+      await axios.post((import.meta.env.VITE_API_URL || 'http://localhost:5000') + '/api/store/create', payload, {
         headers: { Authorization: `Bearer ${token}` }
       });
       navigate('/vendor/dashboard');
@@ -83,26 +89,28 @@ const CreateStore = () => {
               </p>
             </div>
 
-            <div className="form-group" style={{ marginBottom: '1.5rem' }}>
-              <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem', fontWeight: '700' }}>
-                <Store size={18} color="var(--primary)" /> Market Location
-              </label>
-              <select 
-                className="form-input" 
-                value={market}
-                onChange={(e) => setMarket(e.target.value)}
-                style={{ height: '58px', borderRadius: '16px', fontSize: '1.125rem', appearance: 'none', background: '#ffffff', border: '1px solid var(--surface-border)', color: 'var(--text-primary)', padding: '0 1rem' }}
-                required
-              >
-                <option value="" disabled>Select Market</option>
-                <option value="BH1 Market">BH1 Market</option>
-                <option value="Block34 Market">Block34 Market</option>
-                <option value="LIT Market">LIT Market</option>
-                <option value="Mall Market">Mall Market</option>
-                <option value="BH6 Market">BH6 Market</option>
-                <option value="Apartment Market">Apartment Market</option>
-              </select>
-            </div>
+            {localStorage.getItem('universe_location_type') !== 'External' && (
+              <div className="form-group" style={{ marginBottom: '1.5rem' }}>
+                <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem', fontWeight: '700' }}>
+                  <Store size={18} color="var(--primary)" /> Market Location
+                </label>
+                <select 
+                  className="form-input" 
+                  value={market}
+                  onChange={(e) => setMarket(e.target.value)}
+                  style={{ height: '58px', borderRadius: '16px', fontSize: '1.125rem', appearance: 'none', background: '#ffffff', border: '1px solid var(--surface-border)', color: 'var(--text-primary)', padding: '0 1rem' }}
+                  required
+                >
+                  <option value="" disabled>Select Market</option>
+                  <option value="BH1 Market">BH1 Market</option>
+                  <option value="Block34 Market">Block34 Market</option>
+                  <option value="LIT Market">LIT Market</option>
+                  <option value="Mall Market">Mall Market</option>
+                  <option value="BH6 Market">BH6 Market</option>
+                  <option value="Apartment Market">Apartment Market</option>
+                </select>
+              </div>
+            )}
             <div className="form-group" style={{ marginBottom: '1.5rem' }}>
               <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem', fontWeight: '700' }}>
                 <ShieldCheck size={18} color="var(--primary)" /> UPI ID for Payouts

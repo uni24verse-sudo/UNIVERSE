@@ -536,7 +536,7 @@ const ManageStore = () => {
                 }}
               >
                 {stores.map(s => (
-                  <option key={s._id} value={s._id}>{s.name} ({s.market || 'BH1 Market'})</option>
+                  <option key={s._id} value={s._id}>{s.name} {localStorage.getItem('universe_location_type') !== 'External' ? `(${s.market || 'Location'})` : ''}</option>
                 ))}
               </select>
             )}
@@ -642,22 +642,24 @@ const ManageStore = () => {
                       <option value="Other">Other</option>
                     </select>
                   </div>
-                  <div className="form-group">
-                    <label className="form-label" style={{ fontSize: '0.75rem' }}>Market Location</label>
-                    <select 
-                      className="form-input" 
-                      value={storeMarket} 
-                      onChange={e => setStoreMarket(e.target.value)}
-                      style={{ height: '40px', borderRadius: '10px', fontSize: '0.875rem', background: '#f8fafc', color: 'var(--text-primary)' }}
-                    >
-                      <option value="BH1 Market">BH1 Market</option>
-                      <option value="Block34 Market">Block34 Market</option>
-                      <option value="LIT Market">LIT Market</option>
-                      <option value="Mall Market">Mall Market</option>
-                      <option value="BH6 Market">BH6 Market</option>
-                      <option value="Apartment Market">Apartment Market</option>
-                    </select>
-                  </div>
+                  {localStorage.getItem('universe_location_type') !== 'External' && (
+                    <div className="form-group">
+                      <label className="form-label" style={{ fontSize: '0.75rem' }}>Market Location</label>
+                      <select 
+                        className="form-input" 
+                        value={storeMarket} 
+                        onChange={e => setStoreMarket(e.target.value)}
+                        style={{ height: '40px', borderRadius: '10px', fontSize: '0.875rem', background: '#f8fafc', color: 'var(--text-primary)' }}
+                      >
+                        <option value="BH1 Market">BH1 Market</option>
+                        <option value="Block34 Market">Block34 Market</option>
+                        <option value="LIT Market">LIT Market</option>
+                        <option value="Mall Market">Mall Market</option>
+                        <option value="BH6 Market">BH6 Market</option>
+                        <option value="Apartment Market">Apartment Market</option>
+                      </select>
+                    </div>
+                  )}
                   <div className="form-group" style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1rem' }}>
                     <div>
                       <label className="form-label" style={{ fontSize: '0.75rem' }}>Packaging Charge (Takeaway) ₹</label>
@@ -765,10 +767,12 @@ const ManageStore = () => {
                       <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Category</p>
                       <p style={{ fontWeight: '700' }}>{store.category || 'General'}</p>
                     </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Market Location</p>
-                      <p style={{ fontWeight: '700' }}>{store.market || 'BH1 Market'}</p>
-                    </div>
+                    {localStorage.getItem('universe_location_type') !== 'External' && (
+                      <div style={{ textAlign: 'right' }}>
+                        <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Market Location</p>
+                        <p style={{ fontWeight: '700' }}>{store.market || 'BH1 Market'}</p>
+                      </div>
+                    )}
                   </div>
                   <div style={{ padding: '1rem', background: '#f8fafc', borderRadius: '14px', display: 'flex', gap: '1rem' }}>
                     <div style={{ flex: 1 }}>
