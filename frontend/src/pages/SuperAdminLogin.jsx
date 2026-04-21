@@ -1,5 +1,5 @@
 import React, { useState, useContext } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
 import { Shield, Lock, ChevronRight, Loader2 } from 'lucide-react';
@@ -11,6 +11,7 @@ const SuperAdminLogin = () => {
   const [isLoading, setIsLoading] = useState(false);
   const { login } = useContext(AuthContext);
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -21,10 +22,13 @@ const SuperAdminLogin = () => {
       const res = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/auth/login`, { email, password });
       login(res.data.token, res.data.admin);
       
-      // We don't strictly verify role here since backend will block non-SAs, 
-      // but if the login is successful, we navigate to the SA panel.
-      // If it's a normal vendor, the SA backend routes will throw 403.
-      navigate('/super-admin/panel');
+      // If they came from the locked external hub, send them back there to view it.
+      // Otherwise, take them to the super admin panel.
+      if (location.state?.fromRestrictedAccess) {
+        navigate('/');
+      } else {
+        navigate('/super-admin/panel');
+      }
     } catch (err) {
       setError(err.response?.data?.message || 'Invalid credentials');
     } finally {
