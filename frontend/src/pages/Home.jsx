@@ -80,6 +80,8 @@ const Home = () => {
   const [stores, setStores] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedMarket, setSelectedMarket] = useState('All');
+  const [selectedCategory, setSelectedCategory] = useState('All');
+  const hubType = localStorage.getItem('universe_location_type') || 'College';
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -101,9 +103,13 @@ const Home = () => {
   const categories = ['All', 'Snacks', 'Meals', 'Beverages', 'Desserts', 'Other'];
 
   const filteredStores = stores
-    .filter(store => 
-      (selectedMarket === 'All' || (store.market || 'BH1 Market') === selectedMarket)
-    )
+    .filter(store => {
+      if (hubType === 'College') {
+        return selectedMarket === 'All' || (store.market || 'BH1 Market') === selectedMarket;
+      } else {
+        return selectedCategory === 'All' || store.category === selectedCategory;
+      }
+    })
     .sort((a, b) => {
       const aOpen = a.isOpen !== false;
       const bOpen = b.isOpen !== false;
@@ -163,57 +169,94 @@ const Home = () => {
         </div>
 
         <h1 className="hero-title">
-          Your Campus, <span style={{ color: 'var(--primary)' }}>Digitized.</span>
+          {hubType === 'College' ? (
+            <>Your Campus, <span style={{ color: 'var(--primary)' }}>Digitized.</span></>
+          ) : (
+            <>Premium Dining, <span style={{ color: 'var(--primary)' }}>Delivered.</span></>
+          )}
         </h1>
         
-        <div className="hero-tip-card">
-          {/* Accent decoration */}
-          <div style={{ position: 'absolute', top: 0, left: 0, width: '4px', height: '100%', background: 'linear-gradient(to bottom, var(--primary), var(--secondary))' }}></div>
-          
-          <div style={{ 
-            width: '44px', 
-            height: '44px', 
-            borderRadius: '14px', 
-            background: 'hsla(var(--primary-h), var(--primary-s), var(--primary-l), 0.1)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0
-          }}>
-            <Sparkles size={20} color="var(--primary)" />
-          </div>
+        {hubType === 'College' && (
+          <div className="hero-tip-card">
+            <div style={{ position: 'absolute', top: 0, left: 0, width: '4px', height: '100%', background: 'linear-gradient(to bottom, var(--primary), var(--secondary))' }}></div>
+            
+            <div style={{ 
+              width: '44px', 
+              height: '44px', 
+              borderRadius: '14px', 
+              background: 'hsla(var(--primary-h), var(--primary-s), var(--primary-l), 0.1)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0
+            }}>
+              <Sparkles size={20} color="var(--primary)" />
+            </div>
 
-          <div style={{ flex: 1 }}>
-             <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.2rem' }}>
-                <span style={{ fontSize: '0.625rem', fontWeight: '900', letterSpacing: '0.05em', color: 'var(--primary)', textTransform: 'uppercase', background: 'hsla(var(--primary-h), var(--primary-s), var(--primary-l), 0.08)', padding: '0.15rem 0.5rem', borderRadius: '4px' }}>Expert Tip</span>
-             </div>
-             <p style={{ color: 'var(--text-primary)', fontSize: '0.875rem', fontWeight: '700', margin: 0, lineHeight: '1.4' }}>
-                Order <span style={{ color: 'var(--primary)' }}>15 mins</span> ahead to skip the rush and eat fresh!
-             </p>
+            <div style={{ flex: 1 }}>
+               <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.2rem' }}>
+                  <span style={{ fontSize: '0.625rem', fontWeight: '900', letterSpacing: '0.05em', color: 'var(--primary)', textTransform: 'uppercase', background: 'hsla(var(--primary-h), var(--primary-s), var(--primary-l), 0.08)', padding: '0.15rem 0.5rem', borderRadius: '4px' }}>Expert Tip</span>
+               </div>
+               <p style={{ color: 'var(--text-primary)', fontSize: '0.875rem', fontWeight: '700', margin: 0, lineHeight: '1.4' }}>
+                  Order <span style={{ color: 'var(--primary)' }}>15 mins</span> ahead to skip the rush and eat fresh!
+               </p>
+            </div>
           </div>
-        </div>
+        )}
       </section>
 
       <main style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 2rem 6rem 2rem' }}>
-        {/* Market Navigation */}
-        <div className="market-btn-container animate-fade-in-up">
-           {['All', 'BH1 Market', 'Block34 Market', 'LIT Market', 'Mall Market', 'BH6 Market', 'Apartment Market'].map(market => (
-             <button
-              key={market}
-              onClick={() => setSelectedMarket(market)}
-              className={`market-btn ${selectedMarket === market ? 'active' : ''}`}
-             >
-               {market === 'All' ? 'All Areas' : market.replace(' Market', '')}
-             </button>
-           ))}
-        </div>
+        {/* Navigation Filters */}
+        {hubType === 'College' ? (
+          <div className="market-btn-container animate-fade-in-up">
+            {['All', 'BH1 Market', 'Block34 Market', 'LIT Market', 'Mall Market', 'BH6 Market', 'Apartment Market'].map(market => (
+              <button
+                key={market}
+                onClick={() => setSelectedMarket(market)}
+                className={`market-btn ${selectedMarket === market ? 'active' : ''}`}
+              >
+                {market === 'All' ? 'All Areas' : market.replace(' Market', '')}
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div className="category-grid-premium animate-fade-in-up">
+            {[
+              { id: 'All', name: 'All Shops', img: 'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?auto=format&fit=crop&w=300&q=80' },
+              { id: 'Biryani', name: 'Biryani & Rice', img: 'https://images.unsplash.com/photo-1589302168068-964664d93dc0?auto=format&fit=crop&w=300&q=80' },
+              { id: 'Pizza', name: 'Pizzas', img: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=300&q=80' },
+              { id: 'Burger', name: 'Burgers', img: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=300&q=80' },
+              { id: 'Chinese', name: 'Chinese', img: 'https://images.unsplash.com/photo-1552611052-33e04de081de?auto=format&fit=crop&w=300&q=80' },
+              { id: 'Desserts', name: 'Desserts', img: 'https://images.unsplash.com/photo-1563729784474-d77dbb933a9e?auto=format&fit=crop&w=300&q=80' },
+              { id: 'Healthy', name: 'Healthy', img: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=300&q=80' },
+              { id: 'Beverages', name: 'Beverages', img: 'https://images.unsplash.com/photo-1544145945-f904253db0ad?auto=format&fit=crop&w=300&q=80' }
+            ].map(cat => (
+              <div 
+                key={cat.id} 
+                className={`category-tile-premium ${selectedCategory === cat.id ? 'active' : ''}`}
+                onClick={() => setSelectedCategory(cat.id)}
+              >
+                <div className="tile-image-wrapper">
+                  <img src={cat.img} alt={cat.name} />
+                  <div className="tile-overlay"></div>
+                </div>
+                <span>{cat.name}</span>
+              </div>
+            ))}
+          </div>
+        )}
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3rem' }}>
           <div className="animate-fade-in-up">
             <h2 style={{ fontSize: '1.75rem', fontWeight: '900', margin: 0, letterSpacing: '-0.02em' }}>
-              {selectedMarket === 'All' ? 'Campus Stalls' : `${selectedMarket} Stalls`}
+              {hubType === 'College' 
+                ? (selectedMarket === 'All' ? 'Campus Stalls' : `${selectedMarket} Stalls`)
+                : (selectedCategory === 'All' ? 'Featured Places' : `Best in ${selectedCategory}`)
+              }
             </h2>
-            <p style={{ color: 'var(--text-secondary)', marginTop: '0.4rem', fontSize: '0.875rem' }}>Discover unique tastes across the campus</p>
+            <p style={{ color: 'var(--text-secondary)', marginTop: '0.4rem', fontSize: '0.875rem' }}>
+              {hubType === 'College' ? 'Discover unique tastes across the campus' : 'The finest ordering experience for the best locations'}
+            </p>
           </div>
         </div>
 

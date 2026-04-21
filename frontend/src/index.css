@@ -861,3 +861,112 @@ h1 {
   transform: translateX(4px);
 }
 
+/* Premium Category Grid (External hubs) */
+.category-grid-premium {
+  display: flex;
+  gap: 1.5rem;
+  overflow-x: auto;
+  padding: 1rem 0 2.5rem 0;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  perspective: 1000px;
+}
+
+.category-grid-premium::-webkit-scrollbar {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .category-grid-premium {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    overflow-x: visible;
+    gap: 1rem;
+  }
+}
+
+.category-tile-premium {
+  flex: 0 0 100px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  cursor: pointer;
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.tile-image-wrapper {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 2px solid transparent;
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.06);
+}
+
+@media (min-width: 1024px) {
+  .tile-image-wrapper {
+    width: 110px;
+    height: 110px;
+  }
+}
+
+.category-tile-premium img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.6s ease;
+}
+
+.tile-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 50%, rgba(0,0,0,0.2) 100%);
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.category-tile-premium span {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-align: center;
+  transition: color 0.3s;
+  white-space: nowrap;
+}
+
+/* Hover & Active States */
+.category-tile-premium:hover {
+  transform: translateY(-8px);
+}
+
+.category-tile-premium:hover img {
+  transform: scale(1.15);
+}
+
+.category-tile-premium.active .tile-image-wrapper {
+  border-color: var(--primary);
+  box-shadow: 0 12px 24px var(--primary-shadow);
+  transform: scale(1.1);
+}
+
+.category-tile-premium.active span {
+  color: var(--primary);
+  font-weight: 900;
+}
+
+.category-tile-premium.active .tile-overlay {
+  opacity: 1;
+}
+
+@media (max-width: 600px) {
+  .category-tile-premium {
+    flex: 0 0 80px;
+  }
+  .tile-image-wrapper {
+    width: 72px;
+    height: 72px;
+  }
+}

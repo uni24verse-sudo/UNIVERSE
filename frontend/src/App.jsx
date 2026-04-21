@@ -69,10 +69,12 @@ const AppLayout = () => {
     return <LocationPortal onLocationSelect={handleLocationSelect} />;
   }
 
+  const hubType = localStorage.getItem('universe_location_type');
+
   return (
     <div className="app-container" style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-      {!isAdminPath && <TopPromoBanner />}
-      <Navbar bannerVisible={!isAdminPath} />
+      {(!isAdminPath && hubType === 'College') && <TopPromoBanner />}
+      <Navbar bannerVisible={!isAdminPath && hubType === 'College'} />
       <RecentOrders />
       <NotificationsToast />
       <FloatingCart />

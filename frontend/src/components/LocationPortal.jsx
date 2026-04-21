@@ -44,6 +44,7 @@ const LocationPortal = ({ onLocationSelect }) => {
   const handleSelect = (location) => {
     localStorage.setItem('universe_location_id', location._id);
     localStorage.setItem('universe_location_name', location.name);
+    localStorage.setItem('universe_location_type', location.type);
     onLocationSelect(location);
   };
 
