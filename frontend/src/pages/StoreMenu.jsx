@@ -258,6 +258,9 @@ const StoreMenu = () => {
             <div className="store-category-grid animate-fade-in-up" style={{ gridColumn: '1 / -1' }}>
               {categories.filter(c => c !== 'All').map((cat, idx) => {
                 const getCategoryImage = (name) => {
+                  const explicitCatImage = store.categoryImages?.find(c => c.categoryName === name)?.image;
+                  if (explicitCatImage) return getImageUrl(explicitCatImage);
+
                   const productWithImage = store.products.find(p => (p.category || 'Uncategorized') === name && p.image);
                   if (productWithImage) return getImageUrl(productWithImage.image);
                   return null;

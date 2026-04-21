@@ -4,7 +4,7 @@ import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
 import { QRCodeSVG } from 'qrcode.react';
 import { 
-  ArrowLeft, Store, LayoutDashboard, QrCode, LogOut, Plus, Pencil, Trash2, Eye, EyeOff, Save, X, Image as LucideImage, Download, ExternalLink, ShoppingBag, Tag, Sparkles, Loader2, Check, Menu, Globe
+  ArrowLeft, Store, LayoutDashboard, QrCode, LogOut, Plus, Pencil, Trash2, Eye, EyeOff, Save, X, Image as LucideImage, Download, ExternalLink, ShoppingBag, Tag, Sparkles, Loader2, Check, Menu, Globe, Upload
 } from 'lucide-react';
 
 const ManageStore = () => {
@@ -210,6 +210,27 @@ const ManageStore = () => {
       setStores(prev => prev.map(s => s._id === store._id ? { ...s, isOpen: res.data.isOpen } : s));
     } catch (err) {
       alert('Failed to toggle status');
+    }
+  };
+
+  const handleUploadCategoryImage = async (categoryName, file) => {
+    if (!file) return;
+    try {
+      const formData = new FormData();
+      formData.append('categoryName', categoryName);
+      formData.append('imageFile', file);
+      
+      const res = await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/store/${store._id}/category-image`, formData, {
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+      setStore(res.data);
+      setStores(prev => prev.map(s => s._id === store._id ? res.data : s));
+      alert(`Image updated for ${categoryName}`);
+    } catch (err) {
+      alert(`Failed to upload category image: ${err.message}`);
     }
   };
 
@@ -1252,6 +1273,54 @@ const ManageStore = () => {
             </div>
           </div>
         </div>
+
+        {/* Category Images for External Vendors Only */}
+        {localStorage.getItem('universe_location_type') === 'External' && store && store.products && store.products.length > 0 && (
+          <div className="glass-card animate-fade-in-up" style={{ padding: '2rem', marginTop: '2rem', borderRadius: '24px' }}>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: '800', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <LucideImage size={20} style={{ color: 'var(--primary)' }} /> Category Identifiers
+            </h3>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>
+              Upload a dedicated high-quality thumbnail for each of your categories so they pop out nicely on the customer app.
+            </p>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem' }}>
+              {[...new Set(store.products.map(p => p.category || 'Uncategorized'))].map(cat => {
+                const matchingCatImage = store.categoryImages?.find(c => c.categoryName === cat)?.image;
+                return (
+                  <div key={cat} style={{ background: '#f8fafc', padding: '1.5rem', borderRadius: '20px', display: 'flex', alignItems: 'center', gap: '1rem', border: '1px solid var(--surface-border)' }}>
+                    <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: '#fff', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      {matchingCatImage ? (
+                        <img src={matchingCatImage} alt={cat} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      ) : (
+                        <span style={{ fontSize: '1.5rem', fontWeight: '800', color: 'var(--text-secondary)' }}>{cat.charAt(0).toUpperCase()}</span>
+                      )}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <h4 style={{ margin: '0 0 0.5rem 0', fontWeight: '700', fontSize: '0.95rem' }}>{cat}</h4>
+                      <label style={{ 
+                        display: 'inline-flex', alignItems: 'center', padding: '0.4rem 0.8rem', background: 'var(--primary)', color: 'white', borderRadius: '100px', fontSize: '0.75rem', fontWeight: '700', cursor: 'pointer', transition: 'transform 0.2s'
+                      }}
+                      onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
+                      onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}>
+                        <Upload size={14} style={{ marginRight: '0.25rem' }} /> Update
+                        <input 
+                          type="file" 
+                          accept="image/*" 
+                          style={{ display: 'none' }} 
+                          onChange={(e) => {
+                            if(e.target.files && e.target.files[0]) handleUploadCategoryImage(cat, e.target.files[0]);
+                          }}
+                        />
+                      </label>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
       </main>
 
       {/* AI Scan Modal */}

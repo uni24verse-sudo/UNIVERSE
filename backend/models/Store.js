@@ -48,6 +48,10 @@ const StoreSchema = new mongoose.Schema({
   upiId: { type: String, default: '' },
   telegramChatId: { type: String, default: '' },
   telegramBotToken: { type: String, default: '' },
+  categoryImages: [{
+    categoryName: { type: String, required: true },
+    image: { type: String, required: true }
+  }],
   products: [ProductSchema]
 }, { timestamps: true });
 

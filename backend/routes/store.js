@@ -212,6 +212,44 @@ router.put('/:storeId/update-image', auth, upload.single('imageFile'), async (re
   }
 });
 
+// Update Store Image (Protected)
+router.put('/:storeId/category-image', auth, upload.single('imageFile'), async (req, res) => {
+  try {
+    const { categoryName } = req.body;
+    if (!categoryName) return res.status(400).json({ message: 'Category name is required' });
+
+    const store = await Store.findOne({ _id: req.params.storeId, admin: req.admin._id });
+    if (!store) return res.status(404).json({ message: 'Store not found or unauthorized' });
+
+    if (req.file) {
+      const uploadResult = await new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+          { folder: 'universe_categories' },
+          (error, result) => {
+            if (result) resolve(result);
+            else reject(error);
+          }
+        );
+        bufferToStream(req.file.buffer).pipe(stream);
+      });
+      
+      const existingIdx = store.categoryImages.findIndex(c => c.categoryName === categoryName);
+      if (existingIdx !== -1) {
+        store.categoryImages[existingIdx].image = uploadResult.secure_url;
+      } else {
+        store.categoryImages.push({ categoryName, image: uploadResult.secure_url });
+      }
+      
+      await store.save();
+      res.json(store);
+    } else {
+      res.status(400).json({ message: 'No image file provided' });
+    }
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 // Add a Product to Store
 router.post('/:storeId/product', auth, upload.single('imageFile'), async (req, res) => {
   try {
