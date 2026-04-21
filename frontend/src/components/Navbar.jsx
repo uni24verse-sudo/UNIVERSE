@@ -29,8 +29,10 @@ const Navbar = ({ bannerVisible }) => {
 
   const isMobile = windowWidth <= 600;
 
+  const isAdminPath = location.pathname.startsWith('/vendor') || location.pathname.startsWith('/super-admin');
+
   // Hide Navbar on vendor and super-admin routes
-  if (location.pathname.startsWith('/vendor') || location.pathname.startsWith('/super-admin')) {
+  if (isAdminPath) {
     return null;
   }
 
