@@ -34,7 +34,8 @@ const StoreMenu = () => {
   const navigate = useNavigate();
   const [activeCategory, setActiveCategory] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
-  
+  const [dietaryFilter, setDietaryFilter] = useState('all');
+
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [showVariantModal, setShowVariantModal] = useState(false);
   const [selectedVariant, setSelectedVariant] = useState(null);
@@ -62,9 +63,14 @@ const StoreMenu = () => {
   
   const filteredProducts = store?.products.filter(p => {
     const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase());
-    if (activeCategory === 'All') return matchesSearch;
-    if (activeCategory === 'Combos') return p.isCombo && matchesSearch;
-    return (p.category || 'Uncategorized') === activeCategory && matchesSearch;
+    
+    let matchesDietary = true;
+    if (dietaryFilter === 'veg') matchesDietary = p.dietaryPreference === 'veg';
+    else if (dietaryFilter === 'non-veg') matchesDietary = ['non-veg', 'egg'].includes(p.dietaryPreference);
+    
+    if (activeCategory === 'All') return matchesSearch && matchesDietary;
+    if (activeCategory === 'Combos') return p.isCombo && matchesSearch && matchesDietary;
+    return (p.category || 'Uncategorized') === activeCategory && matchesSearch && matchesDietary;
   }) || [];
 
   const getImageUrl = (img) => {
@@ -205,6 +211,49 @@ const StoreMenu = () => {
             <Clock size={40} color="var(--error)" style={{ marginBottom: '1rem', opacity: 0.5 }} />
             <h3 style={{ color: 'var(--error)', margin: '0 0 0.5rem 0' }}>Currently Closed</h3>
             <p style={{ color: 'var(--text-secondary)', margin: 0 }}>This vendor is not accepting orders at the moment.</p>
+          </div>
+        )}
+
+        {isExternal && activeCategory !== 'All' && !searchQuery && (
+          <div className="dietary-filter-container animate-fade-in-up" style={{ 
+            display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', 
+            background: '#f8fafc', 
+            padding: '0.5rem', borderRadius: '100px', 
+            boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.02)',
+            border: '1px solid var(--surface-border)'
+          }}>
+            {[
+              { id: 'all', label: 'All' },
+              { id: 'veg', label: 'Veg' },
+              { id: 'non-veg', label: 'Non-Veg' }
+            ].map(filter => (
+              <button
+                key={filter.id}
+                onClick={() => setDietaryFilter(filter.id)}
+                style={{
+                  flex: 1,
+                  padding: '0.6rem 1rem',
+                  borderRadius: '100px',
+                  border: 'none',
+                  background: dietaryFilter === filter.id ? '#ffffff' : 'transparent',
+                  color: dietaryFilter === filter.id ? 'var(--text-primary)' : 'var(--text-secondary)',
+                  fontWeight: '800',
+                  fontSize: '0.8125rem',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.35rem',
+                  boxShadow: dietaryFilter === filter.id ? '0 8px 16px rgba(0,0,0,0.06)' : 'none',
+                  transform: dietaryFilter === filter.id ? 'scale(1.02)' : 'scale(1)'
+                }}
+              >
+                {filter.id === 'veg' && <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#10b981', flexShrink: 0 }}></span>}
+                {filter.id === 'non-veg' && <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#ef4444', flexShrink: 0 }}></span>}
+                {filter.label}
+              </button>
+            ))}
           </div>
         )}
 

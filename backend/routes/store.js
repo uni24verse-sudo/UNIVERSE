@@ -263,7 +263,7 @@ router.put('/:storeId/category-image', auth, upload.single('imageFile'), async (
 // Add a Product to Store
 router.post('/:storeId/product', auth, upload.single('imageFile'), async (req, res) => {
   try {
-    const { name, price, category, image, variants, isCombo, comboItems, freeItems } = req.body;
+    const { name, price, category, image, variants, isCombo, comboItems, freeItems, dietaryPreference } = req.body;
     let parsedVariants = [];
     if (variants) {
       try { parsedVariants = JSON.parse(variants); } catch (e) {}
@@ -301,6 +301,7 @@ router.post('/:storeId/product', auth, upload.single('imageFile'), async (req, r
       price, 
       category: category || 'Uncategorized', 
       image: finalImage, 
+      dietaryPreference: dietaryPreference || 'none',
       variants: parsedVariants,
       isCombo: isCombo === 'true' || isCombo === true,
       comboItems: parsedComboItems,
@@ -379,7 +380,7 @@ router.put('/:storeId/product/:productId/toggle', auth, async (req, res) => {
 // Edit a Product in Store
 router.put('/:storeId/product/:productId', auth, upload.single('imageFile'), async (req, res) => {
   try {
-    const { name, price, category, image, variants, isCombo, comboItems, freeItems } = req.body;
+    const { name, price, category, image, variants, isCombo, comboItems, freeItems, dietaryPreference } = req.body;
     
     const store = await Store.findOne({ _id: req.params.storeId, admin: req.admin._id });
     if (!store) return res.status(404).json({ message: 'Store not found or unauthorized' });
@@ -390,6 +391,7 @@ router.put('/:storeId/product/:productId', auth, upload.single('imageFile'), asy
     if (name) product.name = name;
     if (price !== undefined) product.price = Number(price);
     if (category) product.category = category;
+    if (dietaryPreference) product.dietaryPreference = dietaryPreference;
     if (variants) {
       try { product.variants = JSON.parse(variants); } catch (e) {}
     }

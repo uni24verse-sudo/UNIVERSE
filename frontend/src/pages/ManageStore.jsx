@@ -50,7 +50,7 @@ const ManageStore = () => {
   const [scanError, setScanError] = useState('');
 
   // New/Edit product form
-  const [productForm, setProductForm] = useState({ _id: null, name: '', price: '', category: '', image: '', imageFile: null, variants: [], comboItems: [], freeItems: [] });
+  const [productForm, setProductForm] = useState({ _id: null, name: '', price: '', category: '', dietaryPreference: 'none', image: '', imageFile: null, variants: [], comboItems: [], freeItems: [] });
   const [hasVariants, setHasVariants] = useState(false);
   const [isComboDeal, setIsComboDeal] = useState(false);
   const [savingProduct, setSavingProduct] = useState(false);
@@ -123,6 +123,7 @@ const ManageStore = () => {
       formData.append('name', productForm.name);
       formData.append('price', productForm.price);
       formData.append('category', productForm.category || 'Uncategorized');
+      formData.append('dietaryPreference', productForm.dietaryPreference || 'none');
       if (productForm.image) formData.append('image', productForm.image);
       if (productForm.imageFile) formData.append('imageFile', productForm.imageFile);
       if (hasVariants && productForm.variants.length > 0) {
@@ -170,6 +171,7 @@ const ManageStore = () => {
       name: product.name, 
       price: product.price, 
       category: product.category || '', 
+      dietaryPreference: product.dietaryPreference || 'none',
       image: product.image || '', 
       imageFile: null,
       variants: product.variants || [],
@@ -183,7 +185,7 @@ const ManageStore = () => {
   };
 
   const cancelEdit = () => {
-    setProductForm({ _id: null, name: '', price: '', category: '', image: '', imageFile: null, variants: [], comboItems: [], freeItems: [] });
+    setProductForm({ _id: null, name: '', price: '', category: '', dietaryPreference: 'none', image: '', imageFile: null, variants: [], comboItems: [], freeItems: [] });
     setHasVariants(false);
     setIsComboDeal(false);
     if (fileInputRef.current) fileInputRef.current.value = "";
@@ -1006,6 +1008,43 @@ const ManageStore = () => {
                     onChange={e => setProductForm({...productForm, category: e.target.value})}
                     style={{ height: '54px', borderRadius: '14px' }}
                   />
+                </div>
+                <div className="form-group" style={{ gridColumn: '1 / span 2' }}>
+                  <label className="form-label">Dietary Preference</label>
+                  <div style={{ display: 'flex', gap: '0.5rem', background: '#f1f5f9', padding: '0.4rem', borderRadius: '16px' }}>
+                    {['none', 'veg', 'non-veg', 'egg'].map(type => (
+                      <button
+                        key={type}
+                        type="button"
+                        onClick={() => setProductForm({...productForm, dietaryPreference: type})}
+                        style={{
+                          flex: 1,
+                          padding: '0.75rem',
+                          borderRadius: '12px',
+                          border: 'none',
+                          cursor: 'pointer',
+                          fontWeight: '800',
+                          fontSize: '0.85rem',
+                          transition: 'all 0.2s',
+                          background: productForm.dietaryPreference === type ? '#ffffff' : 'transparent',
+                          color: productForm.dietaryPreference === type 
+                            ? (type === 'veg' ? '#10b981' : type === 'non-veg' ? '#ef4444' : type === 'egg' ? '#f59e0b' : 'var(--text-primary)') 
+                            : 'var(--text-secondary)',
+                          boxShadow: productForm.dietaryPreference === type ? '0 4px 12px rgba(0,0,0,0.05)' : 'none',
+                          textTransform: 'capitalize',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '0.4rem'
+                        }}
+                      >
+                        {type === 'veg' && <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#10b981' }}></span>}
+                        {type === 'non-veg' && <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#ef4444' }}></span>}
+                        {type === 'egg' && <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#f59e0b' }}></span>}
+                        {type === 'none' ? 'Unmapped' : type}
+                      </button>
+                    ))}
+                  </div>
                 </div>
                 <div className="form-group" style={{ gridColumn: '1 / span 2' }}>
                   <label className="form-label">Product Image</label>

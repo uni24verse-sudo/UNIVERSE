@@ -6,6 +6,11 @@ const ProductSchema = new mongoose.Schema({
   category: { type: String, default: 'Uncategorized' },
   image: { type: String },
   isAvailable: { type: Boolean, default: true },
+  dietaryPreference: { 
+    type: String, 
+    enum: ['veg', 'non-veg', 'none'], 
+    default: 'none' 
+  },
   variants: [{
     name: { type: String, required: true },
     price: { type: Number, required: true }
