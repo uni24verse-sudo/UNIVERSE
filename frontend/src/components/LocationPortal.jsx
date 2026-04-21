@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Search, MapPin, GraduationCap, Building2, ChevronRight, Sparkles } from 'lucide-react';
+import logoFull from '../assets/logo-full.png';
 import './LocationPortal.css';
 
 const LocationPortal = ({ onLocationSelect }) => {
@@ -51,7 +52,7 @@ const LocationPortal = ({ onLocationSelect }) => {
       {/* 1. SPLASH SCREEN */}
       {!isSplashComplete && (
         <div className="portal-splash-screen">
-          <img src="/logo-full.png" alt="UNIVERSE" className="splash-logo" />
+          <img src={logoFull} alt="UNIVERSE" className="splash-logo" />
           <div className="splash-text">One Unified Ordering Hub</div>
           <div style={{ marginTop: '3rem', display: 'flex', gap: '0.5rem' }}>
              <div className="pulse-dot"></div>
