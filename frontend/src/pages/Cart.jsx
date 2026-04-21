@@ -24,6 +24,8 @@ const Cart = () => {
   const [isPreOrder, setIsPreOrder] = useState(false);
   const [scheduledTime, setScheduledTime] = useState('');
   const [availableSlots, setAvailableSlots] = useState([]);
+  const [pairings, setPairings] = useState([]);
+  const { addToCart } = useContext(CartContext);
 
 
 
@@ -57,6 +59,21 @@ const Cart = () => {
       console.error('Error fetching store:', error);
     }
   };
+
+  const fetchPairings = async () => {
+    if (!storeId || cart.length === 0) return;
+    try {
+      const itemIds = cart.map(item => item._id).join(',');
+      const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/analytics/store/${storeId}/pairings?currentItemIds=${itemIds}`);
+      setPairings(res.data);
+    } catch (error) {
+      console.error('Error fetching pairings:', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchPairings();
+  }, [storeId, cart.length]);
 
   const generateTimeSlots = useCallback(() => {
     const slots = [];
@@ -145,7 +162,16 @@ const Cart = () => {
       // Prepare order data for verification step
       const orderData = {
         storeId,
-        items: cart,
+        items: cart.map(item => ({
+          productId: item._id, // Pass original product ID
+          name: item.name,
+          price: item.price,
+          quantity: item.quantity,
+          variant: item.variant,
+          isCombo: item.isCombo,
+          comboItems: item.comboItems,
+          freeItems: item.freeItems
+        })),
         totalAmount: finalTotal,
         paymentMethod: 'Razorpay',
         customerPhone,
@@ -357,6 +383,96 @@ const Cart = () => {
                 </div>
               </div>
             </div>
+
+            {/* Smart Pairing Magazine Section */}
+            {pairings.length > 0 && (
+              <div style={{ marginTop: '2.5rem' }}>
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'baseline', 
+                  justifyContent: 'space-between',
+                  marginBottom: '1.5rem',
+                  paddingLeft: '0.5rem'
+                }}>
+                  <h3 style={{ 
+                    margin: 0, 
+                    fontSize: '1.5rem', 
+                    fontWeight: '900', 
+                    letterSpacing: '-0.02em',
+                    color: 'var(--text-primary)',
+                    fontFamily: 'var(--font-serif, serif)'
+                  }}>
+                    Complete Your Meal <span style={{ color: 'var(--primary)' }}>✨</span>
+                  </h3>
+                  <span style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    Pairs Beautifully With
+                  </span>
+                </div>
+
+                <div className="magazine-upsell-track" style={{ 
+                  display: 'flex', 
+                  gap: '1.25rem', 
+                  overflowX: 'auto', 
+                  padding: '0.5rem 0.5rem 1.5rem 0.5rem',
+                  scrollbarWidth: 'none',
+                  msOverflowStyle: 'none'
+                }}>
+                  {pairings.map((product, idx) => (
+                    <div 
+                      key={product._id} 
+                      className="magazine-upsell-card"
+                      style={{
+                        flex: '0 0 160px',
+                        background: 'white',
+                        borderRadius: '24px',
+                        padding: '0.75rem',
+                        boxShadow: '0 10px 30px rgba(0,0,0,0.05)',
+                        border: '1px solid var(--surface-border)',
+                        position: 'relative',
+                        transition: 'transform 0.3s ease',
+                        animation: `fadeIn 0.5s ease backwards ${idx * 0.1}s`
+                      }}
+                    >
+                      <div style={{ 
+                        width: '100%', 
+                        aspectRatio: '1', 
+                        borderRadius: '18px', 
+                        overflow: 'hidden',
+                        marginBottom: '0.75rem'
+                      }}>
+                        <img 
+                          src={product.image ? (product.image.startsWith('/uploads') ? `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${product.image}` : product.image) : 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=1000&q=80'} 
+                          alt={product.name} 
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        />
+                      </div>
+                      <h4 style={{ margin: '0 0 0.25rem 0', fontSize: '0.9rem', fontWeight: '800', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{product.name}</h4>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span style={{ fontSize: '0.85rem', fontWeight: '900', color: 'var(--primary)' }}>₹{product.price}</span>
+                        <button 
+                          onClick={() => addToCart(product, storeId)}
+                          style={{
+                            background: 'rgba(239, 65, 35, 0.1)',
+                            border: 'none',
+                            color: 'var(--primary)',
+                            padding: '0.4rem 0.75rem',
+                            borderRadius: '100px',
+                            fontSize: '0.75rem',
+                            fontWeight: '800',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.2rem'
+                          }}
+                        >
+                          <Plus size={14} /> Add
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Right: Payment */}

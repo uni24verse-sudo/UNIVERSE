@@ -183,6 +183,7 @@ const Home = () => {
             </button>
             <Link 
               to="/super-admin/login" 
+              state={{ fromRestrictedAccess: true }}
               style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textDecoration: 'none', fontWeight: '600' }}
             >
               Administrator Login &rarr;

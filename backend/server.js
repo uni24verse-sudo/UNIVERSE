@@ -58,6 +58,7 @@ app.use('/api/scan-menu', require('./routes/menuScanner'));
 app.use('/api/super-admin', require('./routes/superAdmin'));
 app.use('/api/payments', require('./routes/payments'));
 app.use('/api/whatsapp', require('./routes/whatsapp'));
+app.use('/api/analytics', require('./routes/analytics'));
 
 // Socket.io connection handling
 io.on('connection', (socket) => {
