@@ -49,15 +49,25 @@ const LocationPortal = ({ onLocationSelect }) => {
 
   return (
     <div className="location-portal-overlay">
-      {/* 1. SPLASH SCREEN */}
+      {/* 1. MESH BACKGROUND LAYER */}
+      <div className="portal-bg-layer">
+        <div className="portal-bg-blob blob-1"></div>
+        <div className="portal-bg-blob blob-2"></div>
+      </div>
+
+      {/* 2. SPLASH SCREEN */}
       {!isSplashComplete && (
         <div className="portal-splash-screen">
-          <img src={logoFull} alt="UNIVERSE" className="splash-logo" />
-          <div className="splash-text">One Unified Ordering Hub</div>
-          <div style={{ marginTop: '3rem', display: 'flex', gap: '0.5rem' }}>
-             <div className="pulse-dot"></div>
-             <div className="pulse-dot" style={{ animationDelay: '0.2s' }}></div>
-             <div className="pulse-dot" style={{ animationDelay: '0.4s' }}></div>
+          <div className="logo-container">
+            <img src={logoFull} alt="UNIVERSE" className="splash-logo" />
+          </div>
+          <div className="splash-text-container">
+            <div className="splash-text">One Unified Ordering Hub</div>
+          </div>
+          <div className="splash-loader">
+            <div className="loader-bar">
+              <div className="loader-progress"></div>
+            </div>
           </div>
         </div>
       )}
