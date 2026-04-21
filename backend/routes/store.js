@@ -242,8 +242,18 @@ router.put('/:storeId/category-image', auth, upload.single('imageFile'), async (
       
       await store.save();
       res.json(store);
+    } else if (req.body.imageUrl) {
+      const existingIdx = store.categoryImages.findIndex(c => c.categoryName === categoryName);
+      if (existingIdx !== -1) {
+        store.categoryImages[existingIdx].image = req.body.imageUrl;
+      } else {
+        store.categoryImages.push({ categoryName, image: req.body.imageUrl });
+      }
+      
+      await store.save();
+      res.json(store);
     } else {
-      res.status(400).json({ message: 'No image file provided' });
+      res.status(400).json({ message: 'No image file or URL provided' });
     }
   } catch (err) {
     res.status(500).json({ message: err.message });

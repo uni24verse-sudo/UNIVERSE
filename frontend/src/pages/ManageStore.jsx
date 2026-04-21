@@ -4,7 +4,7 @@ import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
 import { QRCodeSVG } from 'qrcode.react';
 import { 
-  ArrowLeft, Store, LayoutDashboard, QrCode, LogOut, Plus, Pencil, Trash2, Eye, EyeOff, Save, X, Image as LucideImage, Download, ExternalLink, ShoppingBag, Tag, Sparkles, Loader2, Check, Menu, Globe, Upload
+  ArrowLeft, Store, LayoutDashboard, QrCode, LogOut, Plus, Pencil, Trash2, Eye, EyeOff, Save, X, Image as LucideImage, Download, ExternalLink, ShoppingBag, Tag, Sparkles, Loader2, Check, Menu, Globe, Upload, Link as LucideLink
 } from 'lucide-react';
 
 const ManageStore = () => {
@@ -231,6 +231,21 @@ const ManageStore = () => {
       alert(`Image updated for ${categoryName}`);
     } catch (err) {
       alert(`Failed to upload category image: ${err.message}`);
+    }
+  };
+
+  const handleLinkCategoryImage = async (categoryName) => {
+    const url = window.prompt(`Enter image URL for ${categoryName}:`);
+    if (!url) return;
+    try {
+      const res = await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/store/${store._id}/category-image`, { categoryName, imageUrl: url }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setStore(res.data);
+      setStores(prev => prev.map(s => s._id === store._id ? res.data : s));
+      alert(`Image link updated for ${categoryName}`);
+    } catch (err) {
+      alert(`Failed to set category image link: ${err.message}`);
     }
   };
 
@@ -1298,21 +1313,34 @@ const ManageStore = () => {
                     </div>
                     <div style={{ flex: 1 }}>
                       <h4 style={{ margin: '0 0 0.5rem 0', fontWeight: '700', fontSize: '0.95rem' }}>{cat}</h4>
-                      <label style={{ 
-                        display: 'inline-flex', alignItems: 'center', padding: '0.4rem 0.8rem', background: 'var(--primary)', color: 'white', borderRadius: '100px', fontSize: '0.75rem', fontWeight: '700', cursor: 'pointer', transition: 'transform 0.2s'
-                      }}
-                      onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
-                      onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}>
-                        <Upload size={14} style={{ marginRight: '0.25rem' }} /> Update
-                        <input 
-                          type="file" 
-                          accept="image/*" 
-                          style={{ display: 'none' }} 
-                          onChange={(e) => {
-                            if(e.target.files && e.target.files[0]) handleUploadCategoryImage(cat, e.target.files[0]);
+                      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                        <label style={{ 
+                          display: 'inline-flex', alignItems: 'center', padding: '0.4rem 0.8rem', background: 'var(--primary)', color: 'white', borderRadius: '100px', fontSize: '0.75rem', fontWeight: '700', cursor: 'pointer', transition: 'transform 0.2s'
+                        }}
+                        onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
+                        onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}>
+                          <Upload size={14} style={{ marginRight: '0.25rem' }} /> Update
+                          <input 
+                            type="file" 
+                            accept="image/*" 
+                            style={{ display: 'none' }} 
+                            onChange={(e) => {
+                              if(e.target.files && e.target.files[0]) handleUploadCategoryImage(cat, e.target.files[0]);
+                            }}
+                          />
+                        </label>
+                        <button 
+                          type="button"
+                          onClick={() => handleLinkCategoryImage(cat)}
+                          style={{ 
+                            display: 'inline-flex', alignItems: 'center', padding: '0.4rem 0.8rem', background: 'transparent', border: '1px solid var(--surface-border)', color: 'var(--text-primary)', borderRadius: '100px', fontSize: '0.75rem', fontWeight: '700', cursor: 'pointer', transition: 'transform 0.2s'
                           }}
-                        />
-                      </label>
+                          onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
+                          onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
+                        >
+                          <LucideLink size={14} style={{ marginRight: '0.25rem' }} /> Link
+                        </button>
+                      </div>
                     </div>
                   </div>
                 )
