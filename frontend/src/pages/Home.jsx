@@ -173,13 +173,21 @@ const Home = () => {
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '2rem' }}>
             The external hub feature is currently undergoing maintenance. Only authorized administrators can access this view.
           </p>
-          <button 
-            onClick={() => { localStorage.removeItem('universe_location_id'); window.location.reload(); }}
-            className="btn btn-primary"
-            style={{ width: '100%' }}
-          >
-            Return to Campus
-          </button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <button 
+              onClick={() => { localStorage.removeItem('universe_location_id'); window.location.reload(); }}
+              className="btn btn-primary"
+              style={{ width: '100%' }}
+            >
+              Return to Campus
+            </button>
+            <Link 
+              to="/super-admin/login" 
+              style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textDecoration: 'none', fontWeight: '600' }}
+            >
+              Administrator Login &rarr;
+            </Link>
+          </div>
         </div>
       </div>
     );
