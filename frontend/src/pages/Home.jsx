@@ -222,14 +222,14 @@ const Home = () => {
         ) : (
           <div className="category-grid-premium animate-fade-in-up">
             {[
-              { id: 'All', name: 'All Shops', img: 'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?auto=format&fit=crop&w=300&q=80' },
-              { id: 'Biryani', name: 'Biryani & Rice', img: 'https://images.unsplash.com/photo-1589302168068-964664d93dc0?auto=format&fit=crop&w=300&q=80' },
-              { id: 'Pizza', name: 'Pizzas', img: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=300&q=80' },
-              { id: 'Burger', name: 'Burgers', img: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=300&q=80' },
-              { id: 'Chinese', name: 'Chinese', img: 'https://images.unsplash.com/photo-1552611052-33e04de081de?auto=format&fit=crop&w=300&q=80' },
-              { id: 'Desserts', name: 'Desserts', img: 'https://images.unsplash.com/photo-1563729784474-d77dbb933a9e?auto=format&fit=crop&w=300&q=80' },
-              { id: 'Healthy', name: 'Healthy', img: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=300&q=80' },
-              { id: 'Beverages', name: 'Beverages', img: 'https://images.unsplash.com/photo-1544145945-f904253db0ad?auto=format&fit=crop&w=300&q=80' }
+              { id: 'All', name: 'All Shops', img: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=300&q=80' },
+              { id: 'Biryani', name: 'Biryani', img: 'https://images.unsplash.com/photo-1633945274405-b6c8069047b0?auto=format&fit=crop&w=300&q=80' },
+              { id: 'Pizza', name: 'Pizza', img: 'https://images.unsplash.com/photo-1593560708920-61dd98c46a4e?auto=format&fit=crop&w=300&q=80' },
+              { id: 'Burger', name: 'Burger', img: 'https://images.unsplash.com/photo-1550547660-d9450f859349?auto=format&fit=crop&w=300&q=80' },
+              { id: 'Chinese', name: 'Chinese', img: 'https://images.unsplash.com/photo-1585032226651-759b368d7246?auto=format&fit=crop&w=300&q=80' },
+              { id: 'Desserts', name: 'Sweet Delight', img: 'https://images.unsplash.com/photo-1488477181946-6428a0291777?auto=format&fit=crop&w=300&q=80' },
+              { id: 'Healthy', name: 'Healthy', img: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=300&q=80' },
+              { id: 'Beverages', name: 'Cold Sips', img: 'https://images.unsplash.com/photo-1536935338213-d2c12344fca5?auto=format&fit=crop&w=300&q=80' }
             ].map(cat => (
               <div 
                 key={cat.id} 
@@ -237,8 +237,9 @@ const Home = () => {
                 onClick={() => setSelectedCategory(cat.id)}
               >
                 <div className="tile-image-wrapper">
-                  <img src={cat.img} alt={cat.name} />
+                  <img src={cat.img} alt={cat.name} className="tile-img-active" />
                   <div className="tile-overlay"></div>
+                  {selectedCategory === cat.id && <div className="live-pulse-dot"></div>}
                 </div>
                 <span>{cat.name}</span>
               </div>

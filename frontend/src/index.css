@@ -866,7 +866,7 @@ h1 {
   display: flex;
   gap: 1.5rem;
   overflow-x: auto;
-  padding: 1rem 0 2.5rem 0;
+  padding: 1.5rem 0 3rem 0;
   scrollbar-width: none;
   -ms-overflow-style: none;
   perspective: 1000px;
@@ -890,9 +890,9 @@ h1 {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.875rem;
   cursor: pointer;
-  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 .tile-image-wrapper {
@@ -901,9 +901,10 @@ h1 {
   height: 80px;
   border-radius: 50%;
   overflow: hidden;
-  border: 2px solid transparent;
-  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-  box-shadow: 0 8px 20px rgba(0,0,0,0.06);
+  border: 3px solid transparent;
+  transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+  background: white;
 }
 
 @media (min-width: 1024px) {
@@ -917,44 +918,65 @@ h1 {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: transform 0.6s ease;
+  transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .tile-overlay {
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, transparent 50%, rgba(0,0,0,0.2) 100%);
-  opacity: 0;
+  background: linear-gradient(180deg, transparent 40%, rgba(0,0,0,0.3) 100%);
+  opacity: 0.4;
   transition: opacity 0.3s;
 }
 
 .category-tile-premium span {
   font-size: 0.8125rem;
-  font-weight: 700;
+  font-weight: 800;
   color: var(--text-secondary);
   text-align: center;
-  transition: color 0.3s;
+  transition: all 0.3s;
   white-space: nowrap;
+  letter-spacing: -0.01em;
+}
+
+/* Animations */
+@keyframes categoryFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes activeGlow {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 65, 35, 0.4); }
+  50% { transform: scale(1.05); box-shadow: 0 0 30px 10px rgba(239, 65, 35, 0.15); }
 }
 
 /* Hover & Active States */
 .category-tile-premium:hover {
-  transform: translateY(-8px);
+  transform: translateY(-5px);
+}
+
+.category-tile-premium:hover .tile-image-wrapper {
+  box-shadow: 0 15px 30px rgba(0,0,0,0.12);
 }
 
 .category-tile-premium:hover img {
-  transform: scale(1.15);
+  transform: scale(1.2);
 }
 
 .category-tile-premium.active .tile-image-wrapper {
   border-color: var(--primary);
-  box-shadow: 0 12px 24px var(--primary-shadow);
-  transform: scale(1.1);
+  animation: activeGlow 2.5s infinite ease-in-out;
+  border-width: 4px;
+}
+
+.category-tile-premium.active {
+  animation: categoryFloat 4s infinite ease-in-out;
 }
 
 .category-tile-premium.active span {
   color: var(--primary);
-  font-weight: 900;
+  font-weight: 950;
+  transform: scale(1.1);
 }
 
 .category-tile-premium.active .tile-overlay {
@@ -963,10 +985,41 @@ h1 {
 
 @media (max-width: 600px) {
   .category-tile-premium {
-    flex: 0 0 80px;
+    flex: 0 0 85px;
   }
   .tile-image-wrapper {
-    width: 72px;
-    height: 72px;
+    width: 76px;
+    height: 76px;
+  }
+}
+
+/* Live Pulse Dot */
+.live-pulse-dot {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 10px;
+  height: 10px;
+  background: var(--primary);
+  border-radius: 50%;
+  box-shadow: 0 0 0 white;
+  animation: livePulse 2s infinite cubic-bezier(0.66, 0, 0, 1);
+  z-index: 5;
+  border: 2px solid white;
+}
+
+@keyframes livePulse {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 65, 35, 0.7); }
+  70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(239, 65, 35, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 65, 35, 0); }
+}
+
+@media (max-width: 600px) {
+  .live-pulse-dot {
+    top: 6px;
+    right: 6px;
+    width: 8px;
+    height: 8px;
+    border-width: 1.5px;
   }
 }
