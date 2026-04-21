@@ -561,7 +561,9 @@ h1 {
 
 /* Quantity Selector Styles */
 .quantity-selector-add {
-  background: white;
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   color: var(--primary);
   border: 1px solid var(--surface-border);
   border-radius: 12px;
@@ -601,7 +603,9 @@ h1 {
 }
 
 .quantity-selector-active {
-  background: white;
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   border: 1px solid var(--primary);
   border-radius: 12px;
   height: 40px;

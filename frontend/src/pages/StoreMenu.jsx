@@ -410,8 +410,9 @@ const StoreMenu = () => {
                   <div style={{ 
                     position: 'absolute', 
                     bottom: '12px', 
-                    right: '12px',
-                    width: '110px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    width: '100px',
                     zIndex: 15
                   }}>
                     <QuantitySelector 
