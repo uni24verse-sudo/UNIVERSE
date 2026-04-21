@@ -249,9 +249,9 @@ const StoreMenu = () => {
                   transform: dietaryFilter === filter.id ? 'scale(1.02)' : 'scale(1)'
                 }}
               >
-                {filter.id === 'veg' && <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#10b981', flexShrink: 0 }}></span>}
-                {filter.id === 'non-veg' && <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#ef4444', flexShrink: 0 }}></span>}
-                {filter.label}
+                {filter.id === 'veg' && <span style={{ padding: '0.1rem 0.3rem', fontSize: '0.55rem', fontWeight: '900', border: '1px solid #10b981', color: '#10b981', borderRadius: '4px', letterSpacing: '0.05em', flexShrink: 0, background: dietaryFilter === 'veg' ? 'rgba(16, 185, 129, 0.1)' : 'transparent' }}>VEG</span>}
+                {filter.id === 'non-veg' && <span style={{ padding: '0.1rem 0.3rem', fontSize: '0.55rem', fontWeight: '900', border: '1px solid #ef4444', color: '#ef4444', borderRadius: '4px', letterSpacing: '0.05em', flexShrink: 0, background: dietaryFilter === 'non-veg' ? 'rgba(239, 68, 68, 0.1)' : 'transparent' }}>NON-VEG</span>}
+                {filter.label !== 'Veg' && filter.label !== 'Non-Veg' ? filter.label : null}
               </button>
             ))}
           </div>
@@ -386,8 +386,19 @@ const StoreMenu = () => {
                    }}>SOLD OUT</div>
                 )}
                 <div style={{ flex: 1 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: isUnavailable ? '#94a3b8' : '#10b981' }}></div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
+                    {product.dietaryPreference === 'veg' && (
+                      <span style={{ padding: '0.1rem 0.35rem', fontSize: '0.55rem', fontWeight: '900', border: '1px solid currentColor', color: isUnavailable ? '#94a3b8' : '#10b981', borderRadius: '4px', letterSpacing: '0.05em' }}>VEG</span>
+                    )}
+                    {product.dietaryPreference === 'non-veg' && (
+                      <span style={{ padding: '0.1rem 0.35rem', fontSize: '0.55rem', fontWeight: '900', border: '1px solid currentColor', color: isUnavailable ? '#94a3b8' : '#ef4444', borderRadius: '4px', letterSpacing: '0.05em' }}>NON-VEG</span>
+                    )}
+                    {product.dietaryPreference === 'egg' && (
+                      <span style={{ padding: '0.1rem 0.35rem', fontSize: '0.55rem', fontWeight: '900', border: '1px solid currentColor', color: isUnavailable ? '#94a3b8' : '#f59e0b', borderRadius: '4px', letterSpacing: '0.05em' }}>EGG</span>
+                    )}
+                    {(product.dietaryPreference === 'none' || !product.dietaryPreference) && (
+                       <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: isUnavailable ? '#94a3b8' : '#cbd5e1' }}></div>
+                    )}
                     <span style={{ fontSize: '0.6875rem', color: 'var(--text-secondary)', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{product.category || 'Special'}</span>
                   </div>
                   <h3 style={{ margin: '0 0 0.25rem 0', fontSize: '1.125rem', fontWeight: '700' }}>{product.name}</h3>

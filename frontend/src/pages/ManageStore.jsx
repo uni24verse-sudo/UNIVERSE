@@ -58,6 +58,24 @@ const ManageStore = () => {
   const fileInputRef = useRef(null);
 
   useEffect(() => {
+    if (productForm.name && (productForm.dietaryPreference === 'none' || !productForm.dietaryPreference)) {
+      const nameLower = productForm.name.toLowerCase();
+      const nonVegKeywords = ['chicken', 'beef', 'meat', 'pork', 'fish', 'prawn', 'mutton', 'lamb', 'bacon', 'shrimp', 'crab', 'keema', 'kheema'];
+      const eggKeywords = ['egg', 'omelette', 'bhurji'];
+      const vegKeywords = ['paneer', 'veg', 'soya', 'tofu', 'mushroom', 'aloo', 'potato', 'palak', 'dal', 'chole', 'rajma', 'gobi'];
+      
+      let finalPreference = null;
+      if (nonVegKeywords.some(kw => nameLower.includes(kw))) finalPreference = 'non-veg';
+      else if (eggKeywords.some(kw => nameLower.includes(kw))) finalPreference = 'egg';
+      else if (vegKeywords.some(kw => nameLower.includes(kw) && !nameLower.includes('non-veg') && !nameLower.includes('nonveg'))) finalPreference = 'veg';
+      
+      if (finalPreference) {
+        setProductForm(prev => ({ ...prev, dietaryPreference: finalPreference }));
+      }
+    }
+  }, [productForm.name]);
+
+  useEffect(() => {
     if (!token) {
       navigate('/vendor/login');
       return;
@@ -1038,10 +1056,10 @@ const ManageStore = () => {
                           gap: '0.4rem'
                         }}
                       >
-                        {type === 'veg' && <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#10b981' }}></span>}
-                        {type === 'non-veg' && <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#ef4444' }}></span>}
-                        {type === 'egg' && <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#f59e0b' }}></span>}
-                        {type === 'none' ? 'Unmapped' : type}
+                        {type === 'veg' && <span style={{ padding: '0.1rem 0.35rem', fontSize: '0.65rem', fontWeight: '900', border: '1px solid #10b981', color: '#10b981', borderRadius: '4px', letterSpacing: '0.05em' }}>VEG</span>}
+                        {type === 'non-veg' && <span style={{ padding: '0.1rem 0.35rem', fontSize: '0.65rem', fontWeight: '900', border: '1px solid #ef4444', color: '#ef4444', borderRadius: '4px', letterSpacing: '0.05em' }}>NON-VEG</span>}
+                        {type === 'egg' && <span style={{ padding: '0.1rem 0.35rem', fontSize: '0.65rem', fontWeight: '900', border: '1px solid #f59e0b', color: '#f59e0b', borderRadius: '4px', letterSpacing: '0.05em' }}>EGG</span>}
+                        {type === 'none' ? 'Unmapped' : null}
                       </button>
                     ))}
                   </div>
