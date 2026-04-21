@@ -257,23 +257,23 @@ const StoreMenu = () => {
           {isExternal && activeCategory === 'All' && !searchQuery && (
             <div className="store-category-grid animate-fade-in-up" style={{ gridColumn: '1 / -1' }}>
               {categories.filter(c => c !== 'All').map((cat, idx) => {
-                const getEmojiForCategory = (name) => {
-                  const lower = name.toLowerCase();
-                  if (lower.includes('burger')) return '🍔';
-                  if (lower.includes('pizza')) return '🍕';
-                  if (lower.includes('shake') || lower.includes('beverage')) return '🥤';
-                  if (lower.includes('dessert') || lower.includes('sweet')) return '🍰';
-                  if (lower.includes('combo')) return '🎁';
-                  if (lower.includes('snack')) return '🍟';
-                  if (lower.includes('healthy') || lower.includes('salad')) return '🥗';
-                  if (lower.includes('chinese') || lower.includes('noodle')) return '🍜';
-                  if (lower.includes('chicken') || lower.includes('non veg')) return '🍗';
-                  return '🍲';
+                const getCategoryImage = (name) => {
+                  const productWithImage = store.products.find(p => (p.category || 'Uncategorized') === name && p.image);
+                  if (productWithImage) return getImageUrl(productWithImage.image);
+                  return null;
                 };
+                
+                const catImage = getCategoryImage(cat);
                 
                 return (
                   <div key={cat} className="store-category-tile" onClick={() => setActiveCategory(cat)}>
-                    <div className="store-category-emoji">{getEmojiForCategory(cat)}</div>
+                    {catImage ? (
+                      <img src={catImage} alt={cat} className="store-category-image" />
+                    ) : (
+                      <div className="store-category-fallback-image">
+                        {cat.charAt(0).toUpperCase()}
+                      </div>
+                    )}
                     <div className="store-category-name">{cat}</div>
                   </div>
                 );
