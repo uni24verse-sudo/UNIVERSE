@@ -26,6 +26,7 @@ const StoreSchema = new mongoose.Schema({
   name: { type: String, required: true },
   category: { type: String, default: 'General' },
   market: { type: String, default: 'BH1 Market' },
+  locationId: { type: mongoose.Schema.Types.ObjectId, ref: 'Location' },
   image: { type: String },
   qrLink: { type: String },
   isOpen: { type: Boolean, default: true },

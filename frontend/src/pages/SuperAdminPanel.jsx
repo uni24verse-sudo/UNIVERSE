@@ -16,7 +16,12 @@ import {
   Activity,
   Send,
   Eye,
-  EyeOff
+  EyeOff,
+  MapPin,
+  GraduationCap,
+  Building2,
+  Plus,
+  Edit2
 } from 'lucide-react';
 
 const SuperAdminPanel = () => {
@@ -27,9 +32,17 @@ const SuperAdminPanel = () => {
   const [vendors, setVendors] = useState([]);
   const [orders, setOrders] = useState([]);
   const [stores, setStores] = useState([]);
+  const [locations, setLocations] = useState([]);
   const [financeData, setFinanceData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [orderFilter, setOrderFilter] = useState('All');
+  
+  // New Location Form State
+  const [showLocationForm, setShowLocationForm] = useState(false);
+  const [editingLocation, setEditingLocation] = useState(null);
+  const [locationName, setLocationName] = useState('');
+  const [locationType, setLocationType] = useState('College');
+  const [locationCity, setLocationCity] = useState('');
 
   useEffect(() => {
     if (!token) return navigate('/super-admin/login');
@@ -42,12 +55,13 @@ const SuperAdminPanel = () => {
       const headers = { Authorization: `Bearer ${token}` };
       const url = import.meta.env.VITE_API_URL || 'http://localhost:5000';
       
-      const [statsRes, vendorsRes, ordersRes, storesRes, financeRes] = await Promise.all([
+      const [statsRes, vendorsRes, ordersRes, storesRes, financeRes, locationsRes] = await Promise.all([
         axios.get(`${url}/api/super-admin/stats`, { headers }),
         axios.get(`${url}/api/super-admin/vendors`, { headers }),
         axios.get(`${url}/api/super-admin/orders`, { headers }),
         axios.get(`${url}/api/super-admin/stores`, { headers }),
-        axios.get(`${url}/api/super-admin/finance/summary`, { headers })
+        axios.get(`${url}/api/super-admin/finance/summary`, { headers }),
+        axios.get(`${url}/api/super-admin/locations`, { headers })
       ]);
 
       setStats(statsRes.data);
@@ -55,6 +69,7 @@ const SuperAdminPanel = () => {
       setOrders(ordersRes.data);
       setStores(storesRes.data);
       setFinanceData(financeRes.data);
+      setLocations(locationsRes.data);
     } catch (err) {
       if (err.response?.status === 403) {
         alert('Forbidden: You are not a super admin.');
@@ -65,6 +80,55 @@ const SuperAdminPanel = () => {
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleLocationSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const url = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      const headers = { Authorization: `Bearer ${token}` };
+      const payload = { name: locationName, type: locationType, city: locationCity };
+
+      if (editingLocation) {
+        await axios.put(`${url}/api/super-admin/locations/${editingLocation._id}`, payload, { headers });
+      } else {
+        await axios.post(`${url}/api/super-admin/locations`, payload, { headers });
+      }
+
+      setShowLocationForm(false);
+      setEditingLocation(null);
+      setLocationName('');
+      setLocationCity('');
+      fetchDashboardData();
+    } catch (err) {
+      alert('Action failed: ' + (err.response?.data?.message || err.message));
+    }
+  };
+
+  const handleLocationDelete = async (id) => {
+    if (!window.confirm('Delete this location? All stores must be unlinked first.')) return;
+    try {
+      const url = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      await axios.delete(`${url}/api/super-admin/locations/${id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      fetchDashboardData();
+    } catch (err) {
+      alert('Delete failed: ' + (err.response?.data?.message || err.message));
+    }
+  };
+
+  const handleAssignLocation = async (storeId, locationId) => {
+    try {
+      const url = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      await axios.put(`${url}/api/super-admin/store/${storeId}/assign-location`, 
+        { locationId }, 
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      fetchDashboardData();
+    } catch (err) {
+      alert('Update failed: ' + (err.response?.data?.message || err.message));
     }
   };
 
@@ -105,6 +169,7 @@ const SuperAdminPanel = () => {
             { id: 'overview', icon: Activity, label: 'Platform Overview' },
             { id: 'vendors', icon: Users, label: 'Vendor Registry' },
             { id: 'stores', icon: Store, label: 'Store Directory' },
+            { id: 'locations', icon: MapPin, label: 'Location Manager' },
             { id: 'finance', icon: Banknote, label: 'Finance Tracker' },
             { id: 'orders', icon: ShoppingBag, label: 'Global Orders' }
           ].map(tab => (
@@ -329,6 +394,21 @@ const SuperAdminPanel = () => {
                     </span>
                   </div>
 
+                  {/* Location Assignment */}
+                  <div style={{ padding: '1rem', background: 'rgba(56, 189, 248, 0.05)', borderRadius: '16px', border: '1px solid rgba(56, 189, 248, 0.1)' }}>
+                    <p style={{ margin: 0, fontWeight: '800', fontSize: '0.75rem', textTransform: 'uppercase', color: '#0ea5e9', marginBottom: '0.75rem' }}>Hub / Location</p>
+                    <select 
+                      value={store.locationId || ''}
+                      onChange={(e) => handleAssignLocation(store._id, e.target.value)}
+                      style={{ width: '100%', padding: '0.5rem', borderRadius: '8px', border: '1px solid var(--surface-border)', fontSize: '0.875rem', fontWeight: '600' }}
+                    >
+                      <option value="">Unassigned</option>
+                      {locations.map(loc => (
+                        <option key={loc._id} value={loc._id}>{loc.name} ({loc.type})</option>
+                      ))}
+                    </select>
+                  </div>
+
                   {/* Stall Hours & Automation */}
                   <div style={{ padding: '1rem', background: 'rgba(99, 102, 241, 0.05)', borderRadius: '16px', border: '1px solid rgba(99, 102, 241, 0.1)' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
@@ -471,7 +551,113 @@ const SuperAdminPanel = () => {
           </div>
         )}
 
-        {/* ORDERS TAB */}
+        {/* LOCATIONS TAB */}
+        {activeTab === 'locations' && (
+          <div>
+            <header style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <h1 style={{ fontSize: '2rem', fontWeight: '900' }}>Location Manager</h1>
+                <p style={{ color: 'var(--text-secondary)' }}>Manage Colleges and External expansion regions.</p>
+              </div>
+              <button 
+                onClick={() => { setShowLocationForm(true); setEditingLocation(null); setLocationName(''); setLocationCity(''); }}
+                style={{ padding: '0.75rem 1.5rem', background: 'var(--primary)', color: 'white', border: 'none', borderRadius: '12px', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+              >
+                <Plus size={18} /> Add New Location
+              </button>
+            </header>
+
+            {showLocationForm && (
+              <div style={{ marginBottom: '2rem', background: '#f8fafc', padding: '2rem', borderRadius: '24px', border: '1px solid var(--surface-border)' }}>
+                <h3 style={{ marginBottom: '1.5rem' }}>{editingLocation ? 'Edit Location' : 'Register New Hub'}</h3>
+                <form onSubmit={handleLocationSubmit} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem', alignItems: 'flex-end' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '800', marginBottom: '0.5rem', textTransform: 'uppercase' }}>Hub Name (e.g. LPU)</label>
+                    <input 
+                      type="text" 
+                      required 
+                      value={locationName} 
+                      onChange={e => setLocationName(e.target.value)} 
+                      style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', border: '1px solid var(--surface-border)' }} 
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '800', marginBottom: '0.5rem', textTransform: 'uppercase' }}>Type</label>
+                    <select 
+                      value={locationType} 
+                      onChange={e => setLocationType(e.target.value)} 
+                      style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', border: '1px solid var(--surface-border)' }}
+                    >
+                      <option value="College">College / University</option>
+                      <option value="External">External Area</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '800', marginBottom: '0.5rem', textTransform: 'uppercase' }}>City (Optional)</label>
+                    <input 
+                      type="text" 
+                      value={locationCity} 
+                      onChange={e => setLocationCity(e.target.value)} 
+                      style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', border: '1px solid var(--surface-border)' }} 
+                    />
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.75rem' }}>
+                    <button type="submit" style={{ flex: 1, padding: '0.75rem', background: 'var(--secondary)', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '800', cursor: 'pointer' }}>
+                      {editingLocation ? 'Update Hub' : 'Create Hub'}
+                    </button>
+                    <button type="button" onClick={() => setShowLocationForm(false)} style={{ padding: '0.75rem 1rem', background: 'transparent', border: '1px solid var(--surface-border)', borderRadius: '10px', fontWeight: '600', cursor: 'pointer' }}>
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem' }}>
+              {locations.map(loc => {
+                const storeCount = stores.filter(s => s.locationId === loc._id).length;
+                return (
+                  <div key={loc._id} style={{ padding: '1.5rem', background: '#ffffff', borderRadius: '24px', border: '1px solid var(--surface-border)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+                      <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: loc.type === 'College' ? 'rgba(99, 102, 241, 0.1)' : 'rgba(56, 189, 248, 0.1)', color: loc.type === 'College' ? 'var(--primary)' : '#0ea5e9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        {loc.type === 'College' ? <GraduationCap size={20} /> : <Building2 size={20} />}
+                      </div>
+                      <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <button 
+                          onClick={() => {
+                            setEditingLocation(loc);
+                            setLocationName(loc.name);
+                            setLocationType(loc.type);
+                            setLocationCity(loc.city || '');
+                            setShowLocationForm(true);
+                          }}
+                          style={{ p: '0.4rem', background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}
+                        >
+                          <Edit2 size={16} />
+                        </button>
+                        <button 
+                          onClick={() => handleLocationDelete(loc._id)}
+                          style={{ p: '0.4rem', background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' }}
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </div>
+                    <h3 style={{ fontSize: '1.125rem', fontWeight: '800', margin: '0 0 0.25rem 0' }}>{loc.name}</h3>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.8125rem', fontWeight: '600' }}>{loc.city || 'No City Specified'}</p>
+                    
+                    <div style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid var(--surface-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-secondary)' }}>{storeCount} STORES LINKED</span>
+                      <span style={{ fontSize: '0.625rem', background: loc.isHidden ? '#ef4444' : '#10b981', color: 'white', padding: '0.2rem 0.5rem', borderRadius: '4px', fontWeight: '900' }}>
+                        {loc.isHidden ? 'HIDDEN' : 'ACTIVE'}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
         {activeTab === 'orders' && (
            <div>
             <header style={{ marginBottom: '2rem' }}>

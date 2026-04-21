@@ -81,14 +81,19 @@ router.get('/my-stores', auth, async (req, res) => {
 // Global Search (Public) - searches stores and items
 router.get('/global/search', async (req, res) => {
   try {
-    const { q } = req.query;
+    const { q, locationId } = req.query;
     if (!q) return res.json({ stores: [], dishes: [] });
 
     // Escape special regex characters
     const escapedQuery = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const regex = new RegExp(escapedQuery, 'i');
 
-    const stores = await Store.find({ isHidden: { $ne: true } }, 'name category products _id isOpen image market priority')
+    const filter = { isHidden: { $ne: true } };
+    if (locationId) {
+      filter.locationId = locationId;
+    }
+
+    const stores = await Store.find(filter, 'name category products _id isOpen image market priority')
       .populate('admin', 'name')
       .sort({ priority: 1, createdAt: -1 });
     const matchedStores = [];
@@ -127,12 +132,15 @@ router.get('/global/search', async (req, res) => {
 // Get all stores (Public)
 router.get('/all/list', async (req, res) => {
   try {
-    // Project only necessary fields. For products, we only need the count, 
-    // but Mongoose makes it easier to just fetch IDs or the whole array.
-    // To minimize payload, we'll exclude sub-fields of products that are heavy.
+    const { locationId } = req.query;
+    const filter = { isHidden: { $ne: true } };
+    if (locationId) {
+      filter.locationId = locationId;
+    }
+
     const stores = await Store.find(
-      { isHidden: { $ne: true } }, 
-      'name market admin category isOpen image priority products._id'
+      filter, 
+      'name market admin category isOpen image priority products._id locationId'
     )
       .populate('admin', 'name')
       .sort({ priority: 1, createdAt: -1 })

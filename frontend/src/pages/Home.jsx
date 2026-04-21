@@ -85,7 +85,9 @@ const Home = () => {
   useEffect(() => {
     const fetchStores = async () => {
       try {
-        const res = await axios.get((import.meta.env.VITE_API_URL || 'http://localhost:5000') + '/api/store/all/list');
+        const locationId = localStorage.getItem('universe_location_id');
+        const url = `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/store/all/list`;
+        const res = await axios.get(url, { params: { locationId } });
         setStores(res.data);
       } catch (err) {
         console.error('Failed to fetch stores');

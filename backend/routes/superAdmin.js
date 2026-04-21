@@ -4,7 +4,19 @@ const superAdminAuth = require('../middleware/superAdminAuth');
 const Admin = require('../models/Admin');
 const Store = require('../models/Store');
 const Order = require('../models/Order');
+const Location = require('../models/Location');
 const telegramService = require('../services/telegramService');
+
+// Public route for landing portal to fetch locations
+router.get('/locations/public', async (req, res) => {
+  try {
+    const Location = require('../models/Location');
+    const locations = await Location.find({ isHidden: { $ne: true } }).sort({ type: 1, name: 1 });
+    res.json(locations);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
 
 // Apply super admin authentication middleware to all routes in this file
 router.use(superAdminAuth);
@@ -438,6 +450,76 @@ router.post('/finance/settle', async (req, res) => {
     } catch (err) {
         res.status(500).json({ message: err.message });
     }
+});
+
+
+// --- LOCATION MANAGEMENT ---
+
+// 12. Create a new Location
+router.post('/locations', async (req, res) => {
+  try {
+    const { name, type, city } = req.body;
+    const location = new Location({ name, type, city });
+    await location.save();
+    res.status(201).json(location);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 13. Get all Locations
+router.get('/locations', async (req, res) => {
+  try {
+    const locations = await Location.find().sort({ type: 1, name: 1 });
+    res.json(locations);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 14. Update location details
+router.put('/locations/:id', async (req, res) => {
+  try {
+    const { name, type, city, isHidden } = req.body;
+    const location = await Location.findByIdAndUpdate(
+      req.params.id,
+      { name, type, city, isHidden },
+      { new: true }
+    );
+    res.json(location);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 15. Delete a location
+router.delete('/locations/:id', async (req, res) => {
+  try {
+    // Check if any stores are still linked to this location
+    const storeCount = await Store.countDocuments({ locationId: req.params.id });
+    if (storeCount > 0) {
+      return res.status(400).json({ message: 'Cannot delete location: It still has linked stores.' });
+    }
+    await Location.findByIdAndDelete(req.params.id);
+    res.json({ message: 'Location deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 16. Update store location assignment
+router.put('/store/:storeId/assign-location', async (req, res) => {
+  try {
+    const { locationId } = req.body;
+    const store = await Store.findByIdAndUpdate(
+      req.params.storeId,
+      { locationId },
+      { new: true }
+    );
+    res.json(store);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
 });
 
 module.exports = router;

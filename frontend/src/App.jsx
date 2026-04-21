@@ -24,7 +24,8 @@ import RecentOrders from './components/RecentOrders';
 import Footer from './components/Footer';
 import NotificationsToast from './components/NotificationsToast';
 import FloatingCart from './components/FloatingCart';
-import { Sparkles, Zap } from 'lucide-react';
+import LocationPortal from './components/LocationPortal';
+import { Sparkles, Zap, MapPin } from 'lucide-react';
 
 const TopPromoBanner = () => {
   return (
@@ -56,7 +57,17 @@ const TopPromoBanner = () => {
 
 const AppLayout = () => {
   const location = useLocation();
+  const [selectedLocationId, setSelectedLocationId] = React.useState(localStorage.getItem('universe_location_id'));
   const isAdminPath = location.pathname.startsWith('/vendor') || location.pathname.startsWith('/super-admin');
+
+  const handleLocationSelect = (loc) => {
+    setSelectedLocationId(loc._id);
+  };
+
+  // If no location is selected and we are NOT on an admin path, show the portal
+  if (!selectedLocationId && !isAdminPath) {
+    return <LocationPortal onLocationSelect={handleLocationSelect} />;
+  }
 
   return (
     <div className="app-container" style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>

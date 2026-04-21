@@ -47,7 +47,10 @@ const Navbar = ({ bannerVisible }) => {
     const delayDebounceFn = setTimeout(async () => {
       setIsSearching(true);
       try {
-        const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/store/global/search?q=${searchQuery}`);
+        const locationId = localStorage.getItem('universe_location_id');
+        const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/store/global/search`, {
+          params: { q: searchQuery, locationId }
+        });
         setSearchResults({
           stores: res.data.stores || [],
           dishes: res.data.dishes || []
@@ -95,23 +98,55 @@ const Navbar = ({ bannerVisible }) => {
   return (
     <nav className="nav-container" style={{ top: bannerVisible ? '38px' : 0 }}>
       {/* Brand Logo - Hidden when searching on mobile */}
-      {(!isSearchFocused || !isMobile) && (
-        <div 
-          onClick={() => navigate('/')}
-          style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', flexShrink: 0, gap: '0.75rem' }}
-        >
-          <img src={logoSymbol} alt="UNIVERSE Symbol" style={{ height: '48px', objectFit: 'contain' }} />
-          {!isMobile && (
-            <span style={{ 
-              fontFamily: "'Poppins', sans-serif", 
-              fontWeight: '900', 
-              fontSize: '1.4rem', 
-              letterSpacing: '-0.03em', 
-              color: 'var(--text-primary)',
-              lineHeight: 1
-            }}>
-              UNIVERSE
-            </span>
+       {(!isSearchFocused || !isMobile) && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexShrink: 0 }}>
+          <div 
+            onClick={() => navigate('/')}
+            style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', gap: '0.75rem' }}
+          >
+            <img src={logoSymbol} alt="UNIVERSE Symbol" style={{ height: '44px', objectFit: 'contain' }} />
+            {!isMobile && (
+              <span style={{ 
+                fontFamily: "'Poppins', sans-serif", 
+                fontWeight: '900', 
+                fontSize: '1.25rem', 
+                letterSpacing: '-0.03em', 
+                color: 'var(--text-primary)',
+                lineHeight: 1
+              }}>
+                UNIVERSE
+              </span>
+            )}
+          </div>
+
+          {!isAdminPath && (
+            <div 
+              onClick={() => {
+                localStorage.removeItem('universe_location_id');
+                window.location.reload();
+              }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                padding: '0.4rem 0.75rem',
+                background: '#f8fafc',
+                border: '1px solid var(--surface-border)',
+                borderRadius: '100px',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                marginLeft: isMobile ? '0' : '0.5rem'
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = '#ffffff'; e.currentTarget.style.borderColor = 'var(--primary)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = '#f8fafc'; e.currentTarget.style.borderColor = 'var(--surface-border)'; }}
+            >
+              <div style={{ width: '20px', height: '20px', background: 'var(--primary)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
+                <MapPin size={10} />
+              </div>
+              <span style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-primary)', maxWidth: isMobile ? '80px' : '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {localStorage.getItem('universe_location_name') || 'Select Hub'}
+              </span>
+            </div>
           )}
         </div>
       )}

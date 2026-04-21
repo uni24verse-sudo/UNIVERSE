@@ -73,7 +73,7 @@ class TelegramService {
     let message = '';
     
     if (order.isPreOrder) {
-      message = `━━━━━━━━━━━━━━━\n` +
+      message = 
         `📅 <b>PRE-ORDER RECEIVED</b>\n` +
         `🕒 <b>PICKUP: ${order.scheduledTime}</b>\n` +
         `━━━━━━━━━━━━━━━\n\n` +
@@ -112,7 +112,7 @@ class TelegramService {
       return text;
     }).join('\n') || '';
 
-    const message = `━━━━━━━━━━━━━━━━━━━━━━\n` +
+    const message = 
       `     ⏰ <b>PRE-ORDER REMINDER</b>\n` +
       `━━━━━━━━━━━━━━━━━━━━━━\n` +
       `🕒 <b>PICKUP IN: 30 MINUTES</b>\n` +
@@ -142,7 +142,7 @@ class TelegramService {
       return text;
     }).join('\n') || '';
 
-    const message = `━━━━━━━━━━━━━━━━━━━━━━\n` +
+    const message = 
       `     ⏰ <b>PRE-ORDER REMINDER</b>\n` +
       `━━━━━━━━━━━━━━━━━━━━━━\n` +
       `🕒 <b>PICKUP IN: 15 MINUTES</b>\n` +
@@ -164,7 +164,7 @@ class TelegramService {
     const chatId = (store && store.telegramChatId) || (store && store.admin && store.admin.telegramChatId);
     if (!chatId) return;
 
-    const message = `━━━━━━━━━━━━━━━━━━━━━━\n` +
+    const message = 
       `     🚨 <b>FINAL WARNING</b>\n` +
       `━━━━━━━━━━━━━━━━━━━━━━\n` +
       `🕒 <b>PICKUP IN: 10 MINUTES</b>\n` +
@@ -189,6 +189,7 @@ class TelegramService {
     
     const message = 
       `${statusEmoji} <b>STALL STATUS UPDATE</b>\n` +
+      `━━━━━━━━━━━━━━━━━━━━━━\n` +
       `Your stall <b>"${store.name}"</b> is now <b>${statusText}</b>.\n\n` +
       `👉 <b><a href="https://www.universeorder.co.in/vendor/dashboard">Open Dashboard</a></b>`;
 
