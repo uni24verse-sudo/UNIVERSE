@@ -409,24 +409,27 @@ const StoreMenu = () => {
                     <p style={{ fontWeight: '800', fontSize: '1.125rem', marginBottom: '0.75rem', color: 'var(--text-primary)' }}>₹{product.price}</p>
                   )}
                   
-                  {product.isCombo ? (
-                    <div style={{ marginBottom: '1rem', background: 'rgba(15, 23, 42, 0.02)', padding: '0.75rem', borderRadius: '12px', border: '1px solid var(--surface-border)' }}>
-                      {product.comboItems && product.comboItems.length > 0 && (
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                          {product.comboItems.map((ci, k) => (
-                            <div key={k} style={{ marginBottom: '0.2rem' }}>• {ci.quantity} {ci.name}</div>
-                          ))}
-                        </div>
-                      )}
+                  {product.isCombo && product.comboItems && product.comboItems.length > 0 && (
+                    <div style={{ 
+                      marginTop: '0.25rem',
+                      background: 'rgba(99, 102, 241, 0.03)', 
+                      padding: '0.6rem 0.75rem', 
+                      borderRadius: '10px', 
+                      border: '1px solid rgba(99, 102, 241, 0.08)' 
+                    }}>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+                        {product.comboItems.map((ci, k) => (
+                          <div key={k} style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                             <span style={{ fontSize: '0.9rem', color: 'var(--primary)', fontWeight: '900' }}>•</span>
+                             <span>{ci.quantity} {ci.name}</span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  ) : (
-                    <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: '1rem', display: '-webkit-box', WebkitLineClamp: '2', WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                      Authentic flavor prepared with fresh ingredients. A favorite among locals.
-                    </p>
                   )}
                 </div>
 
-                <div className="product-img-container">
+                <div className="product-img-container" style={{ marginLeft: '1.5rem' }}>
                   {product.image ? (
                     <img 
                       src={product.image} 
@@ -434,6 +437,7 @@ const StoreMenu = () => {
                       className="product-img"
                       loading="lazy"
                       onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} 
+                      style={{ borderRadius: '18px', objectFit: 'cover' }}
                     />
                   ) : null}
                   <div style={{ 
@@ -442,10 +446,12 @@ const StoreMenu = () => {
                     height: '100%', 
                     alignItems: 'center', 
                     justifyContent: 'center',
-                    fontSize: '2rem'
+                    fontSize: '2rem',
+                    background: '#f8fafc',
+                    borderRadius: '18px'
                   }}>🍲</div>
 
-                  <div style={{ position: 'absolute', bottom: '8px', left: '50%', transform: 'translateX(-50%)', width: '85%' }}>
+                  <div style={{ position: 'absolute', bottom: '-12px', left: '50%', transform: 'translateX(-50%)', width: '90%', zIndex: 10 }}>
                     <QuantitySelector 
                       product={product} 
                       storeId={id} 
