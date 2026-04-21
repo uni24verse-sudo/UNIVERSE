@@ -187,9 +187,8 @@ class TelegramService {
     const statusEmoji = isOpen ? '🟢' : '🔴';
     const statusText = isOpen ? 'OPEN' : 'CLOSED';
     
-    const message = `━━━━━━━━━━━━━━━━━━━━━━\n` +
+    const message = 
       `${statusEmoji} <b>STALL STATUS UPDATE</b>\n` +
-      `━━━━━━━━━━━━━━━━━━━━━━\n\n` +
       `Your stall <b>"${store.name}"</b> is now <b>${statusText}</b>.\n\n` +
       `👉 <b><a href="https://www.universeorder.co.in/vendor/dashboard">Open Dashboard</a></b>`;
 
