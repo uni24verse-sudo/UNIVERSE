@@ -54,7 +54,8 @@ router.post('/login', async (req, res) => {
         id: admin._id, 
         name: admin.name, 
         email: admin.email, 
-        telegramChatId: admin.telegramChatId
+        telegramChatId: admin.telegramChatId,
+        role: admin.role
       } 
     });
   } catch (err) {
