@@ -30,7 +30,7 @@ const LocationPortal = ({ onLocationSelect }) => {
     // 2. Splash screen duration
     const timer = setTimeout(() => {
       setIsSplashComplete(true);
-    }, 2800);
+    }, 1600);
 
     return () => clearTimeout(timer);
   }, []);
