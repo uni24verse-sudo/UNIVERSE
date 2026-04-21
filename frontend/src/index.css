@@ -529,6 +529,13 @@ h1 {
   gap: 0.25rem;
 }
 
+@media (max-width: 380px) {
+  .product-card-content {
+    padding: 0.75rem;
+    padding-top: 0.65rem;
+  }
+}
+
 .product-img-container {
   width: 100%;
   aspect-ratio: 1 / 1;

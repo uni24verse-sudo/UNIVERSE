@@ -259,8 +259,8 @@ const StoreMenu = () => {
 
         <div className="store-menu-grid" style={{ 
           display: 'grid',
-          gridTemplateColumns: isExternal && activeCategory === 'All' && !searchQuery ? 'repeat(auto-fill, minmax(100px, 1fr))' : 'repeat(auto-fill, minmax(160px, 1fr))',
-          gap: isExternal && activeCategory === 'All' && !searchQuery ? '0.75rem' : '1.25rem'
+          gridTemplateColumns: isExternal && activeCategory === 'All' && !searchQuery ? 'repeat(auto-fill, minmax(130px, 1fr))' : 'repeat(auto-fill, minmax(140px, 1fr))',
+          gap: isExternal && activeCategory === 'All' && !searchQuery ? '0.75rem' : '1rem'
         }}>
           {activeCategory === 'All' && comboExists && !searchQuery && !isExternal && (
             <div 
