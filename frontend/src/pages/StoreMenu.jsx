@@ -73,6 +73,7 @@ const StoreMenu = () => {
   };
 
   const storeClosed = store.isOpen === false;
+  const isExternal = localStorage.getItem('universe_location_type') === 'External';
 
   const handleAddToCartClick = (product) => {
     if (storeClosed) return;
@@ -171,24 +172,26 @@ const StoreMenu = () => {
         </div>
 
         {/* Category Navigation - Sticky */}
-        <div className="category-nav-wrapper animate-fade-in-up" style={{ 
-          position: 'sticky',
-          top: '70px',
-          zIndex: 900,
-          background: 'var(--background)',
-          margin: '0 -1rem 1rem -1rem',
-          padding: '0.75rem 1rem'
-        }}>
-          {categories.map(cat => (
-            <button
-              key={cat}
-              onClick={() => setActiveCategory(cat)}
-              className={`category-btn ${activeCategory === cat ? 'active' : ''}`}
-            >
-              {cat}
-            </button>
-          ))}
-        </div>
+        {!isExternal && (
+          <div className="category-nav-wrapper animate-fade-in-up" style={{ 
+            position: 'sticky',
+            top: '70px',
+            zIndex: 900,
+            background: 'var(--background)',
+            margin: '0 -1rem 1rem -1rem',
+            padding: '0.75rem 1rem'
+          }}>
+            {categories.map(cat => (
+              <button
+                key={cat}
+                onClick={() => setActiveCategory(cat)}
+                className={`category-btn ${activeCategory === cat ? 'active' : ''}`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+        )}
 
         {store.isOpen === false && (
           <div style={{ 
@@ -207,10 +210,10 @@ const StoreMenu = () => {
 
         <div className="store-menu-grid" style={{ 
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(100%, 1fr))',
+          gridTemplateColumns: isExternal && activeCategory === 'All' && !searchQuery ? '1fr' : 'repeat(auto-fill, minmax(100%, 1fr))',
           gap: '1.25rem'
         }}>
-          {activeCategory === 'All' && comboExists && !searchQuery && (
+          {activeCategory === 'All' && comboExists && !searchQuery && !isExternal && (
             <div 
               onClick={() => setActiveCategory('Combos')}
               className="animate-fade-in-up"
@@ -251,7 +254,58 @@ const StoreMenu = () => {
             </div>
           )}
 
-          {filteredProducts.map((product, idx) => {
+          {isExternal && activeCategory === 'All' && !searchQuery && (
+            <div className="store-category-grid animate-fade-in-up" style={{ gridColumn: '1 / -1' }}>
+              {categories.filter(c => c !== 'All').map((cat, idx) => {
+                const getEmojiForCategory = (name) => {
+                  const lower = name.toLowerCase();
+                  if (lower.includes('burger')) return '🍔';
+                  if (lower.includes('pizza')) return '🍕';
+                  if (lower.includes('shake') || lower.includes('beverage')) return '🥤';
+                  if (lower.includes('dessert') || lower.includes('sweet')) return '🍰';
+                  if (lower.includes('combo')) return '🎁';
+                  if (lower.includes('snack')) return '🍟';
+                  if (lower.includes('healthy') || lower.includes('salad')) return '🥗';
+                  if (lower.includes('chinese') || lower.includes('noodle')) return '🍜';
+                  if (lower.includes('chicken') || lower.includes('non veg')) return '🍗';
+                  return '🍲';
+                };
+                
+                return (
+                  <div key={cat} className="store-category-tile" onClick={() => setActiveCategory(cat)}>
+                    <div className="store-category-emoji">{getEmojiForCategory(cat)}</div>
+                    <div className="store-category-name">{cat}</div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {isExternal && activeCategory !== 'All' && (
+             <div style={{ gridColumn: '1 / -1', marginBottom: '1rem', display: 'flex', alignItems: 'center' }}>
+               <button 
+                 onClick={() => { setActiveCategory('All'); setSearchQuery(''); }}
+                 style={{
+                   background: '#ffffff',
+                   border: '1px solid var(--surface-border)',
+                   color: 'var(--text-primary)',
+                   padding: '0.5rem 1rem',
+                   borderRadius: '100px',
+                   cursor: 'pointer',
+                   boxShadow: '0 4px 12px rgba(0,0,0,0.03)',
+                   display: 'flex',
+                   alignItems: 'center',
+                   gap: '0.5rem',
+                   fontWeight: '700',
+                   fontSize: '0.875rem'
+                 }}
+               >
+                 <ArrowLeft size={16} /> Back to Categories
+               </button>
+             </div>
+          )}
+
+          {(!isExternal || activeCategory !== 'All' || searchQuery) && filteredProducts.map((product, idx) => {
             const isUnavailable = product.isAvailable === false;
             return (
               <div 
