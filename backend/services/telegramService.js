@@ -173,6 +173,9 @@ class TelegramService {
       `👉 <i>Kitchen, finalize the order immediately! Customer will arrive shortly.</i>\n\n` +
       `🏪 Store: ${store?.name || 'Your Store'}\n` +
       `👉 <b><a href="https://www.universeorder.co.in/vendor/dashboard">Open Dashboard</a></b>`;
+    const botToken = store?.telegramBotToken || null;
+    return this.sendMessage(chatId, message, botToken);
+  }
 
   /**
    * Specifically for store status alerts (Open/Closed)
