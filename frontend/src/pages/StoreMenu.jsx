@@ -381,55 +381,12 @@ const StoreMenu = () => {
                      padding: '0.25rem 3rem',
                      fontWeight: '900',
                      fontSize: '0.625rem',
-                     zIndex: 10,
+                     zIndex: 20,
                      letterSpacing: '0.1em'
                    }}>SOLD OUT</div>
                 )}
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
-                    {product.dietaryPreference === 'veg' && (
-                      <span style={{ padding: '0.1rem 0.35rem', fontSize: '0.55rem', fontWeight: '900', border: '1px solid currentColor', color: isUnavailable ? '#94a3b8' : '#10b981', borderRadius: '4px', letterSpacing: '0.05em' }}>VEG</span>
-                    )}
-                    {product.dietaryPreference === 'non-veg' && (
-                      <span style={{ padding: '0.1rem 0.35rem', fontSize: '0.55rem', fontWeight: '900', border: '1px solid currentColor', color: isUnavailable ? '#94a3b8' : '#ef4444', borderRadius: '4px', letterSpacing: '0.05em' }}>NON-VEG</span>
-                    )}
-                    {product.dietaryPreference === 'egg' && (
-                      <span style={{ padding: '0.1rem 0.35rem', fontSize: '0.55rem', fontWeight: '900', border: '1px solid currentColor', color: isUnavailable ? '#94a3b8' : '#f59e0b', borderRadius: '4px', letterSpacing: '0.05em' }}>EGG</span>
-                    )}
-                    {(product.dietaryPreference === 'none' || !product.dietaryPreference) && (
-                       <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: isUnavailable ? '#94a3b8' : '#cbd5e1' }}></div>
-                    )}
-                    <span style={{ fontSize: '0.6875rem', color: 'var(--text-secondary)', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{product.category || 'Special'}</span>
-                  </div>
-                  <h3 style={{ margin: '0 0 0.25rem 0', fontSize: '1.125rem', fontWeight: '700' }}>{product.name}</h3>
-                  
-                  {product.variants && product.variants.length > 0 ? (
-                    <p style={{ fontWeight: '800', fontSize: '1.125rem', marginBottom: '0.75rem', color: 'var(--text-primary)' }}>₹{Math.min(...product.variants.map(v => v.price))}+</p>
-                  ) : (
-                    <p style={{ fontWeight: '800', fontSize: '1.125rem', marginBottom: '0.75rem', color: 'var(--text-primary)' }}>₹{product.price}</p>
-                  )}
-                  
-                  {product.isCombo && product.comboItems && product.comboItems.length > 0 && (
-                    <div style={{ 
-                      marginTop: '0.25rem',
-                      background: 'rgba(99, 102, 241, 0.03)', 
-                      padding: '0.6rem 0.75rem', 
-                      borderRadius: '10px', 
-                      border: '1px solid rgba(99, 102, 241, 0.08)' 
-                    }}>
-                      <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
-                        {product.comboItems.map((ci, k) => (
-                          <div key={k} style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                             <span style={{ fontSize: '0.9rem', color: 'var(--primary)', fontWeight: '900' }}>•</span>
-                             <span>{ci.quantity} {ci.name}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
 
-                <div className="product-img-container" style={{ marginLeft: '1.5rem' }}>
+                <div className="product-img-container">
                   {product.image ? (
                     <img 
                       src={product.image} 
@@ -437,7 +394,6 @@ const StoreMenu = () => {
                       className="product-img"
                       loading="lazy"
                       onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} 
-                      style={{ borderRadius: '18px', objectFit: 'cover' }}
                     />
                   ) : null}
                   <div style={{ 
@@ -446,12 +402,18 @@ const StoreMenu = () => {
                     height: '100%', 
                     alignItems: 'center', 
                     justifyContent: 'center',
-                    fontSize: '2rem',
-                    background: '#f8fafc',
-                    borderRadius: '18px'
+                    fontSize: '2.5rem',
+                    background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)'
                   }}>🍲</div>
 
-                  <div style={{ position: 'absolute', bottom: '-12px', left: '50%', transform: 'translateX(-50%)', width: '90%', zIndex: 10 }}>
+                  {/* Floating Quantity Selector Overlay */}
+                  <div style={{ 
+                    position: 'absolute', 
+                    bottom: '12px', 
+                    right: '12px',
+                    width: '110px',
+                    zIndex: 15
+                  }}>
                     <QuantitySelector 
                       product={product} 
                       storeId={id} 
@@ -459,6 +421,51 @@ const StoreMenu = () => {
                       storeClosed={storeClosed}
                     />
                   </div>
+                </div>
+
+                <div className="product-card-content">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.75rem', flexWrap: 'wrap' }}>
+                    {product.dietaryPreference === 'veg' && (
+                      <span style={{ padding: '0.15rem 0.4rem', fontSize: '0.5rem', fontWeight: '900', border: '1.5px solid #10b981', color: '#10b981', borderRadius: '6px', letterSpacing: '0.08em', background: 'rgba(16, 185, 129, 0.05)' }}>VEG</span>
+                    )}
+                    {product.dietaryPreference === 'non-veg' && (
+                      <span style={{ padding: '0.15rem 0.4rem', fontSize: '0.5rem', fontWeight: '900', border: '1.5px solid #ef4444', color: '#ef4444', borderRadius: '6px', letterSpacing: '0.08em', background: 'rgba(239, 68, 68, 0.05)' }}>NON-VEG</span>
+                    )}
+                    {product.dietaryPreference === 'egg' && (
+                      <span style={{ padding: '0.15rem 0.4rem', fontSize: '0.5rem', fontWeight: '900', border: '1.5px solid #f59e0b', color: '#f59e0b', borderRadius: '6px', letterSpacing: '0.08em', background: 'rgba(245, 158, 11, 0.05)' }}>EGG</span>
+                    )}
+                    <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{product.category || 'Specialty'}</span>
+                  </div>
+
+                  <h3 style={{ margin: '0 0 0.4rem 0', fontSize: '1.15rem', fontWeight: '800', color: 'var(--text-primary)', letterSpacing: '-0.01em', lineHeight: '1.3' }}>{product.name}</h3>
+                  
+                  <div style={{ marginTop: 'auto', display: 'flex', alignItems: 'baseline', gap: '0.4rem' }}>
+                    <span style={{ fontSize: '0.85rem', fontWeight: '800', color: 'var(--primary)' }}>₹</span>
+                    {product.variants && product.variants.length > 0 ? (
+                      <span style={{ fontWeight: '900', fontSize: '1.35rem', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>{Math.min(...product.variants.map(v => v.price))}<span style={{ fontSize: '0.9rem', marginLeft: '2px' }}>+</span></span>
+                    ) : (
+                      <span style={{ fontWeight: '900', fontSize: '1.35rem', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>{product.price}</span>
+                    )}
+                  </div>
+                  
+                  {product.isCombo && product.comboItems && product.comboItems.length > 0 && (
+                    <div style={{ 
+                      marginTop: '1rem',
+                      background: 'rgba(99, 102, 241, 0.03)', 
+                      padding: '0.6rem 0.8rem', 
+                      borderRadius: '14px', 
+                      border: '1px solid rgba(99, 102, 241, 0.08)' 
+                    }}>
+                      <div style={{ fontSize: '0.725rem', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                        {product.comboItems.map((ci, k) => (
+                          <div key={k} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                             <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: 'var(--primary)', opacity: 0.6 }}></div>
+                             <span style={{ fontWeight: '500' }}><span style={{ color: 'var(--text-primary)', fontWeight: '700' }}>{ci.quantity}</span> {ci.name}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             );

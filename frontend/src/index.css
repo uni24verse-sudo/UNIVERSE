@@ -19,6 +19,8 @@
   --radius: 24px;
   --transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   --glass-bg: rgba(255, 255, 255, 0.85);
+  --premium-shadow: 0 20px 40px rgba(0,0,0,0.04), 0 1px 4px rgba(0,0,0,0.02);
+  --premium-glow: 0 0 20px rgba(239, 65, 35, 0.05);
 }
 
 * {
@@ -500,27 +502,36 @@ h1 {
 
 .product-card {
   display: flex;
-  padding: 1.5rem;
-  gap: 1.5rem;
-  border-radius: 28px;
+  flex-direction: column;
+  padding: 0;
+  border-radius: 32px;
   background: white;
   border: 1px solid var(--surface-border);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.02);
+  box-shadow: var(--premium-shadow);
   transition: var(--transition);
   position: relative;
-  overflow: hidden;
+  overflow: visible; /* Allow quantity selector to float slightly outside if needed */
+  height: 100%;
 }
 
 .product-card:hover {
-  transform: translateY(-6px);
-  box-shadow: 0 20px 40px rgba(0,0,0,0.06);
-  border-color: hsla(var(--primary-h), var(--primary-s), var(--primary-l), 0.1);
+  transform: translateY(-8px);
+  box-shadow: 0 30px 60px rgba(0,0,0,0.08);
+  border-color: hsla(var(--primary-h), var(--primary-s), var(--primary-l), 0.15);
+}
+
+.product-card-content {
+  padding: 1.5rem;
+  padding-top: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
 }
 
 .product-img-container {
-  width: 120px;
-  height: 120px;
-  border-radius: 20px;
+  width: 100%;
+  height: 220px;
+  border-radius: 32px 32px 0 0;
   overflow: hidden;
   position: relative;
   flex-shrink: 0;
@@ -531,12 +542,13 @@ h1 {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: transform 0.5s ease;
+  transition: transform 0.6s cubic-bezier(0.2, 0, 0.2, 1);
 }
 
 .product-card:hover .product-img {
-  transform: scale(1.1);
+  transform: scale(1.08);
 }
+
 
 /* Quantity Selector Styles */
 .quantity-selector-add {
