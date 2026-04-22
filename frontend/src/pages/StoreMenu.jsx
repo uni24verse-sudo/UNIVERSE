@@ -57,12 +57,17 @@ const StoreMenu = () => {
         if (fetchedStore.locationId && isQRSource) {
           const currentLocId = localStorage.getItem('universe_location_id');
           const targetLoc = fetchedStore.locationId;
+          const targetId = targetLoc._id || targetLoc;
           
-          if (currentLocId !== targetLoc._id) {
-            console.log(`Syncing location to: ${targetLoc.name} (${targetLoc.type})`);
-            localStorage.setItem('universe_location_id', targetLoc._id);
-            localStorage.setItem('universe_location_name', targetLoc.name);
-            localStorage.setItem('universe_location_type', targetLoc.type);
+          if (currentLocId !== targetId) {
+            console.log(`Syncing location to: ${targetLoc.name || targetId}`);
+            localStorage.setItem('universe_location_id', targetId);
+            
+            // Only update name/type if populated data is available
+            if (targetLoc.name) {
+              localStorage.setItem('universe_location_name', targetLoc.name);
+              localStorage.setItem('universe_location_type', targetLoc.type || 'College');
+            }
             
             // Reload to refresh global context (Banners, Navbar, etc.)
             window.location.reload();
