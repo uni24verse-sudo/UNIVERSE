@@ -432,6 +432,30 @@ const SuperAdminPanel = () => {
                       />
                     </div>
                     
+                    {/* Persona Toggle */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', padding: '0.5rem', background: 'white', borderRadius: '10px' }}>
+                       <div>
+                         <p style={{ margin: 0, fontWeight: '800', fontSize: '0.7rem', textTransform: 'uppercase', color: 'var(--secondary)' }}>Stall Persona</p>
+                         <p style={{ margin: 0, fontSize: '0.6rem', color: 'var(--text-secondary)' }}>{store.storeType === 'Restaurant' ? 'Dining Mode (No Timer)' : 'Vendor Mode (Timed)'}</p>
+                       </div>
+                       <select 
+                         value={store.storeType || 'FastFood'}
+                         onChange={async (e) => {
+                           try {
+                             await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/super-admin/store/${store._id}/update-details`, 
+                               { storeType: e.target.value }, 
+                               { headers: { Authorization: `Bearer ${token}` } }
+                             );
+                             fetchDashboardData();
+                           } catch(err) { alert('Failed to update persona'); }
+                         }}
+                         style={{ border: 'none', background: 'transparent', fontWeight: '800', fontSize: '0.75rem', cursor: 'pointer', outline: 'none', color: 'var(--secondary)' }}
+                       >
+                         <option value="FastFood">VENDOR</option>
+                         <option value="Restaurant">RESTAURANT</option>
+                       </select>
+                    </div>
+                    
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
                       <div>
                         <label style={{ fontSize: '0.65rem', display: 'block', marginBottom: '0.25rem', fontWeight: '700' }}>Opens at</label>

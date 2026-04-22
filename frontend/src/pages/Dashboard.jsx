@@ -354,6 +354,8 @@ const Dashboard = () => {
     </div>
   );
 
+  const commissionRate = store?.commissionRate || 5;
+
   const todayRevenue = orders
     .filter(o => o.status === 'Completed' && new Date(o.createdAt).toDateString() === new Date().toDateString())
     .reduce((acc, curr) => acc + curr.totalAmount, 0);
@@ -375,6 +377,14 @@ const Dashboard = () => {
   const monthlyRevenue = orders
     .filter(o => o.status === 'Completed' && new Date(o.createdAt) >= startOfMonth)
     .reduce((acc, curr) => acc + curr.totalAmount, 0);
+
+  // Net Calculations (After Platform Commission)
+  const calculateNet = (gross) => Math.floor(gross * (1 - (commissionRate / 100)));
+
+  const todayNet = calculateNet(todayRevenue);
+  const weeklyNet = calculateNet(weeklyRevenue);
+  const monthlyNet = calculateNet(monthlyRevenue);
+  const totalNet = calculateNet(totalRevenue);
 
   const pendingOrders = orders.filter(o => o.status === 'Pending').length;
   const confirmedOrders = orders.filter(o => o.status === 'Confirmed').length;
@@ -998,16 +1008,48 @@ const Dashboard = () => {
                         {order.status !== 'Completed' && order.status !== 'Cancelled' && (
                            <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
                              {order.status === 'Pending' && (
-                               <CountdownTimer deadline={order.acceptDeadline} onAccept={() => updateOrderStatus(order._id, 'Confirmed')} />
+                               <>
+                                 {store?.storeType === 'Restaurant' ? (
+                                   <button 
+                                     onClick={() => updateOrderStatus(order._id, 'Confirmed')} 
+                                     className="btn btn-primary" 
+                                     style={{ flex: 1, padding: '0.75rem', borderRadius: '12px', fontSize: '0.875rem' }}
+                                   >
+                                     Accept Order
+                                   </button>
+                                 ) : (
+                                   <CountdownTimer deadline={order.acceptDeadline} onAccept={() => updateOrderStatus(order._id, 'Confirmed')} />
+                                 )}
+                               </>
                              )}
                              {order.status === 'Confirmed' && (
-                               <button onClick={() => updateOrderStatus(order._id, 'Ready')} className="btn btn-secondary" style={{ flex: 1, padding: '0.75rem', borderRadius: '12px', fontSize: '0.875rem', background: '#3b82f6', color: 'white' }}>Mark Ready</button>
-                             )}
-                             {order.status === 'Ready' && (
-                               <div style={{ flex: 1, textAlign: 'center', padding: '0.75rem', borderRadius: '12px', background: 'rgba(139, 92, 246, 0.1)', color: '#8b5cf6', fontSize: '0.875rem', fontWeight: '800', border: '1px dashed #8b5cf6' }}>
-                                 Waiting for QR Scan
-                               </div>
-                             )}
+                                <div style={{ display: 'flex', gap: '0.5rem', flex: 1 }}>
+                                  {store?.storeType === 'Restaurant' && (
+                                    <button 
+                                      onClick={() => updateOrderStatus(order._id, 'Cooking')} 
+                                      className="btn btn-secondary" 
+                                      style={{ flex: 1, padding: '0.75rem', borderRadius: '12px', fontSize: '0.875rem', background: '#f59e0b', color: 'white' }}
+                                    >
+                                      Mark Cooking
+                                    </button>
+                                  )}
+                                  <button onClick={() => updateOrderStatus(order._id, 'Ready')} className="btn btn-secondary" style={{ flex: 1, padding: '0.75rem', borderRadius: '12px', fontSize: '0.875rem', background: '#3b82f6', color: 'white' }}>{store?.storeType === 'Restaurant' ? 'Ready' : 'Mark Ready'}</button>
+                                </div>
+                              )}
+                              {order.status === 'Cooking' && (
+                                <button 
+                                  onClick={() => updateOrderStatus(order._id, 'Ready')} 
+                                  className="btn btn-secondary" 
+                                  style={{ flex: 1, padding: '0.75rem', borderRadius: '12px', fontSize: '0.875rem', background: '#3b82f6', color: 'white' }}
+                                >
+                                  Order Ready
+                                </button>
+                              )}
+                              {order.status === 'Ready' && (
+                                <div style={{ flex: 1, textAlign: 'center', padding: '0.75rem', borderRadius: '12px', background: 'rgba(139, 92, 246, 0.1)', color: '#8b5cf6', fontSize: '0.875rem', fontWeight: '800', border: '1px dashed #8b5cf6' }}>
+                                  Waiting for QR Scan
+                                </div>
+                              )}
                              {order.status === 'Pending' && (
                                <button onClick={() => updateOrderStatus(order._id, 'Cancelled')} style={{ padding: '0.75rem 1.25rem', borderRadius: '12px', border: '1px solid rgba(239, 68, 68, 0.2)', background: 'transparent', color: 'var(--error)', fontSize: '0.875rem' }}>Cancel</button>
                              )}
@@ -1035,31 +1077,40 @@ const Dashboard = () => {
 
             {/* Stats Cards - Moved below Live Orders on mobile */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem', marginBottom: '3rem', order: isMobile ? 2 : 1 }}>
-              <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '24px', position: 'relative', overflow: 'hidden' }}>
-                <div style={{ position: 'absolute', right: '-10px', bottom: '-10px', opacity: 0.05 }}><Banknote size={100} /></div>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: '600', marginBottom: '1rem' }}>Today's Revenue</p>
-                <h3 style={{ fontSize: '1.75rem', margin: 0 }}>₹{todayRevenue}</h3>
-                <div style={{ marginTop: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--secondary)', fontSize: '0.75rem', fontWeight: '700' }}>
-                  <TrendingUp size={14} /> Live Updates
+              <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '24px', position: 'relative', overflow: 'hidden', border: '1px solid rgba(16, 185, 129, 0.1)' }}>
+                <div style={{ position: 'absolute', right: '-10px', bottom: '-10px', opacity: 0.05, color: '#10b981' }}><Banknote size={100} /></div>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: '800', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Today's Net Profit</p>
+                <h3 style={{ fontSize: '1.85rem', fontWeight: '900', margin: 0, color: '#10b981' }}>₹{todayNet}</h3>
+                <div style={{ marginTop: '0.5rem', fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: '600' }}>
+                  Gross: ₹{todayRevenue}
                 </div>
               </div>
 
               <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '24px', position: 'relative', overflow: 'hidden' }}>
                 <div style={{ position: 'absolute', right: '-10px', bottom: '-10px', opacity: 0.05 }}><ShoppingBag size={100} /></div>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: '600', marginBottom: '1rem' }}>Weekly Revenue</p>
-                <h3 style={{ fontSize: '1.75rem', margin: 0 }}>₹{weeklyRevenue}</h3>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: '700', marginBottom: '0.5rem' }}>Weekly Net Profit</p>
+                <h3 style={{ fontSize: '1.75rem', margin: 0, fontWeight: '800' }}>₹{weeklyNet}</h3>
+                <div style={{ marginTop: '0.5rem', fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
+                  Sales: ₹{weeklyRevenue}
+                </div>
               </div>
 
               <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '24px', position: 'relative', overflow: 'hidden' }}>
                 <div style={{ position: 'absolute', right: '-10px', bottom: '-10px', opacity: 0.05 }}><TrendingUp size={100} /></div>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: '600', marginBottom: '1rem' }}>Monthly Revenue</p>
-                <h3 style={{ fontSize: '1.75rem', margin: 0 }}>₹{monthlyRevenue}</h3>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: '700', marginBottom: '0.5rem' }}>Monthly Net Profit</p>
+                <h3 style={{ fontSize: '1.75rem', margin: 0, fontWeight: '800' }}>₹{monthlyNet}</h3>
+                <div style={{ marginTop: '0.5rem', fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
+                  Sales: ₹{monthlyRevenue}
+                </div>
               </div>
 
               <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '24px', position: 'relative', overflow: 'hidden' }}>
                 <div style={{ position: 'absolute', right: '-10px', bottom: '-10px', opacity: 0.05 }}><TrendingUp size={100} /></div>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: '600', marginBottom: '1rem' }}>Total Life-time</p>
-                <h3 style={{ fontSize: '1.75rem', margin: 0 }}>₹{totalRevenue}</h3>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: '700', marginBottom: '0.5rem' }}>Life-time Net Profit</p>
+                <h3 style={{ fontSize: '1.75rem', margin: 0, fontWeight: '800' }}>₹{totalNet}</h3>
+                <div style={{ marginTop: '0.5rem', fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
+                  Total Sales: ₹{totalRevenue}
+                </div>
               </div>
 
               {/* Subscription Status Card */}
@@ -1083,8 +1134,8 @@ const Dashboard = () => {
                     </div>
                   ) : (
                     <div>
-                      <h3 style={{ fontSize: '1.75rem', margin: 0, color: 'var(--error)' }}>₹{store.estimatedFees}</h3>
-                      <p style={{ fontSize: '0.75rem', opacity: 0.8, marginTop: '0.5rem', fontWeight: '700' }}>3.5% Platform Charges Applied</p>
+                      <h3 style={{ fontSize: '1.75rem', margin: 0, color: 'var(--error)' }}>₹{totalRevenue - totalNet}</h3>
+                      <p style={{ fontSize: '0.75rem', opacity: 0.8, marginTop: '0.5rem', fontWeight: '700' }}>{commissionRate}% Platform Fee Applied</p>
                     </div>
                   )}
                 </div>

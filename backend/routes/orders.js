@@ -22,8 +22,11 @@ router.post('/create', async (req, res) => {
     const store = await Store.findById(storeId).populate('admin');
     if (!store) return res.status(404).json({ message: 'Store not found' });
 
-    // Set acceptance deadline: 15 mins for pre-orders, 3 mins for ASAP
-    const deadlineMinutes = isPreOrder ? 15 : 3;
+    // Set acceptance deadline: 15 mins for pre-orders, 3 mins for ASAP vendors
+    // For Restaurants, we set no deadline (null) to allow manual control
+    let deadlineMinutes = isPreOrder ? 15 : (store.storeType === 'Restaurant' ? null : 3);
+    
+    let acceptDeadline = deadlineMinutes ? new Date(Date.now() + deadlineMinutes * 60 * 1000) : null;
 
     const newOrder = new Order({
       store: storeId,
@@ -37,7 +40,7 @@ router.post('/create', async (req, res) => {
       packagingChargeApplied,
       status: 'Payment Pending',
       paymentStatus: 'Pending',
-      acceptDeadline: new Date(Date.now() + deadlineMinutes * 60 * 1000),
+      acceptDeadline,
       handoverToken: generateHandoverToken(),
       isPreOrder: isPreOrder || false,
       scheduledTime: scheduledTime || null

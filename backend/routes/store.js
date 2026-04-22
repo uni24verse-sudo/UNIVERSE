@@ -167,7 +167,9 @@ router.get('/all/list', async (req, res) => {
 // Get single store by ID (Public)
 router.get('/:id', async (req, res) => {
   try {
-    const store = await Store.findById(req.params.id).populate('admin', 'name');
+    const store = await Store.findById(req.params.id)
+      .populate('admin', 'name')
+      .populate('locationId', 'name type city');
     
     if (!store || store.isHidden) return res.status(404).json({ message: 'Store not found' });
 
@@ -466,6 +468,7 @@ router.put('/:storeId/update-details', auth, async (req, res) => {
     if (openingTime) store.openingTime = openingTime;
     if (closingTime) store.closingTime = closingTime;
     if (isAutomated !== undefined) store.isAutomated = isAutomated;
+    if (req.body.accentColor !== undefined) store.accentColor = req.body.accentColor;
     
     await store.save();
     res.json(store);

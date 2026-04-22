@@ -6,8 +6,9 @@ import {
   Trash2, Plus, Minus, ArrowLeft, CreditCard, Coins, ShoppingBag,
   ChevronRight, ShieldCheck, Store, Clock, User, Phone,
   CheckCircle, AlertCircle, X, Utensils,
-  Sun, CloudSun, Moon, Coffee
+  Sun, CloudSun, Moon, Coffee, Sparkles
 } from 'lucide-react';
+import { useStoreTheme } from '../hooks/useStoreTheme';
 
 
 const Cart = () => {
@@ -26,6 +27,9 @@ const Cart = () => {
   const [availableSlots, setAvailableSlots] = useState([]);
   const [pairings, setPairings] = useState([]);
   const { addToCart } = useContext(CartContext);
+  
+  // Apply Dynamic Brand Theme
+  useStoreTheme(store);
 
 
 
@@ -402,10 +406,10 @@ const Cart = () => {
                     color: 'var(--text-primary)',
                     fontFamily: 'var(--font-serif, serif)'
                   }}>
-                    Complete Your Meal <span style={{ color: 'var(--primary)' }}>✨</span>
+                    The Perfect Pairing <span style={{ color: 'var(--primary)' }}>✨</span>
                   </h3>
                   <span style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    Pairs Beautifully With
+                    Curated For You
                   </span>
                 </div>
 
@@ -508,118 +512,119 @@ const Cart = () => {
               </div>
             </div>
 
-            <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '24px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                  <Clock size={20} color="var(--primary)" /> Pre-order for Later?
-                </h3>
-                <div 
-                  onClick={() => setIsPreOrder(!isPreOrder)}
-                  style={{
-                    width: '50px',
-                    height: '26px',
-                    background: isPreOrder ? 'var(--primary)' : '#e2e8f0',
-                    borderRadius: '100px',
-                    position: 'relative',
-                    cursor: 'pointer',
-                    transition: 'all 0.3s ease'
-                  }}
-                >
-                  <div style={{
-                    position: 'absolute',
-                    top: '3px',
-                    left: isPreOrder ? '26px' : '4px',
-                    width: '20px',
-                    height: '20px',
-                    background: 'white',
-                    borderRadius: '50%',
-                    transition: 'all 0.3s ease',
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                  }} />
+            {store?.locationId?.type !== 'External' && (
+              <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '24px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                  <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                    <Clock size={20} color="var(--primary)" /> Pre-order for Later?
+                  </h3>
+                  <div 
+                    onClick={() => setIsPreOrder(!isPreOrder)}
+                    style={{
+                      width: '50px',
+                      height: '26px',
+                      background: isPreOrder ? 'var(--primary)' : '#e2e8f0',
+                      borderRadius: '100px',
+                      position: 'relative',
+                      cursor: 'pointer',
+                      transition: 'all 0.3s ease'
+                    }}
+                  >
+                    <div style={{
+                      position: 'absolute',
+                      top: '3px',
+                      left: isPreOrder ? '26px' : '4px',
+                      width: '20px',
+                      height: '20px',
+                      background: 'white',
+                      borderRadius: '50%',
+                      transition: 'all 0.3s ease',
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                    }} />
+                  </div>
                 </div>
+
+                {isPreOrder && (
+                  <div style={{ 
+                    padding: '1.25rem', 
+                    background: 'rgba(239, 65, 35, 0.04)', 
+                    borderRadius: '20px', 
+                    border: '1px solid rgba(239, 65, 35, 0.1)',
+                    marginTop: '1.25rem',
+                    animation: 'fadeIn 0.3s ease'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
+                      <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-primary)', fontWeight: '700' }}>
+                        Select Pickup Slot
+                      </p>
+                      <span style={{ fontSize: '0.65rem', padding: '0.2rem 0.5rem', background: 'rgba(239, 65, 35, 0.1)', color: 'var(--primary)', borderRadius: '6px', fontWeight: '800' }}>
+                        TODAY ONLY
+                      </span>
+                    </div>
+
+                    {availableSlots.length === 0 ? (
+                      <div style={{ textAlign: 'center', padding: '1rem', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                        <AlertCircle size={20} style={{ marginBottom: '0.5rem', opacity: 0.5 }} />
+                        <p>Too late for today's pre-orders.<br/>Please choose Dine In or Take Away.</p>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                        {/* Morning, Afternoon, Evening categorizations */}
+                        {[
+                          { title: 'Morning', icon: <Coffee size={14} />, slots: availableSlots.filter(s => parseInt(s.value.split(':')[0]) < 12) },
+                          { title: 'Afternoon', icon: <Sun size={14} />, slots: availableSlots.filter(s => {
+                            const h = parseInt(s.value.split(':')[0]);
+                            return h >= 12 && h < 17;
+                          })},
+                          { title: 'Evening', icon: <Moon size={14} />, slots: availableSlots.filter(s => parseInt(s.value.split(':')[0]) >= 17) }
+                        ].filter(cat => cat.slots.length > 0).map(cat => (
+                          <div key={cat.title}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.7rem', fontWeight: '800', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>
+                              {cat.icon} {cat.title}
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', gap: '0.6rem' }}>
+                              {cat.slots.map(slot => (
+                                <button
+                                  key={slot.value}
+                                  onClick={() => {
+                                    setScheduledTime(slot.value);
+                                    if (validationError) setValidationError('');
+                                  }}
+                                  style={{
+                                    padding: '0.6rem 0.4rem',
+                                    borderRadius: '12px',
+                                    border: `1.5px solid ${scheduledTime === slot.value ? 'var(--primary)' : 'var(--surface-border)'}`,
+                                    background: scheduledTime === slot.value ? 'var(--primary)' : 'white',
+                                    color: scheduledTime === slot.value ? 'white' : 'var(--text-primary)',
+                                    fontSize: '0.8rem',
+                                    fontWeight: '700',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                                    boxShadow: scheduledTime === slot.value ? '0 4px 12px rgba(239, 65, 35, 0.2)' : 'none'
+                                  }}
+                                >
+                                  {slot.label.replace(' AM', '').replace(' PM', '')}
+                                  <span style={{ fontSize: '0.6rem', opacity: 0.8, marginLeft: '2px' }}>{slot.period}</span>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    <div style={{ marginTop: '1.25rem', padding: '0.75rem', background: '#fff', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '0.5rem', border: '1px solid rgba(239, 65, 35, 0.1)' }}>
+                      <Clock size={16} color="var(--primary)" />
+                      <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: '600', lineHeight: 1.4 }}>
+                        Selected pickup: <span style={{ color: 'var(--primary)', fontWeight: '800' }}>{
+                          scheduledTime ? availableSlots.find(s => s.value === scheduledTime)?.label : 'None'
+                        }</span>
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
-
-              {isPreOrder && (
-                <div style={{ 
-                  padding: '1.25rem', 
-                  background: 'rgba(239, 65, 35, 0.04)', 
-                  borderRadius: '20px', 
-                  border: '1px solid rgba(239, 65, 35, 0.1)',
-                  marginTop: '1.25rem',
-                  animation: 'fadeIn 0.3s ease'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
-                    <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-primary)', fontWeight: '700' }}>
-                      Select Pickup Slot
-                    </p>
-                    <span style={{ fontSize: '0.65rem', padding: '0.2rem 0.5rem', background: 'rgba(239, 65, 35, 0.1)', color: 'var(--primary)', borderRadius: '6px', fontWeight: '800' }}>
-                      TODAY ONLY
-                    </span>
-                  </div>
-
-                  {availableSlots.length === 0 ? (
-                    <div style={{ textAlign: 'center', padding: '1rem', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                      <AlertCircle size={20} style={{ marginBottom: '0.5rem', opacity: 0.5 }} />
-                      <p>Too late for today's pre-orders.<br/>Please choose Dine In or Take Away.</p>
-                    </div>
-                  ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                      {/* Morning, Afternoon, Evening categorizations */}
-                      {[
-                        { title: 'Morning', icon: <Coffee size={14} />, slots: availableSlots.filter(s => parseInt(s.value.split(':')[0]) < 12) },
-                        { title: 'Afternoon', icon: <Sun size={14} />, slots: availableSlots.filter(s => {
-                          const h = parseInt(s.value.split(':')[0]);
-                          return h >= 12 && h < 17;
-                        })},
-                        { title: 'Evening', icon: <Moon size={14} />, slots: availableSlots.filter(s => parseInt(s.value.split(':')[0]) >= 17) }
-                      ].filter(cat => cat.slots.length > 0).map(cat => (
-                        <div key={cat.title}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.7rem', fontWeight: '800', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>
-                            {cat.icon} {cat.title}
-                          </div>
-                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', gap: '0.6rem' }}>
-                            {cat.slots.map(slot => (
-                              <button
-                                key={slot.value}
-                                onClick={() => {
-                                  setScheduledTime(slot.value);
-                                  if (validationError) setValidationError('');
-                                }}
-                                style={{
-                                  padding: '0.6rem 0.4rem',
-                                  borderRadius: '12px',
-                                  border: `1.5px solid ${scheduledTime === slot.value ? 'var(--primary)' : 'var(--surface-border)'}`,
-                                  background: scheduledTime === slot.value ? 'var(--primary)' : 'white',
-                                  color: scheduledTime === slot.value ? 'white' : 'var(--text-primary)',
-                                  fontSize: '0.8rem',
-                                  fontWeight: '700',
-                                  cursor: 'pointer',
-                                  transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                                  boxShadow: scheduledTime === slot.value ? '0 4px 12px rgba(239, 65, 35, 0.2)' : 'none'
-                                }}
-                              >
-                                {slot.label.replace(' AM', '').replace(' PM', '')}
-                                <span style={{ fontSize: '0.6rem', opacity: 0.8, marginLeft: '2px' }}>{slot.period}</span>
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  <div style={{ marginTop: '1.25rem', padding: '0.75rem', background: '#fff', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '0.5rem', border: '1px solid rgba(239, 65, 35, 0.1)' }}>
-                    <Clock size={16} color="var(--primary)" />
-                    <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: '600', lineHeight: 1.4 }}>
-                      Selected pickup: <span style={{ color: 'var(--primary)', fontWeight: '800' }}>{
-                        scheduledTime ? availableSlots.find(s => s.value === scheduledTime)?.label : 'None'
-                      }</span>
-                    </p>
-                  </div>
-                </div>
-              )}
-
-            </div>
+            )}
 
             <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '24px' }}>
               <h3 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>

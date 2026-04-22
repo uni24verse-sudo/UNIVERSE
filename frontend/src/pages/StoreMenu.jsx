@@ -2,7 +2,8 @@ import React, { useState, useEffect, useContext } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { CartContext } from '../context/CartContext';
-import { ArrowLeft, ShoppingBag, ChefHat, Info, Plus, Search, Star, Clock, Store, X } from 'lucide-react';
+import { ArrowLeft, ShoppingBag, ChefHat, Info, Plus, Search, Star, Clock, Store, X, Sparkles } from 'lucide-react';
+import { useStoreTheme } from '../hooks/useStoreTheme';
 import QuantitySelector from '../components/QuantitySelector';
 
 const MenuSkeleton = () => (
@@ -35,6 +36,9 @@ const StoreMenu = () => {
   const [activeCategory, setActiveCategory] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [dietaryFilter, setDietaryFilter] = useState('all');
+
+  // Apply Dynamic Brand Theme
+  useStoreTheme(store);
 
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [showVariantModal, setShowVariantModal] = useState(false);

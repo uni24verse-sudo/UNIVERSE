@@ -30,6 +30,14 @@ const Navbar = ({ bannerVisible }) => {
   const isMobile = windowWidth <= 600;
 
   const isAdminPath = location.pathname.startsWith('/vendor') || location.pathname.startsWith('/super-admin');
+  
+  // Detect if we are in a Store Context (Walled Garden)
+  const storeIdMatch = location.pathname.match(/\/store\/([^\/]+)/) || 
+                       location.pathname.match(/\/order-status\/([^\/]+)/);
+  const activeStoreId = storeIdMatch ? storeIdMatch[1] : (cart.length > 0 ? (cart[0].storeId || localStorage.getItem('last_store_id')) : null);
+  const isStoreLocked = location.pathname.startsWith('/store/') || 
+                         location.pathname.startsWith('/cart') || 
+                         location.pathname.startsWith('/order-status/');
 
   // Hide Navbar on vendor and super-admin routes
   if (isAdminPath) {
@@ -98,12 +106,16 @@ const Navbar = ({ bannerVisible }) => {
   };
 
   return (
-    <nav className="nav-container" style={{ top: bannerVisible ? '38px' : 0 }}>
+    <nav className="nav-container" style={{ 
+      top: bannerVisible ? '38px' : 0,
+      borderBottom: isStoreLocked ? '2px solid var(--primary)' : '1px solid var(--surface-border)',
+      background: isStoreLocked ? 'rgba(255, 255, 255, 0.98)' : '#ffffff'
+    }}>
       {/* Brand Logo - Hidden when searching on mobile */}
        {(!isSearchFocused || !isMobile) && (
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexShrink: 0 }}>
           <div 
-            onClick={() => navigate('/')}
+            onClick={() => isStoreLocked ? navigate(`/store/${activeStoreId}`) : navigate('/')}
             style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', gap: '0.75rem' }}
           >
             <img src={logoSymbol} alt="UNIVERSE Symbol" style={{ height: '44px', objectFit: 'contain' }} />
@@ -121,7 +133,7 @@ const Navbar = ({ bannerVisible }) => {
             )}
           </div>
 
-          {!isAdminPath && (
+          {!isAdminPath && !isStoreLocked && (
             <div 
               onClick={() => {
                 localStorage.removeItem('universe_location_id');
@@ -153,8 +165,8 @@ const Navbar = ({ bannerVisible }) => {
         </div>
       )}
 
-      {/* Global Search Bar - Hidden on Store Pages */}
-      {!location.pathname.startsWith('/store/') && (
+      {/* Global Search Bar - Hidden on Store Pages and in Walled Garden */}
+      {!location.pathname.startsWith('/store/') && !isStoreLocked && (
         <div 
           className={`search-wrapper ${isSearchFocused ? 'focused' : ''}`}
           ref={dropdownRef}

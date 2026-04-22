@@ -57,6 +57,12 @@ const StoreSchema = new mongoose.Schema({
     categoryName: { type: String, required: true },
     image: { type: String, required: true }
   }],
+  accentColor: { type: String, default: '#ef4123' }, // Default UniVerse Orange
+  storeType: { 
+    type: String, 
+    enum: ['FastFood', 'Restaurant'], 
+    default: 'FastFood' 
+  },
   products: [ProductSchema]
 }, { timestamps: true });
 

@@ -303,7 +303,7 @@ router.put('/order/:id/cancel', async (req, res) => {
 // 7. Update Store Details (generic)
 router.put('/store/:id/update-details', async (req, res) => {
     try {
-        const { priority, openingTime, closingTime, isAutomated, name, market } = req.body;
+        const { priority, openingTime, closingTime, isAutomated, name, market, storeType } = req.body;
         const store = await Store.findById(req.params.id);
         if (!store) return res.status(404).json({ message: 'Store not found' });
 
@@ -313,6 +313,7 @@ router.put('/store/:id/update-details', async (req, res) => {
         if (isAutomated !== undefined) store.isAutomated = isAutomated;
         if (name) store.name = name;
         if (market) store.market = market;
+        if (storeType) store.storeType = storeType;
         
         await store.save();
         res.json({ message: 'Store updated successfully', store });

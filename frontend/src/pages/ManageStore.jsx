@@ -25,10 +25,12 @@ const ManageStore = () => {
   const [storeOpeningTime, setStoreOpeningTime] = useState('10:00');
   const [storeClosingTime, setStoreClosingTime] = useState('22:00');
   const [storeIsAutomated, setStoreIsAutomated] = useState(true);
+  const [storeType, setStoreType] = useState('FastFood');
   const [storeImageFile, setStoreImageFile] = useState(null);
 
   const [updatingImage, setUpdatingImage] = useState(false);
   const storeImageInputRef = useRef(null);
+  const [storeAccentColor, setStoreAccentColor] = useState('#ef4123'); // Default UniVerse Orange
   const [testingFCM, setTestingFCM] = useState(false);
 
   // AI Scan States
@@ -100,6 +102,8 @@ const ManageStore = () => {
           setStoreOpeningTime(defaultStore.openingTime || '10:00');
           setStoreClosingTime(defaultStore.closingTime || '22:00');
           setStoreIsAutomated(defaultStore.isAutomated !== false);
+          setStoreAccentColor(defaultStore.accentColor || '#ef4123');
+          setStoreType(defaultStore.storeType || 'FastFood');
 
         } else {
           navigate('/vendor/store/create');
@@ -128,6 +132,8 @@ const ManageStore = () => {
       setStoreOpeningTime(selected.openingTime || '10:00');
       setStoreClosingTime(selected.closingTime || '22:00');
       setStoreIsAutomated(selected.isAutomated !== false);
+      setStoreAccentColor(selected.accentColor || '#ef4123');
+      setStoreType(selected.storeType || 'FastFood');
       setIsEditingStore(false);
 
     }
@@ -269,6 +275,49 @@ const ManageStore = () => {
     }
   };
 
+  const extractAccentColor = (imageUrl) => {
+    const img = new Image();
+    img.crossOrigin = "Anonymous";
+    img.src = imageUrl;
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      ctx.drawImage(img, 0, 0);
+      
+      // Sample a few points to find a vibrant color
+      const samplePoints = [
+        [0.5, 0.5], [0.3, 0.3], [0.7, 0.7], [0.5, 0.2], [0.2, 0.5]
+      ];
+      
+      let bestColor = { h: 9, s: 86, l: 54, hex: '#ef4123' };
+      let maxSaturation = -1;
+
+      samplePoints.forEach(([px, py]) => {
+        const x = Math.floor(px * canvas.width);
+        const y = Math.floor(py * canvas.height);
+        const [r, g, b] = ctx.getImageData(x, y, 1, 1).data;
+        
+        // Convert to HSL to check vibrancy
+        const hex = "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+        
+        // Simple saturation check
+        const max = Math.max(r, g, b), min = Math.min(r, g, b);
+        const s = max === 0 ? 0 : (max - min) / max;
+        const l = (max + min) / 510;
+
+        // We want a color that is prominent but not too dark or light (ideal l: 0.3 to 0.7)
+        if (s > maxSaturation && l > 0.2 && l < 0.8) {
+          maxSaturation = s;
+          bestColor = hex;
+        }
+      });
+      
+      setStoreAccentColor(bestColor);
+    };
+  };
+
   const handleUpdateStoreDetails = async (e) => {
     e.preventDefault();
     setUpdatingStore(true);
@@ -285,7 +334,9 @@ const ManageStore = () => {
           telegramBotToken: storeTelegramBotToken,
           openingTime: storeOpeningTime,
           closingTime: storeClosingTime,
-          isAutomated: storeIsAutomated
+          isAutomated: storeIsAutomated,
+          accentColor: storeAccentColor,
+          storeType: storeType
         },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -310,9 +361,10 @@ const ManageStore = () => {
         telegramBotToken: storeRes.data.telegramBotToken,
         openingTime: storeRes.data.openingTime,
         closingTime: storeRes.data.closingTime,
-        isAutomated: storeRes.data.isAutomated
+        isAutomated: storeRes.data.isAutomated,
+        storeType: storeRes.data.storeType
       }));
-      setStores(prev => prev.map(s => s._id === store._id ? { ...s, name: storeRes.data.name, category: storeRes.data.category, packagingCharge: storeRes.data.packagingCharge, market: storeRes.data.market, upiId: storeRes.data.upiId, telegramChatId: storeRes.data.telegramChatId, telegramBotToken: storeRes.data.telegramBotToken, openingTime: storeRes.data.openingTime, closingTime: storeRes.data.closingTime, isAutomated: storeRes.data.isAutomated } : s));
+      setStores(prev => prev.map(s => s._id === store._id ? { ...s, name: storeRes.data.name, category: storeRes.data.category, packagingCharge: storeRes.data.packagingCharge, market: storeRes.data.market, upiId: storeRes.data.upiId, telegramChatId: storeRes.data.telegramChatId, telegramBotToken: storeRes.data.telegramBotToken, openingTime: storeRes.data.openingTime, closingTime: storeRes.data.closingTime, isAutomated: storeRes.data.isAutomated, storeType: storeRes.data.storeType } : s));
 
       updateVendor(adminRes.data.admin);
       setIsEditingStore(false);
@@ -647,19 +699,86 @@ const ManageStore = () => {
             <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '24px', overflow: 'hidden' }}>
               <div style={{ position: 'relative', height: '180px', borderRadius: '16px', background: 'var(--surface-border)', marginBottom: '1.5rem', overflow: 'hidden' }}>
                 {store.image ? (
-                  <img src={getImageUrl(store.image)} alt={store.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  <img 
+                    src={getImageUrl(store.image)} 
+                    alt={store.name} 
+                    onLoad={(e) => {
+                      if (!store.accentColor || store.accentColor === '#ef4123') {
+                        extractAccentColor(e.target.src);
+                      }
+                    }}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                  />
                 ) : (
                   <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, var(--primary), var(--secondary))', opacity: 0.2 }}>
                     <Store size={48} color="white" />
                   </div>
                 )}
+                
+                {/* Brand Sync Overlay */}
+                <div style={{ 
+                  position: 'absolute', 
+                  bottom: '12px', 
+                  left: '12px', 
+                  background: 'rgba(255,255,255,0.95)', 
+                  padding: '0.4rem 0.8rem', 
+                  borderRadius: '100px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  fontSize: '0.65rem',
+                  fontWeight: '800',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                  backdropFilter: 'blur(4px)',
+                  border: `1.5px solid ${storeAccentColor}`,
+                  zIndex: 2
+                }}>
+                  <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: storeAccentColor }} />
+                  BRAND SYNC
+                </div>
                 <div 
                   onClick={() => storeImageInputRef.current.click()}
-                  style={{ position: 'absolute', bottom: '12px', right: '12px', background: 'var(--primary)', padding: '0.6rem', borderRadius: '12px', cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem', fontWeight: '700', color: 'white' }}
+                  style={{ position: 'absolute', bottom: '12px', right: '12px', background: 'var(--primary)', padding: '0.6rem', borderRadius: '12px', cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem', fontWeight: '700', color: 'white', zIndex: 10 }}
                 >
                   <LucideImage size={16} /> {updatingImage ? 'Uploading...' : 'Change Photo'}
                 </div>
                 <input type="file" ref={storeImageInputRef} hidden accept="image/*" onChange={handleUpdateStoreImage} />
+              </div>
+
+              {/* Brand Identity / Color Picker Section */}
+              <div style={{ marginBottom: '1.5rem', padding: '1rem', background: '#f8fafc', borderRadius: '16px', border: '1px solid var(--surface-border)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.75rem' }}>
+                  <Sparkles size={16} color="var(--primary)" />
+                  <span style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Brand Persona</span>
+                </div>
+                
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                  <input 
+                    type="color" 
+                    value={storeAccentColor}
+                    onChange={(e) => setStoreAccentColor(e.target.value)}
+                    style={{ 
+                      width: '32px', 
+                      height: '32px', 
+                      border: 'none', 
+                      borderRadius: '6px', 
+                      background: 'none',
+                      cursor: 'pointer'
+                    }}
+                  />
+                  <div style={{ flex: 1 }}>
+                    <p style={{ margin: 0, fontSize: '0.75rem', fontWeight: '700' }}>Theme Accent</p>
+                    <p style={{ margin: 0, fontSize: '0.6rem', color: 'var(--text-secondary)', fontFamily: 'monospace' }}>{storeAccentColor.toUpperCase()}</p>
+                  </div>
+                  {storeAccentColor !== '#ef4123' && (
+                    <button 
+                      onClick={() => setStoreAccentColor('#ef4123')}
+                      style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: '0.65rem', fontWeight: '800', cursor: 'pointer' }}
+                    >
+                      RESET
+                    </button>
+                  )}
+                </div>
               </div>
               
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
