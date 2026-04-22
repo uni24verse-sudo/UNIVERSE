@@ -30,7 +30,9 @@ import { Sparkles, Zap, MapPin } from 'lucide-react';
 const TopPromoBanner = () => {
   return (
     <div className="promo-banner" style={{
-      padding: '0.75rem 1rem',
+      height: 'var(--promo-height)',
+      boxSizing: 'border-box',
+      padding: '0 1rem',
       textAlign: 'center',
       color: 'white',
       fontWeight: '800',

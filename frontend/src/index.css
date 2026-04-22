@@ -24,7 +24,7 @@
   
   /* Layout Constants */
   --nav-height: 72px;
-  --promo-height: 38px;
+  --promo-height: 44px; /* Increased to accommodate padding/line-height */
 }
 
 * {

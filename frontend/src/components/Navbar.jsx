@@ -145,7 +145,7 @@ const Navbar = ({ bannerVisible }) => {
       }}
     >
       {/* Brand & HUD Section */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flex: isStoreLocked && scrolled ? 1 : 'none' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexShrink: 0, flex: isStoreLocked && scrolled ? 1 : 'none' }}>
         <div 
           onClick={() => isStoreLocked ? navigate(`/store/${activeStoreId}?source=qr`) : navigate('/')}
           style={{ 
