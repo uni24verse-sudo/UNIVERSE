@@ -208,6 +208,7 @@ const Navbar = ({ bannerVisible }) => {
             <div 
               onClick={() => {
                 localStorage.removeItem('universe_location_id');
+                navigate('/');
                 window.location.reload();
               }}
               style={{
