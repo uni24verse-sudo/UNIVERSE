@@ -96,6 +96,21 @@ const StoreMenu = () => {
     return (p.category || 'Uncategorized') === activeCategory && matchesSearch && matchesDietary;
   }) || [];
 
+  // Logic to hide empty categories based on dietary filter
+  const visibleCategories = categories.filter(cat => {
+    if (cat === 'All') return true;
+    return store.products.some(p => {
+      let matchesDietary = true;
+      if (dietaryFilter === 'veg') matchesDietary = p.dietaryPreference === 'veg';
+      else if (dietaryFilter === 'non-veg') matchesDietary = ['non-veg', 'egg'].includes(p.dietaryPreference);
+      
+      if (!matchesDietary) return false;
+      
+      if (cat === 'Combos') return p.isCombo;
+      return (p.category || 'Uncategorized') === cat;
+    });
+  });
+
   const getImageUrl = (img) => {
     if (!img) return 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=1000&q=80';
     return img.startsWith('/uploads') ? `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${img}` : img;
@@ -247,13 +262,16 @@ const StoreMenu = () => {
           </div>
         )}
 
-        {isExternal && activeCategory !== 'All' && !searchQuery && (
+        {/* Global Dietary Filter - Relocated to Overview Screen for External Stores */}
+        {isExternal && activeCategory === 'All' && !searchQuery && (
           <div className="dietary-filter-container animate-fade-in-up" style={{ 
-            display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', 
-            background: '#f8fafc', 
-            padding: '0.5rem', borderRadius: '100px', 
-            boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.02)',
-            border: '1px solid var(--surface-border)'
+            display: 'flex', gap: '0.4rem', marginBottom: '1.75rem', 
+            background: '#ffffff', 
+            padding: '4px', borderRadius: '16px', 
+            boxShadow: '0 4px 20px rgba(0,0,0,0.04)',
+            border: '1px solid var(--surface-border)',
+            maxWidth: '400px',
+            margin: '0 auto 2rem auto'
           }}>
             {[
               { id: 'all', label: 'All' },
@@ -265,11 +283,11 @@ const StoreMenu = () => {
                 onClick={() => setDietaryFilter(filter.id)}
                 style={{
                   flex: 1,
-                  padding: '0.6rem 1rem',
-                  borderRadius: '100px',
+                  padding: '0.6rem 0.75rem',
+                  borderRadius: '12px',
                   border: 'none',
-                  background: dietaryFilter === filter.id ? '#ffffff' : 'transparent',
-                  color: dietaryFilter === filter.id ? 'var(--text-primary)' : 'var(--text-secondary)',
+                  background: dietaryFilter === filter.id ? 'var(--primary)' : 'transparent',
+                  color: dietaryFilter === filter.id ? 'white' : 'var(--text-secondary)',
                   fontWeight: '800',
                   fontSize: '0.8125rem',
                   cursor: 'pointer',
@@ -278,13 +296,12 @@ const StoreMenu = () => {
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '0.35rem',
-                  boxShadow: dietaryFilter === filter.id ? '0 8px 16px rgba(0,0,0,0.06)' : 'none',
-                  transform: dietaryFilter === filter.id ? 'scale(1.02)' : 'scale(1)'
+                  boxShadow: dietaryFilter === filter.id ? '0 8px 20px rgba(239, 65, 35, 0.15)' : 'none'
                 }}
               >
-                {filter.id === 'veg' && <span style={{ padding: '0.1rem 0.3rem', fontSize: '0.55rem', fontWeight: '900', border: '1px solid #10b981', color: '#10b981', borderRadius: '4px', letterSpacing: '0.05em', flexShrink: 0, background: dietaryFilter === 'veg' ? 'rgba(16, 185, 129, 0.1)' : 'transparent' }}>VEG</span>}
-                {filter.id === 'non-veg' && <span style={{ padding: '0.1rem 0.3rem', fontSize: '0.55rem', fontWeight: '900', border: '1px solid #ef4444', color: '#ef4444', borderRadius: '4px', letterSpacing: '0.05em', flexShrink: 0, background: dietaryFilter === 'non-veg' ? 'rgba(239, 68, 68, 0.1)' : 'transparent' }}>NON-VEG</span>}
-                {filter.label !== 'Veg' && filter.label !== 'Non-Veg' ? filter.label : null}
+                {filter.id === 'veg' && <span style={{ width: '8px', height: '8px', background: dietaryFilter === 'veg' ? 'white' : '#10b981', borderRadius: '50%', border: '1px solid #10b981' }}></span>}
+                {filter.id === 'non-veg' && <span style={{ width: '8px', height: '8px', background: dietaryFilter === 'non-veg' ? 'white' : '#ef4444', borderRadius: '50%', border: '1px solid #ef4444' }}></span>}
+                {filter.label}
               </button>
             ))}
           </div>
@@ -338,7 +355,7 @@ const StoreMenu = () => {
 
           {isExternal && activeCategory === 'All' && !searchQuery && (
             <div className="store-category-grid animate-fade-in-up" style={{ gridColumn: '1 / -1' }}>
-              {categories.filter(c => c !== 'All').map((cat, idx) => {
+              {visibleCategories.filter(c => c !== 'All').map((cat, idx) => {
                 const getCategoryImage = (name) => {
                   const explicitCatImage = store.categoryImages?.find(c => c.categoryName === name)?.image;
                   if (explicitCatImage) return getImageUrl(explicitCatImage);
