@@ -42,8 +42,10 @@ const TopPromoBanner = () => {
       justifyContent: 'center',
       gap: '0.75rem',
       boxShadow: '0 4px 15px rgba(239, 65, 35, 0.25)',
-      position: 'sticky',
+      position: 'fixed',
       top: 0,
+      left: 0,
+      right: 0,
       zIndex: 1100,
       letterSpacing: '0.05em',
       textTransform: 'uppercase'
