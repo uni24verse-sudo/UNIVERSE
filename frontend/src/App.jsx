@@ -25,6 +25,7 @@ import Footer from './components/Footer';
 import NotificationsToast from './components/NotificationsToast';
 import FloatingCart from './components/FloatingCart';
 import LocationPortal from './components/LocationPortal';
+import ScrollToTop from './components/ScrollToTop';
 import { Sparkles, Zap, MapPin } from 'lucide-react';
 
 const TopPromoBanner = () => {
@@ -148,6 +149,7 @@ function App() {
       <SocketProvider>
         <CartProvider>
           <Router>
+            <ScrollToTop />
             <AppLayout />
           </Router>
         </CartProvider>
