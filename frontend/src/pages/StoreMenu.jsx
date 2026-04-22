@@ -51,10 +51,9 @@ const StoreMenu = () => {
         const fetchedStore = res.data;
         setStore(fetchedStore);
         
-        // Automatic Location Synchronization (Only for QR Scans to prevent manual location override trap)
-        const isQRSource = new URLSearchParams(window.location.search).get('source') === 'qr';
-        
-        if (fetchedStore.locationId && isQRSource) {
+        // Automatic Location Synchronization
+        // Removed source=qr check to ensure reliability on all scans and direct visits
+        if (fetchedStore.locationId) {
           const currentLocId = localStorage.getItem('universe_location_id');
           const targetLoc = fetchedStore.locationId;
           const targetId = targetLoc._id || targetLoc;
