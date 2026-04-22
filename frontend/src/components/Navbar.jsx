@@ -234,8 +234,7 @@ const Navbar = ({ bannerVisible }) => {
             </div>
           )}
         </div>
-      )} 
-
+      
       {/* Global Search Bar - Hidden on Store Pages and in Walled Garden */}
       {!location.pathname.startsWith('/store/') && !isStoreLocked && (
         <div 
