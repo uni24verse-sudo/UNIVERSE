@@ -81,6 +81,14 @@ const AppLayout = () => {
     <div className={`app-container ${hasPromo ? 'has-promo' : ''}`} style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       {hasPromo && <TopPromoBanner />}
       <Navbar bannerVisible={!isAdminPath && hubType === 'College'} />
+      
+      {/* Header Spacer - Manages Flow for Fixed Elements */}
+      {!isAdminPath && (
+        <div style={{ 
+          height: hasPromo ? 'calc(var(--nav-height) + var(--promo-height))' : 'var(--nav-height)',
+          flexShrink: 0 
+        }} />
+      )}
       <RecentOrders />
       <NotificationsToast />
       <FloatingCart />

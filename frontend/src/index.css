@@ -68,12 +68,9 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  /* Prevent content overlap with fixed/sticky nav */
-  padding-top: var(--nav-height);
 }
 
 .has-promo .app-container {
-  padding-top: calc(var(--nav-height) + var(--promo-height));
 }
 
 /* Dynamic Offset Manager */
