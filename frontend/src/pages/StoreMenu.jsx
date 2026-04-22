@@ -131,10 +131,12 @@ const StoreMenu = () => {
 
       {/* Store Info Subheader - Sticky */}
       <div className="store-header-sticky" style={{ 
-        top: `calc(72px + ${(!isExternal && localStorage.getItem('universe_location_type') === 'College') ? 38 : 0}px)`,
-        background: 'rgba(255, 255, 255, 0.9)',
+        top: `calc(var(--nav-actual-height, 72px) + ${(!isExternal && localStorage.getItem('universe_location_type') === 'College') ? 'var(--promo-height, 38px)' : '0px'})`,
+        background: 'rgba(255, 255, 255, 0.95)',
         backdropFilter: 'blur(20px)',
-        zIndex: 999
+        zIndex: 999,
+        borderBottom: '1px solid var(--surface-border)',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.03)'
       }}>
         <div style={{ maxWidth: '800px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem 1rem' }}>
           <button onClick={() => navigate(-1)} style={{ background: '#ffffff', border: '1px solid var(--surface-border)', color: 'var(--text-primary)', padding: '0.5rem', borderRadius: '12px', cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,0.04)', display: 'flex', alignItems: 'center' }}>
@@ -209,11 +211,14 @@ const StoreMenu = () => {
         {!isExternal && (
           <div className="category-nav-wrapper animate-fade-in-up" style={{ 
             position: 'sticky',
-            top: '70px',
-            zIndex: 900,
-            background: 'var(--background)',
+            top: `calc(var(--nav-actual-height, 72px) + ${(!isExternal && localStorage.getItem('universe_location_type') === 'College') ? 'var(--promo-height, 38px)' : '0px'} + 68px)`,
+            zIndex: 998,
+            background: 'rgba(251, 251, 251, 0.98)',
+            backdropFilter: 'blur(10px)',
             margin: '0 -1rem 1rem -1rem',
-            padding: '0.75rem 1rem'
+            padding: '0.75rem 1rem',
+            borderBottom: '1px solid var(--surface-border)',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.02)'
           }}>
             {categories.map(cat => (
               <button

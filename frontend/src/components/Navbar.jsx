@@ -24,7 +24,16 @@ const Navbar = ({ bannerVisible }) => {
 
   // Scroll tracking for premium HUD
   useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 80);
+    const handleScroll = () => {
+      const isScrolled = window.scrollY > 80;
+      setScrolled(isScrolled);
+      // Sync actual height to CSS for subsequent sticky headers
+      document.documentElement.style.setProperty('--nav-actual-height', isScrolled ? '64px' : '72px');
+    };
+    
+    // Set initial
+    document.documentElement.style.setProperty('--nav-actual-height', '72px');
+    
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);

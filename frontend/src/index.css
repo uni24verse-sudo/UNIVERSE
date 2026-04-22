@@ -76,6 +76,15 @@ body {
   padding-top: calc(var(--nav-height) + var(--promo-height));
 }
 
+/* Dynamic Offset Manager */
+.app-container {
+  --safe-top: var(--nav-height);
+}
+
+.has-promo .app-container {
+  --safe-top: calc(var(--nav-height) + var(--promo-height));
+}
+
 /* Glassmorphism Cards */
 .glass-card {
   background: var(--glass-bg);
@@ -829,13 +838,20 @@ h1 {
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border-bottom: 1px solid var(--surface-border);
-  padding: 0 2rem;
+  padding: 0 1.25rem; /* Reduced for mobile-first breathing room */
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 2rem;
+  gap: 1rem;
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   box-shadow: var(--premium-shadow);
+}
+
+@media (min-width: 768px) {
+  .nav-container {
+    padding: 0 2rem;
+    gap: 2rem;
+  }
 }
 
 .nav-scrolled {
