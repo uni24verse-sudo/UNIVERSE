@@ -48,7 +48,24 @@ const StoreMenu = () => {
     const fetchStore = async () => {
       try {
         const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/store/${id}`);
-        setStore(res.data);
+        const fetchedStore = res.data;
+        setStore(fetchedStore);
+        
+        // Automatic Location Synchronization
+        if (fetchedStore.locationId) {
+          const currentLocId = localStorage.getItem('universe_location_id');
+          const targetLoc = fetchedStore.locationId;
+          
+          if (currentLocId !== targetLoc._id) {
+            console.log(`Syncing location to: ${targetLoc.name} (${targetLoc.type})`);
+            localStorage.setItem('universe_location_id', targetLoc._id);
+            localStorage.setItem('universe_location_name', targetLoc.name);
+            localStorage.setItem('universe_location_type', targetLoc.type);
+            
+            // Reload to refresh global context (Banners, Navbar, etc.)
+            window.location.reload();
+          }
+        }
       } catch (err) {
         console.error(err);
       } finally {
