@@ -111,7 +111,12 @@ const StoreMenu = () => {
       </div>
 
       {/* Store Info Subheader - Sticky */}
-      <div className="store-header-sticky">
+      <div className="store-header-sticky" style={{ 
+        top: `calc(72px + ${(!isExternal && localStorage.getItem('universe_location_type') === 'College') ? 38 : 0}px)`,
+        background: 'rgba(255, 255, 255, 0.9)',
+        backdropFilter: 'blur(20px)',
+        zIndex: 999
+      }}>
         <div style={{ maxWidth: '800px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem 1rem' }}>
           <button onClick={() => navigate(-1)} style={{ background: '#ffffff', border: '1px solid var(--surface-border)', color: 'var(--text-primary)', padding: '0.5rem', borderRadius: '12px', cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,0.04)', display: 'flex', alignItems: 'center' }}>
             <ArrowLeft size={18} />

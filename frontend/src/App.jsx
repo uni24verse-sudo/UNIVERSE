@@ -71,9 +71,11 @@ const AppLayout = () => {
 
   const hubType = localStorage.getItem('universe_location_type');
 
+  const hasPromo = !isAdminPath && hubType === 'College';
+
   return (
-    <div className="app-container" style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-      {(!isAdminPath && hubType === 'College') && <TopPromoBanner />}
+    <div className={`app-container ${hasPromo ? 'has-promo' : ''}`} style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+      {hasPromo && <TopPromoBanner />}
       <Navbar bannerVisible={!isAdminPath && hubType === 'College'} />
       <RecentOrders />
       <NotificationsToast />

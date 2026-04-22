@@ -683,7 +683,12 @@ const ManageStore = () => {
               </div>
               
               <div style={{ background: 'white', padding: '1.5rem', borderRadius: '24px', display: 'inline-block', marginBottom: '1.5rem', boxShadow: '0 10px 30px rgba(0,0,0,0.2)' }}>
-                <QRCodeSVG id="store-qr-code" value={storeUrl} size={200} level="H" />
+                <QRCodeSVG 
+                  id="store-qr-code" 
+                  value={storeType === 'Restaurant' ? `${storeUrl}?source=qr` : storeUrl} 
+                  size={200} 
+                  level="H" 
+                />
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>

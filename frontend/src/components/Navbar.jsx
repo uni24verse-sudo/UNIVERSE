@@ -17,8 +17,17 @@ const Navbar = ({ bannerVisible }) => {
   const [showDropdown, setShowDropdown] = useState(false);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+  const [scrolled, setScrolled] = useState(false);
+  const [activeStore, setActiveStore] = useState(null);
   const dropdownRef = useRef(null);
   const searchInputRef = useRef(null);
+
+  // Scroll tracking for premium HUD
+  useEffect(() => {
+    const handleScroll = () => setScrolled(window.scrollY > 80);
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   // Track window width for reactivity
   useEffect(() => {
@@ -32,12 +41,23 @@ const Navbar = ({ bannerVisible }) => {
   const isAdminPath = location.pathname.startsWith('/vendor') || location.pathname.startsWith('/super-admin');
   
   // Detect if we are in a Store Context (Walled Garden)
-  const storeIdMatch = location.pathname.match(/\/store\/([^\/]+)/) || 
-                       location.pathname.match(/\/order-status\/([^\/]+)/);
-  const activeStoreId = storeIdMatch ? storeIdMatch[1] : (cart.length > 0 ? (cart[0].storeId || localStorage.getItem('last_store_id')) : null);
-  const isStoreLocked = location.pathname.startsWith('/store/') || 
-                         location.pathname.startsWith('/cart') || 
-                         location.pathname.startsWith('/order-status/');
+  const storeIdMatch = location.pathname.match(/\/store\/([^\/]+)/);
+  const activeStoreId = storeIdMatch ? storeIdMatch[1] : null;
+  const isDirectQR = new URLSearchParams(location.search).get('source') === 'qr';
+
+  // Fetch store type for Smart Lockdown
+  useEffect(() => {
+    if (activeStoreId) {
+      axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/store/${activeStoreId}`)
+        .then(res => setActiveStore(res.data))
+        .catch(err => console.error(err));
+    } else {
+      setActiveStore(null);
+    }
+  }, [activeStoreId]);
+
+  const isRestaurant = activeStore?.storeType === 'Restaurant';
+  const isStoreLocked = isRestaurant && isDirectQR;
 
   // Hide Navbar on vendor and super-admin routes
   if (isAdminPath) {
@@ -106,34 +126,85 @@ const Navbar = ({ bannerVisible }) => {
   };
 
   return (
-    <nav className="nav-container" style={{ 
-      top: bannerVisible ? '38px' : 0,
-      borderBottom: isStoreLocked ? '2px solid var(--primary)' : '1px solid var(--surface-border)',
-      background: isStoreLocked ? 'rgba(255, 255, 255, 0.98)' : '#ffffff'
-    }}>
-      {/* Brand Logo - Hidden when searching on mobile */}
-       {(!isSearchFocused || !isMobile) && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexShrink: 0 }}>
-          <div 
-            onClick={() => isStoreLocked ? navigate(`/store/${activeStoreId}`) : navigate('/')}
-            style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', gap: '0.75rem' }}
-          >
-            <img src={logoSymbol} alt="UNIVERSE Symbol" style={{ height: '44px', objectFit: 'contain' }} />
-            {!isMobile && (
-              <span style={{ 
-                fontFamily: "'Poppins', sans-serif", 
-                fontWeight: '900', 
-                fontSize: '1.25rem', 
-                letterSpacing: '-0.03em', 
-                color: 'var(--text-primary)',
-                lineHeight: 1
-              }}>
-                UNIVERSE
-              </span>
-            )}
-          </div>
+    <nav 
+      className={`nav-container ${scrolled ? 'nav-scrolled' : ''}`} 
+      style={{ 
+        top: bannerVisible ? 'var(--promo-height)' : 0,
+        borderBottom: isStoreLocked ? '2.5px solid var(--primary)' : '1px solid var(--surface-border)',
+        boxShadow: isStoreLocked ? '0 15px 35px var(--premium-glow)' : 'var(--premium-shadow)',
+        background: scrolled ? 'rgba(255, 255, 255, 0.98)' : 'rgba(255, 255, 255, 0.75)'
+      }}
+    >
+      {/* Brand & HUD Section */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flex: isStoreLocked && scrolled ? 1 : 'none' }}>
+        <div 
+          onClick={() => isStoreLocked ? navigate(`/store/${activeStoreId}?source=qr`) : navigate('/')}
+          style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            cursor: 'pointer', 
+            gap: isStoreLocked && scrolled ? '0.5rem' : '0.75rem',
+            transition: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)'
+          }}
+        >
+          <img 
+            src={logoSymbol} 
+            alt="UNIVERSE Symbol" 
+            style={{ 
+              height: scrolled ? '32px' : '44px', 
+              width: scrolled ? '32px' : '44px',
+              objectFit: 'contain',
+              transition: 'all 0.4s ease'
+            }} 
+          />
+          
+          {/* Default Platform Branding */}
+          {(!isStoreLocked || !scrolled) && !isMobile && (
+            <span style={{ 
+              fontFamily: "'Poppins', sans-serif", 
+              fontWeight: '900', 
+              fontSize: '1.25rem', 
+              letterSpacing: '-0.03em', 
+              color: 'var(--text-primary)',
+              lineHeight: 1
+            }}>
+              UNIVERSE
+            </span>
+          )}
 
-          {!isAdminPath && !isStoreLocked && (
+          {/* Premium Store HUD (Shows on scroll in Walled Garden) */}
+          {isStoreLocked && scrolled && activeStore && (
+            <div style={{ 
+              display: 'flex', 
+              flexDirection: 'column', 
+              animation: 'fadeInUp 0.4s forwards',
+              marginLeft: '0.25rem'
+            }}>
+              <span style={{ 
+                fontSize: '0.9375rem', 
+                fontWeight: '900', 
+                color: 'var(--text-primary)',
+                letterSpacing: '-0.01em',
+                lineHeight: 1.1
+              }}>
+                {activeStore.name}
+              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <span style={{ 
+                  fontSize: '0.65rem', 
+                  fontWeight: '800', 
+                  color: activeStore.isOpen ? '#10b981' : '#ef4444', 
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em'
+                }}>
+                  {activeStore.isOpen ? '• Accepting Orders' : '• Stall Closed'}
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {!isAdminPath && !isStoreLocked && (
             <div 
               onClick={() => {
                 localStorage.removeItem('universe_location_id');
@@ -163,7 +234,7 @@ const Navbar = ({ bannerVisible }) => {
             </div>
           )}
         </div>
-      )}
+      )} 
 
       {/* Global Search Bar - Hidden on Store Pages and in Walled Garden */}
       {!location.pathname.startsWith('/store/') && !isStoreLocked && (
