@@ -79,8 +79,8 @@ router.post('/razorpay/verify', async (req, res) => {
     const store = await Store.findById(storeId).populate('admin');
     if (!store) return res.status(404).json({ message: 'Store not found' });
 
-    // Set acceptance deadline: 15 mins for pre-orders, 3 mins for ASAP
-    const deadlineMinutes = isPreOrder ? 15 : 3;
+    // Set acceptance deadline: 15 mins for pre-orders, 5 mins for ASAP
+    const deadlineMinutes = isPreOrder ? 15 : 5;
 
     const newOrder = new Order({
       store: storeId,
