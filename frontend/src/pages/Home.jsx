@@ -155,44 +155,7 @@ const Home = () => {
     </div>
   );
 
-  const vendorStr = localStorage.getItem('vendor');
-  let isSuperAdmin = false;
-  try {
-    isSuperAdmin = vendorStr && JSON.parse(vendorStr).role === 'superadmin';
-  } catch(e) {}
 
-  if (hubType === 'External' && !isSuperAdmin) {
-    return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--background)', position: 'relative', overflow: 'hidden' }}>
-        <FloatingBackground />
-        <div className="glass-card animate-fade-in-up" style={{ textAlign: 'center', maxWidth: '400px', padding: '3rem 2rem', zIndex: 2 }}>
-          <div style={{ width: '64px', height: '64px', background: 'rgba(239, 65, 35, 0.1)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem', color: 'var(--error)' }}>
-            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-          </div>
-          <h2 style={{ fontSize: '1.5rem', marginBottom: '0.5rem', fontWeight: '800' }}>Access Restricted</h2>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '2rem' }}>
-            The external hub feature is currently undergoing maintenance. Only authorized administrators can access this view.
-          </p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <button 
-              onClick={() => { localStorage.removeItem('universe_location_id'); window.location.reload(); }}
-              className="btn btn-primary"
-              style={{ width: '100%' }}
-            >
-              Return to Campus
-            </button>
-            <Link 
-              to="/super-admin/login" 
-              state={{ fromRestrictedAccess: true }}
-              style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textDecoration: 'none', fontWeight: '600' }}
-            >
-              Administrator Login &rarr;
-            </Link>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div style={{ minHeight: '100vh', position: 'relative' }}>
