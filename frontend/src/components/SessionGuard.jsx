@@ -11,22 +11,34 @@ import { Sparkles, Loader2 } from 'lucide-react';
  */
 const SessionGuard = () => {
   const [isSyncing, setIsSyncing] = useState(false);
-  const lastActiveTime = useRef(Date.now());
+  const lastActiveTime = useRef(parseInt(localStorage.getItem('universe_last_active')) || Date.now());
   const location = useLocation();
-  const REFRESH_THRESHOLD = 15 * 60 * 1000; // 15 minutes
+  const REFRESH_THRESHOLD = 15 * 60 * 1000; // 15 minutes (Soft Sync)
+  const HARD_REFRESH_THRESHOLD = 60 * 60 * 1000; // 1 hour (Hard Reload)
 
   useEffect(() => {
+    const updateActivity = () => {
+      const now = Date.now();
+      lastActiveTime.current = now;
+      localStorage.setItem('universe_last_active', now.toString());
+    };
+
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         const timeAway = Date.now() - lastActiveTime.current;
         
-        if (timeAway > REFRESH_THRESHOLD) {
+        if (timeAway > HARD_REFRESH_THRESHOLD) {
+          // Hard reload for very long periods of inactivity (after hours)
+          console.log('[SessionGuard] Hard refresh triggered due to extended inactivity.');
+          window.location.reload();
+        } else if (timeAway > REFRESH_THRESHOLD) {
+          // Soft sync for medium periods of inactivity
           performSoftSync();
         } else {
-          lastActiveTime.current = Date.now();
+          updateActivity();
         }
       } else {
-        lastActiveTime.current = Date.now();
+        updateActivity();
       }
     };
 
@@ -40,13 +52,16 @@ const SessionGuard = () => {
       // In a real scenario, this would wait for the most critical API calls to finish
       setTimeout(() => {
         setIsSyncing(false);
-        lastActiveTime.current = Date.now();
+        updateActivity();
         console.log('[SessionGuard] Soft sync completed.');
       }, 1200);
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('focus', handleVisibilityChange);
+
+    // Initial check on mount in case they opened the tab after a long time
+    handleVisibilityChange();
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
@@ -56,7 +71,9 @@ const SessionGuard = () => {
 
   // Soft update on route change
   useEffect(() => {
-    lastActiveTime.current = Date.now();
+    const now = Date.now();
+    lastActiveTime.current = now;
+    localStorage.setItem('universe_last_active', now.toString());
   }, [location.pathname]);
 
   if (!isSyncing) return null;
