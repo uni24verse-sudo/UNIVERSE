@@ -183,7 +183,8 @@ const Cart = () => {
         orderType,
         packagingChargeApplied: deliveryFee > 0,
         isPreOrder,
-        scheduledTime: isPreOrder ? scheduledTime : null
+        scheduledTime: isPreOrder ? scheduledTime : null,
+        isQRScan: localStorage.getItem('universe_order_source') === 'qr'
       };
 
 
@@ -207,6 +208,9 @@ const Cart = () => {
 
             if (verifyRes.data.success) {
               const savedOrder = verifyRes.data.order;
+              
+              // Clear scan source after successful order
+              localStorage.removeItem('universe_order_source');
               // Add to recent orders for tracking
               const recentOrders = JSON.parse(localStorage.getItem('universe_recent_orders') || '[]');
               const newRecentOrder = {

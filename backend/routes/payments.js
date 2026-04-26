@@ -74,13 +74,20 @@ router.post('/razorpay/verify', async (req, res) => {
     }
 
     // Payment verified - NOW Create the Order in DB
-    const { storeId, items, totalAmount, paymentMethod, customerPhone, customerName, orderType, packagingChargeApplied, isPreOrder, scheduledTime } = orderData;
+    const { storeId, items, totalAmount, paymentMethod, customerPhone, customerName, orderType, packagingChargeApplied, isPreOrder, scheduledTime, isQRScan } = orderData;
 
     const store = await Store.findById(storeId).populate('admin');
     if (!store) return res.status(404).json({ message: 'Store not found' });
 
-    // Set acceptance deadline: 15 mins for pre-orders, 5 mins for ASAP
-    const deadlineMinutes = isPreOrder ? 15 : 5;
+    // Set acceptance deadline: 
+    // 15 mins for pre-orders
+    // For QR Scans (Physical Presence), we disable the timer (null)
+    // Otherwise, 5 mins for ASAP orders
+    let deadlineMinutes = isPreOrder ? 15 : (isQRScan ? null : 5);
+    
+    // For Restaurants, we follow user request: simple flow, usually no timer if QR scan
+    // If not a QR scan, they get the standard 5 min deadline to prevent spam
+    const acceptDeadline = deadlineMinutes ? new Date(Date.now() + deadlineMinutes * 60 * 1000) : null;
 
     const newOrder = new Order({
       store: storeId,
@@ -96,7 +103,7 @@ router.post('/razorpay/verify', async (req, res) => {
       status: 'Pending',
       transactionId: razorpay_payment_id,
       paymentProvider: 'Razorpay',
-      acceptDeadline: new Date(Date.now() + deadlineMinutes * 60 * 1000),
+      acceptDeadline,
       handoverToken: generateHandoverToken(),
       isPreOrder: isPreOrder || false,
       scheduledTime: scheduledTime || null

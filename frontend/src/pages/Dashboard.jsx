@@ -396,7 +396,7 @@ const Dashboard = () => {
     let filtered;
     switch (orderFilter) {
       case 'Active':
-        filtered = orders.filter(o => o.status === 'Pending' || o.status === 'Confirmed' || o.status === 'Ready');
+        filtered = orders.filter(o => o.status === 'Pending' || o.status === 'Confirmed' || o.status === 'Cooking' || o.status === 'Ready');
         break;
       case 'Pending':
         filtered = orders.filter(o => o.status === 'Pending');
@@ -801,7 +801,7 @@ const Dashboard = () => {
                 {/* Filter Tabs */}
                 <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
                   {[
-                    { label: 'Active', count: pendingOrders + confirmedOrders, color: '#f59e0b' },
+                    { label: 'Active', count: orders.filter(o => ['Pending', 'Confirmed', 'Cooking', 'Ready'].includes(o.status)).length, color: '#f59e0b' },
                     { label: 'Pending', count: pendingOrders, color: '#f59e0b' },
                     { label: 'Confirmed', count: confirmedOrders, color: '#3b82f6' },
                     { label: 'Pre-Orders', count: orders.filter(o => o.isPreOrder).length, color: '#8b5cf6' },
@@ -1010,7 +1010,7 @@ const Dashboard = () => {
                            <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
                              {order.status === 'Pending' && (
                                <>
-                                 {store?.storeType === 'Restaurant' ? (
+                                 {(!order.acceptDeadline) ? (
                                    <button 
                                      onClick={() => updateOrderStatus(order._id, 'Confirmed')} 
                                      className="btn btn-primary" 
@@ -1068,7 +1068,7 @@ const Dashboard = () => {
                   <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '24px' }}>
                     <h4 style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><QrCode size={18} /> Store QR</h4>
                     <div style={{ background: 'white', padding: '1rem', borderRadius: '16px', textAlign: 'center', marginBottom: '1rem' }}>
-                      <QRCodeSVG value={`${window.location.origin}/store/${store._id}`} size={160} level="H" />
+                      <QRCodeSVG value={`${window.location.origin}/store/${store._id}?source=qr`} size={160} level="H" />
                     </div>
                     <button onClick={() => navigate('/vendor/store/manage')} className="btn btn-secondary" style={{ width: '100%', borderRadius: '12px' }}>Download QR</button>
                   </div>

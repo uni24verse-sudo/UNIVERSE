@@ -17,14 +17,14 @@ const generateHandoverToken = () => Math.random().toString(36).substring(2, 10).
 // which creates the order ONLY after successful payment to avoid DB clutter.
 router.post('/create', async (req, res) => {
   try {
-    const { storeId, items, totalAmount, paymentMethod, customerPhone, customerName, orderType, packagingChargeApplied, isPreOrder, scheduledTime } = req.body;
+    const { storeId, items, totalAmount, paymentMethod, customerPhone, customerName, orderType, packagingChargeApplied, isPreOrder, scheduledTime, isQRScan } = req.body;
 
     const store = await Store.findById(storeId).populate('admin');
     if (!store) return res.status(404).json({ message: 'Store not found' });
 
-    // Set acceptance deadline: 15 mins for pre-orders, 5 mins for ASAP vendors
-    // For Restaurants, we set no deadline (null) to allow manual control
-    let deadlineMinutes = isPreOrder ? 15 : (store.storeType === 'Restaurant' ? null : 5);
+    // Consistent logic: QR Scans have no timer (null deadline)
+    // Pre-orders have 15 mins. Direct ASAP orders have 5 mins.
+    let deadlineMinutes = isPreOrder ? 15 : (isQRScan ? null : 5);
     
     let acceptDeadline = deadlineMinutes ? new Date(Date.now() + deadlineMinutes * 60 * 1000) : null;
 

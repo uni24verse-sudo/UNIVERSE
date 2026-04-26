@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext, useMemo, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { CartContext } from '../context/CartContext';
 import { ArrowLeft, Clock, Search, X } from 'lucide-react';
@@ -37,10 +37,20 @@ const MenuSkeleton = () => (
 
 const StoreMenu = () => {
   const { id } = useParams();
+  const location = useLocation();
   const [store, setStore] = useState(null);
   const [loading, setLoading] = useState(true);
   const { cart, addToCart } = useContext(CartContext);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    // Detect physical QR scan and persist in local storage
+    const params = new URLSearchParams(location.search);
+    if (params.get('source') === 'qr') {
+      localStorage.setItem('universe_order_source', 'qr');
+      console.log('[StoreMenu] Physical QR Visit Identified');
+    }
+  }, [location.search]);
   
   // Menu State
   const [activeCategory, setActiveCategory] = useState('All');
