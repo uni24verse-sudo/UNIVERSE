@@ -83,7 +83,12 @@ const StoreMenu = () => {
         setLoading(false);
       }
     };
+
     fetchStore();
+
+    // Listen for global sync events from SessionGuard
+    window.addEventListener('universe_sync_data', fetchStore);
+    return () => window.removeEventListener('universe_sync_data', fetchStore);
   }, [id]);
 
   // Performance Optimization: Memoize category and product calculations

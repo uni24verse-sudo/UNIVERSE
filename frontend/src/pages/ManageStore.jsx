@@ -114,7 +114,12 @@ const ManageStore = () => {
         setLoading(false);
       }
     };
+    
     fetchStores();
+
+    // Re-verify on tab focus/return
+    window.addEventListener('universe_sync_data', fetchStores);
+    return () => window.removeEventListener('universe_sync_data', fetchStores);
   }, [token, navigate, vendor]);
 
   const changeStore = (storeId) => {

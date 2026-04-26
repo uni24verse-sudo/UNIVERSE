@@ -100,9 +100,13 @@ const RecentOrders = () => {
         });
       });
 
+      // Listen for global sync events from SessionGuard
+      window.addEventListener('universe_sync_data', loadOrders);
+
       return () => {
         clearInterval(interval);
         socket.close();
+        window.removeEventListener('universe_sync_data', loadOrders);
       };
     }
   }, [location.pathname, shouldHide]);
