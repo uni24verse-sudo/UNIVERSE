@@ -220,6 +220,10 @@ const RecentOrders = () => {
                        <span style={{ fontSize: '0.65rem', color: '#ef4444', fontWeight: '800', background: 'rgba(239, 68, 68, 0.1)', padding: '0.2rem 0.5rem', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
                          <AlertCircle size={10} /> CANCELLED
                        </span>
+                    ) : order.status === 'Cooking' ? (
+                      <span style={{ fontSize: '0.65rem', color: '#6366f1', fontWeight: '800', background: 'rgba(99, 102, 241, 0.1)', padding: '0.2rem 0.5rem', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
+                        <Clock size={10} /> PREPARING
+                      </span>
                     ) : (
                        <span style={{ fontSize: '0.65rem', color: order.status === 'Confirmed' ? '#3b82f6' : '#f59e0b', fontWeight: '800', opacity: 0.8 }}>
                          {order.status?.toUpperCase() || 'PENDING'}

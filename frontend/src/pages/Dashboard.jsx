@@ -450,6 +450,7 @@ const Dashboard = () => {
     switch (status) {
       case 'Pending': return '#f59e0b';
       case 'Confirmed': return '#3b82f6';
+      case 'Cooking': return '#f59e0b'; // Amber for Cooking
       case 'Ready': return '#8b5cf6'; // Indigo for Ready
       case 'Completed': return '#10b981';
       case 'Cancelled': return '#ef4444';
