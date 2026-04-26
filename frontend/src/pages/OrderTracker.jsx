@@ -250,7 +250,7 @@ const OrderTracker = () => {
            statusSteps[currentStepIndex >= 0 ? currentStepIndex : 0].desc}
         </p>
 
-        {order.status === 'Pending' && (
+        {order.status === 'Pending' && order.acceptDeadline && (
           <div style={{ marginBottom: '3rem' }}>
             <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>Auto-cancels if not accepted soon</p>
             <CountdownTimer deadline={order.acceptDeadline} />
