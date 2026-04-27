@@ -323,28 +323,7 @@ const Home = () => {
               </p>
             </div>
 
-            {/* Local Search bar */}
-            <div style={{ position: 'relative', width: '100%', maxWidth: '320px' }}>
-              <Search size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)', opacity: 0.7 }} />
-              <input 
-                type="text" 
-                placeholder="Search by name or category..." 
-                value={localSearchQuery}
-                onChange={(e) => setLocalSearchQuery(e.target.value)}
-                style={{ 
-                  width: '100%', 
-                  padding: '0.75rem 1rem 0.75rem 2.5rem', 
-                  borderRadius: '14px', 
-                  border: '1px solid var(--surface-border)', 
-                  background: '#ffffff', 
-                  color: 'var(--text-primary)', 
-                  fontSize: '0.875rem', 
-                  fontWeight: '500',
-                  outline: 'none',
-                  boxShadow: '0 2px 6px rgba(0,0,0,0.02)'
-                }} 
-              />
-            </div>
+
           </div>
 
           <div style={{ height: '1px', background: 'var(--surface-border)' }} />
