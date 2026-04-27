@@ -81,6 +81,10 @@ const Home = () => {
   const [loading, setLoading] = useState(true);
   const [selectedMarket, setSelectedMarket] = useState('All');
   const [selectedCategory, setSelectedCategory] = useState('All');
+  const [localSearchQuery, setLocalSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState('rating'); // 'rating', 'items', 'name'
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [filterType, setFilterType] = useState('All');
   const hubType = localStorage.getItem('universe_location_type') || 'College';
   const navigate = useNavigate();
 
@@ -104,17 +108,49 @@ const Home = () => {
 
   const filteredStores = stores
     .filter(store => {
+      // Hub type filtering
       if (hubType === 'College') {
-        return selectedMarket === 'All' || (store.market || 'BH1 Market') === selectedMarket;
+        if (selectedMarket !== 'All' && (store.market || 'BH1 Market') !== selectedMarket) return false;
       } else {
-        return selectedCategory === 'All' || store.category === selectedCategory;
+        if (selectedCategory !== 'All' && store.category !== selectedCategory) return false;
       }
+      
+      // Local search filtering
+      if (localSearchQuery.trim() !== '') {
+        const query = localSearchQuery.toLowerCase();
+        const nameMatch = store.name.toLowerCase().includes(query);
+        const catMatch = (store.category || '').toLowerCase().includes(query);
+        if (!nameMatch && !catMatch) return false;
+      }
+
+      // Filter by open status
+      if (filterOpen && store.isOpen === false) return false;
+
+      // Filter by store type
+      if (filterType !== 'All' && store.storeType !== filterType) return false;
+
+      return true;
     })
     .sort((a, b) => {
+      // Primary Sort based on selection
+      if (sortBy === 'rating') {
+        const aRating = a.rating || 5.0;
+        const bRating = b.rating || 5.0;
+        if (bRating !== aRating) return bRating - aRating;
+      } else if (sortBy === 'items') {
+        const aItems = a.products?.length || 0;
+        const bItems = b.products?.length || 0;
+        if (bItems !== aItems) return bItems - aItems;
+      } else if (sortBy === 'name') {
+        return a.name.localeCompare(b.name);
+      }
+      
+      // Secondary sort by Open status
       const aOpen = a.isOpen !== false;
       const bOpen = b.isOpen !== false;
-      if (aOpen === bOpen) return 0;
-      return aOpen ? -1 : 1;
+      if (aOpen !== bOpen) return aOpen ? -1 : 1;
+
+      return 0;
     });
 
   const getImageUrl = (img) => {
@@ -248,17 +284,138 @@ const Home = () => {
           </div>
         )}
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3rem' }}>
-          <div className="animate-fade-in-up">
-            <h2 style={{ fontSize: '1.75rem', fontWeight: '900', margin: 0, letterSpacing: '-0.02em' }}>
-              {hubType === 'College' 
-                ? (selectedMarket === 'All' ? 'Campus Stalls' : `${selectedMarket} Stalls`)
-                : (selectedCategory === 'All' ? 'Featured Places' : `Best in ${selectedCategory}`)
-              }
-            </h2>
-            <p style={{ color: 'var(--text-secondary)', marginTop: '0.4rem', fontSize: '0.875rem' }}>
-              {hubType === 'College' ? 'Discover unique tastes across the campus' : 'The finest ordering experience for the best locations'}
-            </p>
+        <div style={{ 
+          background: 'rgba(255, 255, 255, 0.6)', 
+          backdropFilter: 'blur(20px)', 
+          border: '1px solid var(--surface-border)', 
+          borderRadius: '24px', 
+          padding: '1.5rem', 
+          marginTop: '2.5rem',
+          marginBottom: '3rem',
+          boxShadow: '0 10px 30px rgba(0,0,0,0.02)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '1.25rem'
+        }} className="animate-fade-in-up">
+          
+          {/* Search & Title row */}
+          <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+            <div>
+              <h2 style={{ fontSize: '1.75rem', fontWeight: '900', margin: 0, letterSpacing: '-0.02em', color: 'var(--text-primary)' }}>
+                {hubType === 'College' 
+                  ? (selectedMarket === 'All' ? 'Campus Stalls' : `${selectedMarket} Stalls`)
+                  : (selectedCategory === 'All' ? 'Premium Places' : `Best in ${selectedCategory}`)
+                }
+              </h2>
+              <p style={{ color: 'var(--text-secondary)', marginTop: '0.25rem', fontSize: '0.875rem', fontWeight: '500' }}>
+                {hubType === 'College' ? 'Discover unique tastes across the campus' : 'Handpicked high-quality venues for your delight'}
+              </p>
+            </div>
+
+            {/* Local Search bar */}
+            <div style={{ position: 'relative', width: '100%', maxWidth: '320px' }}>
+              <Search size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)', opacity: 0.7 }} />
+              <input 
+                type="text" 
+                placeholder="Search by name or category..." 
+                value={localSearchQuery}
+                onChange={(e) => setLocalSearchQuery(e.target.value)}
+                style={{ 
+                  width: '100%', 
+                  padding: '0.75rem 1rem 0.75rem 2.5rem', 
+                  borderRadius: '14px', 
+                  border: '1px solid var(--surface-border)', 
+                  background: '#ffffff', 
+                  color: 'var(--text-primary)', 
+                  fontSize: '0.875rem', 
+                  fontWeight: '500',
+                  outline: 'none',
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.02)'
+                }} 
+              />
+            </div>
+          </div>
+
+          <div style={{ height: '1px', background: 'var(--surface-border)' }} />
+
+          {/* Sort and Filter Controls */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'center', justifyContent: 'space-between' }}>
+            
+            {/* Sort Buttons */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginRight: '0.25rem' }}>Sort By</span>
+              {[
+                { id: 'rating', label: 'Top Rated' },
+                { id: 'items', label: 'Most Popular' },
+                { id: 'name', label: 'A-Z' }
+              ].map(opt => (
+                <button
+                  key={opt.id}
+                  onClick={() => setSortBy(opt.id)}
+                  style={{ 
+                    padding: '0.5rem 1rem', 
+                    borderRadius: '10px', 
+                    border: '1px solid', 
+                    borderColor: sortBy === opt.id ? 'var(--primary)' : 'var(--surface-border)', 
+                    background: sortBy === opt.id ? 'hsla(var(--primary-h), var(--primary-s), var(--primary-l), 0.08)' : '#ffffff', 
+                    color: sortBy === opt.id ? 'var(--primary)' : 'var(--text-secondary)', 
+                    fontSize: '0.75rem', 
+                    fontWeight: '700', 
+                    cursor: 'pointer',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Filter Toggles */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginRight: '0.25rem' }}>Filters</span>
+              
+              {/* Open Now toggle */}
+              <button
+                onClick={() => setFilterOpen(!filterOpen)}
+                style={{ 
+                  padding: '0.5rem 1rem', 
+                  borderRadius: '10px', 
+                  border: '1px solid', 
+                  borderColor: filterOpen ? '#10b981' : 'var(--surface-border)', 
+                  background: filterOpen ? 'rgba(16, 185, 129, 0.08)' : '#ffffff', 
+                  color: filterOpen ? '#10b981' : 'var(--text-secondary)', 
+                  fontSize: '0.75rem', 
+                  fontWeight: '700', 
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+              >
+                Open Now
+              </button>
+
+              {/* Store Type select for external hubs */}
+              {hubType !== 'College' && (
+                <select
+                  value={filterType}
+                  onChange={(e) => setFilterType(e.target.value)}
+                  style={{ 
+                    padding: '0.5rem 1rem', 
+                    borderRadius: '10px', 
+                    border: '1px solid var(--surface-border)', 
+                    background: filterType !== 'All' ? 'hsla(var(--primary-h), var(--primary-s), var(--primary-l), 0.08)' : '#ffffff', 
+                    color: filterType !== 'All' ? 'var(--primary)' : 'var(--text-secondary)', 
+                    fontSize: '0.75rem', 
+                    fontWeight: '700', 
+                    cursor: 'pointer',
+                    outline: 'none'
+                  }}
+                >
+                  <option value="All">All Formats</option>
+                  <option value="FastFood">Fast Food</option>
+                  <option value="Restaurant">Restaurant</option>
+                </select>
+              )}
+            </div>
           </div>
         </div>
 
@@ -297,7 +454,7 @@ const Home = () => {
                       
                         <div style={{ position: 'absolute', top: '0.75rem', right: '0.75rem', background: 'rgba(255,255,255,0.9)', backdropFilter: 'blur(10px)', padding: '0.35rem 0.6rem', borderRadius: '10px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
                            <Star size={12} color="#f59e0b" fill="#f59e0b" />
-                           <span style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-primary)' }}>4.8</span>
+                           <span style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-primary)' }}>{store.rating || '5.0'}</span>
                         </div>
                         
                         <div style={{ position: 'absolute', bottom: '0.75rem', left: '0.75rem', background: 'rgba(255, 255, 255, 0.9)', backdropFilter: 'blur(8px)', padding: '0.35rem 0.75rem', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '0.4rem', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>

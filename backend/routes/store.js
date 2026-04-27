@@ -156,9 +156,28 @@ router.get('/all/list', async (req, res) => {
     )
       .populate('admin', 'name')
       .sort({ priority: 1, createdAt: -1 })
-      .lean() // Use lean() for faster read-only queries
+      .lean()
       .exec();
-    res.json(stores);
+
+    const Order = require('../models/Order');
+    const storesWithRatings = await Promise.all(stores.map(async (store) => {
+      const completedOrdersCount = await Order.countDocuments({ store: store._id, status: 'Completed' });
+      const cancelledOrdersCount = await Order.countDocuments({ store: store._id, status: 'Cancelled' });
+      
+      let rating = 5.0;
+      const totalRatedOrders = completedOrdersCount + cancelledOrdersCount;
+      if (totalRatedOrders > 0) {
+        rating = 1.0 + 4.0 * (completedOrdersCount / totalRatedOrders);
+      }
+      
+      return {
+        ...store,
+        rating: parseFloat(rating.toFixed(1)),
+        completedOrdersCount
+      };
+    }));
+
+    res.json(storesWithRatings);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

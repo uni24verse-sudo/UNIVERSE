@@ -78,11 +78,28 @@ const CreateStore = () => {
                 required
               >
                 <option value="" disabled>Select Category</option>
-                <option value="Snacks">Snacks & Fast Food</option>
-                <option value="Meals">Full Meals</option>
-                <option value="Beverages">Beverages & Drinks</option>
-                <option value="Desserts">Desserts & Sweets</option>
-                <option value="Other">Other</option>
+                {localStorage.getItem('universe_location_type') === 'External' ? (
+                  <>
+                    <option value="Biryani">Biryani & Rice</option>
+                    <option value="Pizza">Pizzas</option>
+                    <option value="Burger">Burgers</option>
+                    <option value="Chinese">Chinese</option>
+                    <option value="Desserts">Sweet Delights</option>
+                    <option value="Healthy">Healthy Eats</option>
+                    <option value="Beverages">Cold Sips</option>
+                    <option value="Snacks">Snacks & Fast Food</option>
+                    <option value="Meals">Full Meals</option>
+                    <option value="Other">Other</option>
+                  </>
+                ) : (
+                  <>
+                    <option value="Snacks">Snacks & Fast Food</option>
+                    <option value="Meals">Full Meals</option>
+                    <option value="Beverages">Beverages & Drinks</option>
+                    <option value="Desserts">Desserts & Sweets</option>
+                    <option value="Other">Other</option>
+                  </>
+                )}
               </select>
               <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                 <Sparkles size={12} color="var(--secondary)" /> This helps customers find you easily.
