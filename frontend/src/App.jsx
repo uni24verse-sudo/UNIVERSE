@@ -66,6 +66,14 @@ const AppLayout = () => {
   const [selectedLocationId, setSelectedLocationId] = React.useState(localStorage.getItem('universe_location_id'));
   const isAdminPath = location.pathname.startsWith('/vendor') || location.pathname.startsWith('/super-admin');
 
+  React.useEffect(() => {
+    const handleClearLocation = () => {
+      setSelectedLocationId(null);
+    };
+    window.addEventListener('universe_clear_location', handleClearLocation);
+    return () => window.removeEventListener('universe_clear_location', handleClearLocation);
+  }, []);
+
   const handleLocationSelect = (loc) => {
     setSelectedLocationId(loc._id);
   };
