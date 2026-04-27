@@ -49,8 +49,8 @@ const SuperAdminPanel = () => {
     fetchDashboardData();
   }, [token, navigate]);
 
-  const fetchDashboardData = async () => {
-    setLoading(true);
+  const fetchDashboardData = async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const headers = { Authorization: `Bearer ${token}` };
       const url = import.meta.env.VITE_API_URL || 'http://localhost:5000';
@@ -100,7 +100,7 @@ const SuperAdminPanel = () => {
       setEditingLocation(null);
       setLocationName('');
       setLocationCity('');
-      fetchDashboardData();
+      fetchDashboardData(true);
     } catch (err) {
       alert('Action failed: ' + (err.response?.data?.message || err.message));
     }
@@ -113,7 +113,7 @@ const SuperAdminPanel = () => {
       await axios.delete(`${url}/api/super-admin/locations/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      fetchDashboardData();
+      fetchDashboardData(true);
     } catch (err) {
       alert('Delete failed: ' + (err.response?.data?.message || err.message));
     }
@@ -126,7 +126,7 @@ const SuperAdminPanel = () => {
         { locationId }, 
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      fetchDashboardData();
+      fetchDashboardData(true);
     } catch (err) {
       alert('Update failed: ' + (err.response?.data?.message || err.message));
     }
@@ -139,7 +139,7 @@ const SuperAdminPanel = () => {
       await axios.delete(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/super-admin/vendor/${vendorId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      fetchDashboardData(); // Refresh everything
+      fetchDashboardData(true); // Refresh everything
     } catch (err) {
       alert('Failed to delete vendor: ' + (err.response?.data?.message || err.message));
     }
@@ -304,7 +304,7 @@ const SuperAdminPanel = () => {
                             onClick={async () => {
                               try {
                                 await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/super-admin/vendor/${v._id}/suspend`, {}, { headers: { Authorization: `Bearer ${token}` } });
-                                fetchDashboardData();
+                                fetchDashboardData(true);
                               } catch(err) { alert('Action failed'); }
                             }}
                             style={{ padding: '0.5rem 1rem', background: v.isBanned ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)', color: v.isBanned ? '#10b981' : '#f59e0b', border: `1px solid ${v.isBanned ? 'rgba(16, 185, 129, 0.2)' : 'rgba(245, 158, 11, 0.2)'}`, borderRadius: '8px', cursor: 'pointer', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
@@ -354,7 +354,7 @@ const SuperAdminPanel = () => {
                          onClick={async () => {
                            try {
                              await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/super-admin/store/${store._id}/toggle-hidden`, {}, { headers: { Authorization: `Bearer ${token}` } });
-                             fetchDashboardData();
+                             fetchDashboardData(true);
                            } catch(err) { alert('Action failed'); }
                          }}
                          style={{ padding: '0.25rem 0.5rem', fontSize: '0.7rem', textTransform: 'uppercase', fontWeight: '800', background: 'rgba(255,255,255,0.05)', color: store.isHidden ? '#10b981' : '#f59e0b', border: `1px solid ${store.isHidden ? 'rgba(16, 185, 129, 0.3)' : 'rgba(245, 158, 11, 0.3)'}`, borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
@@ -365,7 +365,7 @@ const SuperAdminPanel = () => {
                          onClick={async () => {
                            try {
                              await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/super-admin/store/${store._id}/toggle-status`, {}, { headers: { Authorization: `Bearer ${token}` } });
-                             fetchDashboardData();
+                             fetchDashboardData(true);
                            } catch(err) { alert('Action failed'); }
                          }}
                          style={{ padding: '0.25rem 0.5rem', fontSize: '0.7rem', textTransform: 'uppercase', fontWeight: '800', background: 'rgba(255,255,255,0.05)', color: store.isOpen ? '#ef4444' : '#10b981', border: `1px solid ${store.isOpen ? 'rgba(239, 68, 68, 0.3)' : 'rgba(16, 185, 129, 0.3)'}`, borderRadius: '6px', cursor: 'pointer' }}
@@ -425,7 +425,7 @@ const SuperAdminPanel = () => {
                               { isAutomated: e.target.checked }, 
                               { headers: { Authorization: `Bearer ${token}` } }
                             );
-                            fetchDashboardData();
+                            fetchDashboardData(true);
                           } catch(err) { alert('Failed to update automation'); }
                         }}
                         style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: 'var(--primary)' }}
@@ -446,7 +446,7 @@ const SuperAdminPanel = () => {
                                { storeType: e.target.value }, 
                                { headers: { Authorization: `Bearer ${token}` } }
                              );
-                             fetchDashboardData();
+                             fetchDashboardData(true);
                            } catch(err) { alert('Failed to update persona'); }
                          }}
                          style={{ border: 'none', background: 'transparent', fontWeight: '800', fontSize: '0.75rem', cursor: 'pointer', outline: 'none', color: 'var(--secondary)' }}
@@ -472,7 +472,7 @@ const SuperAdminPanel = () => {
                                 { openingTime: e.target.value }, 
                                 { headers: { Authorization: `Bearer ${token}` } }
                               );
-                              fetchDashboardData();
+                              fetchDashboardData(true);
                             } catch(err) { alert('Failed to update time'); }
                           }}
                           style={{ width: '100%', background: '#fff', border: '1px solid var(--surface-border)', borderRadius: '6px', padding: '0.4rem', fontSize: '0.75rem' }}
@@ -493,7 +493,7 @@ const SuperAdminPanel = () => {
                                 { closingTime: e.target.value }, 
                                 { headers: { Authorization: `Bearer ${token}` } }
                               );
-                              fetchDashboardData();
+                              fetchDashboardData(true);
                             } catch(err) { alert('Failed to update time'); }
                           }}
                           style={{ width: '100%', background: '#fff', border: '1px solid var(--surface-border)', borderRadius: '6px', padding: '0.4rem', fontSize: '0.75rem' }}
@@ -517,7 +517,7 @@ const SuperAdminPanel = () => {
                               { priority: val }, 
                               { headers: { Authorization: `Bearer ${token}` } }
                             );
-                            fetchDashboardData();
+                            fetchDashboardData(true);
                           } catch(err) { alert('Failed to update priority'); }
                         }}
                         style={{ flex: 1, background: '#ffffff', border: '1px solid var(--surface-border)', borderRadius: '8px', padding: '0.5rem', color: 'var(--text-primary)' }}
@@ -538,7 +538,7 @@ const SuperAdminPanel = () => {
                             if(window.confirm(`Start 30-day free trial for ${store.name}?`)) {
                               try {
                                 await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/super-admin/store/${store._id}/start-trial`, {}, { headers: { Authorization: `Bearer ${token}` } });
-                                fetchDashboardData();
+                                fetchDashboardData(true);
                               } catch(err) { alert('Action failed'); }
                             }
                           }}
@@ -781,7 +781,7 @@ const SuperAdminPanel = () => {
                                 if(window.confirm('Abort this order globally? The vendor and customer will see it as cancelled instantly.')) {
                                   try {
                                     await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/super-admin/order/${o._id}/cancel`, {}, { headers: { Authorization: `Bearer ${token}` } });
-                                    fetchDashboardData();
+                                    fetchDashboardData(true);
                                   } catch(err) { alert('Action failed'); }
                                 }
                               }}
@@ -878,7 +878,7 @@ const SuperAdminPanel = () => {
                                     commissionAmount: f.commission,
                                     netPayable: f.netPayable
                                   }, { headers: { Authorization: `Bearer ${token}` } });
-                                  fetchDashboardData();
+                                  fetchDashboardData(true);
                                 } catch (err) { alert('Settlement failed'); }
                               }
                             }}
