@@ -181,12 +181,23 @@ const TermsAndConditions = () => {
             </ul>
           </div>
 
-          <h2 style={{ color: 'var(--text-primary)', fontSize: '1.5rem', fontWeight: '800', marginBottom: '1.25rem' }}>10. Governing Law & Jurisdiction</h2>
+          <h2 style={{ color: 'var(--text-primary)', fontSize: '1.5rem', fontWeight: '800', marginBottom: '1.25rem' }}>10. Store Performance & Ranking</h2>
+          <div style={{ marginBottom: '2rem' }}>
+            <p style={{ marginBottom: '1rem' }}>
+              Vendors operating on the Platform are dynamically ranked and assigned consumer-facing performance metrics:
+            </p>
+            <ul style={{ paddingLeft: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <li><strong style={{ color: 'var(--text-primary)' }}>Platform Ranking:</strong> Search visibility and list prominence are governed by absolute order success volume. Vendors with higher volumes of successfully completed transactions are prioritized.</li>
+              <li><strong style={{ color: 'var(--text-primary)' }}>Fulfillment Metrics:</strong> A dynamic score between 1.0 and 5.0 is computed using the ratio of completed versus cancelled orders. High cancellation rates significantly degrade storefront position.</li>
+            </ul>
+          </div>
+
+          <h2 style={{ color: 'var(--text-primary)', fontSize: '1.5rem', fontWeight: '800', marginBottom: '1.25rem' }}>11. Governing Law & Jurisdiction</h2>
           <p style={{ marginBottom: '2rem' }}>
             These Terms and any dispute or claim relating to it, or its enforceability, shall be governed by and construed in accordance with the laws of India. All disputes arising out of or in connection with these Terms shall be subject to the exclusive jurisdiction of the courts in Punjab, India.
           </p>
 
-          <h2 style={{ color: 'var(--text-primary)', fontSize: '1.5rem', fontWeight: '800', marginBottom: '1.25rem' }}>11. Contact Information</h2>
+          <h2 style={{ color: 'var(--text-primary)', fontSize: '1.5rem', fontWeight: '800', marginBottom: '1.25rem' }}>12. Contact Information</h2>
           <div style={{ 
             background: 'linear-gradient(135deg, rgba(239, 65, 35, 0.05) 0%, rgba(252, 175, 23, 0.05) 100%)', 
             padding: '2.5rem', 
