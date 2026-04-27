@@ -134,6 +134,17 @@ const Home = () => {
     .sort((a, b) => {
       // Primary Sort based on selection
       if (sortBy === 'rating') {
+        // 1. Primary: Number of Completed Orders (More completed first)
+        const aOrders = a.completedOrdersCount || 0;
+        const bOrders = b.completedOrdersCount || 0;
+        if (bOrders !== aOrders) return bOrders - aOrders;
+
+        // 2. Secondary: Number of Cancelled Orders (Fewer cancelled first)
+        const aCancelled = a.cancelledOrdersCount || 0;
+        const bCancelled = b.cancelledOrdersCount || 0;
+        if (aCancelled !== bCancelled) return aCancelled - bCancelled;
+
+        // 3. Tertiary: Rating
         const aRating = a.rating || 5.0;
         const bRating = b.rating || 5.0;
         if (bRating !== aRating) return bRating - aRating;

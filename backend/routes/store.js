@@ -173,9 +173,32 @@ router.get('/all/list', async (req, res) => {
       return {
         ...store,
         rating: parseFloat(rating.toFixed(1)),
-        completedOrdersCount
+        completedOrdersCount,
+        cancelledOrdersCount
       };
     }));
+
+    storesWithRatings.sort((a, b) => {
+      // 1. Primary: Number of Completed Orders (More completed first)
+      if (b.completedOrdersCount !== a.completedOrdersCount) {
+        return b.completedOrdersCount - a.completedOrdersCount;
+      }
+
+      // 2. Secondary: Number of Cancelled Orders (Fewer cancelled first)
+      if (a.cancelledOrdersCount !== b.cancelledOrdersCount) {
+        return a.cancelledOrdersCount - b.cancelledOrdersCount;
+      }
+
+      // 3. Tertiary: Open Status (Open stores first fallback)
+      const aOpen = a.isOpen !== false;
+      const bOpen = b.isOpen !== false;
+      if (aOpen !== bOpen) return aOpen ? -1 : 1;
+
+      // 4. Quaternary: Rating (Higher rating first)
+      if (b.rating !== a.rating) return b.rating - a.rating;
+
+      return (a.priority || 0) - (b.priority || 0);
+    });
 
     res.json(storesWithRatings);
   } catch (err) {
