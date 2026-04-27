@@ -295,117 +295,17 @@ const Home = () => {
           </div>
         )}
 
-        <div style={{ 
-          background: 'rgba(255, 255, 255, 0.6)', 
-          backdropFilter: 'blur(20px)', 
-          border: '1px solid var(--surface-border)', 
-          borderRadius: '24px', 
-          padding: '1.5rem', 
-          marginTop: '2.5rem',
-          marginBottom: '3rem',
-          boxShadow: '0 10px 30px rgba(0,0,0,0.02)',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '1.25rem'
-        }} className="animate-fade-in-up">
-          
-          {/* Search & Title row */}
-          <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-            <div>
-              <h2 style={{ fontSize: '1.75rem', fontWeight: '900', margin: 0, letterSpacing: '-0.02em', color: 'var(--text-primary)' }}>
-                {hubType === 'College' 
-                  ? (selectedMarket === 'All' ? 'Campus Stalls' : `${selectedMarket} Stalls`)
-                  : (selectedCategory === 'All' ? 'Premium Places' : `Best in ${selectedCategory}`)
-                }
-              </h2>
-              <p style={{ color: 'var(--text-secondary)', marginTop: '0.25rem', fontSize: '0.875rem', fontWeight: '500' }}>
-                {hubType === 'College' ? 'Discover unique tastes across the campus' : 'Handpicked high-quality venues for your delight'}
-              </p>
-            </div>
-
-
-          </div>
-
-          <div style={{ height: '1px', background: 'var(--surface-border)' }} />
-
-          {/* Sort and Filter Controls */}
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'center', justifyContent: 'space-between' }}>
-            
-            {/* Sort Buttons */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginRight: '0.25rem' }}>Sort By</span>
-              {[
-                { id: 'rating', label: 'Top Rated' },
-                { id: 'items', label: 'Most Popular' },
-                { id: 'name', label: 'A-Z' }
-              ].map(opt => (
-                <button
-                  key={opt.id}
-                  onClick={() => setSortBy(opt.id)}
-                  style={{ 
-                    padding: '0.5rem 1rem', 
-                    borderRadius: '10px', 
-                    border: '1px solid', 
-                    borderColor: sortBy === opt.id ? 'var(--primary)' : 'var(--surface-border)', 
-                    background: sortBy === opt.id ? 'hsla(var(--primary-h), var(--primary-s), var(--primary-l), 0.08)' : '#ffffff', 
-                    color: sortBy === opt.id ? 'var(--primary)' : 'var(--text-secondary)', 
-                    fontSize: '0.75rem', 
-                    fontWeight: '700', 
-                    cursor: 'pointer',
-                    transition: 'all 0.2s'
-                  }}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-
-            {/* Filter Toggles */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginRight: '0.25rem' }}>Filters</span>
-              
-              {/* Open Now toggle */}
-              <button
-                onClick={() => setFilterOpen(!filterOpen)}
-                style={{ 
-                  padding: '0.5rem 1rem', 
-                  borderRadius: '10px', 
-                  border: '1px solid', 
-                  borderColor: filterOpen ? '#10b981' : 'var(--surface-border)', 
-                  background: filterOpen ? 'rgba(16, 185, 129, 0.08)' : '#ffffff', 
-                  color: filterOpen ? '#10b981' : 'var(--text-secondary)', 
-                  fontSize: '0.75rem', 
-                  fontWeight: '700', 
-                  cursor: 'pointer',
-                  transition: 'all 0.2s'
-                }}
-              >
-                Open Now
-              </button>
-
-              {/* Store Type select for external hubs */}
-              {hubType !== 'College' && (
-                <select
-                  value={filterType}
-                  onChange={(e) => setFilterType(e.target.value)}
-                  style={{ 
-                    padding: '0.5rem 1rem', 
-                    borderRadius: '10px', 
-                    border: '1px solid var(--surface-border)', 
-                    background: filterType !== 'All' ? 'hsla(var(--primary-h), var(--primary-s), var(--primary-l), 0.08)' : '#ffffff', 
-                    color: filterType !== 'All' ? 'var(--primary)' : 'var(--text-secondary)', 
-                    fontSize: '0.75rem', 
-                    fontWeight: '700', 
-                    cursor: 'pointer',
-                    outline: 'none'
-                  }}
-                >
-                  <option value="All">All Formats</option>
-                  <option value="FastFood">Fast Food</option>
-                  <option value="Restaurant">Restaurant</option>
-                </select>
-              )}
-            </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3rem', marginTop: '2rem' }}>
+          <div className="animate-fade-in-up">
+            <h2 style={{ fontSize: '1.75rem', fontWeight: '900', margin: 0, letterSpacing: '-0.02em' }}>
+              {hubType === 'College' 
+                ? (selectedMarket === 'All' ? 'Campus Stalls' : `${selectedMarket} Stalls`)
+                : (selectedCategory === 'All' ? 'Featured Places' : `Best in ${selectedCategory}`)
+              }
+            </h2>
+            <p style={{ color: 'var(--text-secondary)', marginTop: '0.4rem', fontSize: '0.875rem' }}>
+              {hubType === 'College' ? 'Discover unique tastes across the campus' : 'The finest ordering experience for the best locations'}
+            </p>
           </div>
         </div>
 
