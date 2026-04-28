@@ -1,11 +1,11 @@
 const express = require('express');
 const router = express.Router();
-const vendorAuth = require('../middleware/vendorAuth');
+const auth = require('../middleware/auth');
 const Settlement = require('../models/Settlement');
 const Store = require('../models/Store');
 
 // Middleware to ensure vendor has access
-router.use(vendorAuth);
+router.use(auth);
 
 // Get settlements for a specific store owned by the vendor
 router.get('/my-settlements/:storeId', async (req, res) => {
@@ -13,7 +13,7 @@ router.get('/my-settlements/:storeId', async (req, res) => {
         const storeId = req.params.storeId;
         
         // Verify store belongs to vendor
-        const store = await Store.findOne({ _id: storeId, admin: req.vendor._id });
+        const store = await Store.findOne({ _id: storeId, admin: req.admin._id });
         if (!store) {
             return res.status(403).json({ message: 'Unauthorized access to this store\'s finances' });
         }
