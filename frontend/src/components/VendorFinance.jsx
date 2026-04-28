@@ -13,7 +13,8 @@ const VendorFinance = ({ storeId }) => {
         if (!storeId) return;
         const fetchFinance = async () => {
             try {
-                const res = await axios.get(`http://localhost:5000/api/finance/my-settlements/${storeId}`, {
+                const url = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+                const res = await axios.get(`${url}/api/finance/my-settlements/${storeId}`, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
                 setFinanceData(res.data);
