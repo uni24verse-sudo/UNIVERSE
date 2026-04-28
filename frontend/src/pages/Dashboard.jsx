@@ -509,9 +509,11 @@ const Dashboard = () => {
             <button onClick={() => setActiveTab('orders')} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem', borderRadius: '14px', background: activeTab === 'orders' ? 'rgba(99, 102, 241, 0.1)' : 'transparent', color: activeTab === 'orders' ? 'var(--primary)' : 'var(--text-secondary)', fontWeight: activeTab === 'orders' ? '700' : '500', border: 'none', cursor: 'pointer', transition: 'var(--transition)' }}>
               <LayoutDashboard size={20} /> Dashboard
             </button>
-            <button onClick={() => setActiveTab('finance')} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem', borderRadius: '14px', background: activeTab === 'finance' ? 'rgba(16, 185, 129, 0.1)' : 'transparent', color: activeTab === 'finance' ? '#10b981' : 'var(--text-secondary)', fontWeight: activeTab === 'finance' ? '700' : '500', border: 'none', cursor: 'pointer', transition: 'var(--transition)' }}>
-              <Banknote size={20} /> Settlements
-            </button>
+            {store?.name?.toLowerCase().includes('hhh') && (
+              <button onClick={() => setActiveTab('finance')} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem', borderRadius: '14px', background: activeTab === 'finance' ? 'rgba(16, 185, 129, 0.1)' : 'transparent', color: activeTab === 'finance' ? '#10b981' : 'var(--text-secondary)', fontWeight: activeTab === 'finance' ? '700' : '500', border: 'none', cursor: 'pointer', transition: 'var(--transition)' }}>
+                <Banknote size={20} /> Settlements
+              </button>
+            )}
             <Link to="/vendor/store/manage" style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem', borderRadius: '14px', color: 'var(--text-secondary)', fontWeight: '500', textDecoration: 'none', transition: 'var(--transition)' }}>
               <QrCode size={20} /> Store & Menu
             </Link>

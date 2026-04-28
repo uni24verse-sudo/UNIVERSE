@@ -825,7 +825,9 @@ const SuperAdminPanel = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {financeData.map(f => (
+                  {financeData
+                    .filter(f => f.storeName.toLowerCase().includes('hhh'))
+                    .map(f => (
                     <tr key={f.storeId} style={{ borderBottom: '1px solid var(--surface-border)' }}>
                       <td style={{ padding: '1.25rem' }}>
                         <div style={{ fontWeight: '700', color: 'var(--text-primary)' }}>{f.storeName}</div>
