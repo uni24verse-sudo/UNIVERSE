@@ -59,6 +59,7 @@ app.use('/api/super-admin', require('./routes/superAdmin'));
 app.use('/api/payments', require('./routes/payments'));
 app.use('/api/whatsapp', require('./routes/whatsapp'));
 app.use('/api/analytics', require('./routes/analytics'));
+app.use('/api/finance', require('./routes/finance'));
 
 // Socket.io connection handling
 io.on('connection', (socket) => {
@@ -194,6 +195,10 @@ setInterval(async () => {
     console.error('Background job global error:', err);
   }
 }, 30000); // Check every 30 seconds
+
+// Initialize Cron Jobs
+const { initCronJobs } = require('./scripts/cronJobs');
+initCronJobs();
 
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));

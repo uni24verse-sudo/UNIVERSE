@@ -6,6 +6,7 @@ import { useSocket } from '../context/SocketContext';
 import WhatsAppStatus from '../components/WhatsAppStatus';
 import { QRCodeSVG } from 'qrcode.react';
 import { Html5QrcodeScanner } from 'html5-qrcode';
+import VendorFinance from '../components/VendorFinance';
 import { 
   LayoutDashboard, 
   Store, 
@@ -107,6 +108,7 @@ const Dashboard = () => {
   const [verifyingScan, setVerifyingScan] = useState(false);
   const [scanResult, setScanResult] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeTab, setActiveTab] = useState('orders'); // 'orders' or 'finance'
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 1024);
@@ -504,9 +506,12 @@ const Dashboard = () => {
         <nav style={{ padding: '1rem', flex: 1 }}>
           <div style={{ marginBottom: '2rem' }}>
             <p style={{ padding: '0 1rem', fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '1rem' }}>Main Menu</p>
-            <Link to="/vendor/dashboard" style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem', borderRadius: '14px', background: 'rgba(99, 102, 241, 0.1)', color: 'var(--primary)', fontWeight: '700', textDecoration: 'none' }}>
+            <button onClick={() => setActiveTab('orders')} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem', borderRadius: '14px', background: activeTab === 'orders' ? 'rgba(99, 102, 241, 0.1)' : 'transparent', color: activeTab === 'orders' ? 'var(--primary)' : 'var(--text-secondary)', fontWeight: activeTab === 'orders' ? '700' : '500', border: 'none', cursor: 'pointer', transition: 'var(--transition)' }}>
               <LayoutDashboard size={20} /> Dashboard
-            </Link>
+            </button>
+            <button onClick={() => setActiveTab('finance')} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem', borderRadius: '14px', background: activeTab === 'finance' ? 'rgba(16, 185, 129, 0.1)' : 'transparent', color: activeTab === 'finance' ? '#10b981' : 'var(--text-secondary)', fontWeight: activeTab === 'finance' ? '700' : '500', border: 'none', cursor: 'pointer', transition: 'var(--transition)' }}>
+              <Banknote size={20} /> Settlements
+            </button>
             <Link to="/vendor/store/manage" style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem', borderRadius: '14px', color: 'var(--text-secondary)', fontWeight: '500', textDecoration: 'none', transition: 'var(--transition)' }}>
               <QrCode size={20} /> Store & Menu
             </Link>
@@ -740,6 +745,8 @@ const Dashboard = () => {
               Create My Store Now
             </Link>
           </div>
+        ) : activeTab === 'finance' ? (
+          <VendorFinance storeId={store?._id} />
         ) : (
           <>
           <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? '1.5rem' : '0' }}>

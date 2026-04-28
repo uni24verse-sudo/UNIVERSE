@@ -6,20 +6,37 @@ const SettlementSchema = new mongoose.Schema({
     ref: 'Store', 
     required: true 
   },
-  month: { type: Number, required: true }, // 1-12
+  settlementType: { 
+    type: String, 
+    enum: ['daily', 'monthly'], 
+    required: true 
+  },
+  // Used for display & historical grouping
+  month: { type: Number, required: true }, 
   year: { type: Number, required: true },
+  
+  // Date range this settlement covers
+  periodStart: { type: Date, required: true },
+  periodEnd: { type: Date, required: true },
+  
   totalRevenue: { type: Number, default: 0 },
-  commissionAmount: { type: Number, default: 0 },
+  
+  feesBreakdown: {
+    gatewayFee: { type: Number, default: 0 },
+    platformProfit: { type: Number, default: 0 },
+    cancellationPenalty: { type: Number, default: 0 }
+  },
+  
   netPayable: { type: Number, default: 0 },
+  
   status: { 
     type: String, 
-    enum: ['pending', 'paid'], 
+    enum: ['pending', 'processing', 'completed', 'failed'], 
     default: 'pending' 
   },
+  
+  utrNumber: { type: String }, // Provided when status -> completed
   paidAt: { type: Date }
 }, { timestamps: true });
-
-// Ensure unique index for store per month/year
-SettlementSchema.index({ store: 1, month: 1, year: 1 }, { unique: true });
 
 module.exports = mongoose.model('Settlement', SettlementSchema);

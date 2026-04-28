@@ -344,75 +344,45 @@ router.post('/store/:id/start-trial', async (req, res) => {
     }
 });
 
-// 9. Finance: Get All Stores Monthly Stats
+// 9. Finance: Get All Stores Pending & Completed Settlements
 router.get('/finance/summary', async (req, res) => {
     try {
-        const month = parseInt(req.query.month) || new Date().getMonth() + 1;
-        const year = parseInt(req.query.year) || new Date().getFullYear();
-
-        const startDate = new Date(year, month - 1, 1);
-        const endDate = new Date(year, month, 0, 23, 59, 59);
-
+        const Settlement = require('../models/Settlement');
+        
+        // Fetch all stores
         const stores = await Store.find().populate('admin', 'name email');
         
         const financeData = await Promise.all(stores.map(async (store) => {
-            // Find monthly completed orders for this store
-            const monthlyOrders = await Order.find({
-                store: store._id,
-                status: 'Completed',
-                createdAt: { $gte: startDate, $lte: endDate }
-            });
-
-            // Find monthly cancelled orders (vendor-cancelled, payment was confirmed)
-            const cancelledOrders = await Order.find({
-                store: store._id,
-                status: 'Cancelled',
-                paymentStatus: 'Confirmed',
-                createdAt: { $gte: startDate, $lte: endDate }
-            });
-
-            const totalMonthlyRevenue = monthlyOrders.reduce((sum, order) => sum + order.totalAmount, 0);
-            const cancelledOrdersTotal = cancelledOrders.reduce((sum, order) => sum + order.totalAmount, 0);
+            // Find all PENDING settlements for this store
+            const pendingSettlements = await Settlement.find({ store: store._id, status: 'pending' });
             
-            // Cancellation Penalty: 4% of cancelled order value (2% gateway + 2% penalty)
-            const cancellationPenalty = cancelledOrdersTotal * 0.04;
-            const cancelledCount = cancelledOrders.length;
-            
-            // Tiered Commission Logic:
-            // Month 1 (Trial): 2% Gateway Fee only, 0% Profit.
-            // Month 2+ (Post Trial): 2% Gateway Fee + 3% Platform Profit = 5% Total.
+            // Aggregate pending amounts
+            const totalRevenue = pendingSettlements.reduce((sum, s) => sum + s.totalRevenue, 0);
+            const gatewayFee = pendingSettlements.reduce((sum, s) => sum + s.feesBreakdown.gatewayFee, 0);
+            const platformProfit = pendingSettlements.reduce((sum, s) => sum + s.feesBreakdown.platformProfit, 0);
+            const cancellationPenalty = pendingSettlements.reduce((sum, s) => sum + s.feesBreakdown.cancellationPenalty, 0);
+            const netPayable = pendingSettlements.reduce((sum, s) => sum + s.netPayable, 0);
+            const totalDeduction = gatewayFee + platformProfit + cancellationPenalty;
+
             const now = new Date();
             const trialEnd = store.trialEndDate ? new Date(store.trialEndDate) : null;
             const isTrialActive = store.isTrialStarted && trialEnd && now < trialEnd;
-            
-            const gatewayRate = 0.02; // Always 2%
-            const profitRate = isTrialActive ? 0 : 0.03; // 0% if trial, 3% if post-trial
-            
-            const gatewayFee = totalMonthlyRevenue * gatewayRate;
-            const platformProfit = totalMonthlyRevenue * profitRate;
-            const totalDeduction = gatewayFee + platformProfit + cancellationPenalty;
-            const netPayable = totalMonthlyRevenue - totalDeduction;
-
-            // Check if already settled in our historical model
-            const Settlement = require('../models/Settlement');
-            const settlement = await Settlement.findOne({ store: store._id, month, year });
 
             return {
                 storeId: store._id,
                 storeName: store.name,
                 ownerName: store.admin?.name || 'Unknown',
                 upiId: store.upiId || 'Not Provided',
-                totalRevenue: totalMonthlyRevenue,
+                totalRevenue,
                 gatewayFee,
                 platformProfit,
                 cancellationPenalty,
-                cancelledCount,
-                cancelledOrdersTotal,
                 totalDeduction,
                 netPayable,
                 isTrialActive,
-                settlementStatus: settlement ? settlement.status : 'pending',
-                trialEndDate: store.trialEndDate
+                settlementStatus: pendingSettlements.length > 0 ? 'pending' : 'paid',
+                trialEndDate: store.trialEndDate,
+                pendingCount: pendingSettlements.length
             };
         }));
 
@@ -425,29 +395,26 @@ router.get('/finance/summary', async (req, res) => {
 // 10. Finance: Mark Settlement as Paid
 router.post('/finance/settle', async (req, res) => {
     try {
-        const { storeId, month, year, totalRevenue, commissionAmount, netPayable } = req.body;
+        const { storeId, utrNumber } = req.body;
+        if (!utrNumber) return res.status(400).json({ message: 'UTR Number is required' });
+
         const Settlement = require('../models/Settlement');
 
-        let settlement = await Settlement.findOne({ store: storeId, month, year });
+        // Find all pending settlements for the store and mark them as completed
+        const pendingSettlements = await Settlement.find({ store: storeId, status: 'pending' });
         
-        if (settlement) {
-            settlement.status = 'paid';
-            settlement.paidAt = new Date();
-        } else {
-            settlement = new Settlement({
-                store: storeId,
-                month,
-                year,
-                totalRevenue,
-                commissionAmount,
-                netPayable,
-                status: 'paid',
-                paidAt: new Date()
-            });
+        if (pendingSettlements.length === 0) {
+            return res.status(400).json({ message: 'No pending settlements found for this store.' });
         }
 
-        await settlement.save();
-        res.json({ message: 'Settlement marked as paid successfully', settlement });
+        for (const settlement of pendingSettlements) {
+            settlement.status = 'completed';
+            settlement.utrNumber = utrNumber;
+            settlement.paidAt = new Date();
+            await settlement.save();
+        }
+
+        res.json({ message: `Successfully settled ${pendingSettlements.length} records.`, count: pendingSettlements.length });
     } catch (err) {
         res.status(500).json({ message: err.message });
     }

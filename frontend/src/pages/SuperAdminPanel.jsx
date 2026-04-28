@@ -867,24 +867,24 @@ const SuperAdminPanel = () => {
                         ) : (
                           <button
                             onClick={async () => {
-                              if (window.confirm(`Mark ₹${f.netPayable.toLocaleString()} as settled for ${f.storeName}?`)) {
+                              const utrNumber = window.prompt(`Enter UTR/Reference Number for settling ₹${f.netPayable.toLocaleString()} to ${f.storeName}:`);
+                              if (utrNumber && utrNumber.trim() !== '') {
                                 try {
                                   const url = import.meta.env.VITE_API_URL || 'http://localhost:5000';
                                   await axios.post(`${url}/api/super-admin/finance/settle`, {
                                     storeId: f.storeId,
-                                    month: new Date().getMonth() + 1,
-                                    year: new Date().getFullYear(),
-                                    totalRevenue: f.totalRevenue,
-                                    commissionAmount: f.commission,
-                                    netPayable: f.netPayable
+                                    utrNumber: utrNumber.trim()
                                   }, { headers: { Authorization: `Bearer ${token}` } });
                                   fetchDashboardData(true);
-                                } catch (err) { alert('Settlement failed'); }
+                                  alert('Successfully marked as settled and UTR recorded.');
+                                } catch (err) { alert('Settlement failed: ' + (err.response?.data?.message || err.message)); }
+                              } else if (utrNumber !== null) {
+                                alert('UTR Number is required to complete settlement.');
                               }
                             }}
                             style={{ padding: '0.5rem 1rem', background: 'transparent', border: '1px solid var(--primary)', color: 'var(--primary)', borderRadius: '8px', cursor: 'pointer', fontWeight: '700', fontSize: '0.75rem' }}
                           >
-                            SETTLE DUES
+                            SETTLE DUES ({f.pendingCount})
                           </button>
                         )}
                       </td>
