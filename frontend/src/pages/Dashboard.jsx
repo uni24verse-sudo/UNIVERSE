@@ -381,7 +381,7 @@ const Dashboard = () => {
     .reduce((acc, curr) => acc + curr.totalAmount, 0);
 
   // Net Calculations (After Platform Commission)
-  const calculateNet = (gross) => Math.floor(gross * (1 - (commissionRate / 100)));
+  const calculateNet = (gross) => (gross * (1 - (commissionRate / 100)));
 
   const todayNet = calculateNet(todayRevenue);
   const weeklyNet = calculateNet(weeklyRevenue);
@@ -1090,7 +1090,7 @@ const Dashboard = () => {
               <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '24px', position: 'relative', overflow: 'hidden', border: '1px solid rgba(16, 185, 129, 0.1)' }}>
                 <div style={{ position: 'absolute', right: '-10px', bottom: '-10px', opacity: 0.05, color: '#10b981' }}><Banknote size={100} /></div>
                 <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: '800', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Today's Net Profit</p>
-                <h3 style={{ fontSize: '1.85rem', fontWeight: '900', margin: 0, color: '#10b981' }}>₹{todayNet}</h3>
+                <h3 style={{ fontSize: '1.85rem', fontWeight: '900', margin: 0, color: '#10b981' }}>₹{Number(todayNet).toFixed(2)}</h3>
                 <div style={{ marginTop: '0.5rem', fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: '600' }}>
                   Gross: ₹{todayRevenue}
                 </div>
@@ -1099,7 +1099,7 @@ const Dashboard = () => {
               <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '24px', position: 'relative', overflow: 'hidden' }}>
                 <div style={{ position: 'absolute', right: '-10px', bottom: '-10px', opacity: 0.05 }}><ShoppingBag size={100} /></div>
                 <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: '700', marginBottom: '0.5rem' }}>Weekly Net Profit</p>
-                <h3 style={{ fontSize: '1.75rem', margin: 0, fontWeight: '800' }}>₹{weeklyNet}</h3>
+                <h3 style={{ fontSize: '1.75rem', margin: 0, fontWeight: '800' }}>₹{Number(weeklyNet).toFixed(2)}</h3>
                 <div style={{ marginTop: '0.5rem', fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
                   Sales: ₹{weeklyRevenue}
                 </div>
@@ -1108,7 +1108,7 @@ const Dashboard = () => {
               <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '24px', position: 'relative', overflow: 'hidden' }}>
                 <div style={{ position: 'absolute', right: '-10px', bottom: '-10px', opacity: 0.05 }}><TrendingUp size={100} /></div>
                 <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: '700', marginBottom: '0.5rem' }}>Monthly Net Profit</p>
-                <h3 style={{ fontSize: '1.75rem', margin: 0, fontWeight: '800' }}>₹{monthlyNet}</h3>
+                <h3 style={{ fontSize: '1.75rem', margin: 0, fontWeight: '800' }}>₹{Number(monthlyNet).toFixed(2)}</h3>
                 <div style={{ marginTop: '0.5rem', fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
                   Sales: ₹{monthlyRevenue}
                 </div>
@@ -1117,7 +1117,7 @@ const Dashboard = () => {
               <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '24px', position: 'relative', overflow: 'hidden' }}>
                 <div style={{ position: 'absolute', right: '-10px', bottom: '-10px', opacity: 0.05 }}><TrendingUp size={100} /></div>
                 <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: '700', marginBottom: '0.5rem' }}>Life-time Net Profit</p>
-                <h3 style={{ fontSize: '1.75rem', margin: 0, fontWeight: '800' }}>₹{totalNet}</h3>
+                <h3 style={{ fontSize: '1.75rem', margin: 0, fontWeight: '800' }}>₹{Number(totalNet).toFixed(2)}</h3>
                 <div style={{ marginTop: '0.5rem', fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
                   Total Sales: ₹{totalRevenue}
                 </div>
@@ -1144,7 +1144,7 @@ const Dashboard = () => {
                     </div>
                   ) : (
                     <div>
-                      <h3 style={{ fontSize: '1.75rem', margin: 0, color: 'var(--error)' }}>₹{totalRevenue - totalNet}</h3>
+                      <h3 style={{ fontSize: '1.75rem', margin: 0, color: 'var(--error)' }}>₹{(totalRevenue - totalNet).toFixed(2)}</h3>
                       <p style={{ fontSize: '0.75rem', opacity: 0.8, marginTop: '0.5rem', fontWeight: '700' }}>{commissionRate}% Platform Fee Applied</p>
                     </div>
                   )}

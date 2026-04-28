@@ -35,7 +35,7 @@ const VendorFinance = ({ storeId }) => {
         return <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>No finance data available.</div>;
     }
 
-    const { settlements, availableBalance, nextSettlement, previousSettlement, isTrialActive } = financeData;
+    const { settlements, availableBalance, liveUnsettledBalance, liveUnsettledRevenue, nextSettlement, previousSettlement, isTrialActive } = financeData;
 
     const filteredSettlements = settlements.filter(s => {
         if (filterStatus === 'All') return true;
@@ -100,13 +100,29 @@ const VendorFinance = ({ storeId }) => {
 
                 {/* Available Balance */}
                 <div style={{ flex: '1 1 200px' }}>
-                    <h3 style={{ fontSize: '0.875rem', fontWeight: '700', color: 'var(--text-secondary)', marginBottom: '1.5rem', borderBottom: '1px dashed var(--text-secondary)', display: 'inline-block', paddingBottom: '2px' }}>
-                        Available balance
+                    <h3 style={{ fontSize: '0.875rem', fontWeight: '700', color: 'var(--text-secondary)', marginBottom: '0.5rem', borderBottom: '1px dashed var(--text-secondary)', display: 'inline-block', paddingBottom: '2px' }}>
+                        Settled balance
                     </h3>
-                    <h2 style={{ fontSize: '2.5rem', fontWeight: '900', margin: 0, color: 'var(--text-primary)' }}>
-                        <span style={{ fontSize: '1.5rem', verticalAlign: 'top', color: 'var(--text-secondary)', marginRight: '4px' }}>₹</span>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', marginBottom: '1rem' }}>Available for payout</p>
+                    <h2 style={{ fontSize: '2rem', fontWeight: '900', margin: 0, color: 'var(--text-primary)' }}>
+                        <span style={{ fontSize: '1.25rem', verticalAlign: 'top', color: 'var(--text-secondary)', marginRight: '4px' }}>₹</span>
                         {availableBalance.toFixed(2)}
                     </h2>
+                </div>
+
+                <div style={{ width: '1px', background: 'var(--surface-border)' }}></div>
+
+                {/* Live Unsettled Balance */}
+                <div style={{ flex: '1 1 200px' }}>
+                    <h3 style={{ fontSize: '0.875rem', fontWeight: '700', color: '#10b981', marginBottom: '0.5rem', borderBottom: '1px dashed #10b98144', display: 'inline-block', paddingBottom: '2px' }}>
+                        Live Earnings
+                    </h3>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', marginBottom: '1rem' }}>Orders today (Unprocessed)</p>
+                    <h2 style={{ fontSize: '2rem', fontWeight: '900', margin: 0, color: '#10b981' }}>
+                        <span style={{ fontSize: '1.25rem', verticalAlign: 'top', color: 'var(--text-secondary)', marginRight: '4px' }}>₹</span>
+                        {liveUnsettledBalance.toFixed(2)}
+                    </h2>
+                    <p style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>Gross: ₹{liveUnsettledRevenue.toFixed(2)}</p>
                 </div>
             </div>
 

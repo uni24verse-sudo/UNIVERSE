@@ -356,6 +356,18 @@ router.get('/finance/summary', async (req, res) => {
             // Find all PENDING settlements for this store
             const pendingSettlements = await Settlement.find({ store: store._id, status: 'pending' });
             
+            // Calculate LIVE Unsettled Balance (Orders completed after the last settlement period)
+            const latestSettlement = await Settlement.findOne({ store: store._id }).sort({ periodEnd: -1 });
+            const lastPeriodEnd = latestSettlement ? latestSettlement.periodEnd : new Date(0);
+
+            const unsettledOrders = await Order.find({
+                store: store._id,
+                status: 'Completed',
+                createdAt: { $gt: lastPeriodEnd }
+            });
+
+            const liveUnsettledRevenue = unsettledOrders.reduce((sum, o) => sum + o.totalAmount, 0);
+
             // Aggregate pending amounts
             const totalRevenue = pendingSettlements.reduce((sum, s) => sum + s.totalRevenue, 0);
             const gatewayFee = pendingSettlements.reduce((sum, s) => sum + s.feesBreakdown.gatewayFee, 0);
@@ -379,6 +391,7 @@ router.get('/finance/summary', async (req, res) => {
                 cancellationPenalty,
                 totalDeduction,
                 netPayable,
+                liveUnsettledRevenue,
                 isTrialActive,
                 settlementStatus: pendingSettlements.length > 0 ? 'pending' : 'paid',
                 trialEndDate: store.trialEndDate,

@@ -817,6 +817,7 @@ const SuperAdminPanel = () => {
                   <tr style={{ background: '#f8fafc', borderBottom: '1px solid var(--surface-border)' }}>
                     <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Stall & UPI</th>
                     <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Monthly Gross</th>
+                    <th style={{ padding: '1.25rem', color: '#10b981', fontWeight: '800', fontSize: '0.875rem' }}>Live Volume</th>
                     <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Gateway Fee (2%)</th>
                     <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Platform Profit (3%)</th>
                     <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Cancel Penalty (4%)</th>
@@ -839,6 +840,9 @@ const SuperAdminPanel = () => {
                       </td>
                       <td style={{ padding: '1.25rem' }}>
                         <div style={{ fontWeight: '600' }}>₹{f.totalRevenue.toLocaleString()}</div>
+                      </td>
+                      <td style={{ padding: '1.25rem' }}>
+                        <div style={{ fontWeight: '800', color: '#10b981' }}>₹{f.liveUnsettledRevenue?.toLocaleString() || '0'}</div>
                       </td>
                       <td style={{ padding: '1.25rem', color: 'var(--text-secondary)' }}>
                         <div style={{ fontWeight: '600' }}>₹{f.gatewayFee.toLocaleString()}</div>
