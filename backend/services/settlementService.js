@@ -45,7 +45,7 @@ const generateSettlements = async (date = null, specificStoreId = null) => {
                 store: store._id,
                 status: 'Completed',
                 isSettled: { $ne: true },
-                createdAt: { $gte: startOfYesterday, $lt: endOfYesterday }
+                createdAt: { $lt: endOfYesterday }
             });
 
             const cancelledOrders = await Order.find({
@@ -53,7 +53,7 @@ const generateSettlements = async (date = null, specificStoreId = null) => {
                 status: 'Cancelled',
                 paymentStatus: 'Confirmed', // Only penalize if payment was captured
                 isSettled: { $ne: true },
-                createdAt: { $gte: startOfYesterday, $lt: endOfYesterday }
+                createdAt: { $lt: endOfYesterday }
             });
 
             if (completedOrders.length === 0 && cancelledOrders.length === 0) {
