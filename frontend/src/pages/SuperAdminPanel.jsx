@@ -58,7 +58,7 @@ const SuperAdminPanel = () => {
       const headers = { Authorization: `Bearer ${token}` };
       const url = import.meta.env.VITE_API_URL || 'http://localhost:5000';
       
-      const [statsRes, vendorsRes, ordersRes, storesRes, financeRes, locationsRes] = await Promise.all([
+      const [statsRes, vendorsRes, ordersRes, storesRes, financeRes, historyRes, locationsRes] = await Promise.all([
         axios.get(`${url}/api/super-admin/stats`, { headers }),
         axios.get(`${url}/api/super-admin/vendors`, { headers }),
         axios.get(`${url}/api/super-admin/orders`, { headers }),
@@ -900,6 +900,10 @@ const SuperAdminPanel = () => {
                           {f.settlementStatus === 'paid' ? (
                             <span style={{ color: '#10b981', fontWeight: '800', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.5rem' }}>
                               <CheckCircle size={16} /> SETTLED
+                            </span>
+                          ) : f.settlementStatus === 'accumulating' ? (
+                            <span style={{ color: '#f59e0b', fontWeight: '800', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.5rem' }}>
+                              <Activity size={16} /> ACCUMULATING
                             </span>
                           ) : (
                             <button

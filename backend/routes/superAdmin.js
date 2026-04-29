@@ -380,6 +380,13 @@ router.get('/finance/summary', async (req, res) => {
             const trialEnd = store.trialEndDate ? new Date(store.trialEndDate) : null;
             const isTrialActive = store.isTrialStarted && trialEnd && now < trialEnd;
 
+            let settlementStatus = 'paid';
+            if (pendingSettlements.length > 0) {
+                settlementStatus = 'pending';
+            } else if (liveUnsettledRevenue > 0) {
+                settlementStatus = 'accumulating';
+            }
+
             return {
                 storeId: store._id,
                 storeName: store.name,
@@ -393,7 +400,7 @@ router.get('/finance/summary', async (req, res) => {
                 netPayable,
                 liveUnsettledRevenue,
                 isTrialActive,
-                settlementStatus: pendingSettlements.length > 0 ? 'pending' : 'paid',
+                settlementStatus,
                 trialEndDate: store.trialEndDate,
                 pendingCount: pendingSettlements.length
             };
