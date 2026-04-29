@@ -2,6 +2,7 @@ import React, { useState, useEffect, useContext, useMemo, useCallback } from 're
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { CartContext } from '../context/CartContext';
+import { useSocket } from '../context/SocketContext';
 import { ArrowLeft, Clock, Search, X } from 'lucide-react';
 import { useStoreTheme } from '../hooks/useStoreTheme';
 
@@ -42,6 +43,19 @@ const StoreMenu = () => {
   const [loading, setLoading] = useState(true);
   const { cart, addToCart } = useContext(CartContext);
   const navigate = useNavigate();
+  const { socket, connected } = useSocket();
+
+  useEffect(() => {
+    if (socket && connected && id) {
+      const handleStoreStatus = ({ storeId, isOpen }) => {
+        if (storeId === id) {
+          setStore(prev => prev ? { ...prev, isOpen } : prev);
+        }
+      };
+      socket.on('store_status_update', handleStoreStatus);
+      return () => socket.off('store_status_update', handleStoreStatus);
+    }
+  }, [socket, connected, id]);
 
   useEffect(() => {
     // Detect physical QR scan and persist in local storage

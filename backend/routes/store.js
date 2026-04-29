@@ -487,6 +487,12 @@ router.put('/:storeId/toggle-status', auth, async (req, res) => {
     // Notify via Telegram
     await telegramService.sendStatusAlert(store, store.isOpen);
 
+    // Broadcast status change globally
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('store_status_update', { storeId: store._id, isOpen: store.isOpen });
+    }
+
     res.json({ message: `Store is now ${store.isOpen ? 'Open' : 'Closed'}`, isOpen: store.isOpen, isAutomated: store.isAutomated });
   } catch (err) {
     res.status(500).json({ message: err.message });

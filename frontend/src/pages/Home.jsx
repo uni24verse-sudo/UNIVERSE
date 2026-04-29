@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Link, useNavigate } from 'react-router-dom';
+import { useSocket } from '../context/SocketContext';
 import { 
   Store, 
   User, 
@@ -103,6 +104,17 @@ const Home = () => {
     };
     fetchStores();
   }, []);
+
+  const { socket, connected } = useSocket();
+  useEffect(() => {
+    if (socket && connected) {
+      const handleStoreStatus = ({ storeId, isOpen }) => {
+        setStores(prev => prev.map(s => s._id === storeId ? { ...s, isOpen } : s));
+      };
+      socket.on('store_status_update', handleStoreStatus);
+      return () => socket.off('store_status_update', handleStoreStatus);
+    }
+  }, [socket, connected]);
 
   const categories = ['All', 'Snacks', 'Meals', 'Beverages', 'Desserts', 'Other'];
 
