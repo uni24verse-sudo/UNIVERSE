@@ -368,12 +368,17 @@ router.get('/finance/summary', async (req, res) => {
 
             const liveUnsettledRevenue = unsettledOrders.reduce((sum, o) => sum + o.totalAmount, 0);
 
-            // Aggregate pending amounts
-            const totalRevenue = pendingSettlements.reduce((sum, s) => sum + s.totalRevenue, 0);
-            const gatewayFee = pendingSettlements.reduce((sum, s) => sum + s.feesBreakdown.gatewayFee, 0);
-            const platformProfit = pendingSettlements.reduce((sum, s) => sum + s.feesBreakdown.platformProfit, 0);
-            const cancellationPenalty = pendingSettlements.reduce((sum, s) => sum + s.feesBreakdown.cancellationPenalty, 0);
-            const netPayable = pendingSettlements.reduce((sum, s) => sum + s.netPayable, 0);
+            let relevantSettlements = pendingSettlements;
+            if (pendingSettlements.length === 0 && latestSettlement) {
+                relevantSettlements = [latestSettlement];
+            }
+
+            // Aggregate pending or latest amounts
+            const totalRevenue = relevantSettlements.reduce((sum, s) => sum + (s.totalRevenue || 0), 0);
+            const gatewayFee = relevantSettlements.reduce((sum, s) => sum + (s.feesBreakdown?.gatewayFee || 0), 0);
+            const platformProfit = relevantSettlements.reduce((sum, s) => sum + (s.feesBreakdown?.platformProfit || 0), 0);
+            const cancellationPenalty = relevantSettlements.reduce((sum, s) => sum + (s.feesBreakdown?.cancellationPenalty || 0), 0);
+            const netPayable = relevantSettlements.reduce((sum, s) => sum + (s.netPayable || 0), 0);
             const totalDeduction = gatewayFee + platformProfit + cancellationPenalty;
 
             const now = new Date();
