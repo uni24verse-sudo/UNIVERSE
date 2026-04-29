@@ -405,6 +405,20 @@ router.get('/finance/summary', async (req, res) => {
     }
 });
 
+// 9b. Finance: Get Detailed Settlement History
+router.get('/finance/history', async (req, res) => {
+    try {
+        const Settlement = require('../models/Settlement');
+        const settlements = await Settlement.find()
+            .populate({ path: 'store', select: 'name market admin', populate: { path: 'admin', select: 'name' } })
+            .sort({ createdAt: -1 });
+            
+        res.json(settlements);
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
 // 10. Finance: Mark Settlement as Paid
 router.post('/finance/settle', async (req, res) => {
     try {

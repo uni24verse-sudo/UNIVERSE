@@ -35,7 +35,11 @@ const OrderSchema = new mongoose.Schema({
   scheduledTime: { type: String },
   reminderSent: { type: Boolean, default: false },
   reminder15Sent: { type: Boolean, default: false },
-  reminder10Sent: { type: Boolean, default: false }
+  reminder10Sent: { type: Boolean, default: false },
+  
+  // Finance Tracking
+  isSettled: { type: Boolean, default: false },
+  settlementId: { type: mongoose.Schema.Types.ObjectId, ref: 'Settlement' }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Order', OrderSchema);
