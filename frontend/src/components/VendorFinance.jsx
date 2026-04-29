@@ -8,6 +8,7 @@ const VendorFinance = ({ storeId }) => {
     const [financeData, setFinanceData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [filterStatus, setFilterStatus] = useState('All');
+    const [showPreviousBreakup, setShowPreviousBreakup] = useState(false);
 
     useEffect(() => {
         if (!storeId) return;
@@ -76,7 +77,22 @@ const VendorFinance = ({ storeId }) => {
                     <h2 style={{ fontSize: '2rem', fontWeight: '900', margin: 0, color: 'var(--text-primary)' }}>
                         ₹{previousSettlement ? previousSettlement.netPayable.toFixed(2) : '0.00'}
                     </h2>
-                    <p style={{ fontSize: '0.75rem', color: 'var(--primary)', marginTop: '0.5rem', fontWeight: '600', cursor: 'pointer' }}>Amount breakup</p>
+                    {previousSettlement && (
+                        <p onClick={() => setShowPreviousBreakup(!showPreviousBreakup)} style={{ fontSize: '0.75rem', color: 'var(--primary)', marginTop: '0.5rem', fontWeight: '600', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            Amount breakup {showPreviousBreakup ? '▲' : '▼'}
+                        </p>
+                    )}
+                    {showPreviousBreakup && previousSettlement && (
+                        <div style={{ marginTop: '0.75rem', fontSize: '0.75rem', color: 'var(--text-secondary)', background: 'rgba(0,0,0,0.02)', padding: '0.75rem', borderRadius: '12px', border: '1px solid var(--surface-border)' }}>
+                            <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem'}}><span>Gross Sales:</span> <span style={{fontWeight: '600', color: 'var(--text-primary)'}}>₹{previousSettlement.totalRevenue.toFixed(2)}</span></div>
+                            <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem'}}><span>Gateway Fee (2%):</span> <span style={{color: '#ef4444'}}>-₹{previousSettlement.feesBreakdown.gatewayFee.toFixed(2)}</span></div>
+                            <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem'}}><span>Platform Fee:</span> <span style={{color: '#ef4444'}}>-₹{previousSettlement.feesBreakdown.platformProfit.toFixed(2)}</span></div>
+                            {previousSettlement.feesBreakdown.cancellationPenalty > 0 && (
+                                <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem'}}><span>Cancellation Penalty (4%):</span> <span style={{color: '#ef4444'}}>-₹{previousSettlement.feesBreakdown.cancellationPenalty.toFixed(2)}</span></div>
+                            )}
+                            <div style={{display: 'flex', justifyContent: 'space-between', marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px dashed var(--surface-border)', fontWeight: '800', color: '#10b981'}}><span>Net Deposited:</span> <span>₹{previousSettlement.netPayable.toFixed(2)}</span></div>
+                        </div>
+                    )}
                 </div>
 
                 <div style={{ width: '1px', background: 'var(--surface-border)' }}></div>
