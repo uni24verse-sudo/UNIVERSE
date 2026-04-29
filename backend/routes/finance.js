@@ -37,7 +37,7 @@ router.get('/my-settlements/:storeId', async (req, res) => {
         const unsettledOrders = await Order.find({
             store: storeId,
             status: 'Completed',
-            createdAt: { $gt: lastPeriodEnd }
+            isSettled: { $ne: true }
         });
 
         const liveUnsettledRevenue = unsettledOrders.reduce((sum, o) => sum + o.totalAmount, 0);
