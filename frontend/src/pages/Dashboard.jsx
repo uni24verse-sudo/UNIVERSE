@@ -358,40 +358,43 @@ const Dashboard = () => {
 
   const commissionRate = store?.commissionRate || 5;
 
-  const todayRevenue = orders
-    .filter(o => o.status === 'Completed' && new Date(o.createdAt).toDateString() === new Date().toDateString())
-    .reduce((acc, curr) => acc + curr.totalAmount, 0);
-
-  const totalRevenue = orders
-    .filter(o => o.status === 'Completed')
-    .reduce((acc, curr) => acc + curr.totalAmount, 0);
-
   const now = new Date();
   const startOfWeek = new Date(now);
   startOfWeek.setDate(now.getDate() - now.getDay());
   startOfWeek.setHours(0, 0, 0, 0);
 
-  const weeklyRevenue = orders
-    .filter(o => o.status === 'Completed' && new Date(o.createdAt) >= startOfWeek)
-    .reduce((acc, curr) => acc + curr.totalAmount, 0);
-
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  const monthlyRevenue = orders
-    .filter(o => o.status === 'Completed' && new Date(o.createdAt) >= startOfMonth)
-    .reduce((acc, curr) => acc + curr.totalAmount, 0);
 
-  // Net Calculations (After Platform Commission)
-  const calculateNet = (gross) => (gross * (1 - (commissionRate / 100)));
+  const todayOrders = orders.filter(o => new Date(o.createdAt).toDateString() === new Date().toDateString());
+  const weeklyOrders = orders.filter(o => new Date(o.createdAt) >= startOfWeek);
+  const monthlyOrders = orders.filter(o => new Date(o.createdAt) >= startOfMonth);
+  const totalOrders = orders;
 
-  const todayNet = calculateNet(todayRevenue);
-  const weeklyNet = calculateNet(weeklyRevenue);
-  const monthlyNet = calculateNet(monthlyRevenue);
-  const totalNet = calculateNet(totalRevenue);
+  const calculateFinanceForPeriod = (periodOrders) => {
+    const completed = periodOrders.filter(o => o.status === 'Completed');
+    const cancelled = periodOrders.filter(o => o.status === 'Cancelled' && o.paymentStatus === 'Confirmed');
+    
+    const gross = completed.reduce((acc, curr) => acc + curr.totalAmount, 0);
+    const cancelledVolume = cancelled.reduce((acc, curr) => acc + curr.totalAmount, 0);
+
+    const isTrial = store?.isTrialStarted && store?.daysLeftInTrial > 0;
+    const profitRate = isTrial ? 0 : 0.03;
+    const gatewayRate = 0.02;
+    const penaltyRate = 0.04;
+
+    const deductions = (gross * gatewayRate) + (gross * profitRate) + (cancelledVolume * penaltyRate);
+    return { gross, net: gross - deductions };
+  };
+
+  const { gross: todayRevenue, net: todayNet } = calculateFinanceForPeriod(todayOrders);
+  const { gross: weeklyRevenue, net: weeklyNet } = calculateFinanceForPeriod(weeklyOrders);
+  const { gross: monthlyRevenue, net: monthlyNet } = calculateFinanceForPeriod(monthlyOrders);
+  const { gross: totalRevenue, net: totalNet } = calculateFinanceForPeriod(totalOrders);
 
   const pendingOrders = orders.filter(o => o.status === 'Pending').length;
   const confirmedOrders = orders.filter(o => o.status === 'Confirmed').length;
   const completedOrders = orders.filter(o => o.status === 'Completed').length;
-  const cancelledOrders = orders.filter(o => o.status === 'Cancelled').length;
+  const cancelledOrdersCount = orders.filter(o => o.status === 'Cancelled').length;
 
   // Smart filtering
   const getFilteredOrders = () => {
