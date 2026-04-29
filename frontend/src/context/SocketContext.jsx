@@ -14,39 +14,32 @@ export const SocketProvider = ({ children }) => {
   const { vendor, token } = useContext(AuthContext);
 
   useEffect(() => {
-    if (!vendor || !token) {
-      if (socket) {
-        socket.disconnect();
-        setSocket(null);
-        setConnected(false);
-      }
-      return;
-    }
-
-    // Initialize socket connection
+    // Initialize socket connection universally for all users (customers & vendors)
     const newSocket = io(import.meta.env.VITE_API_URL || 'http://localhost:5000', {
       auth: {
-        token: token
+        token: token || ''
       },
       transports: ['websocket', 'polling']
     });
 
     newSocket.on('connect', async () => {
-      console.log('Socket connected:', newSocket.id);
+      console.log('Socket connected universally:', newSocket.id);
       setConnected(true);
       
-      // Join vendor's store rooms for real-time order notifications globally
-      try {
-        const storesRes = await axios.get((import.meta.env.VITE_API_URL || 'http://localhost:5000') + '/api/store/my-stores', {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        
-        storesRes.data.forEach(store => {
-          newSocket.emit('join_store_room', store._id);
-          console.log('Joined store room:', store._id);
-        });
-      } catch (err) {
-        console.error('Failed to fetch stores for socket context:', err);
+      // If vendor is logged in, join their specific store rooms for order notifications
+      if (vendor && token) {
+        try {
+          const storesRes = await axios.get((import.meta.env.VITE_API_URL || 'http://localhost:5000') + '/api/store/my-stores', {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          
+          storesRes.data.forEach(store => {
+            newSocket.emit('join_store_room', store._id);
+            console.log('Joined store room:', store._id);
+          });
+        } catch (err) {
+          console.error('Failed to fetch stores for socket context:', err);
+        }
       }
     });
 
