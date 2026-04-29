@@ -294,7 +294,7 @@ const Home = () => {
               { id: 'Burger', name: 'Juicy Burgers', img: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=400&q=80' },
               { id: 'Chinese', name: 'Asian Wok', img: 'https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?auto=format&fit=crop&w=400&q=80' },
               { id: 'Dessert', name: 'Sweet Delights', img: 'https://images.unsplash.com/photo-1551024601-bec78aea704b?auto=format&fit=crop&w=400&q=80' },
-              { id: 'Healthy', name: 'Healthy Eats', img: 'https://images.unsplash.com/photo-1490645935967-10de6ba8232f?auto=format&fit=crop&w=400&q=80' },
+              { id: 'Healthy', name: 'Healthy Eats', img: 'https://images.unsplash.com/photo-1621763927016-8d9275bd3b57?q=80&w=687&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D' },
               { id: 'Beverages', name: 'Cold Sips', img: 'https://images.unsplash.com/photo-1544145945-f90425340c7e?auto=format&fit=crop&w=400&q=80' }
             ].map(cat => (
               <div 
