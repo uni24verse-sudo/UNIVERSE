@@ -124,7 +124,12 @@ const Home = () => {
       if (hubType === 'College') {
         if (selectedMarket !== 'All' && (store.market || 'BH1 Market') !== selectedMarket) return false;
       } else {
-        if (selectedCategory !== 'All' && store.category !== selectedCategory) return false;
+        if (selectedCategory !== 'All') {
+          const cat = (store.category || '').toLowerCase();
+          const sel = selectedCategory.toLowerCase();
+          // Relaxed matching to ensure categories like 'Desserts' match 'Dessert'
+          if (!cat.includes(sel) && !sel.includes(cat)) return false;
+        }
       }
       
       // Local search filtering
@@ -283,25 +288,26 @@ const Home = () => {
         ) : (
           <div className="category-grid-premium animate-fade-in-up">
             {[
-              { id: 'All', name: 'All Shops', img: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Food/Fork%20and%20Knife%20with%20Plate.png' },
-              { id: 'Biryani', name: 'Biryani & Rice', img: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Food/Curry%20Rice.png' },
-              { id: 'Pizza', name: 'Pizzas', img: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Food/Pizza.png' },
-              { id: 'Burger', name: 'Burgers', img: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Food/Hamburger.png' },
-              { id: 'Chinese', name: 'Chinese', img: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Food/Bento%20Box.png' },
-              { id: 'Desserts', name: 'Sweet Delights', img: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Food/Shortcake.png' },
-              { id: 'Healthy', name: 'Healthy Eats', img: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Food/Green%20Salad.png' },
-              { id: 'Beverages', name: 'Cold Sips', img: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Food/Bubble%20Tea.png' }
+              { id: 'All', name: 'All Cravings', img: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=400&q=80' },
+              { id: 'Biryani', name: 'Biryani & Rice', img: 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?auto=format&fit=crop&w=400&q=80' },
+              { id: 'Pizza', name: 'Hand-tossed Pizzas', img: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=400&q=80' },
+              { id: 'Burger', name: 'Juicy Burgers', img: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=400&q=80' },
+              { id: 'Chinese', name: 'Asian Wok', img: 'https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?auto=format&fit=crop&w=400&q=80' },
+              { id: 'Dessert', name: 'Sweet Delights', img: 'https://images.unsplash.com/photo-1551024601-bec78aea704b?auto=format&fit=crop&w=400&q=80' },
+              { id: 'Healthy', name: 'Healthy Eats', img: 'https://images.unsplash.com/photo-1490645935967-10de6ba8232f?auto=format&fit=crop&w=400&q=80' },
+              { id: 'Beverages', name: 'Cold Sips', img: 'https://images.unsplash.com/photo-1544145945-f90425340c7e?auto=format&fit=crop&w=400&q=80' }
             ].map(cat => (
               <div 
                 key={cat.id} 
-                className={`category-tile-premium ${selectedCategory === cat.id ? 'active' : ''}`}
+                className={`premium-bento-cat ${selectedCategory === cat.id ? 'active' : ''}`}
                 onClick={() => setSelectedCategory(cat.id)}
               >
-                <div className="tile-image-wrapper">
-                  <img src={cat.img} alt={cat.name} className="tile-img-active" />
-                  {selectedCategory === cat.id && <div className="live-pulse-dot"></div>}
+                <img src={cat.img} alt={cat.name} className="bento-cat-bg" loading="lazy" />
+                <div className="bento-cat-overlay"></div>
+                <div className="bento-cat-content">
+                  {selectedCategory === cat.id && <div className="live-pulse-dot" style={{ position: 'absolute', top: '12px', right: '12px' }}></div>}
+                  <span className="bento-cat-text">{cat.name}</span>
                 </div>
-                <span>{cat.name}</span>
               </div>
             ))}
           </div>

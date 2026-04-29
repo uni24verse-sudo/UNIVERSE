@@ -967,114 +967,83 @@ h1 {
   }
 }
 
-.category-tile-premium {
-  flex: 0 0 100px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.875rem;
-  cursor: pointer;
-  transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-}
-
-.tile-image-wrapper {
+.premium-bento-cat {
   position: relative;
-  width: 80px;
-  height: 80px;
-  border-radius: 50%;
+  flex: 0 0 160px;
+  height: 200px;
+  border-radius: 28px;
   overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.4s ease;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.06);
   border: 3px solid transparent;
-  transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-  box-shadow: 0 10px 25px rgba(0,0,0,0.08);
-  background: white;
-}
-
-@media (min-width: 1024px) {
-  .tile-image-wrapper {
-    width: 110px;
-    height: 110px;
-  }
-}
-
-.category-tile-premium img {
-  width: 100%;
-  height: 100%;
-  padding: 12px;
-  object-fit: contain;
-  transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
-  filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1));
-}
-
-.tile-overlay {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(180deg, transparent 40%, rgba(0,0,0,0.3) 100%);
-  opacity: 0.4;
-  transition: opacity 0.3s;
-}
-
-.category-tile-premium span {
-  font-size: 0.8125rem;
-  font-weight: 800;
-  color: var(--text-secondary);
-  text-align: center;
-  transition: all 0.3s;
-  white-space: nowrap;
-  letter-spacing: -0.01em;
-}
-
-/* Animations */
-@keyframes categoryFloat {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-10px); }
-}
-
-@keyframes activeGlow {
-  0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 65, 35, 0.4); }
-  50% { transform: scale(1.05); box-shadow: 0 0 30px 10px rgba(239, 65, 35, 0.15); }
-}
-
-/* Hover & Active States */
-.category-tile-premium:hover {
-  transform: translateY(-5px);
-}
-
-.category-tile-premium:hover .tile-image-wrapper {
-  box-shadow: 0 15px 30px rgba(0,0,0,0.12);
-}
-
-.category-tile-premium:hover img {
-  transform: scale(1.2);
-}
-
-.category-tile-premium.active .tile-image-wrapper {
-  border-color: var(--primary);
-  animation: activeGlow 2.5s infinite ease-in-out;
-  border-width: 4px;
-}
-
-.category-tile-premium.active {
-  animation: categoryFloat 4s infinite ease-in-out;
-}
-
-.category-tile-premium.active span {
-  color: var(--primary);
-  font-weight: 950;
-  transform: scale(1.1);
-}
-
-.category-tile-premium.active .tile-overlay {
-  opacity: 1;
+  background: #f8fafc;
 }
 
 @media (max-width: 600px) {
-  .category-tile-premium {
-    flex: 0 0 85px;
+  .premium-bento-cat {
+    flex: 0 0 140px;
+    height: 180px;
+    border-radius: 24px;
   }
-  .tile-image-wrapper {
-    width: 76px;
-    height: 76px;
-  }
+}
+
+.premium-bento-cat .bento-cat-bg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.8s ease;
+}
+
+.premium-bento-cat:hover .bento-cat-bg {
+  transform: scale(1.1);
+}
+
+.premium-bento-cat .bento-cat-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.8) 100%);
+  transition: background 0.3s ease;
+}
+
+.premium-bento-cat.active {
+  border-color: var(--primary);
+  transform: translateY(-8px);
+  box-shadow: 0 20px 40px var(--primary-shadow);
+}
+
+.premium-bento-cat.active .bento-cat-overlay {
+  background: linear-gradient(180deg, rgba(239, 65, 35, 0.2) 0%, rgba(239, 65, 35, 0.85) 100%);
+}
+
+.premium-bento-cat .bento-cat-content {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  padding: 1.25rem;
+  z-index: 2;
+}
+
+.premium-bento-cat .bento-cat-text {
+  color: white;
+  font-weight: 900;
+  font-size: 1.1rem;
+  line-height: 1.2;
+  text-shadow: 0 4px 12px rgba(0,0,0,0.5);
+  letter-spacing: -0.02em;
+  transition: transform 0.3s ease;
+}
+
+.premium-bento-cat.active .bento-cat-text {
+  transform: scale(1.05);
+  transform-origin: left bottom;
+}
+
+/* Hover & Active States */
+.premium-bento-cat:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 15px 35px rgba(0,0,0,0.12);
 }
 
 /* Live Pulse Dot */
