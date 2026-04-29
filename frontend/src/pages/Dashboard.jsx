@@ -394,7 +394,7 @@ const Dashboard = () => {
   const pendingOrders = orders.filter(o => o.status === 'Pending').length;
   const confirmedOrders = orders.filter(o => o.status === 'Confirmed').length;
   const completedOrders = orders.filter(o => o.status === 'Completed').length;
-  const cancelledOrdersCount = orders.filter(o => o.status === 'Cancelled').length;
+  const cancelledOrders = orders.filter(o => o.status === 'Cancelled').length;
 
   // Smart filtering
   const getFilteredOrders = () => {
