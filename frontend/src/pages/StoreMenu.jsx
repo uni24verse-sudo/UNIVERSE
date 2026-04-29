@@ -101,6 +101,27 @@ const StoreMenu = () => {
     return () => window.removeEventListener('universe_sync_data', fetchStore);
   }, [id]);
 
+  // Robust Wakeup Mechanism: Refetch data when returning from inactivity/sleep
+  useEffect(() => {
+    const handleWakeup = () => {
+      if (document.visibilityState === 'visible') {
+        console.log('[StoreMenu] Device woke up, syncing fresh store data...');
+        // Silent fetch to ensure store open/close status and menu are fresh
+        axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/store/${id}`)
+          .then(res => setStore(res.data))
+          .catch(console.error);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleWakeup);
+    window.addEventListener('focus', handleWakeup);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleWakeup);
+      window.removeEventListener('focus', handleWakeup);
+    };
+  }, [id]);
+
   // Performance Optimization: Memoize category and product calculations
   const categories = useMemo(() => {
     if (!store) return [];

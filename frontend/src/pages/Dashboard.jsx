@@ -194,6 +194,37 @@ const Dashboard = () => {
     fetchStoreOrders();
   }, [store, token]);
 
+  // Robust Wakeup Mechanism: Refetch data when returning from inactivity/sleep
+  useEffect(() => {
+    const handleWakeup = () => {
+      if (document.visibilityState === 'visible') {
+        console.log('[Vendor Dashboard] Device woke up, syncing fresh data...');
+        
+        // 1. Hard fetch fresh orders to catch any missed during sleep
+        if (store && token) {
+           axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/orders/${store._id}/vendor-orders`, {
+             headers: { Authorization: `Bearer ${token}` }
+           })
+           .then(res => setOrders(res.data))
+           .catch(err => console.error('Wakeup sync failed', err));
+        }
+
+        // 2. Ensure Socket is locked in
+        if (socket && connected && store) {
+           socket.emit('join_store_room', store._id);
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleWakeup);
+    window.addEventListener('focus', handleWakeup);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleWakeup);
+      window.removeEventListener('focus', handleWakeup);
+    };
+  }, [store, token, socket, connected]);
+
   // Join relevant store room whenever the selected store changes
   useEffect(() => {
     if (socket && connected && store) {

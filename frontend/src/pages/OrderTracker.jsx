@@ -83,6 +83,27 @@ const OrderTracker = () => {
     return () => socket.close();
   }, [id]);
 
+  // Robust Wakeup Mechanism: Refetch data when returning from inactivity/sleep
+  useEffect(() => {
+    const handleWakeup = () => {
+      if (document.visibilityState === 'visible') {
+        console.log('[OrderTracker] Device woke up, syncing fresh order data...');
+        // Silent fetch to ensure no status update was missed while the screen was off/backgrounded
+        axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/orders/${id}`)
+          .then(res => setOrder(res.data))
+          .catch(console.error);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleWakeup);
+    window.addEventListener('focus', handleWakeup);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleWakeup);
+      window.removeEventListener('focus', handleWakeup);
+    };
+  }, [id]);
+
   const statusSteps = [
     { label: 'Pending', icon: Clock, color: '#f59e0b', desc: 'Vendor is reviewing your order' },
     { label: 'Confirmed', icon: ChefHat, color: '#3b82f6', desc: 'Great! Your order is being prepared' },

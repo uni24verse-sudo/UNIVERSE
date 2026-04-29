@@ -52,6 +52,25 @@ const SuperAdminPanel = () => {
     fetchDashboardData();
   }, [token, navigate]);
 
+  // Robust Wakeup Mechanism: Refetch data when returning from inactivity/sleep
+  useEffect(() => {
+    const handleWakeup = () => {
+      if (document.visibilityState === 'visible') {
+        console.log('[SuperAdminPanel] Device woke up, syncing fresh data...');
+        // Silent fetch to ensure no data was missed while the screen was off/backgrounded
+        fetchDashboardData(true);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleWakeup);
+    window.addEventListener('focus', handleWakeup);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleWakeup);
+      window.removeEventListener('focus', handleWakeup);
+    };
+  }, [token]);
+
   const fetchDashboardData = async (silent = false) => {
     if (!silent) setLoading(true);
     try {
