@@ -553,9 +553,17 @@ const SuperAdminPanel = () => {
                   {/* Trial & Billing Section */}
                   <div style={{ padding: '1rem', background: store.isTrialStarted ? 'rgba(16, 185, 129, 0.05)' : 'rgba(245, 158, 11, 0.05)', borderRadius: '16px', border: `1px solid ${store.isTrialStarted ? 'rgba(16, 185, 129, 0.2)' : 'rgba(245, 158, 11, 0.2)'}` }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                       <p style={{ fontSize: '0.75rem', margin: 0, fontWeight: '800', textTransform: 'uppercase', color: store.isTrialStarted ? '#10b981' : '#f59e0b' }}>
-                        {store.isTrialStarted ? 'Free Trial Active' : 'Trial Not Started'}
-                       </p>
+                        <p style={{ 
+                          fontSize: '0.75rem', 
+                          margin: 0, 
+                          fontWeight: '800', 
+                          textTransform: 'uppercase', 
+                          color: store.daysLeftInTrial > 0 ? '#10b981' : '#f59e0b' 
+                        }}>
+                          {store.isTrialStarted 
+                            ? (store.daysLeftInTrial > 0 ? 'Free Trial Active' : 'Trial Period Expired') 
+                            : 'Trial Not Started'}
+                        </p>
                        {!store.isTrialStarted && (
                          <button 
                           onClick={async () => {

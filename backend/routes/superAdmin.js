@@ -226,7 +226,11 @@ router.get('/stores', async (req, res) => {
             if (isTrialOver) {
                 // Use the commissionRate from the store model (defaulting to 5 if not set)
                 const rate = (store.commissionRate || 5) / 100;
-                estimatedFees = totalRevenue * rate;
+                
+                // Only calculate fees on orders completed AFTER the trial ended
+                const postTrialOrders = completedOrders.filter(o => new Date(o.createdAt) > trialEnd);
+                const postTrialRevenue = postTrialOrders.reduce((sum, order) => sum + order.totalAmount, 0);
+                estimatedFees = postTrialRevenue * rate;
             }
 
             return {
