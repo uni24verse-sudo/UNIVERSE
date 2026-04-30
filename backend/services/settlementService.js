@@ -12,25 +12,30 @@ const Settlement = require('../models/Settlement');
  */
 const generateSettlements = async (date = null, specificStoreId = null) => {
     try {
-        // Determine the target date (yesterday if not provided)
-        // Determine the target date (yesterday if not provided)
-        // We use an explicit offset to ensure "yesterday" means the same regardless of server UTC time
-        const now = new Date();
-        // Adjust for IST (UTC+5:30) if we want to be precise about midnight IST
-        const istOffset = 5.5 * 60 * 60 * 1000;
-        const nowIst = new Date(now.getTime() + istOffset);
-        
-        const targetDate = date ? new Date(date) : new Date(nowIst.getTime() - 86400000);
-        targetDate.setUTCHours(0, 0, 0, 0); // Use UTC methods to avoid local server drift
-        
-        // Since we adjusted targetDate to IST start-of-day but it's a UTC object now,
-        // we need to be careful. Actually, a simpler way is:
-        const startOfYesterday = date ? new Date(date) : new Date();
-        if (!date) startOfYesterday.setDate(startOfYesterday.getDate() - 1);
-        startOfYesterday.setHours(0, 0, 0, 0);
-        
-        const endOfYesterday = new Date(startOfYesterday);
-        endOfYesterday.setDate(startOfYesterday.getDate() + 1);
+        let startOfYesterday, endOfYesterday;
+
+        if (date) {
+            startOfYesterday = new Date(date);
+            startOfYesterday.setUTCHours(0, 0, 0, 0);
+            endOfYesterday = new Date(startOfYesterday.getTime() + 24 * 60 * 60 * 1000);
+        } else {
+            // Strictly calculate IST midnights regardless of server timezone
+            const nowUtc = new Date();
+            const istOffset = 5.5 * 60 * 60 * 1000;
+            
+            // Shift current UTC time to represent IST 
+            const nowIst = new Date(nowUtc.getTime() + istOffset);
+            
+            // Subtract 24 hours to get "yesterday" in IST
+            const yesterdayIst = new Date(nowIst.getTime() - 24 * 60 * 60 * 1000);
+            
+            // Truncate to 00:00:00. Because we shifted by IST, setting UTCHours zeroes out the IST day.
+            yesterdayIst.setUTCHours(0, 0, 0, 0);
+            
+            // Shift back to true UTC time
+            startOfYesterday = new Date(yesterdayIst.getTime() - istOffset);
+            endOfYesterday = new Date(startOfYesterday.getTime() + 24 * 60 * 60 * 1000);
+        }
 
         console.log(`Generating settlements for date range: ${startOfYesterday.toISOString()} to ${endOfYesterday.toISOString()}`);
 
