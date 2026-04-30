@@ -127,9 +127,12 @@ const generateSettlements = async (date = null, specificStoreId = null) => {
                 settlement.netPayable += netPayable;
                 
                 // If it was previously completed, and we are adding more revenue, 
-                // we should consider if we should keep it completed or not.
-                // However, the super admin workflow usually pays out at month end.
-                // For now, keep existing status.
+                // we MUST flip it back to pending so the Super Admin is prompted
+                // to pay the newly accumulated difference.
+                if (settlement.status === 'completed') {
+                    settlement.status = 'pending';
+                    console.log(`Re-opened Monthly Accrual for Store ${store.name} due to new orders.`);
+                }
                 
                 await settlement.save();
                 finalSettlementId = settlement._id;
