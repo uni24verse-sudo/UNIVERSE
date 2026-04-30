@@ -51,10 +51,10 @@ router.get('/stats', async (req, res) => {
       const isTrialOver = store.isTrialStarted && trialEnd && now > trialEnd;
 
       if (isTrialOver) {
-        // Only apply 3% to post-trial volume technically, 
-        // but for a global overview, we use the store's current status
-        const storeRevenue = storeOrders.reduce((sum, o) => sum + o.totalAmount, 0);
-        totalProfit += storeRevenue * 0.03;
+        // Only apply 3% platform fee to orders completed AFTER the trial ended
+        const postTrialOrders = storeOrders.filter(o => new Date(o.createdAt) > trialEnd);
+        const postTrialRevenue = postTrialOrders.reduce((sum, o) => sum + o.totalAmount, 0);
+        totalProfit += postTrialRevenue * 0.03;
       }
 
       // Add cancellation penalties (4% of cancelled volume)
@@ -104,7 +104,14 @@ router.get('/vendors', async (req, res) => {
       const isTrialOver = store && store.isTrialStarted && trialEnd && now > trialEnd;
 
       if (isTrialOver) {
-        profitGenerated = revenue * 0.03;
+        // Find orders completed after trial ended to calculate platform commission
+        const postTrialOrders = await Order.find({
+            store: store._id,
+            status: 'Completed',
+            createdAt: { $gt: trialEnd }
+        });
+        const postTrialRevenue = postTrialOrders.reduce((sum, o) => sum + o.totalAmount, 0);
+        profitGenerated = postTrialRevenue * 0.03;
       }
 
       // Add penalty profit from cancelled orders

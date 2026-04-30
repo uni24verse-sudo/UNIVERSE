@@ -408,12 +408,33 @@ const Dashboard = () => {
     const gross = completed.reduce((acc, curr) => acc + curr.totalAmount, 0);
     const cancelledVolume = cancelled.reduce((acc, curr) => acc + curr.totalAmount, 0);
 
-    const isTrial = store?.isTrialStarted && store?.daysLeftInTrial > 0;
-    const profitRate = isTrial ? 0 : 0.03;
+    const trialEnd = store?.trialEndDate ? new Date(store.trialEndDate) : null;
     const gatewayRate = 0.02;
     const penaltyRate = 0.04;
+    const platformRate = 0.03;
 
-    const deductions = (gross * gatewayRate) + (gross * profitRate) + (cancelledVolume * penaltyRate);
+    // Split revenue into trial (0% platform) and post-trial (3% platform)
+    let trialRevenue = 0;
+    let postTrialRevenue = 0;
+
+    if (store?.isTrialStarted && trialEnd) {
+      completed.forEach(order => {
+        if (new Date(order.createdAt) <= trialEnd) {
+          trialRevenue += order.totalAmount;
+        } else {
+          postTrialRevenue += order.totalAmount;
+        }
+      });
+    } else {
+      // If trial never started, everything is post-trial
+      postTrialRevenue = gross;
+    }
+
+    const gatewayFee = gross * gatewayRate;
+    const platformCommission = postTrialRevenue * platformRate;
+    const cancellationPenalty = cancelledVolume * penaltyRate;
+
+    const deductions = gatewayFee + platformCommission + cancellationPenalty;
     return { gross, net: gross - deductions };
   };
 
