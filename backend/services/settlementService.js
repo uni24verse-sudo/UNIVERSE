@@ -97,7 +97,8 @@ const generateSettlements = async (date = null, specificStoreId = null) => {
                     store: store._id,
                     settlementType: 'monthly',
                     month,
-                    year
+                    year,
+                    status: 'pending'
                 });
 
                 if (!settlement) {
