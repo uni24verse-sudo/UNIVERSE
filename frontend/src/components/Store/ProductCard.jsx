@@ -72,7 +72,21 @@ const ProductCard = ({ product, storeId, onVariantClick, storeClosed, index }) =
         </div>
 
         <h3 style={{ margin: '0 0 0.3rem 0', fontSize: '1rem', fontWeight: '800', color: 'var(--text-primary)', letterSpacing: '-0.01em', lineHeight: '1.2' }}>{product.name}</h3>
-        {product.description && <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: '1.4' }}>{product.description}</p>}
+        {product.description && (
+          <div style={{ 
+            margin: '0.1rem 0 0.75rem 0', 
+            fontSize: '0.8rem', 
+            color: 'var(--text-primary)', 
+            fontWeight: '800',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.4rem',
+            opacity: 0.9
+          }}>
+            <div style={{ width: '5px', height: '5px', borderRadius: '50%', background: 'var(--primary)' }}></div>
+            {product.description}
+          </div>
+        )}
         
         <div style={{ marginTop: 'auto', display: 'flex', alignItems: 'baseline', gap: '0.3rem' }}>
           <span style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--primary)' }}>₹</span>
