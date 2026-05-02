@@ -8,9 +8,10 @@ const ProductSchema = new mongoose.Schema({
   isAvailable: { type: Boolean, default: true },
   dietaryPreference: { 
     type: String, 
-    enum: ['veg', 'non-veg', 'none'], 
+    enum: ['veg', 'non-veg', 'egg', 'none'], 
     default: 'none' 
   },
+  description: { type: String, default: '' },
   variants: [{
     name: { type: String, required: true },
     price: { type: Number, required: true }

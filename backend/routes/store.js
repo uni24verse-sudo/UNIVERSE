@@ -124,7 +124,7 @@ router.get('/global/search', async (req, res) => {
            });
        }
        
-       const matchingProducts = store.products.filter(p => regex.test(p.name) || regex.test(p.category));
+       const matchingProducts = store.products.filter(p => regex.test(p.name) || regex.test(p.category) || (p.description && regex.test(p.description)));
        if (matchingProducts.length > 0) {
            matchedDishes.push({
                _id: store._id,
@@ -307,7 +307,7 @@ router.put('/:storeId/category-image', auth, upload.single('imageFile'), async (
 // Add a Product to Store
 router.post('/:storeId/product', auth, upload.single('imageFile'), async (req, res) => {
   try {
-    const { name, price, category, image, variants, isCombo, comboItems, freeItems, dietaryPreference } = req.body;
+    const { name, description, price, category, image, variants, isCombo, comboItems, freeItems, dietaryPreference } = req.body;
     let parsedVariants = [];
     if (variants) {
       try { parsedVariants = JSON.parse(variants); } catch (e) {}
@@ -342,6 +342,7 @@ router.post('/:storeId/product', auth, upload.single('imageFile'), async (req, r
 
     store.products.push({ 
       name, 
+      description: description || '',
       price, 
       category: category || 'Uncategorized', 
       image: finalImage, 
@@ -424,7 +425,7 @@ router.put('/:storeId/product/:productId/toggle', auth, async (req, res) => {
 // Edit a Product in Store
 router.put('/:storeId/product/:productId', auth, upload.single('imageFile'), async (req, res) => {
   try {
-    const { name, price, category, image, variants, isCombo, comboItems, freeItems, dietaryPreference } = req.body;
+    const { name, description, price, category, image, variants, isCombo, comboItems, freeItems, dietaryPreference } = req.body;
     
     const store = await Store.findOne({ _id: req.params.storeId, admin: req.admin._id });
     if (!store) return res.status(404).json({ message: 'Store not found or unauthorized' });
@@ -433,6 +434,7 @@ router.put('/:storeId/product/:productId', auth, upload.single('imageFile'), asy
     if (!product) return res.status(404).json({ message: 'Product not found' });
 
     if (name) product.name = name;
+    if (description !== undefined) product.description = description;
     if (price !== undefined) product.price = Number(price);
     if (category) product.category = category;
     if (dietaryPreference) product.dietaryPreference = dietaryPreference;

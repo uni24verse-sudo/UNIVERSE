@@ -52,7 +52,7 @@ const ManageStore = () => {
   const [scanError, setScanError] = useState('');
 
   // New/Edit product form
-  const [productForm, setProductForm] = useState({ _id: null, name: '', price: '', category: '', dietaryPreference: 'none', image: '', imageFile: null, variants: [], comboItems: [], freeItems: [] });
+  const [productForm, setProductForm] = useState({ _id: null, name: '', description: '', price: '', category: '', dietaryPreference: 'none', image: '', imageFile: null, variants: [], comboItems: [], freeItems: [] });
   const [hasVariants, setHasVariants] = useState(false);
   const [isComboDeal, setIsComboDeal] = useState(false);
   const [savingProduct, setSavingProduct] = useState(false);
@@ -150,6 +150,7 @@ const ManageStore = () => {
     try {
       const formData = new FormData();
       formData.append('name', productForm.name);
+      formData.append('description', productForm.description || '');
       formData.append('price', productForm.price);
       formData.append('category', productForm.category || 'Uncategorized');
       formData.append('dietaryPreference', productForm.dietaryPreference || 'none');
@@ -198,6 +199,7 @@ const ManageStore = () => {
     setProductForm({ 
       _id: product._id, 
       name: product.name, 
+      description: product.description || '',
       price: product.price, 
       category: product.category || '', 
       dietaryPreference: product.dietaryPreference || 'none',
@@ -214,7 +216,7 @@ const ManageStore = () => {
   };
 
   const cancelEdit = () => {
-    setProductForm({ _id: null, name: '', price: '', category: '', dietaryPreference: 'none', image: '', imageFile: null, variants: [], comboItems: [], freeItems: [] });
+    setProductForm({ _id: null, name: '', description: '', price: '', category: '', dietaryPreference: 'none', image: '', imageFile: null, variants: [], comboItems: [], freeItems: [] });
     setHasVariants(false);
     setIsComboDeal(false);
     if (fileInputRef.current) fileInputRef.current.value = "";
@@ -1149,6 +1151,17 @@ const ManageStore = () => {
                     required 
                   />
                 </div>
+                <div className="form-group" style={{ gridColumn: '1 / span 2' }}>
+                  <label className="form-label">Description (Optional)</label>
+                  <input 
+                    type="text" 
+                    placeholder="e.g. 6 pieces / Classic Steamed Momos" 
+                    className="form-input" 
+                    value={productForm.description} 
+                    onChange={e => setProductForm({...productForm, description: e.target.value})}
+                    style={{ height: '54px', borderRadius: '14px' }}
+                  />
+                </div>
                 <div className="form-group">
                   <label className="form-label">Price (₹)</label>
                   <input 
@@ -1462,6 +1475,7 @@ const ManageStore = () => {
                             {p.name} 
                             {p.isCombo && <span style={{ fontSize: '0.65rem', padding: '0.15rem 0.5rem', background: 'rgba(239, 68, 68, 0.1)', color: 'var(--error)', borderRadius: '6px', fontWeight: '800' }}>🎁 COMBO</span>}
                           </h4>
+                          {p.description && <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{p.description}</p>}
                           <div style={{ display: 'flex', alignItems: 'flex-start', flexDirection: 'column', gap: '0.2rem' }}>
                              {p.variants && p.variants.length > 0 ? (
                                <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginTop: '0.25rem', marginBottom: '0.25rem' }}>
