@@ -223,22 +223,23 @@ const Navbar = ({ bannerVisible }) => {
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '0.5rem',
-                padding: '0.4rem 0.75rem',
+                gap: '0.35rem',
+                padding: isMobile ? '0.35rem 0.6rem' : '0.4rem 0.75rem',
                 background: '#f8fafc',
                 border: '1px solid var(--surface-border)',
                 borderRadius: '100px',
                 cursor: 'pointer',
                 transition: 'all 0.2s',
-                marginLeft: isMobile ? '0' : '0.5rem'
+                marginLeft: isMobile ? '0' : '0.5rem',
+                flexShrink: 0
               }}
               onMouseEnter={(e) => { e.currentTarget.style.background = '#ffffff'; e.currentTarget.style.borderColor = 'var(--primary)'; }}
               onMouseLeave={(e) => { e.currentTarget.style.background = '#f8fafc'; e.currentTarget.style.borderColor = 'var(--surface-border)'; }}
             >
-              <div style={{ width: '20px', height: '20px', background: 'var(--primary)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
-                <MapPin size={10} />
+              <div style={{ width: '18px', height: '18px', background: 'var(--primary)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
+                <MapPin size={9} />
               </div>
-              <span style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-primary)', maxWidth: isMobile ? '80px' : '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <span style={{ fontSize: '0.7rem', fontWeight: '800', color: 'var(--text-primary)', maxWidth: isMobile ? '70px' : '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {localStorage.getItem('universe_location_name') || 'Select Hub'}
               </span>
             </div>
@@ -248,7 +249,7 @@ const Navbar = ({ bannerVisible }) => {
       {/* Global Search Bar - Hidden on Store Pages and in Walled Garden */}
       {!location.pathname.startsWith('/store/') && !isStoreLocked && (
         <div 
-          className={`search-wrapper ${isSearchFocused ? 'focused' : ''}`}
+          className={`search-wrapper ${isSearchFocused ? 'focused mobile-expanded' : ''}`}
           ref={dropdownRef}
         >
           <div className="search-inner">
