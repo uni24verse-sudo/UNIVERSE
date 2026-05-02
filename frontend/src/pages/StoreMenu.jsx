@@ -274,15 +274,20 @@ const StoreMenu = () => {
         </div>
       </div>
 
-      <VariantModal 
-        selectedProduct={selectedProduct}
-        selectedVariant={selectedVariant}
-        setSelectedVariant={setSelectedVariant}
-        onClose={() => setShowVariantModal(false)}
-        addToCart={addToCart}
-        storeId={id}
-        storeClosed={storeClosed}
-      />
+      {showVariantModal && (
+        <VariantModal 
+          selectedProduct={selectedProduct}
+          selectedVariant={selectedVariant}
+          setSelectedVariant={setSelectedVariant}
+          onClose={() => {
+            setShowVariantModal(false);
+            setSelectedProduct(null);
+          }}
+          addToCart={addToCart}
+          storeId={id}
+          storeClosed={storeClosed}
+        />
+      )}
     </div>
   );
 };
