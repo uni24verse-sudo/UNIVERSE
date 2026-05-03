@@ -27,7 +27,7 @@ b) Payment gateway fees (approx. 2%) shall be borne solely by the Vendor.
 • After the trial period, the standard commission structure shall apply automatically.  
 • After the free trial, UniVerse will apply a Platform Commission of 5% on the Vendor's total monthly sales made through the Platform.  
 • This 5% breakdown is as follows:  
-a) 3% Platform Usage Fee (plus applicable 18% GST).  
+a) 3% Platform Usage Fee.  
 b) 2% Payment Gateway Processing Fee.  
 • There won't be any "hidden" service fees outside this structure.  
 • All commissions and taxes will be automatically deducted from monthly payouts.  
@@ -40,8 +40,9 @@ Razorpay).
 a) Deducting monthly commissions  
 b) Adjusting refunds, cancellations, or penalties as applicable  
 • Settlement Cycle:  
-a) Payouts shall be processed once every month.  
-b) Settlements will be released within 7 working days after the end of each month.  
+a) For stores in the free trial period, payouts are processed once every month.  
+b) For stores past the trial period, settlements are processed daily for the previous day's earnings.  
+c) Settlements will be released within 7 working days after the respective settlement period ends.  
 • UniVerse shall not be liable for delays caused by banking or payment gateway partners.  
 
 5. VENDOR OBLIGATIONS 
@@ -105,7 +106,7 @@ b) 2% UniVerse handling & processing fee
 • Refunds will be initiated within 24 hours of order cancellation.  
 
 12. AUTO-CANCELLATION OF ORDERS
-• If the Vendor does not accept/confirm an order within 3 minutes, the system will auto-cancel it.  
+• If the Vendor does not accept/confirm an order within 5 minutes, the system will auto-cancel it.  
 • Auto-cancelled orders shall be treated as Vendor Cancellations as per Clause 11.  
 • All applicable deductions will apply.  
 • UniVerse shall not be responsible for losses due to the Vendor’s delay, unavailability, or 
