@@ -98,7 +98,8 @@ const StoreMenu = () => {
               localStorage.setItem('universe_location_name', targetLoc.name);
               localStorage.setItem('universe_location_type', targetLoc.type || 'College');
             }
-            window.location.reload();
+            // Trigger smooth global sync without reload
+            window.dispatchEvent(new CustomEvent('universe_set_location', { detail: targetLoc }));
           }
         }
       } catch (err) {

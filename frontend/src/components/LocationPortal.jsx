@@ -9,7 +9,6 @@ const LocationPortal = ({ onLocationSelect }) => {
   const [loading, setLoading] = useState(true);
   const [activeType, setActiveType] = useState('College');
   const [searchQuery, setSearchQuery] = useState('');
-  const [isSplashComplete, setIsSplashComplete] = useState(false);
 
   useEffect(() => {
     // 1. Fetch all locations
@@ -26,13 +25,6 @@ const LocationPortal = ({ onLocationSelect }) => {
     };
 
     fetchLocations();
-
-    // 2. Splash screen duration
-    const timer = setTimeout(() => {
-      setIsSplashComplete(true);
-    }, 1600);
-
-    return () => clearTimeout(timer);
   }, []);
 
   const filteredLocations = locations.filter(loc => 
@@ -56,22 +48,6 @@ const LocationPortal = ({ onLocationSelect }) => {
         <div className="portal-bg-blob blob-2"></div>
       </div>
 
-      {/* 2. SPLASH SCREEN */}
-      {!isSplashComplete && (
-        <div className="portal-splash-screen">
-          <div className="logo-container">
-            <img src={logoFull} alt="UNIVERSE" className="splash-logo" />
-          </div>
-          <div className="splash-text-container">
-            <div className="splash-text">One Unified Ordering Hub</div>
-          </div>
-          <div className="splash-loader">
-            <div className="loader-bar">
-              <div className="loader-progress"></div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* 2. SELECTION SCREEN */}
       <div className="portal-selection-screen">

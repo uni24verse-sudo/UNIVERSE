@@ -25,6 +25,7 @@ import Footer from './components/Footer';
 import NotificationsToast from './components/NotificationsToast';
 import FloatingCart from './components/FloatingCart';
 import LocationPortal from './components/LocationPortal';
+import SplashScreen from './components/SplashScreen';
 import ScrollToTop from './components/ScrollToTop';
 import SessionGuard from './components/SessionGuard';
 import { Sparkles, Zap, MapPin } from 'lucide-react';
@@ -64,22 +65,34 @@ const TopPromoBanner = () => {
 const AppLayout = () => {
   const location = useLocation();
   const [selectedLocationId, setSelectedLocationId] = React.useState(localStorage.getItem('universe_location_id'));
+  const [isSessionStarted, setIsSessionStarted] = React.useState(false);
   const isAdminPath = location.pathname.startsWith('/vendor') || location.pathname.startsWith('/super-admin');
 
   React.useEffect(() => {
     const handleClearLocation = () => {
       setSelectedLocationId(null);
     };
+    const handleSetLocation = (e) => {
+      setSelectedLocationId(e.detail?._id || e.detail);
+    };
     window.addEventListener('universe_clear_location', handleClearLocation);
-    return () => window.removeEventListener('universe_clear_location', handleClearLocation);
+    window.addEventListener('universe_set_location', handleSetLocation);
+    return () => {
+      window.removeEventListener('universe_clear_location', handleClearLocation);
+      window.removeEventListener('universe_set_location', handleSetLocation);
+    };
   }, []);
 
   const handleLocationSelect = (loc) => {
     setSelectedLocationId(loc._id);
   };
 
-  // If no location is selected and we are NOT on an admin path, show the portal
-  if (!selectedLocationId && !isAdminPath) {
+  if (!isSessionStarted && !isAdminPath) {
+    return <SplashScreen onComplete={() => setIsSessionStarted(true)} />;
+  }
+
+  // If no location is selected and we are NOT on an admin path or a direct store path, show the portal
+  if (!selectedLocationId && !isAdminPath && !location.pathname.startsWith('/store/')) {
     return <LocationPortal onLocationSelect={handleLocationSelect} />;
   }
 
