@@ -1377,8 +1377,9 @@ const Dashboard = () => {
             </div>
 
             {/* Analytics Section */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '1rem' }}>
-              <h3 style={{ fontSize: '1.25rem', fontWeight: '800', margin: 0, color: 'var(--text-primary)' }}>Business Insights</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', order: isMobile ? 2 : 1 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '1rem' }}>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: '800', margin: 0, color: 'var(--text-primary)' }}>Business Insights</h3>
               
               <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
                 {analyticsTimeframe === 'custom' && (
@@ -1425,7 +1426,7 @@ const Dashboard = () => {
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '2fr 1fr', gap: '1.5rem', marginBottom: '2rem', order: isMobile ? 2 : 1 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '2fr 1fr', gap: '1.5rem', marginBottom: '2rem' }}>
               <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '24px' }}>
                 <h4 style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><TrendingUp size={18} /> {analyticsTimeframe === 'today' ? "Today's Rush Heatmap" : "Historical Volume"}</h4>
                 <div style={{ height: '200px', width: '100%' }}>
@@ -1455,6 +1456,9 @@ const Dashboard = () => {
                     <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Not enough data for this period.</p>
                   )}
                 </div>
+              </div>
+            </div>
+
               </div>
             </div>
 
