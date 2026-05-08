@@ -1458,8 +1458,6 @@ const Dashboard = () => {
                 </div>
               </div>
             </div>
-
-              </div>
             </div>
 
             {/* Stats Cards - Moved below Live Orders on mobile */}
