@@ -109,6 +109,7 @@ const Dashboard = () => {
   const [verifyingScan, setVerifyingScan] = useState(false);
   const [scanResult, setScanResult] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [analyticsTimeframe, setAnalyticsTimeframe] = useState('today'); // 'today', 'week', 'month'
   const [activeTab, setActiveTab] = useState('orders'); // 'orders', 'finance', 'kds'
 
   useEffect(() => {
@@ -450,24 +451,56 @@ const Dashboard = () => {
   const cancelledOrders = orders.filter(o => o.status === 'Cancelled').length;
 
   // --- NEW ANALYTICS ---
-  const getHourlyData = () => {
-    const hours = Array.from({ length: 24 }, () => 0);
-    todayOrders.forEach(o => {
-      const h = new Date(o.createdAt).getHours();
-      hours[h]++;
-    });
-    return hours.map((count, h) => ({
-      hour: `${h}:00`,
-      orders: count
-    })).filter((d, i) => {
-      const currentHour = new Date().getHours();
-      return d.orders > 0 || (i >= currentHour - 3 && i <= currentHour + 3);
-    });
+  const getChartData = () => {
+    let sourceOrders = todayOrders;
+    if (analyticsTimeframe === 'week') sourceOrders = weeklyOrders;
+    if (analyticsTimeframe === 'month') sourceOrders = monthlyOrders;
+
+    if (analyticsTimeframe === 'today') {
+      const hours = Array.from({ length: 24 }, () => 0);
+      sourceOrders.forEach(o => {
+        const h = new Date(o.createdAt).getHours();
+        hours[h]++;
+      });
+      return hours.map((count, h) => ({
+        label: `${h}:00`,
+        orders: count
+      })).filter((d, i) => {
+        const currentHour = new Date().getHours();
+        return d.orders > 0 || (i >= currentHour - 3 && i <= currentHour + 3);
+      });
+    } else if (analyticsTimeframe === 'week') {
+      const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      const dayCounts = [0, 0, 0, 0, 0, 0, 0];
+      sourceOrders.forEach(o => {
+        const d = new Date(o.createdAt).getDay();
+        dayCounts[d]++;
+      });
+      return days.map((day, i) => ({
+        label: day,
+        orders: dayCounts[i]
+      }));
+    } else {
+       // Month
+       const dateCounts = {};
+       sourceOrders.forEach(o => {
+         const d = new Date(o.createdAt).getDate();
+         dateCounts[d] = (dateCounts[d] || 0) + 1;
+       });
+       return Object.keys(dateCounts).sort((a,b) => a-b).map(d => ({
+         label: `${d}`,
+         orders: dateCounts[d]
+       }));
+    }
   };
 
   const getTrendingItems = () => {
+    let sourceOrders = todayOrders;
+    if (analyticsTimeframe === 'week') sourceOrders = weeklyOrders;
+    if (analyticsTimeframe === 'month') sourceOrders = monthlyOrders;
+
     const itemCounts = {};
-    todayOrders.filter(o => o.status !== 'Cancelled').forEach(o => {
+    sourceOrders.filter(o => o.status !== 'Cancelled').forEach(o => {
       o.items.forEach(item => {
         itemCounts[item.name] = (itemCounts[item.name] || 0) + item.quantity;
       });
@@ -475,10 +508,10 @@ const Dashboard = () => {
     return Object.entries(itemCounts)
       .map(([name, count]) => ({ name, count }))
       .sort((a, b) => b.count - a.count)
-      .slice(0, 3);
+      .slice(0, 5);
   };
   const trendingItems = getTrendingItems();
-  const hourlyData = getHourlyData();
+  const chartData = getChartData();
 
   // --- KDS UTILS ---
   const getKdsTimerStyle = (order) => {
@@ -1275,17 +1308,44 @@ const Dashboard = () => {
             </div>
 
             {/* Analytics Section */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '1rem' }}>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: '800', margin: 0, color: 'var(--text-primary)' }}>Business Insights</h3>
+              <div style={{ display: 'flex', background: 'var(--surface-border)', borderRadius: '12px', padding: '0.25rem' }}>
+                {['today', 'week', 'month'].map(tf => (
+                  <button 
+                    key={tf}
+                    onClick={() => setAnalyticsTimeframe(tf)}
+                    style={{ 
+                      padding: '0.4rem 1rem', 
+                      borderRadius: '8px', 
+                      border: 'none', 
+                      background: analyticsTimeframe === tf ? 'var(--surface)' : 'transparent', 
+                      color: analyticsTimeframe === tf ? 'var(--primary)' : 'var(--text-secondary)',
+                      fontWeight: analyticsTimeframe === tf ? '800' : '600',
+                      fontSize: '0.8rem',
+                      textTransform: 'capitalize',
+                      boxShadow: analyticsTimeframe === tf ? '0 2px 4px rgba(0,0,0,0.05)' : 'none',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    {tf === 'today' ? 'Today' : tf === 'week' ? 'This Week' : 'This Month'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '2fr 1fr', gap: '1.5rem', marginBottom: '2rem', order: isMobile ? 2 : 1 }}>
               <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '24px' }}>
-                <h4 style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><TrendingUp size={18} /> Today's Rush Heatmap</h4>
+                <h4 style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><TrendingUp size={18} /> {analyticsTimeframe === 'today' ? "Today's Rush Heatmap" : analyticsTimeframe === 'week' ? "Weekly Volume" : "Monthly Volume"}</h4>
                 <div style={{ height: '200px', width: '100%' }}>
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={hourlyData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
-                      <XAxis dataKey="hour" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: 'var(--text-secondary)' }} />
+                    <BarChart data={chartData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
+                      <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: 'var(--text-secondary)' }} />
                       <YAxis allowDecimals={false} axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: 'var(--text-secondary)' }} />
                       <Tooltip cursor={{ fill: 'rgba(99, 102, 241, 0.05)' }} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
                       <Bar dataKey="orders" fill="var(--primary)" radius={[4, 4, 0, 0]}>
-                        {hourlyData.map((entry, index) => (
+                        {chartData.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={entry.orders > 5 ? '#f59e0b' : 'var(--primary)'} />
                         ))}
                       </Bar>
@@ -1302,7 +1362,7 @@ const Dashboard = () => {
                       <span style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', padding: '0.25rem 0.75rem', borderRadius: '100px', fontSize: '0.75rem', fontWeight: '800' }}>{item.count} Sold</span>
                     </div>
                   )) : (
-                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Not enough data today.</p>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Not enough data for this period.</p>
                   )}
                 </div>
               </div>
