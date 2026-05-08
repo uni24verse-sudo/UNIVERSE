@@ -109,7 +109,13 @@ const Dashboard = () => {
   const [verifyingScan, setVerifyingScan] = useState(false);
   const [scanResult, setScanResult] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [analyticsTimeframe, setAnalyticsTimeframe] = useState('today'); // 'today', 'week', 'month'
+  const [analyticsTimeframe, setAnalyticsTimeframe] = useState('today'); // 'today', 'week', 'month', 'custom'
+  const [customStartDate, setCustomStartDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 7);
+    return d.toISOString().split('T')[0];
+  });
+  const [customEndDate, setCustomEndDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [activeTab, setActiveTab] = useState('orders'); // 'orders', 'finance', 'kds'
 
   useEffect(() => {
@@ -451,10 +457,24 @@ const Dashboard = () => {
   const cancelledOrders = orders.filter(o => o.status === 'Cancelled').length;
 
   // --- NEW ANALYTICS ---
+  const getFilteredAnalyticsOrders = () => {
+    if (analyticsTimeframe === 'today') return todayOrders;
+    if (analyticsTimeframe === 'week') return weeklyOrders;
+    if (analyticsTimeframe === 'month') return monthlyOrders;
+    
+    const start = new Date(customStartDate);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(customEndDate);
+    end.setHours(23, 59, 59, 999);
+    
+    return orders.filter(o => {
+      const d = new Date(o.createdAt);
+      return d >= start && d <= end;
+    });
+  };
+
   const getChartData = () => {
-    let sourceOrders = todayOrders;
-    if (analyticsTimeframe === 'week') sourceOrders = weeklyOrders;
-    if (analyticsTimeframe === 'month') sourceOrders = monthlyOrders;
+    const sourceOrders = getFilteredAnalyticsOrders();
 
     if (analyticsTimeframe === 'today') {
       const hours = Array.from({ length: 24 }, () => 0);
@@ -481,23 +501,36 @@ const Dashboard = () => {
         orders: dayCounts[i]
       }));
     } else {
-       // Month
-       const dateCounts = {};
+       // Month or Custom
+       let start, end;
+       if (analyticsTimeframe === 'month') {
+          start = new Date(); start.setDate(1); start.setHours(0,0,0,0);
+          end = new Date(); end.setHours(23,59,59,999);
+       } else {
+          start = new Date(customStartDate); start.setHours(0,0,0,0);
+          end = new Date(customEndDate); end.setHours(23,59,59,999);
+       }
+       
+       const dateMap = {};
+       for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+          const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+          dateMap[dateStr] = 0;
+       }
+       
        sourceOrders.forEach(o => {
-         const d = new Date(o.createdAt).getDate();
-         dateCounts[d] = (dateCounts[d] || 0) + 1;
+          const dateStr = new Date(o.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+          if (dateMap[dateStr] !== undefined) dateMap[dateStr]++;
        });
-       return Object.keys(dateCounts).sort((a,b) => a-b).map(d => ({
-         label: `${d}`,
-         orders: dateCounts[d]
+       
+       return Object.keys(dateMap).map(label => ({
+          label,
+          orders: dateMap[label]
        }));
     }
   };
 
   const getTrendingItems = () => {
-    let sourceOrders = todayOrders;
-    if (analyticsTimeframe === 'week') sourceOrders = weeklyOrders;
-    if (analyticsTimeframe === 'month') sourceOrders = monthlyOrders;
+    const sourceOrders = getFilteredAnalyticsOrders();
 
     const itemCounts = {};
     sourceOrders.filter(o => o.status !== 'Cancelled').forEach(o => {
@@ -1310,34 +1343,55 @@ const Dashboard = () => {
             {/* Analytics Section */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '1rem' }}>
               <h3 style={{ fontSize: '1.25rem', fontWeight: '800', margin: 0, color: 'var(--text-primary)' }}>Business Insights</h3>
-              <div style={{ display: 'flex', background: 'var(--surface-border)', borderRadius: '12px', padding: '0.25rem' }}>
-                {['today', 'week', 'month'].map(tf => (
-                  <button 
-                    key={tf}
-                    onClick={() => setAnalyticsTimeframe(tf)}
-                    style={{ 
-                      padding: '0.4rem 1rem', 
-                      borderRadius: '8px', 
-                      border: 'none', 
-                      background: analyticsTimeframe === tf ? 'var(--surface)' : 'transparent', 
-                      color: analyticsTimeframe === tf ? 'var(--primary)' : 'var(--text-secondary)',
-                      fontWeight: analyticsTimeframe === tf ? '800' : '600',
-                      fontSize: '0.8rem',
-                      textTransform: 'capitalize',
-                      boxShadow: analyticsTimeframe === tf ? '0 2px 4px rgba(0,0,0,0.05)' : 'none',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s ease'
-                    }}
-                  >
-                    {tf === 'today' ? 'Today' : tf === 'week' ? 'This Week' : 'This Month'}
-                  </button>
-                ))}
+              
+              <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                {analyticsTimeframe === 'custom' && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'var(--surface)', padding: '0.25rem 0.5rem', borderRadius: '12px', border: '1px solid var(--surface-border)' }}>
+                    <input 
+                      type="date" 
+                      value={customStartDate} 
+                      onChange={(e) => setCustomStartDate(e.target.value)}
+                      style={{ border: 'none', background: 'transparent', outline: 'none', fontSize: '0.8rem', color: 'var(--text-primary)', fontFamily: 'inherit', fontWeight: '600' }}
+                    />
+                    <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>to</span>
+                    <input 
+                      type="date" 
+                      value={customEndDate} 
+                      onChange={(e) => setCustomEndDate(e.target.value)}
+                      style={{ border: 'none', background: 'transparent', outline: 'none', fontSize: '0.8rem', color: 'var(--text-primary)', fontFamily: 'inherit', fontWeight: '600' }}
+                    />
+                  </div>
+                )}
+                
+                <div style={{ display: 'flex', background: 'var(--surface-border)', borderRadius: '12px', padding: '0.25rem' }}>
+                  {['today', 'week', 'month', 'custom'].map(tf => (
+                    <button 
+                      key={tf}
+                      onClick={() => setAnalyticsTimeframe(tf)}
+                      style={{ 
+                        padding: '0.4rem 1rem', 
+                        borderRadius: '8px', 
+                        border: 'none', 
+                        background: analyticsTimeframe === tf ? 'var(--surface)' : 'transparent', 
+                        color: analyticsTimeframe === tf ? 'var(--primary)' : 'var(--text-secondary)',
+                        fontWeight: analyticsTimeframe === tf ? '800' : '600',
+                        fontSize: '0.8rem',
+                        textTransform: 'capitalize',
+                        boxShadow: analyticsTimeframe === tf ? '0 2px 4px rgba(0,0,0,0.05)' : 'none',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease'
+                      }}
+                    >
+                      {tf === 'today' ? 'Today' : tf === 'week' ? 'Week' : tf === 'month' ? 'Month' : 'Custom'}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '2fr 1fr', gap: '1.5rem', marginBottom: '2rem', order: isMobile ? 2 : 1 }}>
               <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '24px' }}>
-                <h4 style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><TrendingUp size={18} /> {analyticsTimeframe === 'today' ? "Today's Rush Heatmap" : analyticsTimeframe === 'week' ? "Weekly Volume" : "Monthly Volume"}</h4>
+                <h4 style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><TrendingUp size={18} /> {analyticsTimeframe === 'today' ? "Today's Rush Heatmap" : "Historical Volume"}</h4>
                 <div style={{ height: '200px', width: '100%' }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={chartData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
