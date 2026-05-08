@@ -30,6 +30,7 @@ import {
   Volume2,
   Search
 } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
 const CountdownTimer = ({ deadline, onAccept }) => {
   const [timeLeft, setTimeLeft] = useState(0);
@@ -108,7 +109,7 @@ const Dashboard = () => {
   const [verifyingScan, setVerifyingScan] = useState(false);
   const [scanResult, setScanResult] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeTab, setActiveTab] = useState('orders'); // 'orders' or 'finance'
+  const [activeTab, setActiveTab] = useState('orders'); // 'orders', 'finance', 'kds'
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 1024);
@@ -448,6 +449,64 @@ const Dashboard = () => {
   const completedOrders = orders.filter(o => o.status === 'Completed').length;
   const cancelledOrders = orders.filter(o => o.status === 'Cancelled').length;
 
+  // --- NEW ANALYTICS ---
+  const getHourlyData = () => {
+    const hours = Array.from({ length: 24 }, () => 0);
+    todayOrders.forEach(o => {
+      const h = new Date(o.createdAt).getHours();
+      hours[h]++;
+    });
+    return hours.map((count, h) => ({
+      hour: `${h}:00`,
+      orders: count
+    })).filter((d, i) => {
+      const currentHour = new Date().getHours();
+      return d.orders > 0 || (i >= currentHour - 3 && i <= currentHour + 3);
+    });
+  };
+
+  const getTrendingItems = () => {
+    const itemCounts = {};
+    todayOrders.filter(o => o.status !== 'Cancelled').forEach(o => {
+      o.items.forEach(item => {
+        itemCounts[item.name] = (itemCounts[item.name] || 0) + item.quantity;
+      });
+    });
+    return Object.entries(itemCounts)
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 3);
+  };
+  const trendingItems = getTrendingItems();
+  const hourlyData = getHourlyData();
+
+  // --- KDS UTILS ---
+  const getKdsTimerStyle = (order) => {
+    if (order.status === 'Ready') return { bg: '#3b82f615', text: '#3b82f6', border: '#3b82f6', label: 'WAITING PICKUP' };
+    
+    const now = new Date();
+    let diffMinutes = 0;
+    
+    if (order.isPreOrder && order.scheduledTime) {
+      const [hours, minutes] = order.scheduledTime.split(':').map(Number);
+      const scheduledDate = new Date();
+      scheduledDate.setHours(hours, minutes, 0, 0);
+      
+      diffMinutes = (scheduledDate - now) / 60000;
+      
+      if (diffMinutes < 0) return { bg: '#ef444415', text: '#ef4444', border: '#ef4444', label: 'OVERDUE' };
+      if (diffMinutes <= 15) return { bg: '#f59e0b15', text: '#f59e0b', border: '#f59e0b', label: `${Math.floor(diffMinutes)}m LEFT` };
+      return { bg: '#10b98115', text: '#10b981', border: '#10b981', label: `${Math.floor(diffMinutes)}m LEFT` };
+    } else {
+      diffMinutes = (now - new Date(order.createdAt)) / 60000;
+      if (diffMinutes > 20) return { bg: '#ef444415', text: '#ef4444', border: '#ef4444', label: `${Math.floor(diffMinutes)}m LATE` };
+      if (diffMinutes > 10) return { bg: '#f59e0b15', text: '#f59e0b', border: '#f59e0b', label: `${Math.floor(diffMinutes)}m WAITING` };
+      return { bg: '#10b98115', text: '#10b981', border: '#10b981', label: `${Math.floor(diffMinutes)}m WAITING` };
+    }
+  };
+  const kdsOrders = orders.filter(o => ['Pending', 'Confirmed', 'Cooking', 'Ready'].includes(o.status)).sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+  // ---------------------
+
   // Smart filtering
   const getFilteredOrders = () => {
     let filtered;
@@ -563,6 +622,9 @@ const Dashboard = () => {
             <p style={{ padding: '0 1rem', fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '1rem' }}>Main Menu</p>
             <button onClick={() => { setActiveTab('orders'); if (isMobile) setShowSidebar(false); }} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem', borderRadius: '14px', background: activeTab === 'orders' ? 'rgba(99, 102, 241, 0.1)' : 'transparent', color: activeTab === 'orders' ? 'var(--primary)' : 'var(--text-secondary)', fontWeight: activeTab === 'orders' ? '700' : '500', border: 'none', cursor: 'pointer', transition: 'var(--transition)' }}>
               <LayoutDashboard size={20} /> Dashboard
+            </button>
+            <button onClick={() => { setActiveTab('kds'); if (isMobile) setShowSidebar(false); }} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem', borderRadius: '14px', background: activeTab === 'kds' ? 'rgba(245, 158, 11, 0.1)' : 'transparent', color: activeTab === 'kds' ? '#f59e0b' : 'var(--text-secondary)', fontWeight: activeTab === 'kds' ? '700' : '500', border: 'none', cursor: 'pointer', transition: 'var(--transition)' }}>
+              <Utensils size={20} /> KDS View
             </button>
             <button onClick={() => { setActiveTab('finance'); if (isMobile) setShowSidebar(false); }} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem', borderRadius: '14px', background: activeTab === 'finance' ? 'rgba(16, 185, 129, 0.1)' : 'transparent', color: activeTab === 'finance' ? '#10b981' : 'var(--text-secondary)', fontWeight: activeTab === 'finance' ? '700' : '500', border: 'none', cursor: 'pointer', transition: 'var(--transition)' }}>
               <Banknote size={20} /> Settlements
@@ -802,6 +864,80 @@ const Dashboard = () => {
           </div>
         ) : activeTab === 'finance' ? (
           <VendorFinance storeId={store?._id} />
+        ) : activeTab === 'kds' ? (
+          <div style={{ padding: isMobile ? '0' : '1rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h2 style={{ fontSize: '1.5rem', fontWeight: '900', color: 'var(--text-primary)' }}>Kitchen Display</h2>
+              <button onClick={() => setShowScanner(true)} className="btn btn-primary" style={{ padding: '0.6rem 1.25rem', borderRadius: '100px', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                <QrCode size={18} /> {isMobile ? 'Scan' : 'Scan Handover'}
+              </button>
+            </div>
+            
+            {kdsOrders.length === 0 ? (
+               <div className="glass-card" style={{ padding: '4rem 2rem', textAlign: 'center', borderRadius: '24px' }}>
+                 <Utensils size={48} color="var(--text-secondary)" style={{ opacity: 0.2, marginBottom: '1rem' }} />
+                 <p style={{ color: 'var(--text-secondary)', fontSize: '1.1rem', fontWeight: '600' }}>Kitchen is clear. Great job!</p>
+               </div>
+            ) : (
+              <div style={{ 
+                display: 'grid', 
+                gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(320px, 1fr))', 
+                gap: '1.25rem',
+                alignItems: 'start'
+              }}>
+                {kdsOrders.map(order => {
+                  const tStyle = getKdsTimerStyle(order);
+                  return (
+                    <div key={order._id} style={{ 
+                      background: '#fff', 
+                      borderRadius: '20px', 
+                      border: `2px solid ${tStyle.border}`,
+                      boxShadow: '0 8px 24px rgba(0,0,0,0.06)',
+                      overflow: 'hidden',
+                      display: 'flex',
+                      flexDirection: 'column'
+                    }}>
+                      <div style={{ background: tStyle.bg, padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${tStyle.border}` }}>
+                        <span style={{ fontSize: '1.25rem', fontWeight: '900', color: tStyle.text }}>#{order.orderNumber}</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          {order.isPreOrder && <span style={{ background: '#8b5cf6', color: 'white', padding: '0.2rem 0.5rem', borderRadius: '6px', fontSize: '0.7rem', fontWeight: '800' }}>PRE: {order.scheduledTime}</span>}
+                          <span style={{ fontWeight: '900', color: tStyle.text, fontSize: '0.875rem' }}>{tStyle.label}</span>
+                        </div>
+                      </div>
+                      
+                      <div style={{ padding: '1.25rem', flex: 1 }}>
+                        <div style={{ marginBottom: '1rem' }}>
+                          {order.items.map((item, idx) => (
+                            <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.1rem', fontWeight: '700', marginBottom: '0.5rem', borderBottom: idx !== order.items.length - 1 ? '1px dashed var(--surface-border)' : 'none', paddingBottom: idx !== order.items.length - 1 ? '0.5rem' : '0' }}>
+                              <span>{item.quantity}x {item.name} {item.variant && <span style={{fontSize:'0.8rem', color:'var(--text-secondary)'}}>({item.variant})</span>}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div style={{ padding: '1rem', background: 'var(--surface)', borderTop: '1px solid var(--surface-border)', display: 'flex', gap: '0.75rem' }}>
+                        {order.status === 'Pending' && (
+                          <button onClick={() => updateOrderStatus(order._id, 'Confirmed')} style={{ flex: 1, padding: '1rem', borderRadius: '12px', background: '#3b82f6', color: 'white', fontWeight: '800', border: 'none', fontSize: '1rem' }}>
+                            Accept Order
+                          </button>
+                        )}
+                        {order.status === 'Confirmed' && (
+                          <button onClick={() => updateOrderStatus(order._id, 'Ready')} style={{ flex: 1, padding: '1rem', borderRadius: '12px', background: '#10b981', color: 'white', fontWeight: '800', border: 'none', fontSize: '1rem' }}>
+                            Mark Ready
+                          </button>
+                        )}
+                        {order.status === 'Ready' && (
+                          <button onClick={() => setShowScanner(true)} style={{ flex: 1, padding: '1rem', borderRadius: '12px', background: 'var(--primary)', color: 'white', fontWeight: '800', border: 'none', fontSize: '1rem', display:'flex', justifyContent:'center', alignItems:'center', gap:'0.5rem' }}>
+                            <QrCode size={18} /> Scan to Handover
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         ) : (
           <>
           <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? '1.5rem' : '0' }}>
@@ -1138,8 +1274,42 @@ const Dashboard = () => {
               </div>
             </div>
 
+            {/* Analytics Section */}
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '2fr 1fr', gap: '1.5rem', marginBottom: '2rem', order: isMobile ? 2 : 1 }}>
+              <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '24px' }}>
+                <h4 style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><TrendingUp size={18} /> Today's Rush Heatmap</h4>
+                <div style={{ height: '200px', width: '100%' }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={hourlyData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
+                      <XAxis dataKey="hour" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: 'var(--text-secondary)' }} />
+                      <YAxis allowDecimals={false} axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: 'var(--text-secondary)' }} />
+                      <Tooltip cursor={{ fill: 'rgba(99, 102, 241, 0.05)' }} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
+                      <Bar dataKey="orders" fill="var(--primary)" radius={[4, 4, 0, 0]}>
+                        {hourlyData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.orders > 5 ? '#f59e0b' : 'var(--primary)'} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+              <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '24px' }}>
+                <h4 style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><ShoppingBag size={18} /> Trending Items</h4>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  {trendingItems.length > 0 ? trendingItems.map((item, idx) => (
+                    <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.5)', padding: '0.75rem 1rem', borderRadius: '12px' }}>
+                      <span style={{ fontWeight: '700', fontSize: '0.9rem' }}>{item.name}</span>
+                      <span style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', padding: '0.25rem 0.75rem', borderRadius: '100px', fontSize: '0.75rem', fontWeight: '800' }}>{item.count} Sold</span>
+                    </div>
+                  )) : (
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Not enough data today.</p>
+                  )}
+                </div>
+              </div>
+            </div>
+
             {/* Stats Cards - Moved below Live Orders on mobile */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem', marginBottom: '3rem', order: isMobile ? 2 : 1 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem', marginBottom: '3rem', order: isMobile ? 3 : 2 }}>
               <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '24px', position: 'relative', overflow: 'hidden', border: '1px solid rgba(16, 185, 129, 0.1)' }}>
                 <div style={{ position: 'absolute', right: '-10px', bottom: '-10px', opacity: 0.05, color: '#10b981' }}><Banknote size={100} /></div>
                 <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: '800', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Today's Net Profit</p>
