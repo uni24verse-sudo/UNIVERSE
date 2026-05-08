@@ -117,6 +117,12 @@ const Dashboard = () => {
   });
   const [customEndDate, setCustomEndDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [activeTab, setActiveTab] = useState('orders'); // 'orders', 'finance', 'kds'
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  useEffect(() => {
+    const timerId = setInterval(() => setCurrentTime(new Date()), 30000); // 30s tick
+    return () => clearInterval(timerId);
+  }, []);
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 1024);
@@ -550,7 +556,7 @@ const Dashboard = () => {
   const getKdsTimerStyle = (order) => {
     if (order.status === 'Ready') return { bg: '#3b82f615', text: '#3b82f6', border: '#3b82f6', label: 'WAITING PICKUP' };
     
-    const now = new Date();
+    const now = currentTime;
     let diffMinutes = 0;
     
     if (order.isPreOrder && order.scheduledTime) {
@@ -964,7 +970,12 @@ const Dashboard = () => {
                       flexDirection: 'column'
                     }}>
                       <div style={{ background: tStyle.bg, padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${tStyle.border}` }}>
-                        <span style={{ fontSize: '1.25rem', fontWeight: '900', color: tStyle.text }}>#{order.orderNumber}</span>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                          <span style={{ fontSize: '1.25rem', fontWeight: '900', color: tStyle.text }}>#{order.orderNumber}</span>
+                          <span style={{ fontSize: '0.75rem', fontWeight: '800', color: tStyle.text, textTransform: 'uppercase', opacity: 0.8 }}>
+                            {order.orderType === 'Take Away' ? '🎒 Take Away' : '🍽️ Dine In'}
+                          </span>
+                        </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                           {order.isPreOrder && <span style={{ background: '#8b5cf6', color: 'white', padding: '0.2rem 0.5rem', borderRadius: '6px', fontSize: '0.7rem', fontWeight: '800' }}>PRE: {order.scheduledTime}</span>}
                           <span style={{ fontWeight: '900', color: tStyle.text, fontSize: '0.875rem' }}>{tStyle.label}</span>
@@ -974,8 +985,20 @@ const Dashboard = () => {
                       <div style={{ padding: '1.25rem', flex: 1 }}>
                         <div style={{ marginBottom: '1rem' }}>
                           {order.items.map((item, idx) => (
-                            <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.1rem', fontWeight: '700', marginBottom: '0.5rem', borderBottom: idx !== order.items.length - 1 ? '1px dashed var(--surface-border)' : 'none', paddingBottom: idx !== order.items.length - 1 ? '0.5rem' : '0' }}>
-                              <span>{item.quantity}x {item.name} {item.variant && <span style={{fontSize:'0.8rem', color:'var(--text-secondary)'}}>({item.variant})</span>}</span>
+                            <div key={idx} style={{ marginBottom: idx === order.items.length - 1 ? 0 : '0.75rem', borderBottom: idx !== order.items.length - 1 ? '1px dashed var(--surface-border)' : 'none', paddingBottom: idx !== order.items.length - 1 ? '0.75rem' : '0' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.1rem', fontWeight: '700' }}>
+                                <span>{item.quantity}x {item.name} {item.variant && <span style={{fontSize:'0.8rem', color:'var(--text-secondary)'}}>({item.variant})</span>}</span>
+                              </div>
+                              {item.isCombo && (
+                                <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', paddingLeft: '1rem', marginTop: '0.4rem', borderLeft: '2px solid var(--surface-border)', marginLeft: '0.25rem' }}>
+                                  {item.comboItems?.map((ci, cidx) => (
+                                    <div key={cidx} style={{ marginBottom: '0.2rem', fontWeight: '600' }}>• {ci.quantity} {ci.name}</div>
+                                  ))}
+                                  {item.freeItems?.map((fi, fidx) => (
+                                    <div key={fidx} style={{ color: '#10b981', fontWeight: '700', marginTop: '0.2rem' }}>+ Free {fi.quantity} {fi.name}</div>
+                                  ))}
+                                </div>
+                              )}
                             </div>
                           ))}
                         </div>
