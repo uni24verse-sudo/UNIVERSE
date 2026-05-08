@@ -970,15 +970,28 @@ const Dashboard = () => {
                       flexDirection: 'column'
                     }}>
                       <div style={{ background: tStyle.bg, padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${tStyle.border}` }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', alignItems: 'flex-start' }}>
                           <span style={{ fontSize: '1.25rem', fontWeight: '900', color: tStyle.text }}>#{order.orderNumber}</span>
-                          <span style={{ fontSize: '0.75rem', fontWeight: '800', color: tStyle.text, textTransform: 'uppercase', opacity: 0.8 }}>
-                            {order.orderType === 'Take Away' ? '🎒 Take Away' : '🍽️ Dine In'}
+                          <span style={{ 
+                            display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
+                            fontSize: '0.65rem', fontWeight: '900', color: order.orderType === 'Take Away' ? '#d97706' : '#7c3aed', 
+                            textTransform: 'uppercase', background: 'white', padding: '0.25rem 0.5rem', borderRadius: '100px',
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
+                          }}>
+                            {order.orderType === 'Take Away' ? <Package size={12} /> : <Utensils size={12} />}
+                            {order.orderType === 'Take Away' ? 'Take Away' : 'Dine In'}
                           </span>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                          {order.isPreOrder && <span style={{ background: '#8b5cf6', color: 'white', padding: '0.2rem 0.5rem', borderRadius: '6px', fontSize: '0.7rem', fontWeight: '800' }}>PRE: {order.scheduledTime}</span>}
-                          <span style={{ fontWeight: '900', color: tStyle.text, fontSize: '0.875rem' }}>{tStyle.label}</span>
+                          {order.isPreOrder && <span style={{ background: '#8b5cf6', color: 'white', padding: '0.25rem 0.5rem', borderRadius: '8px', fontSize: '0.7rem', fontWeight: '900', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>PRE: {order.scheduledTime}</span>}
+                          <span style={{ 
+                            background: tStyle.text, color: 'white', 
+                            padding: '0.35rem 0.75rem', borderRadius: '100px', 
+                            fontWeight: '900', fontSize: '0.85rem',
+                            boxShadow: `0 4px 12px ${tStyle.text}44`
+                          }}>
+                            {tStyle.label}
+                          </span>
                         </div>
                       </div>
                       
