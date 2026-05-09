@@ -97,19 +97,19 @@ const NewFeatureBadge = () => (
   <span style={{ 
     background: 'linear-gradient(135deg, #ec4899, #8b5cf6)', 
     color: 'white', 
-    fontSize: '0.55rem', 
+    fontSize: '0.65rem', 
     fontWeight: '900', 
-    padding: '0.15rem 0.4rem', 
+    padding: '0.2rem 0.5rem', 
     borderRadius: '100px', 
     letterSpacing: '0.05em', 
     boxShadow: '0 2px 8px rgba(139, 92, 246, 0.4)',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
     marginLeft: '0.5rem',
-    verticalAlign: 'middle',
-    position: 'relative',
-    top: '-2px',
     animation: 'pulse-glow 2s infinite ease-in-out'
   }}>
-    NEW ✨
+    NEW
   </span>
 );
 
@@ -715,8 +715,11 @@ const Dashboard = () => {
             <button onClick={() => { setActiveTab('orders'); if (isMobile) setShowSidebar(false); }} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem', borderRadius: '14px', background: activeTab === 'orders' ? 'rgba(99, 102, 241, 0.1)' : 'transparent', color: activeTab === 'orders' ? 'var(--primary)' : 'var(--text-secondary)', fontWeight: activeTab === 'orders' ? '700' : '500', border: 'none', cursor: 'pointer', transition: 'var(--transition)' }}>
               <LayoutDashboard size={20} /> Dashboard
             </button>
-            <button onClick={() => { setActiveTab('kds'); if (isMobile) setShowSidebar(false); }} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem', borderRadius: '14px', background: activeTab === 'kds' ? 'rgba(245, 158, 11, 0.1)' : 'transparent', color: activeTab === 'kds' ? '#f59e0b' : 'var(--text-secondary)', fontWeight: activeTab === 'kds' ? '700' : '500', border: 'none', cursor: 'pointer', transition: 'var(--transition)' }}>
-              <Utensils size={20} /> KDS View <NewFeatureBadge />
+            <button onClick={() => { setActiveTab('kds'); if (isMobile) setShowSidebar(false); }} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem', borderRadius: '14px', background: activeTab === 'kds' ? 'rgba(245, 158, 11, 0.1)' : 'transparent', color: activeTab === 'kds' ? '#f59e0b' : 'var(--text-secondary)', fontWeight: activeTab === 'kds' ? '700' : '500', border: 'none', cursor: 'pointer', transition: 'var(--transition)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                <Utensils size={20} /> KDS View
+              </div>
+              <NewFeatureBadge />
             </button>
             <button onClick={() => { setActiveTab('finance'); if (isMobile) setShowSidebar(false); }} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem', borderRadius: '14px', background: activeTab === 'finance' ? 'rgba(16, 185, 129, 0.1)' : 'transparent', color: activeTab === 'finance' ? '#10b981' : 'var(--text-secondary)', fontWeight: activeTab === 'finance' ? '700' : '500', border: 'none', cursor: 'pointer', transition: 'var(--transition)' }}>
               <Banknote size={20} /> Settlements
@@ -1399,7 +1402,7 @@ const Dashboard = () => {
             {/* Analytics Section */}
             <div style={{ display: 'flex', flexDirection: 'column', order: isMobile ? 2 : 1 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '1rem' }}>
-                <h3 style={{ fontSize: '1.25rem', fontWeight: '800', margin: 0, color: 'var(--text-primary)' }}>Business Insights <NewFeatureBadge /></h3>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: '800', margin: 0, color: 'var(--text-primary)', display: 'flex', alignItems: 'center' }}>Business Insights <NewFeatureBadge /></h3>
               
               <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
                 {analyticsTimeframe === 'custom' && (
