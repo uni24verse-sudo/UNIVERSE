@@ -162,14 +162,14 @@ const Dashboard = () => {
     if (finishedStatuses.includes(status)) {
       setRunTour(false);
       if (vendor?._id) {
-        localStorage.setItem(`seen_release_v1_1_${vendor._id}`, 'true');
+        localStorage.setItem(`seen_release_v1_1_final_${vendor._id}`, 'true');
       }
     }
   };
 
   useEffect(() => {
     if (vendor?._id) {
-      const hasSeenRelease = localStorage.getItem(`seen_release_v1_1_${vendor._id}`);
+      const hasSeenRelease = localStorage.getItem(`seen_release_v1_1_final_${vendor._id}`);
       if (!hasSeenRelease) {
         setShowReleaseModal(true);
       }
