@@ -1088,11 +1088,19 @@ const Dashboard = () => {
                         </div>
                       </div>
 
-                      <div style={{ padding: '1rem', background: 'var(--surface)', borderTop: '1px solid var(--surface-border)', display: 'flex', gap: '0.75rem' }}>
+                      <div style={{ padding: '1rem', background: 'var(--surface)', borderTop: '1px solid var(--surface-border)', display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
                         {order.status === 'Pending' && (
-                          <button onClick={() => updateOrderStatus(order._id, 'Confirmed')} style={{ flex: 1, padding: '1rem', borderRadius: '12px', background: '#3b82f6', color: 'white', fontWeight: '800', border: 'none', fontSize: '1rem' }}>
-                            Accept Order
-                          </button>
+                          <>
+                            {(!order.acceptDeadline) ? (
+                              <button onClick={() => updateOrderStatus(order._id, 'Confirmed')} style={{ flex: 1, padding: '1rem', borderRadius: '12px', background: '#3b82f6', color: 'white', fontWeight: '800', border: 'none', fontSize: '1rem' }}>
+                                Accept Order
+                              </button>
+                            ) : (
+                              <div style={{ display: 'flex', gap: '0.75rem', width: '100%', alignItems: 'center' }}>
+                                <CountdownTimer deadline={order.acceptDeadline} onAccept={() => updateOrderStatus(order._id, 'Confirmed')} />
+                              </div>
+                            )}
+                          </>
                         )}
                         {order.status === 'Confirmed' && (
                           <button onClick={() => updateOrderStatus(order._id, 'Ready')} style={{ flex: 1, padding: '1rem', borderRadius: '12px', background: '#10b981', color: 'white', fontWeight: '800', border: 'none', fontSize: '1rem' }}>
