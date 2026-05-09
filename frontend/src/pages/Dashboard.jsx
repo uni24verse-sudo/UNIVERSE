@@ -120,7 +120,9 @@ const NewFeatureBadge = () => (
   </span>
 );
 
-const RELEASE_VERSION = 'v1.1.4';
+const MODAL_KEY = 'v1.1_modal';
+const KDS_KEY = 'v1.1_kds';
+const INSIGHTS_KEY = 'v1.1_insights';
 
 const Dashboard = () => {
   const { token, vendor, logout, updateVendor } = useContext(AuthContext);
@@ -152,28 +154,38 @@ const Dashboard = () => {
   useEffect(() => {
     const vendorId = vendor?.id || vendor?._id;
     if (vendorId) {
-      const hasSeenRelease = vendor.seenFeatures?.includes(RELEASE_VERSION);
-      if (!hasSeenRelease) {
+      const hasSeenModal = vendor.seenFeatures?.includes(MODAL_KEY);
+      if (!hasSeenModal) {
         setShowReleaseModal(true);
       }
     }
   }, [vendor]);
 
-  const closeReleaseModal = () => {
-    setShowReleaseModal(false);
-    // Mark as seen in backend immediately
+  const markFeatureAsSeen = (featureKey) => {
     const vendorId = vendor?.id || vendor?._id;
-    if (vendorId) {
+    if (vendorId && !vendor.seenFeatures?.includes(featureKey)) {
       axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/auth/mark-feature-seen`, 
-        { featureKey: RELEASE_VERSION },
+        { featureKey },
         { headers: { 'Authorization': token } }
       ).then(res => {
         if (res.data.admin) {
           updateVendor(res.data.admin);
         }
-      }).catch(err => console.error('Failed to mark feature as seen', err));
+      }).catch(err => console.error(`Failed to mark ${featureKey} as seen`, err));
     }
   };
+
+  const closeReleaseModal = () => {
+    setShowReleaseModal(false);
+    markFeatureAsSeen(MODAL_KEY);
+  };
+
+  // Watch for analytics interactions to mark insights as seen
+  useEffect(() => {
+    if (analyticsTimeframe !== 'today') {
+      markFeatureAsSeen(INSIGHTS_KEY);
+    }
+  }, [analyticsTimeframe]);
 
   useEffect(() => {
     const timerId = setInterval(() => setCurrentTime(new Date()), 30000); // 30s tick
@@ -751,11 +763,11 @@ const Dashboard = () => {
             <button onClick={() => { setActiveTab('orders'); if (isMobile) setShowSidebar(false); }} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem', borderRadius: '14px', background: activeTab === 'orders' ? 'rgba(99, 102, 241, 0.1)' : 'transparent', color: activeTab === 'orders' ? 'var(--primary)' : 'var(--text-secondary)', fontWeight: activeTab === 'orders' ? '700' : '500', border: 'none', cursor: 'pointer', transition: 'var(--transition)' }}>
               <LayoutDashboard size={20} /> Dashboard
             </button>
-            <button onClick={() => { setActiveTab('kds'); if (isMobile) setShowSidebar(false); }} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem', borderRadius: '14px', background: activeTab === 'kds' ? 'rgba(245, 158, 11, 0.1)' : 'transparent', color: activeTab === 'kds' ? '#f59e0b' : 'var(--text-secondary)', fontWeight: activeTab === 'kds' ? '700' : '500', border: 'none', cursor: 'pointer', transition: 'var(--transition)' }}>
+            <button onClick={() => { setActiveTab('kds'); if (isMobile) setShowSidebar(false); markFeatureAsSeen(KDS_KEY); }} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem', borderRadius: '14px', background: activeTab === 'kds' ? 'rgba(245, 158, 11, 0.1)' : 'transparent', color: activeTab === 'kds' ? '#f59e0b' : 'var(--text-secondary)', fontWeight: activeTab === 'kds' ? '700' : '500', border: 'none', cursor: 'pointer', transition: 'var(--transition)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                 <Utensils size={20} /> KDS View
               </div>
-              {!vendor?.seenFeatures?.includes(RELEASE_VERSION) && <NewFeatureBadge />}
+              {!vendor?.seenFeatures?.includes(KDS_KEY) && <NewFeatureBadge />}
             </button>
             <button onClick={() => { setActiveTab('finance'); if (isMobile) setShowSidebar(false); }} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem', borderRadius: '14px', background: activeTab === 'finance' ? 'rgba(16, 185, 129, 0.1)' : 'transparent', color: activeTab === 'finance' ? '#10b981' : 'var(--text-secondary)', fontWeight: activeTab === 'finance' ? '700' : '500', border: 'none', cursor: 'pointer', transition: 'var(--transition)' }}>
               <Banknote size={20} /> Settlements
@@ -1438,7 +1450,7 @@ const Dashboard = () => {
             {/* Analytics Section */}
             <div style={{ display: 'flex', flexDirection: 'column', order: isMobile ? 2 : 1 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '1rem' }}>
-                <h3 style={{ fontSize: '1.25rem', fontWeight: '800', margin: 0, color: 'var(--text-primary)', display: 'flex', alignItems: 'center' }}>Business Insights {!vendor?.seenFeatures?.includes(RELEASE_VERSION) && <NewFeatureBadge />}</h3>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: '800', margin: 0, color: 'var(--text-primary)', display: 'flex', alignItems: 'center' }}>Business Insights {!vendor?.seenFeatures?.includes(INSIGHTS_KEY) && <NewFeatureBadge />}</h3>
               
               <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
                 {analyticsTimeframe === 'custom' && (
