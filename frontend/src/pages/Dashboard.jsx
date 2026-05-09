@@ -114,7 +114,7 @@ const NewFeatureBadge = () => (
   </span>
 );
 
-const RELEASE_VERSION = 'v1.1';
+const RELEASE_VERSION = 'v1.1.2';
 
 const Dashboard = () => {
   const { token, vendor, logout, updateVendor } = useContext(AuthContext);
@@ -160,9 +160,9 @@ const Dashboard = () => {
 
   const handleJoyrideCallback = (data) => {
     const { status } = data;
-    const finishedStatuses = [STATUS.FINISHED, STATUS.SKIPPED];
-    if (finishedStatuses.includes(status)) {
+    if (status === STATUS.FINISHED) {
       setRunTour(false);
+      // Persist to backend ONLY when finished
       axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/auth/mark-feature-seen`, 
         { featureKey: RELEASE_VERSION },
         { headers: { 'Authorization': token } }
@@ -171,6 +171,8 @@ const Dashboard = () => {
           updateVendor(res.data.admin);
         }
       }).catch(err => console.error('Failed to mark feature as seen', err));
+    } else if (status === STATUS.SKIPPED) {
+      setRunTour(false);
     }
   };
 
@@ -188,7 +190,7 @@ const Dashboard = () => {
     setShowReleaseModal(false);
     setTimeout(() => {
       setRunTour(true);
-    }, 400); 
+    }, 1000); 
   };
 
   useEffect(() => {
@@ -727,6 +729,8 @@ const Dashboard = () => {
         scrollToFirstStep
         showProgress
         showSkipButton
+        spotlightClicks
+        disableScrolling={false}
         steps={tourSteps}
         styles={{
           options: {
