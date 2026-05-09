@@ -159,7 +159,13 @@ const Dashboard = () => {
   ];
 
   const handleJoyrideCallback = (data) => {
-    const { status } = data;
+    const { status, type, index } = data;
+    
+    // SMART NAVIGATION: Auto-open sidebar on mobile for the KDS step
+    if (type === 'step:before' && index === 0 && isMobile && !showSidebar) {
+      setShowSidebar(true);
+    }
+
     if (status === STATUS.FINISHED) {
       setRunTour(false);
       // Persist to backend ONLY when finished
@@ -1700,38 +1706,38 @@ const Dashboard = () => {
 
       {/* Release Modal */}
       {showReleaseModal && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(10px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
-          <div className="glass-card" style={{ background: '#ffffff', borderRadius: '32px', width: '100%', maxWidth: '480px', overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.3)', position: 'relative' }}>
-            <button onClick={closeReleaseModal} style={{ position: 'absolute', top: '1.25rem', right: '1.25rem', background: 'rgba(0,0,0,0.05)', border: 'none', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 10, color: 'var(--text-secondary)' }}>
-              <X size={20} />
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(10px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: isMobile ? '0.5rem' : '1rem' }}>
+          <div className="glass-card" style={{ background: '#ffffff', borderRadius: isMobile ? '24px' : '32px', width: '100%', maxWidth: '480px', maxHeight: 'calc(100vh - 2rem)', overflowY: 'auto', display: 'flex', flexDirection: 'column', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.3)', position: 'relative' }}>
+            <button onClick={closeReleaseModal} style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'rgba(0,0,0,0.05)', border: 'none', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 10, color: 'var(--text-secondary)' }}>
+              <X size={18} />
             </button>
-            <div style={{ height: '200px', background: 'linear-gradient(135deg, #10b981 0%, #3b82f6 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
+            <div style={{ height: isMobile ? '160px' : '200px', background: 'linear-gradient(135deg, #10b981 0%, #3b82f6 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden', flexShrink: 0 }}>
               <div style={{ position: 'absolute', width: '200%', height: '200%', background: 'radial-gradient(circle at 50% 50%, rgba(255,255,255,0.2) 0%, transparent 60%)', animation: 'spin 10s linear infinite' }}></div>
-              <img src="/helmet-guy.png" alt="UNIVERSE" style={{ width: '80px', height: '80px', filter: 'drop-shadow(0 10px 20px rgba(0,0,0,0.2))', objectFit: 'contain', zIndex: 1 }} />
+              <img src="/helmet-guy.png" alt="UNIVERSE" style={{ width: isMobile ? '60px' : '80px', height: isMobile ? '60px' : '80px', filter: 'drop-shadow(0 10px 20px rgba(0,0,0,0.2))', objectFit: 'contain', zIndex: 1 }} />
             </div>
-            <div style={{ padding: '2.5rem 2rem' }}>
+            <div style={{ padding: isMobile ? '1.5rem 1.25rem' : '2.5rem 2rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
-                <span style={{ background: 'var(--primary)', color: 'white', fontSize: '0.75rem', fontWeight: '900', padding: '0.2rem 0.6rem', borderRadius: '100px', letterSpacing: '0.05em' }}>UPDATE</span>
-                <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', fontWeight: '600' }}>v1.1 is here</span>
+                <span style={{ background: 'var(--primary)', color: 'white', fontSize: '0.65rem', fontWeight: '900', padding: '0.2rem 0.6rem', borderRadius: '100px', letterSpacing: '0.05em' }}>UPDATE</span>
+                <span style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: '600' }}>v1.1 is here</span>
               </div>
-              <h2 style={{ fontSize: '2rem', fontWeight: '900', color: 'var(--text-primary)', marginBottom: '1.5rem', lineHeight: 1.1, letterSpacing: '-0.03em' }}>UNIVERSE Pro just got an upgrade.</h2>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', marginBottom: '2.5rem' }}>
-                <div style={{ display: 'flex', gap: '1rem' }}>
-                  <div style={{ width: '48px', height: '48px', borderRadius: '16px', background: 'rgba(245, 158, 11, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#f59e0b' }}>
-                    <Utensils size={24} />
+              <h2 style={{ fontSize: isMobile ? '1.5rem' : '2rem', fontWeight: '900', color: 'var(--text-primary)', marginBottom: '1.25rem', lineHeight: 1.1, letterSpacing: '-0.03em' }}>UNIVERSE Pro just got an upgrade.</h2>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? '1rem' : '1.5rem', marginBottom: '2rem' }}>
+                <div style={{ display: 'flex', gap: '0.75rem' }}>
+                  <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(245, 158, 11, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#f59e0b' }}>
+                    <Utensils size={20} />
                   </div>
                   <div>
-                    <h4 style={{ margin: '0 0 0.25rem 0', fontSize: '1.1rem', fontWeight: '800', color: 'var(--text-primary)' }}>New KDS View</h4>
-                    <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>Fully redesigned Kitchen Display System with live wait timers and combo-item breakdown.</p>
+                    <h4 style={{ margin: '0 0 0.2rem 0', fontSize: '1rem', fontWeight: '800', color: 'var(--text-primary)' }}>New KDS View</h4>
+                    <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>Fully redesigned KDS with live wait timers and combo breakdowns.</p>
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: '1rem' }}>
-                  <div style={{ width: '48px', height: '48px', borderRadius: '16px', background: 'rgba(139, 92, 246, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#8b5cf6' }}>
-                    <TrendingUp size={24} />
+                <div style={{ display: 'flex', gap: '0.75rem' }}>
+                  <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(139, 92, 246, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#8b5cf6' }}>
+                    <TrendingUp size={20} />
                   </div>
                   <div>
-                    <h4 style={{ margin: '0 0 0.25rem 0', fontSize: '1.1rem', fontWeight: '800', color: 'var(--text-primary)' }}>Business Insights</h4>
-                    <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>Track your volume visually with custom date ranges, heatmaps, and trending item analytics.</p>
+                    <h4 style={{ margin: '0 0 0.2rem 0', fontSize: '1rem', fontWeight: '800', color: 'var(--text-primary)' }}>Business Insights</h4>
+                    <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>Visual volume tracking with heatmaps and trending item analytics.</p>
                   </div>
                 </div>
               </div>
