@@ -182,8 +182,8 @@ const OrderTracker = () => {
                 <MessageCircle size={22} color="white" />
               </div>
               <div>
-                <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: '800', color: 'white' }}>Need an Instant Refund?</h4>
-                <p style={{ margin: 0, fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)' }}>Your order was cancelled • Contact us now</p>
+                <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: '800', color: '#ef4444' }}>Need an Instant Refund?</h4>
+                <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: '600' }}>Your order was cancelled • Contact us now</p>
               </div>
             </div>
 
