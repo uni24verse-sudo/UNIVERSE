@@ -1630,7 +1630,7 @@ const Dashboard = () => {
             </button>
             <div style={{ height: '200px', background: 'linear-gradient(135deg, #10b981 0%, #3b82f6 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
               <div style={{ position: 'absolute', width: '200%', height: '200%', background: 'radial-gradient(circle at 50% 50%, rgba(255,255,255,0.2) 0%, transparent 60%)', animation: 'spin 10s linear infinite' }}></div>
-              <img src="/logo-symbol.png" alt="UNIVERSE" style={{ width: '80px', height: '80px', filter: 'drop-shadow(0 10px 20px rgba(0,0,0,0.2))', zIndex: 1 }} />
+              <img src="/helmet-guy.png" alt="UNIVERSE" style={{ width: '80px', height: '80px', filter: 'drop-shadow(0 10px 20px rgba(0,0,0,0.2))', objectFit: 'contain', zIndex: 1 }} />
             </div>
             <div style={{ padding: '2.5rem 2rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
