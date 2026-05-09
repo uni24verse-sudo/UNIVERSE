@@ -141,14 +141,18 @@ const Dashboard = () => {
   const [showReleaseModal, setShowReleaseModal] = useState(false);
 
   useEffect(() => {
-    const hasSeenRelease = localStorage.getItem('seen_release_v1_1');
-    if (!hasSeenRelease) {
-      setShowReleaseModal(true);
+    if (vendor?._id) {
+      const hasSeenRelease = localStorage.getItem(`seen_release_v1_1_${vendor._id}`);
+      if (!hasSeenRelease) {
+        setShowReleaseModal(true);
+      }
     }
-  }, []);
+  }, [vendor]);
 
   const closeReleaseModal = () => {
-    localStorage.setItem('seen_release_v1_1', 'true');
+    if (vendor?._id) {
+      localStorage.setItem(`seen_release_v1_1_${vendor._id}`, 'true');
+    }
     setShowReleaseModal(false);
   };
 
