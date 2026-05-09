@@ -55,7 +55,8 @@ router.post('/login', async (req, res) => {
         name: admin.name, 
         email: admin.email, 
         telegramChatId: admin.telegramChatId,
-        role: admin.role
+        role: admin.role,
+        seenFeatures: admin.seenFeatures || []
       } 
     });
   } catch (err) {
@@ -98,5 +99,31 @@ router.post('/test-fcm', auth, async (req, res) => {
   // ... code ...
 });
 */
+
+// Mark Feature as Seen
+router.post('/mark-feature-seen', auth, async (req, res) => {
+  try {
+    const { featureKey } = req.body;
+    if (!featureKey) return res.status(400).json({ message: 'Feature key is required' });
+
+    const admin = await Admin.findByIdAndUpdate(
+      req.admin._id,
+      { $addToSet: { seenFeatures: featureKey } },
+      { new: true }
+    );
+
+    res.json({ 
+      message: 'Feature marked as seen', 
+      admin: { 
+        id: admin._id, 
+        name: admin.name, 
+        email: admin.email, 
+        seenFeatures: admin.seenFeatures
+      } 
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
 
 module.exports = router;

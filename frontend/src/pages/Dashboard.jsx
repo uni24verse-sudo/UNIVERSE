@@ -114,8 +114,10 @@ const NewFeatureBadge = () => (
   </span>
 );
 
+const RELEASE_VERSION = 'v1.1';
+
 const Dashboard = () => {
-  const { token, vendor, logout } = useContext(AuthContext);
+  const { token, vendor, logout, updateVendor } = useContext(AuthContext);
   const navigate = useNavigate();
   const [stores, setStores] = useState([]);
   const [store, setStore] = useState(null);
@@ -161,15 +163,21 @@ const Dashboard = () => {
     const finishedStatuses = [STATUS.FINISHED, STATUS.SKIPPED];
     if (finishedStatuses.includes(status)) {
       setRunTour(false);
-      if (vendor?._id) {
-        localStorage.setItem(`seen_release_v1_1_final_${vendor._id}`, 'true');
-      }
+      // Persist to backend
+      axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/auth/mark-feature-seen`, 
+        { featureKey: RELEASE_VERSION },
+        { headers: { 'Authorization': token } }
+      ).then(res => {
+        if (res.data.admin) {
+          updateVendor(res.data.admin);
+        }
+      }).catch(err => console.error('Failed to mark feature as seen', err));
     }
   };
 
   useEffect(() => {
     if (vendor?._id) {
-      const hasSeenRelease = localStorage.getItem(`seen_release_v1_1_final_${vendor._id}`);
+      const hasSeenRelease = vendor.seenFeatures?.includes(RELEASE_VERSION);
       if (!hasSeenRelease) {
         setShowReleaseModal(true);
       }
@@ -180,7 +188,7 @@ const Dashboard = () => {
     setShowReleaseModal(false);
     setTimeout(() => {
       setRunTour(true);
-    }, 400); // small delay for modal animation
+    }, 400); 
   };
 
   useEffect(() => {

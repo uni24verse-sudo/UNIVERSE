@@ -9,7 +9,8 @@ const AdminSchema = new mongoose.Schema({
   whatsappNumber: { type: String, default: '' },
   whatsappApiKey: { type: String, default: '' },
   telegramChatId: { type: String, default: '' },
-  fcmToken: { type: String, default: '' }
+  fcmToken: { type: String, default: '' },
+  seenFeatures: { type: [String], default: [] }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Admin', AdminSchema);
