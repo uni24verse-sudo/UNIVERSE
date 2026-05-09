@@ -114,7 +114,7 @@ const NewFeatureBadge = () => (
   </span>
 );
 
-const RELEASE_VERSION = 'v1.1.2';
+const RELEASE_VERSION = 'v1.1.3';
 
 const Dashboard = () => {
   const { token, vendor, logout, updateVendor } = useContext(AuthContext);
@@ -154,6 +154,7 @@ const Dashboard = () => {
     {
       target: '#tour-insights',
       content: 'Track your business volume visually! Use custom date ranges to see heatmaps and trending item analytics.',
+      disableBeacon: true,
       placement: 'bottom'
     }
   ];
