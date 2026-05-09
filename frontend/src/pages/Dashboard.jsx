@@ -163,7 +163,6 @@ const Dashboard = () => {
     const finishedStatuses = [STATUS.FINISHED, STATUS.SKIPPED];
     if (finishedStatuses.includes(status)) {
       setRunTour(false);
-      // Persist to backend
       axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/auth/mark-feature-seen`, 
         { featureKey: RELEASE_VERSION },
         { headers: { 'Authorization': token } }
@@ -176,7 +175,8 @@ const Dashboard = () => {
   };
 
   useEffect(() => {
-    if (vendor?._id) {
+    const vendorId = vendor?.id || vendor?._id;
+    if (vendorId) {
       const hasSeenRelease = vendor.seenFeatures?.includes(RELEASE_VERSION);
       if (!hasSeenRelease) {
         setShowReleaseModal(true);
