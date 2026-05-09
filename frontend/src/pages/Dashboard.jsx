@@ -7,6 +7,7 @@ import WhatsAppStatus from '../components/WhatsAppStatus';
 import { QRCodeSVG } from 'qrcode.react';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import VendorFinance from '../components/VendorFinance';
+import { Joyride, STATUS } from 'react-joyride';
 import { 
   LayoutDashboard, 
   Store, 
@@ -139,6 +140,32 @@ const Dashboard = () => {
   const [activeTab, setActiveTab] = useState('orders'); // 'orders', 'finance', 'kds'
   const [currentTime, setCurrentTime] = useState(new Date());
   const [showReleaseModal, setShowReleaseModal] = useState(false);
+  const [runTour, setRunTour] = useState(false);
+
+  const tourSteps = [
+    {
+      target: '#tour-kds-tab',
+      content: 'Access the brand new Kitchen Display System right here. It features live wait timers and complete combo-item breakdowns!',
+      disableBeacon: true,
+      placement: 'right'
+    },
+    {
+      target: '#tour-insights',
+      content: 'Track your business volume visually! Use custom date ranges to see heatmaps and trending item analytics.',
+      placement: 'bottom'
+    }
+  ];
+
+  const handleJoyrideCallback = (data) => {
+    const { status } = data;
+    const finishedStatuses = [STATUS.FINISHED, STATUS.SKIPPED];
+    if (finishedStatuses.includes(status)) {
+      setRunTour(false);
+      if (vendor?._id) {
+        localStorage.setItem(`seen_release_v1_1_${vendor._id}`, 'true');
+      }
+    }
+  };
 
   useEffect(() => {
     if (vendor?._id) {
@@ -150,10 +177,10 @@ const Dashboard = () => {
   }, [vendor]);
 
   const closeReleaseModal = () => {
-    if (vendor?._id) {
-      localStorage.setItem(`seen_release_v1_1_${vendor._id}`, 'true');
-    }
     setShowReleaseModal(false);
+    setTimeout(() => {
+      setRunTour(true);
+    }, 400); // small delay for modal animation
   };
 
   useEffect(() => {
@@ -685,6 +712,40 @@ const Dashboard = () => {
 
    return (
     <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--background)' }}>
+      <Joyride
+        callback={handleJoyrideCallback}
+        continuous
+        run={runTour}
+        scrollToFirstStep
+        showProgress
+        showSkipButton
+        steps={tourSteps}
+        styles={{
+          options: {
+            arrowColor: '#1e293b',
+            backgroundColor: '#1e293b',
+            overlayColor: 'rgba(0, 0, 0, 0.6)',
+            primaryColor: '#3b82f6',
+            textColor: '#f8fafc',
+            zIndex: 10000,
+          },
+          tooltipContainer: {
+            textAlign: 'left',
+          },
+          buttonNext: {
+            backgroundColor: '#3b82f6',
+            borderRadius: '8px',
+            padding: '0.5rem 1rem',
+            fontWeight: 'bold',
+          },
+          buttonBack: {
+            color: '#94a3b8',
+          },
+          buttonSkip: {
+            color: '#94a3b8',
+          }
+        }}
+      />
       <style>{`
         @keyframes pulse-glow {
           0% { box-shadow: 0 0 5px rgba(245, 158, 11, 0.4), inset 0 0 5px rgba(245, 158, 11, 0.2); border-color: rgba(245, 158, 11, 0.5); }
@@ -732,7 +793,7 @@ const Dashboard = () => {
             <button onClick={() => { setActiveTab('orders'); if (isMobile) setShowSidebar(false); }} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem', borderRadius: '14px', background: activeTab === 'orders' ? 'rgba(99, 102, 241, 0.1)' : 'transparent', color: activeTab === 'orders' ? 'var(--primary)' : 'var(--text-secondary)', fontWeight: activeTab === 'orders' ? '700' : '500', border: 'none', cursor: 'pointer', transition: 'var(--transition)' }}>
               <LayoutDashboard size={20} /> Dashboard
             </button>
-            <button onClick={() => { setActiveTab('kds'); if (isMobile) setShowSidebar(false); }} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem', borderRadius: '14px', background: activeTab === 'kds' ? 'rgba(245, 158, 11, 0.1)' : 'transparent', color: activeTab === 'kds' ? '#f59e0b' : 'var(--text-secondary)', fontWeight: activeTab === 'kds' ? '700' : '500', border: 'none', cursor: 'pointer', transition: 'var(--transition)' }}>
+            <button id="tour-kds-tab" onClick={() => { setActiveTab('kds'); if (isMobile) setShowSidebar(false); }} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem', borderRadius: '14px', background: activeTab === 'kds' ? 'rgba(245, 158, 11, 0.1)' : 'transparent', color: activeTab === 'kds' ? '#f59e0b' : 'var(--text-secondary)', fontWeight: activeTab === 'kds' ? '700' : '500', border: 'none', cursor: 'pointer', transition: 'var(--transition)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                 <Utensils size={20} /> KDS View
               </div>
@@ -1419,7 +1480,7 @@ const Dashboard = () => {
             {/* Analytics Section */}
             <div style={{ display: 'flex', flexDirection: 'column', order: isMobile ? 2 : 1 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '1rem' }}>
-                <h3 style={{ fontSize: '1.25rem', fontWeight: '800', margin: 0, color: 'var(--text-primary)', display: 'flex', alignItems: 'center' }}>Business Insights <NewFeatureBadge /></h3>
+                <h3 id="tour-insights" style={{ fontSize: '1.25rem', fontWeight: '800', margin: 0, color: 'var(--text-primary)', display: 'flex', alignItems: 'center' }}>Business Insights <NewFeatureBadge /></h3>
               
               <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
                 {analyticsTimeframe === 'custom' && (
