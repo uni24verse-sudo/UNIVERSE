@@ -138,6 +138,19 @@ const Dashboard = () => {
   const [customEndDate, setCustomEndDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [activeTab, setActiveTab] = useState('orders'); // 'orders', 'finance', 'kds'
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [showReleaseModal, setShowReleaseModal] = useState(false);
+
+  useEffect(() => {
+    const hasSeenRelease = localStorage.getItem('seen_release_v1_1');
+    if (!hasSeenRelease) {
+      setShowReleaseModal(true);
+    }
+  }, []);
+
+  const closeReleaseModal = () => {
+    localStorage.setItem('seen_release_v1_1', 'true');
+    setShowReleaseModal(false);
+  };
 
   useEffect(() => {
     const timerId = setInterval(() => setCurrentTime(new Date()), 30000); // 30s tick
@@ -1604,6 +1617,51 @@ const Dashboard = () => {
           >
             <LogOut size={20} />
             <span style={{ fontSize: '0.65rem', fontWeight: '500' }}>Exit</span>
+          </div>
+        </div>
+      )}
+
+      {/* Release Modal */}
+      {showReleaseModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(10px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+          <div className="glass-card" style={{ background: '#ffffff', borderRadius: '32px', width: '100%', maxWidth: '480px', overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.3)', position: 'relative' }}>
+            <button onClick={closeReleaseModal} style={{ position: 'absolute', top: '1.25rem', right: '1.25rem', background: 'rgba(0,0,0,0.05)', border: 'none', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 10, color: 'var(--text-secondary)' }}>
+              <X size={20} />
+            </button>
+            <div style={{ height: '200px', background: 'linear-gradient(135deg, #10b981 0%, #3b82f6 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
+              <div style={{ position: 'absolute', width: '200%', height: '200%', background: 'radial-gradient(circle at 50% 50%, rgba(255,255,255,0.2) 0%, transparent 60%)', animation: 'spin 10s linear infinite' }}></div>
+              <img src="/logo-symbol.png" alt="UNIVERSE" style={{ width: '80px', height: '80px', filter: 'drop-shadow(0 10px 20px rgba(0,0,0,0.2))', zIndex: 1 }} />
+            </div>
+            <div style={{ padding: '2.5rem 2rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+                <span style={{ background: 'var(--primary)', color: 'white', fontSize: '0.75rem', fontWeight: '900', padding: '0.2rem 0.6rem', borderRadius: '100px', letterSpacing: '0.05em' }}>UPDATE</span>
+                <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', fontWeight: '600' }}>v1.1 is here</span>
+              </div>
+              <h2 style={{ fontSize: '2rem', fontWeight: '900', color: 'var(--text-primary)', marginBottom: '1.5rem', lineHeight: 1.1, letterSpacing: '-0.03em' }}>UNIVERSE Pro just got an upgrade.</h2>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', marginBottom: '2.5rem' }}>
+                <div style={{ display: 'flex', gap: '1rem' }}>
+                  <div style={{ width: '48px', height: '48px', borderRadius: '16px', background: 'rgba(245, 158, 11, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#f59e0b' }}>
+                    <Utensils size={24} />
+                  </div>
+                  <div>
+                    <h4 style={{ margin: '0 0 0.25rem 0', fontSize: '1.1rem', fontWeight: '800', color: 'var(--text-primary)' }}>New KDS View</h4>
+                    <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>Fully redesigned Kitchen Display System with live wait timers and combo-item breakdown.</p>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: '1rem' }}>
+                  <div style={{ width: '48px', height: '48px', borderRadius: '16px', background: 'rgba(139, 92, 246, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#8b5cf6' }}>
+                    <TrendingUp size={24} />
+                  </div>
+                  <div>
+                    <h4 style={{ margin: '0 0 0.25rem 0', fontSize: '1.1rem', fontWeight: '800', color: 'var(--text-primary)' }}>Business Insights</h4>
+                    <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>Track your volume visually with custom date ranges, heatmaps, and trending item analytics.</p>
+                  </div>
+                </div>
+              </div>
+              <button onClick={closeReleaseModal} style={{ width: '100%', padding: '1rem', borderRadius: '16px', background: 'var(--text-primary)', color: 'white', border: 'none', fontSize: '1rem', fontWeight: '800', cursor: 'pointer', transition: 'transform 0.2s ease, box-shadow 0.2s ease', boxShadow: '0 10px 20px -5px rgba(0,0,0,0.3)' }}>
+                Awesome, let's go!
+              </button>
+            </div>
           </div>
         </div>
       )}
