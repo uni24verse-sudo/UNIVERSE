@@ -159,16 +159,9 @@ router.delete('/:storeId/:employeeId', auth, verifyVendorStore, async (req, res)
       return res.status(404).json({ message: 'Employee not found.' });
     }
 
-    // Soft delete (change status and scramble email to allow reuse if needed, or just hard delete if history doesn't rely on Admin ID)
-    // Actually, Phase 1 asks for revocation while keeping historical records intact.
-    // If orders rely on Employee ID later, we shouldn't hard delete.
-    // Let's soft delete by setting status to INACTIVE and isBanned to true.
-    employee.status = 'INACTIVE';
-    employee.isBanned = true;
-    
-    await employee.save();
+    await Admin.findByIdAndDelete(employee._id);
 
-    res.json({ message: 'Employee access revoked successfully.' });
+    res.json({ message: 'Employee deleted successfully.' });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
