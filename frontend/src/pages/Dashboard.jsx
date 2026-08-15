@@ -7,6 +7,7 @@ import WhatsAppStatus from '../components/WhatsAppStatus';
 import { QRCodeSVG } from 'qrcode.react';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import VendorFinance from '../components/VendorFinance';
+import EmployeeManagement from '../components/EmployeeManagement';
 import { 
   LayoutDashboard, 
   Store, 
@@ -35,7 +36,8 @@ import {
   RefreshCw,
   Search,
   Check,
-  ChevronDown
+  ChevronDown,
+  Users
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
@@ -772,6 +774,9 @@ const Dashboard = () => {
             <button onClick={() => { setActiveTab('finance'); if (isMobile) setShowSidebar(false); }} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem', borderRadius: '14px', background: activeTab === 'finance' ? 'rgba(16, 185, 129, 0.1)' : 'transparent', color: activeTab === 'finance' ? '#10b981' : 'var(--text-secondary)', fontWeight: activeTab === 'finance' ? '700' : '500', border: 'none', cursor: 'pointer', transition: 'var(--transition)' }}>
               <Banknote size={20} /> Settlements
             </button>
+            <button onClick={() => { setActiveTab('employees'); if (isMobile) setShowSidebar(false); }} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem', borderRadius: '14px', background: activeTab === 'employees' ? 'rgba(139, 92, 246, 0.1)' : 'transparent', color: activeTab === 'employees' ? '#8b5cf6' : 'var(--text-secondary)', fontWeight: activeTab === 'employees' ? '700' : '500', border: 'none', cursor: 'pointer', transition: 'var(--transition)' }}>
+              <Users size={20} /> Employees
+            </button>
             <Link to="/vendor/store/manage" onClick={() => isMobile && setShowSidebar(false)} style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem', borderRadius: '14px', color: 'var(--text-secondary)', fontWeight: '500', textDecoration: 'none', transition: 'var(--transition)' }}>
               <QrCode size={20} /> Store & Menu
             </Link>
@@ -1007,6 +1012,8 @@ const Dashboard = () => {
           </div>
         ) : activeTab === 'finance' ? (
           <VendorFinance storeId={store?._id} />
+        ) : activeTab === 'employees' ? (
+          <EmployeeManagement storeId={store?._id} />
         ) : activeTab === 'kds' ? (
           <div style={{ padding: isMobile ? '0' : '1rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>

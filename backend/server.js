@@ -60,6 +60,7 @@ app.use('/api/payments', require('./routes/payments'));
 app.use('/api/whatsapp', require('./routes/whatsapp'));
 app.use('/api/analytics', require('./routes/analytics'));
 app.use('/api/finance', require('./routes/finance'));
+app.use('/api/employees', require('./routes/employees'));
 
 // Socket.io connection handling
 io.on('connection', (socket) => {
