@@ -30,7 +30,9 @@ const OrderSchema = new mongoose.Schema({
   transactionId: { type: String, unique: true, sparse: true },
   paymentProvider: { type: String, default: 'Razorpay' },
   acceptDeadline: { type: Date },
-  handoverToken: { type: String },
+  handoverToken: { type: String, select: false }, // Store hashed token here (select: false so it doesn't leak in generic queries)
+  handoverTokenExpiresAt: { type: Date },
+  handoverTokenUsedAt: { type: Date },
   isPreOrder: { type: Boolean, default: false },
   scheduledTime: { type: String },
   reminderSent: { type: Boolean, default: false },
