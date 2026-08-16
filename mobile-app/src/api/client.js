@@ -2,11 +2,15 @@ import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 
-// Set up the base URL. Change this to your local IP for physical device testing.
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://10.135.203.45:5000/api';
+// Set up the base URL for the production backend
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://universe-pa53.onrender.com/api';
 
 const apiClient = axios.create({
   baseURL: API_URL,
+  headers: {
+    'Content-Type': 'application/json',
+    'Bypass-Tunnel-Reminder': 'true',
+  },
 });
 
 // Add a request interceptor to attach the JWT token
