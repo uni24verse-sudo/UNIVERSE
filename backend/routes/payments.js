@@ -111,9 +111,20 @@ router.post('/razorpay/verify', async (req, res) => {
 
     const savedOrder = await newOrder.save();
 
-    // Notify vendor via Socket.io
+const pushService = require('../services/pushService');
+
+    // Notify vendor via Socket.io (Foreground Sync)
     const io = req.app.get('io');
     io.to(storeId.toString()).emit('new_order', savedOrder);
+
+    // Notify vendor via FCM/Expo Push Notifications (Background)
+    pushService.sendStoreNotification(
+      storeId.toString(),
+      'New Order Received!',
+      `Order #${savedOrder.orderNumber} for ₹${savedOrder.totalAmount} has arrived.`,
+      { orderId: savedOrder._id, orderNumber: savedOrder.orderNumber },
+      'order_pending'
+    );
 
     // Notify vendor via Telegram
     if (store) {

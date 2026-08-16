@@ -14,6 +14,23 @@ const io = new Server(server, {
   }
 });
 
+const jwt = require('jsonwebtoken');
+
+// Socket.io Middleware for Authentication
+io.use((socket, next) => {
+  const token = socket.handshake.auth.token;
+  if (!token) {
+    return next(new Error('Authentication error: No token provided'));
+  }
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    socket.user = decoded; // Attach user payload to socket
+    next();
+  } catch (err) {
+    next(new Error('Authentication error: Invalid token'));
+  }
+});
+
 // Make io accessible to our router
 app.set('io', io);
 
@@ -25,6 +42,7 @@ app.use(express.json());
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:3000',
+  'http://localhost:8081',
   'https://universe-sepia.vercel.app',
   'https://www.universeorder.co.in',
   'https://universeorder.co.in'
@@ -64,12 +82,21 @@ app.use('/api/employees', require('./routes/employees'));
 
 // Socket.io connection handling
 io.on('connection', (socket) => {
-  console.log(`User Connected: ${socket.id}`);
+  console.log(`User Connected: ${socket.id}, User ID: ${socket.user._id}`);
 
-  // Vendors can join a room based on their Store ID to listen for orders
-  socket.on('join_store_room', (storeId) => {
-    socket.join(storeId);
-    console.log(`Socket ${socket.id} joined room ${storeId}`);
+  // Join Store Room with Server-Side Authorization
+  socket.on('join_store_room', (requestedStoreId) => {
+    // 1. Never trust the client's storeId!
+    // Derive the authorized storeId from the authenticated JWT
+    const authorizedStoreId = socket.user.storeId || socket.user._id;
+
+    if (!authorizedStoreId || requestedStoreId.toString() !== authorizedStoreId.toString()) {
+      console.log(`WARN: Socket ${socket.id} attempted to join unauthorized room ${requestedStoreId}`);
+      return; // Reject unauthorized join attempt
+    }
+
+    socket.join(authorizedStoreId.toString());
+    console.log(`Socket ${socket.id} securely joined authorized room ${authorizedStoreId}`);
   });
 
   socket.on('join_order_room', (orderId) => {

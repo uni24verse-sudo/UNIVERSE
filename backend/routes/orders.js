@@ -78,18 +78,69 @@ router.put('/:id/status', auth, async (req, res) => {
   try {
     const { status } = req.body;
     
-    const order = await Order.findById(req.params.id).populate('store');
-    if (!order) return res.status(404).json({ message: 'Order not found' });
-    if (order.store.admin.toString() !== req.admin._id) {
-      return res.status(403).json({ message: 'Unauthorized' });
+    // 1. Authorize: Ensure user has permissions
+    if (req.admin.role === 'staff') {
+      const perms = req.admin.permissions || [];
+      if (!perms.includes('UPDATE_ORDER_STATUS') && !perms.includes('MARK_ORDER_READY')) {
+        return res.status(403).json({ message: 'Unauthorized: Missing required permissions' });
+      }
+      if (status === 'Ready' && !perms.includes('MARK_ORDER_READY')) {
+        return res.status(403).json({ message: 'Unauthorized: Missing MARK_ORDER_READY permission' });
+      }
     }
 
-    order.status = status;
-    const updatedOrder = await order.save();
+    // 2. Strict State Machine Rules
+    // Maps the Target Status to the Required Current Status(es)
+    const validTransitions = {
+      'Confirmed': ['Pending'],
+      'Cooking': ['Confirmed'],
+      'Ready': ['Cooking'],
+      'Cancelled': ['Payment Pending', 'Pending'] 
+    };
 
-    // Notify customer about status update
+    if (status === 'Completed') {
+      return res.status(400).json({ message: 'Orders can only be completed via secure QR Handover.' });
+    }
+
+    if (!validTransitions[status]) {
+       return res.status(400).json({ message: 'Invalid or unsupported status transition requested.' });
+    }
+
+    const expectedCurrentStatuses = validTransitions[status];
+    const authorizedStoreId = req.admin.storeId || req.admin._id;
+
+    // 3. Atomic Conditional Update
+    // This entirely prevents Race Conditions if two cooks tap "Confirm" simultaneously
+    const updatedOrder = await Order.findOneAndUpdate(
+      { 
+        _id: req.params.id, 
+        store: authorizedStoreId, // Ensures order belongs to this store
+        status: { $in: expectedCurrentStatuses } // Must currently be in expected state
+      },
+      { $set: { status: status } },
+      { returnDocument: 'after' }
+    ).populate('store');
+
+    if (!updatedOrder) {
+      // If update failed, determine exactly why (Race condition vs Not Found vs Unauthorized)
+      const existingOrder = await Order.findById(req.params.id);
+      if (!existingOrder) return res.status(404).json({ message: 'Order not found' });
+      
+      if (existingOrder.store.toString() !== authorizedStoreId.toString()) {
+         return res.status(403).json({ message: 'Unauthorized: Order belongs to another store.' });
+      }
+
+      return res.status(409).json({ 
+        message: `Order has already been processed or moved to ${existingOrder.status}. Transition to ${status} is invalid.`,
+        currentStatus: existingOrder.status 
+      });
+    }
+
     const io = req.app.get('io');
+    // Notify customer
     io.to(updatedOrder._id.toString()).emit('order_status_update', updatedOrder);
+    // Notify store room
+    io.to(updatedOrder.store._id.toString()).emit('order_status_update', updatedOrder);
 
     res.json(updatedOrder);
   } catch (err) {
