@@ -6,7 +6,7 @@ import * as SecureStore from 'expo-secure-store';
 
 export const SocketContext = createContext();
 
-const SOCKET_URL = (process.env.EXPO_PUBLIC_API_URL || 'https://universe-pa53.onrender.com').replace('/api', '');
+const SOCKET_URL = (process.env.EXPO_PUBLIC_API_URL || 'https://universe-7xoq.onrender.com').replace('/api', '');
 
 export const SocketProvider = ({ children }) => {
   const { user } = useContext(AuthContext);
