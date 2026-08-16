@@ -279,7 +279,7 @@ const OrderTracker = () => {
         )}
 
         {/* Handover QR Code Section */}
-        {(order.status === 'Ready' || order.status === 'Completed') && (
+        {(order.status === 'Ready' || order.status === 'Completed') && order.handoverToken && (
           <div style={{ 
             background: 'white', 
             padding: '2rem', 
@@ -317,7 +317,7 @@ const OrderTracker = () => {
               filter: order.status === 'Completed' ? 'grayscale(1) opacity(0.5)' : 'none'
             }}>
               <QRCodeSVG 
-                value={JSON.stringify({ orderId: order._id, token: order.handoverToken })} 
+                value={JSON.stringify({ orderId: order._id, handoverToken: order.handoverToken })} 
                 size={180} 
                 level="H"
                 includeMargin={true}
