@@ -81,20 +81,21 @@ export default function ScannerModal({ visible, onClose, onHandoverSuccess }) {
     <Modal visible={visible} animationType="slide" transparent={true} onRequestClose={onClose}>
       <View style={styles.container}>
         {isCameraReady ? (
-          <CameraView 
-            style={StyleSheet.absoluteFillObject}
-            facing="back"
-            onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
-            barcodeScannerSettings={{
-              barcodeTypes: ["qr"],
-            }}
-          >
-            {/* The Overlay MUST be a direct child of CameraView for Expo v51+ */}
-            <View style={styles.overlayContainer}>
+          <>
+            <CameraView 
+              style={StyleSheet.absoluteFillObject}
+              facing="back"
+              onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
+              barcodeScannerSettings={{
+                barcodeTypes: ["qr"],
+              }}
+            />
+            {/* The Overlay MUST be a SIBLING of CameraView, positioned absolutely */}
+            <View style={[StyleSheet.absoluteFillObject, styles.overlayContainer]}>
               
               {/* Semi-Transparent Top Header */}
               <View style={styles.topSection}>
-                <SafeAreaView>
+                <SafeAreaView edges={['top']}>
                   <View style={styles.header}>
                     <View style={styles.headerLeft}>
                       <Image source={require('../../assets/logo-symbol.png')} style={styles.headerLogo} resizeMode="contain" />
@@ -129,13 +130,13 @@ export default function ScannerModal({ visible, onClose, onHandoverSuccess }) {
 
               {/* Semi-Transparent Bottom Footer */}
               <View style={styles.bottomSection}>
-                <SafeAreaView>
+                <SafeAreaView edges={['bottom']}>
                   <Text style={styles.footerText}>Position the QR code entirely within the frame</Text>
                 </SafeAreaView>
               </View>
 
             </View>
-          </CameraView>
+          </>
         ) : (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#6366F1" />
