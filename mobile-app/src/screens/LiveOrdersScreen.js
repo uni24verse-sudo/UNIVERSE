@@ -5,19 +5,17 @@ import { AuthContext } from '../context/AuthContext';
 import { SocketContext } from '../context/SocketContext';
 import apiClient from '../api/client';
 import { useAudioAlerts } from '../hooks/useAudioAlerts';
-import ScannerModal from '../components/ScannerModal';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 
 const { width } = Dimensions.get('window');
 
-export default function LiveOrdersScreen() {
+export default function LiveOrdersScreen({ navigation }) {
   const { user } = useContext(AuthContext);
   const { socket, isConnected } = useContext(SocketContext);
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('Active'); // 'Active', 'Ready'
-  const [isScannerVisible, setScannerVisible] = useState(false);
   
   const { isAudioEnabled, toggleAudio, queueAnnouncement, cancelAnnouncement } = useAudioAlerts();
 
@@ -227,19 +225,13 @@ export default function LiveOrdersScreen() {
       )}
 
       {filter === 'Ready' && (
-        <TouchableOpacity style={styles.fabContainer} onPress={() => setScannerVisible(true)} activeOpacity={0.8}>
+        <TouchableOpacity style={styles.fabContainer} onPress={() => navigation.navigate('Scanner')} activeOpacity={0.8}>
           <LinearGradient colors={['#3B82F6', '#8B5CF6']} style={styles.fab} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
             <Ionicons name="qr-code-outline" size={24} color="white" style={{ marginRight: 8 }} />
             <Text style={{ fontSize: 18, fontWeight: 'bold', color: 'white', letterSpacing: 0.5 }}>Scan QR</Text>
           </LinearGradient>
         </TouchableOpacity>
       )}
-
-      <ScannerModal 
-        visible={isScannerVisible} 
-        onClose={() => setScannerVisible(false)} 
-        onHandoverSuccess={(orderId) => {}} 
-      />
     </SafeAreaView>
   );
 }

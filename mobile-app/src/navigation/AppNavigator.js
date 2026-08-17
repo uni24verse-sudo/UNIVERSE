@@ -12,6 +12,7 @@ import * as SecureStore from 'expo-secure-store';
 import LoginScreen from '../screens/LoginScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import LiveOrdersScreen from '../screens/LiveOrdersScreen';
+import ScannerScreen from '../screens/ScannerScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -92,7 +93,10 @@ export default function AppNavigator() {
     <NavigationContainer>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {user ? (
-          <Stack.Screen name="Main" component={MainTabNavigator} />
+          <>
+            <Stack.Screen name="Main" component={MainTabNavigator} />
+            <Stack.Screen name="Scanner" component={ScannerScreen} options={{ presentation: 'fullScreenModal' }} />
+          </>
         ) : (
           <Stack.Screen name="Login" component={LoginScreen} />
         )}
