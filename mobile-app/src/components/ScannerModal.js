@@ -78,13 +78,16 @@ export default function ScannerModal({ visible, onClose, onHandoverSuccess }) {
   };
 
   return (
-    <Modal visible={visible} animationType="slide" transparent={false} onRequestClose={onClose}>
+    <Modal visible={visible} animationType="slide" transparent={true} onRequestClose={onClose}>
       <View style={styles.container}>
         {isCameraReady ? (
           <CameraView 
             style={StyleSheet.absoluteFillObject}
             facing="back"
             onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
+            barcodeScannerSettings={{
+              barcodeTypes: ["qr"],
+            }}
           >
             {/* The Overlay MUST be a direct child of CameraView for Expo v51+ */}
             <View style={styles.overlayContainer}>

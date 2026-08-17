@@ -7,6 +7,7 @@ import apiClient from '../api/client';
 import { useAudioAlerts } from '../hooks/useAudioAlerts';
 import ScannerModal from '../components/ScannerModal';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 
 const { width } = Dimensions.get('window');
 
@@ -227,8 +228,9 @@ export default function LiveOrdersScreen() {
 
       {filter === 'Ready' && (
         <TouchableOpacity style={styles.fabContainer} onPress={() => setScannerVisible(true)} activeOpacity={0.8}>
-          <LinearGradient colors={['#F43F5E', '#E11D48']} style={styles.fab}>
-            <Text style={{ fontSize: 24, fontWeight: 'bold', color: 'white' }}>SCAN</Text>
+          <LinearGradient colors={['#3B82F6', '#8B5CF6']} style={styles.fab} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+            <Ionicons name="qr-code-outline" size={24} color="white" style={{ marginRight: 8 }} />
+            <Text style={{ fontSize: 18, fontWeight: 'bold', color: 'white', letterSpacing: 0.5 }}>Scan QR</Text>
           </LinearGradient>
         </TouchableOpacity>
       )}
@@ -435,17 +437,18 @@ const styles = StyleSheet.create({
   fabContainer: {
     position: 'absolute',
     bottom: 30,
-    right: 20,
-    shadowColor: '#F43F5E',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-    elevation: 8,
+    alignSelf: 'center',
+    shadowColor: '#3B82F6',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.5,
+    shadowRadius: 16,
+    elevation: 10,
   },
   fab: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    flexDirection: 'row',
+    paddingHorizontal: 32,
+    paddingVertical: 16,
+    borderRadius: 30,
     alignItems: 'center',
     justifyContent: 'center',
   },

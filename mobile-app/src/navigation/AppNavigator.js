@@ -1,4 +1,5 @@
 import React, { useContext } from 'react';
+import { Ionicons } from '@expo/vector-icons';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -18,12 +19,21 @@ const Tab = createBottomTabNavigator();
 function MainTabNavigator() {
   return (
     <Tab.Navigator
-      screenOptions={{
+      screenOptions={({ route }) => ({
         headerShown: false,
         tabBarStyle: { backgroundColor: '#111', borderTopColor: '#333' },
         tabBarActiveTintColor: '#3b82f6',
         tabBarInactiveTintColor: '#888',
-      }}
+        tabBarIcon: ({ focused, color, size }) => {
+          let iconName;
+          if (route.name === 'Orders') {
+            iconName = focused ? 'list' : 'list-outline';
+          } else if (route.name === 'Profile') {
+            iconName = focused ? 'person' : 'person-outline';
+          }
+          return <Ionicons name={iconName} size={size} color={color} />;
+        },
+      })}
     >
       <Tab.Screen 
         name="Orders" 
