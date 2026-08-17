@@ -2,7 +2,6 @@ import React, { useState, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
 
 const { width } = Dimensions.get('window');
 
@@ -35,7 +34,7 @@ export default function LoginScreen() {
         style={styles.keyboardView}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <BlurView intensity={20} style={styles.card} tint="dark">
+        <View style={styles.card}>
           <View style={styles.header}>
             <Text style={styles.title}>Universe</Text>
             <View style={styles.badge}>
@@ -94,7 +93,7 @@ export default function LoginScreen() {
               )}
             </LinearGradient>
           </TouchableOpacity>
-        </BlurView>
+        </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

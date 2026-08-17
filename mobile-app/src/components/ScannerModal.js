@@ -3,7 +3,6 @@ import { StyleSheet, Text, View, TouchableOpacity, Alert, ActivityIndicator, Mod
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import apiClient from '../api/client';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 
 export default function ScannerModal({ visible, onClose, onHandoverSuccess }) {
@@ -29,7 +28,7 @@ export default function ScannerModal({ visible, onClose, onHandoverSuccess }) {
   if (!permission.granted) {
     return (
       <Modal visible={visible} transparent={true} animationType="fade">
-        <BlurView intensity={40} style={[StyleSheet.absoluteFill, styles.permissionContainer]} tint="dark">
+        <View style={[StyleSheet.absoluteFill, styles.permissionContainer]}>
           <View style={styles.permissionCard}>
             <Image source={require('../../assets/logo-symbol.png')} style={styles.logo} resizeMode="contain" />
             <Text style={styles.permissionTitle}>Camera Access Required</Text>
@@ -43,7 +42,7 @@ export default function ScannerModal({ visible, onClose, onHandoverSuccess }) {
               <Text style={styles.cancelBtnText}>Cancel</Text>
             </TouchableOpacity>
           </View>
-        </BlurView>
+        </View>
       </Modal>
     );
   }
@@ -90,8 +89,8 @@ export default function ScannerModal({ visible, onClose, onHandoverSuccess }) {
             {/* The Overlay MUST be a direct child of CameraView for Expo v51+ */}
             <View style={styles.overlayContainer}>
               
-              {/* Frosted Glass Top Header */}
-              <BlurView intensity={30} tint="dark" style={styles.topSection}>
+              {/* Semi-Transparent Top Header */}
+              <View style={styles.topSection}>
                 <SafeAreaView>
                   <View style={styles.header}>
                     <View style={styles.headerLeft}>
@@ -106,7 +105,7 @@ export default function ScannerModal({ visible, onClose, onHandoverSuccess }) {
                     </TouchableOpacity>
                   </View>
                 </SafeAreaView>
-              </BlurView>
+              </View>
 
               {/* Middle Viewfinder */}
               <View style={styles.centerSection}>
@@ -117,20 +116,20 @@ export default function ScannerModal({ visible, onClose, onHandoverSuccess }) {
                   <View style={[styles.corner, styles.bottomRight]} />
 
                   {processing && (
-                    <BlurView intensity={40} tint="dark" style={styles.processingOverlay}>
+                    <View style={styles.processingOverlay}>
                       <ActivityIndicator size="large" color="#10B981" />
                       <Text style={styles.processingText}>Verifying...</Text>
-                    </BlurView>
+                    </View>
                   )}
                 </View>
               </View>
 
-              {/* Frosted Glass Bottom Footer */}
-              <BlurView intensity={30} tint="dark" style={styles.bottomSection}>
+              {/* Semi-Transparent Bottom Footer */}
+              <View style={styles.bottomSection}>
                 <SafeAreaView>
                   <Text style={styles.footerText}>Position the QR code entirely within the frame</Text>
                 </SafeAreaView>
-              </BlurView>
+              </View>
 
             </View>
           </CameraView>
@@ -155,6 +154,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   topSection: {
+    backgroundColor: 'rgba(15, 23, 42, 0.85)',
     paddingHorizontal: 20,
     paddingTop: 10,
     paddingBottom: 20,
@@ -165,16 +165,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   bottomSection: {
+    backgroundColor: 'rgba(15, 23, 42, 0.85)',
     paddingVertical: 30,
     alignItems: 'center',
   },
   permissionContainer: {
+    backgroundColor: 'rgba(15, 23, 42, 0.95)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
   },
   permissionCard: {
-    backgroundColor: 'rgba(30, 41, 59, 0.8)',
+    backgroundColor: '#1E293B',
     padding: 24,
     borderRadius: 20,
     width: '100%',
@@ -274,6 +276,7 @@ const styles = StyleSheet.create({
   bottomRight: { bottom: 0, right: 0, borderTopWidth: 0, borderLeftWidth: 0, borderBottomRightRadius: 16 },
   processingOverlay: {
     ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(15, 23, 42, 0.85)',
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: 20,
