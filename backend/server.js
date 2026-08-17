@@ -16,20 +16,7 @@ const io = new Server(server, {
 
 const jwt = require('jsonwebtoken');
 
-// Socket.io Middleware for Authentication
-io.use((socket, next) => {
-  const token = socket.handshake.auth.token;
-  if (!token) {
-    return next(new Error('Authentication error: No token provided'));
-  }
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    socket.user = decoded; // Attach user payload to socket
-    next();
-  } catch (err) {
-    next(new Error('Authentication error: Invalid token'));
-  }
-});
+// Removed global io.use middleware to allow unauthenticated customers to track orders via socket.io
 
 // Make io accessible to our router
 app.set('io', io);
@@ -82,21 +69,35 @@ app.use('/api/employees', require('./routes/employees'));
 
 // Socket.io connection handling
 io.on('connection', (socket) => {
-  console.log(`User Connected: ${socket.id}, User ID: ${socket.user._id}`);
+  console.log(`User Connected: ${socket.id}`);
 
   // Join Store Room with Server-Side Authorization
-  socket.on('join_store_room', (requestedStoreId) => {
-    // 1. Never trust the client's storeId!
-    // Derive the authorized storeId from the authenticated JWT
-    const authorizedStoreId = socket.user.storeId || socket.user._id;
-
-    if (!authorizedStoreId || requestedStoreId.toString() !== authorizedStoreId.toString()) {
-      console.log(`WARN: Socket ${socket.id} attempted to join unauthorized room ${requestedStoreId}`);
-      return; // Reject unauthorized join attempt
+  socket.on('join_store_room', (data) => {
+    // data can be an object with token and storeId, or just storeId
+    const token = socket.handshake.auth.token;
+    
+    if (!token) {
+      console.log(`WARN: Socket ${socket.id} attempted to join store room without token`);
+      return;
     }
 
-    socket.join(authorizedStoreId.toString());
-    console.log(`Socket ${socket.id} securely joined authorized room ${authorizedStoreId}`);
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      socket.user = decoded;
+      
+      const authorizedStoreId = socket.user.storeId || socket.user._id;
+      const requestedStoreId = data.storeId || data;
+
+      if (!authorizedStoreId || requestedStoreId.toString() !== authorizedStoreId.toString()) {
+        console.log(`WARN: Socket ${socket.id} attempted to join unauthorized room ${requestedStoreId}`);
+        return; // Reject unauthorized join attempt
+      }
+
+      socket.join(authorizedStoreId.toString());
+      console.log(`Socket ${socket.id} securely joined authorized room ${authorizedStoreId}`);
+    } catch (err) {
+      console.log(`WARN: Socket ${socket.id} provided invalid token for store room`);
+    }
   });
 
   socket.on('join_order_room', (orderId) => {

@@ -150,7 +150,7 @@ export default function LiveOrdersScreen({ navigation }) {
   const renderItem = ({ item }) => (
     <View style={styles.card}>
       <View style={styles.cardHeader}>
-        <Text style={styles.orderId}>#{item._id.slice(-6).toUpperCase()}</Text>
+        <Text style={styles.orderId}>#{item.orderNumber || item._id.slice(-6).toUpperCase()}</Text>
         <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) + '20', borderColor: getStatusColor(item.status) + '50' }]}>
           <Text style={[styles.statusText, { color: getStatusColor(item.status) }]}>{item.status}</Text>
         </View>
@@ -160,7 +160,7 @@ export default function LiveOrdersScreen({ navigation }) {
         {item.items.map((cartItem, index) => (
           <View key={index} style={styles.itemRow}>
             <Text style={styles.itemQty}>{cartItem.quantity}x</Text>
-            <Text style={styles.itemName}>{cartItem.menuItem?.name || 'Item'}</Text>
+            <Text style={styles.itemName}>{cartItem.name || cartItem.menuItem?.name || 'Item'}</Text>
           </View>
         ))}
       </View>

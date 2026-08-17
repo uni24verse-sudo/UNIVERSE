@@ -31,7 +31,7 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Allow Universe to access your camera to scan handover QR codes."
+          "cameraPermission": "Allow Mobile App to access your camera to scan handover QR codes."
         }
       ]
     ]
