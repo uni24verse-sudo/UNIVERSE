@@ -117,12 +117,11 @@ router.put('/:id/status', auth, async (req, res) => {
     if (existingOrderCheck.isPreOrder && existingOrderCheck.scheduledTime) {
       if (status === 'Cooking' || status === 'Ready') {
         const [hours, minutes] = existingOrderCheck.scheduledTime.split(':').map(Number);
-        // Compare with current IST time since scheduledTime is likely local
-        const nowIST = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Kolkata"}));
-        const scheduledDate = new Date(nowIST);
+        const now = new Date();
+        const scheduledDate = new Date();
         scheduledDate.setHours(hours, minutes, 0, 0);
 
-        const diffMs = scheduledDate.getTime() - nowIST.getTime();
+        const diffMs = scheduledDate.getTime() - now.getTime();
         const diffMins = diffMs / (1000 * 60);
 
         if (diffMins > 20) {

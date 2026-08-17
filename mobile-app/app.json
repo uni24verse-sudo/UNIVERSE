@@ -40,7 +40,7 @@
           "icon": "./assets/logo-symbol.png",
           "color": "#10B981",
           "sounds": [
-            "./assets/order_received.wav"
+            "./assets/order_received.mp3"
           ]
         }
       ]

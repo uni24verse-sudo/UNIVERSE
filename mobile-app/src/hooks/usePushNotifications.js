@@ -93,11 +93,11 @@ async function registerForPushNotificationsAsync() {
       lightColor: '#FF231F7C',
     });
     
-    // Custom Alarm Channel for Orders
-    Notifications.setNotificationChannelAsync('orders', {
+    // Custom Alarm Channel for Orders (New ID to force Android to recreate it)
+    Notifications.setNotificationChannelAsync('orders_alarm', {
       name: 'Order Alerts',
       importance: Notifications.AndroidImportance.MAX,
-      sound: 'order_received.wav', // Needs to exactly match the file in assets without the path
+      sound: 'order_received.mp3', // Needs to exactly match the file in assets without the path
       vibrationPattern: [0, 500, 200, 500, 200, 500],
       lightColor: '#10B981',
     });

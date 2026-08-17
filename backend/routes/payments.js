@@ -131,7 +131,7 @@ const pushService = require('../services/pushService');
       { orderId: savedOrder._id, orderNumber: savedOrder.orderNumber },
       'order_pending',
       activeOrdersCount,
-      'orders' // The custom alarm channel
+      'orders_alarm' // The custom alarm channel
     );
 
     // Notify vendor via Telegram
