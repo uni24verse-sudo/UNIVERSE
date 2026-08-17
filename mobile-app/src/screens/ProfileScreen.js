@@ -66,7 +66,7 @@ const styles = StyleSheet.create({
   },
   roleValue: {
     fontSize: 16,
-    color: '#4ade80', // Green for positive status
+    color: '#fcaf17', // UniVerse Gold
     fontWeight: 'bold',
   },
   logoutButton: {

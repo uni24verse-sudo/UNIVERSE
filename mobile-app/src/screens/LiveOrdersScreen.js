@@ -161,7 +161,7 @@ export default function LiveOrdersScreen({ navigation }) {
           disabled={locked}
           style={{ opacity: locked ? 0.5 : 1 }}
         >
-          <LinearGradient colors={['#8B5CF6', '#6D28D9']} style={styles.gradientBtn}>
+          <LinearGradient colors={['#EF4123', '#FCAF17']} start={{x: 0, y: 0}} end={{x: 1, y: 0}} style={styles.gradientBtn}>
             <Text style={styles.btnText}>{locked ? 'Locked' : 'Start Cooking'}</Text>
           </LinearGradient>
         </TouchableOpacity>
@@ -170,8 +170,8 @@ export default function LiveOrdersScreen({ navigation }) {
     if (order.status === 'Cooking') {
       return (
         <TouchableOpacity onPress={() => updateStatus(order._id, 'Cooking', 'Ready')}>
-          <LinearGradient colors={['#10B981', '#059669']} style={styles.gradientBtn}>
-            <Text style={styles.btnText}>Mark Ready</Text>
+          <LinearGradient colors={['#EF4123', '#FCAF17']} style={styles.gradientBtn}>
+            <Text style={styles.btnText}>Mark as Ready</Text>
           </LinearGradient>
         </TouchableOpacity>
       );
@@ -276,7 +276,7 @@ export default function LiveOrdersScreen({ navigation }) {
         {['Active', 'Pre-Orders', 'Ready'].map((t) => (
           <TouchableOpacity 
             key={t} 
-            style={[styles.tab, filter === t && styles.activeTab]}
+            style={[styles.tab, filter === t && styles.tabActive]}
             onPress={() => setFilter(t)}
           >
             <Text style={[styles.tabText, filter === t && styles.activeTabText]}>{t}</Text>
@@ -285,7 +285,7 @@ export default function LiveOrdersScreen({ navigation }) {
       </View>
 
       {loading && orders.length === 0 ? (
-        <ActivityIndicator size="large" color="#6366F1" style={{ marginTop: 40 }} />
+        <ActivityIndicator size="large" color="#EF4123" style={{ marginTop: 40 }} />
       ) : (
         <FlatList
           data={displayOrders}
@@ -304,7 +304,7 @@ export default function LiveOrdersScreen({ navigation }) {
 
       {filter === 'Ready' && (
         <TouchableOpacity style={styles.fabContainer} onPress={() => navigation.navigate('Scanner')} activeOpacity={0.8}>
-          <LinearGradient colors={['#3B82F6', '#8B5CF6']} style={styles.fab} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+          <LinearGradient colors={['#EF4123', '#FCAF17']} style={styles.fab} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
             <Ionicons name="qr-code-outline" size={24} color="white" style={{ marginRight: 8 }} />
             <Text style={{ fontSize: 18, fontWeight: 'bold', color: 'white', letterSpacing: 0.5 }}>Scan QR</Text>
           </LinearGradient>
@@ -373,9 +373,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#334155',
   },
-  activeTab: {
-    backgroundColor: '#38BDF8',
-    borderColor: '#0EA5E9',
+  tabActive: {
+    backgroundColor: '#EF4123',
+    borderColor: '#EF4123',
   },
   tabText: {
     color: '#94A3B8',

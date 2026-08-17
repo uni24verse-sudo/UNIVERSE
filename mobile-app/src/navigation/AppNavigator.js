@@ -23,7 +23,7 @@ function MainTabNavigator() {
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarStyle: { backgroundColor: '#111', borderTopColor: '#333' },
-        tabBarActiveTintColor: '#3b82f6',
+        tabBarActiveTintColor: '#EF4123',
         tabBarInactiveTintColor: '#888',
         tabBarIcon: ({ focused, color, size }) => {
           let iconName;
@@ -84,7 +84,7 @@ export default function AppNavigator() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#2563eb" />
+        <ActivityIndicator size="large" color="#EF4123" />
       </View>
     );
   }
