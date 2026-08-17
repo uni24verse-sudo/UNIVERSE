@@ -151,7 +151,7 @@ export default function ScannerModal({ visible, onClose, onHandoverSuccess }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: 'transparent',
   },
   overlayContainer: {
     flex: 1,
