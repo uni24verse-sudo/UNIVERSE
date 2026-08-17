@@ -65,9 +65,22 @@ export const useAudioAlerts = () => {
       }
 
       // 2. Play TTS
-      const orderIdDisplay = order.id || order._id?.slice(-4) || 'unknown';
+      const orderIdDisplay = order.orderNumber || order.id || order._id?.slice(-4) || 'unknown';
       const itemCount = order.items?.length || 'some';
-      const text = `New Universe order. Order ${orderIdDisplay}. ${itemCount} items.`;
+      
+      let orderTypeStr = order.orderType ? order.orderType.toLowerCase() : 'universe';
+      let preOrderStr = '';
+      if (order.isPreOrder && order.scheduledTime) {
+        // Example: scheduledTime could be "15:30" or "03:30 PM". We'll just read it as is.
+        preOrderStr = `scheduled for ${order.scheduledTime}`;
+      }
+      
+      let text;
+      if (preOrderStr) {
+         text = `New pre-order ${preOrderStr}. ${itemCount} items. Order ${orderIdDisplay}.`;
+      } else {
+         text = `New ${orderTypeStr} order. ${itemCount} items. Order ${orderIdDisplay}.`;
+      }
       
       await new Promise(resolve => {
         Speech.speak(text, {

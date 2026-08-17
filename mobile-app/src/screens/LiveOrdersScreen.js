@@ -7,6 +7,7 @@ import apiClient from '../api/client';
 import { useAudioAlerts } from '../hooks/useAudioAlerts';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import * as Notifications from 'expo-notifications';
 
 const { width } = Dimensions.get('window');
 
@@ -15,9 +16,25 @@ export default function LiveOrdersScreen({ navigation }) {
   const { socket, isConnected } = useContext(SocketContext);
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('Active'); // 'Active', 'Ready'
+  const [filter, setFilter] = useState('Active'); // 'Active', 'Pre-Orders', 'Ready'
+  const [tick, setTick] = useState(0);
   
   const { isAudioEnabled, toggleAudio, queueAnnouncement, cancelAnnouncement } = useAudioAlerts();
+
+  // Tick every 60 seconds to refresh the pre-order countdowns
+  useEffect(() => {
+    const interval = setInterval(() => setTick(t => t + 1), 60000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Sync WhatsApp-style badge count
+  useEffect(() => {
+    const activeCount = orders.filter(o => 
+      o.status !== 'Completed' && o.status !== 'Cancelled' && o.status !== 'Payment Pending'
+    ).length;
+    
+    Notifications.setBadgeCountAsync(activeCount).catch(() => {});
+  }, [orders]);
 
   const fetchOrders = useCallback(async () => {
     try {
@@ -92,12 +109,22 @@ export default function LiveOrdersScreen({ navigation }) {
     }
   };
 
-  const displayOrders = orders.filter((o) => {
-    if (o.status === 'Completed' || o.status === 'Cancelled' || o.status === 'Payment Pending') return false;
-    if (filter === 'Active' && (o.status === 'Pending' || o.status === 'Confirmed' || o.status === 'Cooking')) return true;
-    if (filter === 'Ready' && o.status === 'Ready') return true;
-    return false;
-  });
+  const displayOrders = orders
+    .filter((o) => {
+      if (o.status === 'Completed' || o.status === 'Cancelled' || o.status === 'Payment Pending') return false;
+      if (filter === 'Active' && !o.isPreOrder && (o.status === 'Pending' || o.status === 'Confirmed' || o.status === 'Cooking')) return true;
+      if (filter === 'Pre-Orders' && o.isPreOrder && (o.status === 'Pending' || o.status === 'Confirmed' || o.status === 'Cooking')) return true;
+      if (filter === 'Ready' && o.status === 'Ready') return true;
+      return false;
+    })
+    .sort((a, b) => {
+      if (filter === 'Pre-Orders') {
+        const timeA = a.scheduledTime || '23:59';
+        const timeB = b.scheduledTime || '23:59';
+        return timeA.localeCompare(timeB);
+      }
+      return 0;
+    });
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -127,10 +154,15 @@ export default function LiveOrdersScreen({ navigation }) {
       );
     }
     if (order.status === 'Confirmed') {
+      const { locked } = getPreOrderInfo(order);
       return (
-        <TouchableOpacity onPress={() => updateStatus(order._id, 'Confirmed', 'Cooking')}>
+        <TouchableOpacity 
+          onPress={() => updateStatus(order._id, 'Confirmed', 'Cooking')}
+          disabled={locked}
+          style={{ opacity: locked ? 0.5 : 1 }}
+        >
           <LinearGradient colors={['#8B5CF6', '#6D28D9']} style={styles.gradientBtn}>
-            <Text style={styles.btnText}>Start Cooking</Text>
+            <Text style={styles.btnText}>{locked ? 'Locked' : 'Start Cooking'}</Text>
           </LinearGradient>
         </TouchableOpacity>
       );
@@ -147,16 +179,61 @@ export default function LiveOrdersScreen({ navigation }) {
     return null;
   };
 
-  const renderItem = ({ item }) => (
-    <View style={styles.card}>
-      <View style={styles.cardHeader}>
-        <Text style={styles.orderId}>#{item.orderNumber || item._id.slice(-6).toUpperCase()}</Text>
-        <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) + '20', borderColor: getStatusColor(item.status) + '50' }]}>
-          <Text style={[styles.statusText, { color: getStatusColor(item.status) }]}>{item.status}</Text>
+  const getPreOrderInfo = (order) => {
+    if (!order.isPreOrder || !order.scheduledTime) return { locked: false, text: '' };
+    
+    const [hours, minutes] = order.scheduledTime.split(':').map(Number);
+    const nowIST = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Kolkata"}));
+    const scheduledDate = new Date(nowIST);
+    scheduledDate.setHours(hours, minutes, 0, 0);
+
+    const diffMs = scheduledDate.getTime() - nowIST.getTime();
+    const diffMins = Math.floor(diffMs / (1000 * 60));
+
+    if (diffMins > 20) {
+      return { locked: true, text: `⚠️ DO NOT COOK: ${diffMins} mins left` };
+    }
+    return { locked: false, text: `🔥 Ready to Cook! (${diffMins} mins left)` };
+  };
+
+  const renderItem = ({ item }) => {
+    const preOrderInfo = getPreOrderInfo(item);
+    
+    return (
+      <View style={[styles.card, item.isPreOrder && { borderColor: 'rgba(239, 68, 68, 0.5)', borderWidth: 2 }]}>
+        <View style={styles.cardHeader}>
+          <Text style={styles.orderId}>#{item.orderNumber || item._id.slice(-6).toUpperCase()}</Text>
+          <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) + '20', borderColor: getStatusColor(item.status) + '50' }]}>
+            <Text style={[styles.statusText, { color: getStatusColor(item.status) }]}>{item.status}</Text>
+          </View>
         </View>
-      </View>
-      
-      <View style={styles.itemsList}>
+        
+        <View style={styles.tagsRow}>
+          {item.orderType === 'Take Away' ? (
+            <View style={[styles.tagBadge, { backgroundColor: '#F9731620', borderColor: '#F9731650' }]}>
+              <Text style={[styles.tagText, { color: '#F97316' }]}>🛍️ Take Away</Text>
+            </View>
+          ) : (
+            <View style={[styles.tagBadge, { backgroundColor: '#A855F720', borderColor: '#A855F750' }]}>
+              <Text style={[styles.tagText, { color: '#A855F7' }]}>🍽️ Dine In</Text>
+            </View>
+          )}
+          {item.isPreOrder && (
+            <View style={[styles.tagBadge, { backgroundColor: '#EF444420', borderColor: '#EF444450' }]}>
+              <Text style={[styles.tagText, { color: '#EF4444' }]}>⏰ Pre-Order: {item.scheduledTime}</Text>
+            </View>
+          )}
+        </View>
+        
+        {item.isPreOrder && (
+          <View style={{ marginBottom: 12 }}>
+             <Text style={{ color: preOrderInfo.locked ? '#EF4444' : '#10B981', fontWeight: 'bold', fontSize: 16 }}>
+               {preOrderInfo.text}
+             </Text>
+          </View>
+        )}
+        
+        <View style={styles.itemsList}>
         {item.items.map((cartItem, index) => (
           <View key={index} style={styles.itemRow}>
             <Text style={styles.itemQty}>{cartItem.quantity}x</Text>
@@ -167,11 +244,12 @@ export default function LiveOrdersScreen({ navigation }) {
 
       <Text style={styles.customerName}>User: {item.customerName || 'Guest'}</Text>
 
-      <View style={styles.cardFooter}>
-        {getActionButtons(item)}
+        <View style={styles.cardFooter}>
+          {getActionButtons(item)}
+        </View>
       </View>
-    </View>
-  );
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -195,7 +273,7 @@ export default function LiveOrdersScreen({ navigation }) {
       </View>
 
       <View style={styles.tabsContainer}>
-        {['Active', 'Ready'].map((t) => (
+        {['Active', 'Pre-Orders', 'Ready'].map((t) => (
           <TouchableOpacity 
             key={t} 
             style={[styles.tab, filter === t && styles.activeTab]}
@@ -347,6 +425,22 @@ const styles = StyleSheet.create({
     fontSize: 12,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+  },
+  tagsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 12,
+    flexWrap: 'wrap',
+  },
+  tagBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  tagText: {
+    fontWeight: 'bold',
+    fontSize: 12,
   },
   itemsList: {
     backgroundColor: '#0F172A',

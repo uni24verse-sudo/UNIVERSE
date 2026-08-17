@@ -92,6 +92,15 @@ async function registerForPushNotificationsAsync() {
       vibrationPattern: [0, 250, 250, 250],
       lightColor: '#FF231F7C',
     });
+    
+    // Custom Alarm Channel for Orders
+    Notifications.setNotificationChannelAsync('orders', {
+      name: 'Order Alerts',
+      importance: Notifications.AndroidImportance.MAX,
+      sound: 'order_received.wav', // Needs to exactly match the file in assets without the path
+      vibrationPattern: [0, 500, 200, 500, 200, 500],
+      lightColor: '#10B981',
+    });
   }
 
   return token;

@@ -110,6 +110,27 @@ router.put('/:id/status', auth, async (req, res) => {
     const expectedCurrentStatuses = validTransitions[status];
     const authorizedStoreId = req.admin.storeId || req.admin._id;
 
+    // PRE-ORDER STRICT TIME LOCK
+    const existingOrderCheck = await Order.findById(req.params.id);
+    if (!existingOrderCheck) return res.status(404).json({ message: 'Order not found' });
+    
+    if (existingOrderCheck.isPreOrder && existingOrderCheck.scheduledTime) {
+      if (status === 'Cooking' || status === 'Ready') {
+        const [hours, minutes] = existingOrderCheck.scheduledTime.split(':').map(Number);
+        // Compare with current IST time since scheduledTime is likely local
+        const nowIST = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Kolkata"}));
+        const scheduledDate = new Date(nowIST);
+        scheduledDate.setHours(hours, minutes, 0, 0);
+
+        const diffMs = scheduledDate.getTime() - nowIST.getTime();
+        const diffMins = diffMs / (1000 * 60);
+
+        if (diffMins > 20) {
+          return res.status(403).json({ message: `Too early to prepare! Please wait until there is less than 20 minutes left. (Current: ${Math.round(diffMins)} mins left)` });
+        }
+      }
+    }
+
     // 3. Atomic Conditional Update & Token Generation
     const updatePayload = { $set: { status: status } };
     

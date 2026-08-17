@@ -33,6 +33,16 @@
         {
           "cameraPermission": "Allow Mobile App to access your camera to scan handover QR codes."
         }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/logo-symbol.png",
+          "color": "#10B981",
+          "sounds": [
+            "./assets/order_received.wav"
+          ]
+        }
       ]
     ]
   }

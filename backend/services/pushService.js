@@ -9,7 +9,7 @@ let expo = new Expo();
  * Sends a push notification to all active devices for a given store
  * and automatically prunes invalid tokens.
  */
-const sendStoreNotification = async (storeId, title, body, data = {}, categoryId = null) => {
+const sendStoreNotification = async (storeId, title, body, data = {}, categoryId = null, badgeCount = undefined, channelId = 'default') => {
   try {
     // 1. Find all active devices for this store
     const devices = await DeviceRegistry.find({ storeId, active: true });
@@ -28,11 +28,16 @@ const sendStoreNotification = async (storeId, title, body, data = {}, categoryId
       // Construct the message
       let pushMessage = {
         to: device.pushToken,
-        sound: 'default',
+        sound: 'default', // Ignored on Android when channelId is provided
         title: title,
         body: body,
         data: data,
+        channelId: channelId,
       };
+      
+      if (badgeCount !== undefined) {
+        pushMessage.badge = badgeCount;
+      }
       
       if (categoryId) {
         pushMessage.categoryId = categoryId;

@@ -117,13 +117,21 @@ const pushService = require('../services/pushService');
     const io = req.app.get('io');
     io.to(storeId.toString()).emit('new_order', savedOrder);
 
+    // Compute active badge count
+    const activeOrdersCount = await Order.countDocuments({
+      store: storeId,
+      status: { $in: ['Pending', 'Confirmed', 'Cooking'] }
+    });
+
     // Notify vendor via FCM/Expo Push Notifications (Background)
     pushService.sendStoreNotification(
       storeId.toString(),
       'New Order Received!',
       `Order #${savedOrder.orderNumber} for ₹${savedOrder.totalAmount} has arrived.`,
       { orderId: savedOrder._id, orderNumber: savedOrder.orderNumber },
-      'order_pending'
+      'order_pending',
+      activeOrdersCount,
+      'orders' // The custom alarm channel
     );
 
     // Notify vendor via Telegram
