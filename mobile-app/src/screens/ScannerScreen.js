@@ -32,7 +32,7 @@ export default function ScannerScreen({ navigation }) {
           <Text style={styles.permissionTitle}>Camera Access Required</Text>
           <Text style={styles.permissionText}>We need your permission to use the camera for scanning handover QR codes.</Text>
           <TouchableOpacity onPress={requestPermission}>
-            <LinearGradient colors={['#EF4123', '#FCAF17']} style={styles.grantBtn} start={{x: 0, y: 0}} end={{x: 1, y: 0}}>
+            <LinearGradient colors={['#3B82F6', '#2563EB']} style={styles.grantBtn} start={{x: 0, y: 0}} end={{x: 1, y: 0}}>
               <Text style={styles.grantBtnText}>Grant Permission</Text>
             </LinearGradient>
           </TouchableOpacity>
@@ -94,7 +94,7 @@ export default function ScannerScreen({ navigation }) {
           />
           {processing && !showSuccess && (
             <View style={styles.processingOverlay}>
-              <ActivityIndicator size="large" color="#EF4123" />
+              <ActivityIndicator size="large" color="#3B82F6" />
               <Text style={styles.processingText}>Verifying...</Text>
             </View>
           )}
@@ -112,7 +112,7 @@ export default function ScannerScreen({ navigation }) {
         </>
       ) : (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#EF4123" />
+          <ActivityIndicator size="large" color="#3B82F6" />
         </View>
       )}
     </View>
@@ -128,28 +128,33 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   permissionContainer: {
-    backgroundColor: 'rgba(15, 23, 42, 0.95)',
+    backgroundColor: 'rgba(248, 250, 252, 0.95)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
   },
   permissionCard: {
-    backgroundColor: '#1E293B',
+    backgroundColor: '#FFFFFF',
     padding: 24,
     borderRadius: 20,
     width: '100%',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   permissionTitle: {
-    color: '#F8FAFC',
+    color: '#0F172A',
     fontSize: 20,
     fontWeight: 'bold',
     marginBottom: 8,
     textAlign: 'center',
   },
   permissionText: {
-    color: '#94A3B8',
+    color: '#64748B',
     fontSize: 15,
     textAlign: 'center',
     marginBottom: 24,

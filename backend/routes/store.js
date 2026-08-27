@@ -416,6 +416,15 @@ router.put('/:storeId/product/:productId/toggle', auth, async (req, res) => {
     store.markModified('products'); 
     await store.save();
 
+    // Broadcast availability change to store room
+    const io = req.app.get('io');
+    if (io) {
+      io.to(req.params.storeId).emit('product_availability_update', {
+        productId: product._id,
+        isAvailable: product.isAvailable
+      });
+    }
+
     res.json({ message: 'Product updated successfully', store });
   } catch (err) {
     res.status(500).json({ message: err.message });

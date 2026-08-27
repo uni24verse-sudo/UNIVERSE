@@ -123,12 +123,35 @@ const pushService = require('../services/pushService');
       status: { $in: ['Pending', 'Confirmed', 'Cooking'] }
     });
 
+    // Format rich push notification with full itemized details
+    const itemsSummary = (savedOrder.items || []).map(item => {
+      let itemStr = `${item.quantity}x ${item.name || 'Item'}`;
+      if (item.variant) itemStr += ` (${item.variant})`;
+      return itemStr;
+    }).join(', ');
+
+    const orderTypeLabel = savedOrder.isPreOrder 
+      ? `⏰ Pre-Order (${savedOrder.scheduledTime})` 
+      : (savedOrder.orderType === 'Take Away' ? '🛍️ Take Away' : '🍽️ Dine In');
+    
+    const customerInfo = savedOrder.customerName ? ` • 👤 ${savedOrder.customerName}` : '';
+    const notifTitle = `🔔 Order #${savedOrder.orderNumber} (${orderTypeLabel})`;
+    const notifBody = `${itemsSummary} • ₹${savedOrder.totalAmount}${customerInfo}`;
+
     // Notify vendor via FCM/Expo Push Notifications (Background)
     pushService.sendStoreNotification(
       storeId.toString(),
-      'New Order Received!',
-      `Order #${savedOrder.orderNumber} for ₹${savedOrder.totalAmount} has arrived.`,
-      { orderId: savedOrder._id, orderNumber: savedOrder.orderNumber },
+      notifTitle,
+      notifBody,
+      { 
+        orderId: savedOrder._id, 
+        orderNumber: savedOrder.orderNumber,
+        totalAmount: savedOrder.totalAmount,
+        itemsSummary,
+        orderType: savedOrder.orderType,
+        isPreOrder: savedOrder.isPreOrder,
+        scheduledTime: savedOrder.scheduledTime
+      },
       'order_pending',
       activeOrdersCount,
       'orders_alarm' // The custom alarm channel

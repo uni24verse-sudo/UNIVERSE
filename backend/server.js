@@ -56,6 +56,8 @@ mongoose.connect(process.env.MONGODB_URI)
   .catch(err => console.log('Failed to connect to MongoDB', err));
 
 // Routes
+app.get('/ping', (req, res) => res.status(200).send('pong'));
+
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/store', require('./routes/store'));
 app.use('/api/orders', require('./routes/orders'));

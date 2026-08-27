@@ -13,6 +13,7 @@ import LoginScreen from '../screens/LoginScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import LiveOrdersScreen from '../screens/LiveOrdersScreen';
 import ScannerScreen from '../screens/ScannerScreen';
+import MenuScreen from '../screens/MenuScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -22,13 +23,15 @@ function MainTabNavigator() {
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarStyle: { backgroundColor: '#111', borderTopColor: '#333' },
-        tabBarActiveTintColor: '#EF4123',
-        tabBarInactiveTintColor: '#888',
+        tabBarStyle: { backgroundColor: '#FFFFFF', borderTopColor: '#E2E8F0' },
+        tabBarActiveTintColor: '#3B82F6',
+        tabBarInactiveTintColor: '#94A3B8',
         tabBarIcon: ({ focused, color, size }) => {
           let iconName;
           if (route.name === 'Orders') {
             iconName = focused ? 'list' : 'list-outline';
+          } else if (route.name === 'Menu') {
+            iconName = focused ? 'restaurant' : 'restaurant-outline';
           } else if (route.name === 'Profile') {
             iconName = focused ? 'person' : 'person-outline';
           }
@@ -40,6 +43,11 @@ function MainTabNavigator() {
         name="Orders" 
         component={LiveOrdersScreen} 
         options={{ title: 'Live Orders' }} 
+      />
+      <Tab.Screen 
+        name="Menu" 
+        component={MenuScreen} 
+        options={{ title: 'Menu' }} 
       />
       <Tab.Screen 
         name="Profile" 
@@ -110,6 +118,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#121212',
+    backgroundColor: '#F8FAFC',
   },
 });

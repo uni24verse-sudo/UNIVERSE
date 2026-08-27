@@ -52,8 +52,24 @@ const StoreMenu = () => {
           setStore(prev => prev ? { ...prev, isOpen } : prev);
         }
       };
+
+      const handleProductAvailability = ({ productId, isAvailable }) => {
+        setStore(prev => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            products: prev.products.map(p => p._id === productId ? { ...p, isAvailable } : p)
+          };
+        });
+      };
+
       socket.on('store_status_update', handleStoreStatus);
-      return () => socket.off('store_status_update', handleStoreStatus);
+      socket.on('product_availability_update', handleProductAvailability);
+
+      return () => {
+        socket.off('store_status_update', handleStoreStatus);
+        socket.off('product_availability_update', handleProductAvailability);
+      };
     }
   }, [socket, connected, id]);
 

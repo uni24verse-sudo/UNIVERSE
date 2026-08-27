@@ -35,7 +35,7 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#121212',
+    backgroundColor: '#F8FAFC',
     padding: 16,
   },
   header: {
@@ -45,38 +45,47 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: '#ffffff',
+    color: '#0F172A',
   },
   card: {
-    backgroundColor: '#1e1e1e',
+    backgroundColor: '#FFFFFF',
     padding: 20,
     borderRadius: 16,
     marginBottom: 24,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   label: {
     fontSize: 14,
-    color: '#888',
+    color: '#64748B',
     marginBottom: 4,
   },
   value: {
     fontSize: 18,
-    color: '#ffffff',
+    color: '#0F172A',
     marginBottom: 16,
     fontWeight: '500',
   },
   roleValue: {
     fontSize: 16,
-    color: '#fcaf17', // UniVerse Gold
+    color: '#3B82F6', // Blue for light theme accent
     fontWeight: 'bold',
   },
   logoutButton: {
-    backgroundColor: '#ef4444', // Red for logout
+    backgroundColor: 'rgba(239, 68, 68, 0.1)', // Light Red for logout
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.3)',
   },
   logoutText: {
-    color: '#ffffff',
+    color: '#EF4444',
     fontSize: 18,
     fontWeight: 'bold',
   },
