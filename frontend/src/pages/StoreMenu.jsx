@@ -53,14 +53,16 @@ const StoreMenu = () => {
         }
       };
 
-      const handleProductAvailability = ({ productId, isAvailable }) => {
-        setStore(prev => {
-          if (!prev) return prev;
-          return {
-            ...prev,
-            products: prev.products.map(p => p._id === productId ? { ...p, isAvailable } : p)
-          };
-        });
+      const handleProductAvailability = ({ storeId, productId, isAvailable }) => {
+        if (storeId === id) {
+          setStore(prev => {
+            if (!prev) return prev;
+            return {
+              ...prev,
+              products: prev.products.map(p => p._id === productId ? { ...p, isAvailable } : p)
+            };
+          });
+        }
       };
 
       socket.on('store_status_update', handleStoreStatus);

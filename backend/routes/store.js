@@ -416,10 +416,11 @@ router.put('/:storeId/product/:productId/toggle', auth, async (req, res) => {
     store.markModified('products'); 
     await store.save();
 
-    // Broadcast availability change to store room
+    // Broadcast availability change globally (frontend filters by storeId)
     const io = req.app.get('io');
     if (io) {
-      io.to(req.params.storeId).emit('product_availability_update', {
+      io.emit('product_availability_update', {
+        storeId: req.params.storeId,
         productId: product._id,
         isAvailable: product.isAvailable
       });
