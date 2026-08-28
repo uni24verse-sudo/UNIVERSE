@@ -1128,9 +1128,9 @@ const Dashboard = () => {
           </div>
         ) : (
           <>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? '1.5rem' : '0' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
             {/* Main Section: Orders & Info - Prioritized on mobile */}
-            <div style={{ order: isMobile ? 1 : 2, display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '2fr 1fr', gap: '2rem' }}>
+            <div style={{ order: 2, display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '2fr 1fr', gap: '2rem' }}>
               {/* Live Orders Feed */}
               <div className="glass-card" style={{ padding: isMobile ? '1.5rem' : '2rem', borderRadius: '32px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
@@ -1463,7 +1463,7 @@ const Dashboard = () => {
             </div>
 
             {/* Analytics Section */}
-            <div style={{ display: 'flex', flexDirection: 'column', order: isMobile ? 2 : 1 }}>
+            <div style={{ order: 3, display: 'flex', flexDirection: 'column' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '1rem' }}>
                 <h3 style={{ fontSize: '1.25rem', fontWeight: '800', margin: 0, color: 'var(--text-primary)', display: 'flex', alignItems: 'center' }}>Business Insights {!vendor?.seenFeatures?.includes(INSIGHTS_KEY) && <NewFeatureBadge />}</h3>
               
@@ -1546,8 +1546,8 @@ const Dashboard = () => {
             </div>
             </div>
 
-            {/* Stats Cards - Moved below Live Orders on mobile */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem', marginBottom: '3rem', order: isMobile ? 3 : 2 }}>
+            {/* Stats Cards - Moved to Top */}
+            <div style={{ order: 1, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem' }}>
               <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '24px', position: 'relative', overflow: 'hidden', border: '1px solid rgba(16, 185, 129, 0.1)' }}>
                 <div style={{ position: 'absolute', right: '-10px', bottom: '-10px', opacity: 0.05, color: '#10b981' }}><Banknote size={100} /></div>
                 <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: '800', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Today's Net Profit</p>
