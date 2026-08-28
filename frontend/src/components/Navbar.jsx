@@ -68,11 +68,6 @@ const Navbar = ({ bannerVisible }) => {
   const isRestaurant = activeStore?.storeType === 'Restaurant';
   const isStoreLocked = isRestaurant && isDirectQR;
 
-  // Hide Navbar on vendor and super-admin routes
-  if (isAdminPath) {
-    return null;
-  }
-
   const cartItemsCount = cart.reduce((acc, item) => acc + item.quantity, 0);
 
   // Debounced Search
@@ -133,6 +128,11 @@ const Navbar = ({ bannerVisible }) => {
     if (!img) return 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=500&q=60';
     return img.startsWith('/uploads') ? `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${img}` : img;
   };
+
+  // Hide Navbar on vendor and super-admin routes
+  if (isAdminPath) {
+    return null;
+  }
 
   return (
     <nav 
