@@ -13,9 +13,7 @@ if (!window.navigator.userAgent) {
   window.navigator.userAgent = 'react-native';
 }
 
-const SOCKET_URL = (process.env.EXPO_PUBLIC_API_URL || 'https://api.universeorder.co.in')
-  .replace('/api', '')
-  .replace('https://', 'wss://');
+const SOCKET_URL = (process.env.EXPO_PUBLIC_API_URL || 'https://api.universeorder.co.in').replace('/api', '');
 
 export const SocketProvider = ({ children }) => {
   const { user } = useContext(AuthContext);
@@ -40,7 +38,12 @@ export const SocketProvider = ({ children }) => {
 
       newSocket = io(SOCKET_URL, {
         auth: { token }, // Pass JWT for server-side verification
-        transports: ['websocket', 'polling'], 
+        transports: ['websocket'],
+        forceNew: true,
+        secure: true,
+        extraHeaders: {
+          'Origin': 'https://api.universeorder.co.in'
+        }
       });
 
       newSocket.on('connect', () => {
