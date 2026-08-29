@@ -6,7 +6,7 @@ import * as SecureStore from 'expo-secure-store';
 
 export const SocketContext = createContext();
 
-const SOCKET_URL = (process.env.EXPO_PUBLIC_API_URL || 'https://universe-production-5997.up.railway.app').replace('/api', '');
+const SOCKET_URL = (process.env.EXPO_PUBLIC_API_URL || 'https://api.universeorder.co.in').replace('/api', '');
 
 export const SocketProvider = ({ children }) => {
   const { user } = useContext(AuthContext);
@@ -30,7 +30,7 @@ export const SocketProvider = ({ children }) => {
 
       newSocket = io(SOCKET_URL, {
         auth: { token }, // Pass JWT for server-side verification
-        transports: ['websocket', 'polling'], 
+        transports: ['websocket'], 
       });
 
       newSocket.on('connect', () => {
