@@ -3,7 +3,7 @@ import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 
 // Set up the base URL for the production backend
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://universe-7xoq.onrender.com/api';
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://universe-production-5997.up.railway.app/api';
 
 const apiClient = axios.create({
   baseURL: API_URL,
