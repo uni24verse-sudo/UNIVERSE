@@ -107,9 +107,9 @@ router.get('/trending', async (req, res) => {
 
     const topProductIds = await Order.aggregate(pipeline);
 
-    // 2. Fetch the actual product details for these top product IDs
-    for (const item of topProductIds) {
-      if (!item._id) continue;
+    // 2. Fetch the actual product details for these top product IDs in PARALLEL
+    const storePromises = topProductIds.map(async (item) => {
+      if (!item._id) return null;
       
       const store = await Store.findOne({
         'products._id': item._id,
@@ -121,7 +121,7 @@ router.get('/trending', async (req, res) => {
       if (store && store.products && store.products.length > 0) {
         const product = store.products[0];
         if (product.isAvailable) { // only show available items
-          trendingItems.push({
+          return {
             storeId: store._id,
             storeName: store.name,
             market: store.market,
@@ -131,10 +131,14 @@ router.get('/trending', async (req, res) => {
             image: product.image,
             category: product.category,
             orderCount: item.count
-          });
+          };
         }
       }
-    }
+      return null;
+    });
+
+    const resolvedStores = await Promise.all(storePromises);
+    trendingItems = resolvedStores.filter(item => item !== null);
 
     // 3. Fallback: If not enough real trending data, fill it up with items that have images
     if (trendingItems.length < 8) {
