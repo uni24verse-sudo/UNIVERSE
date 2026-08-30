@@ -60,20 +60,19 @@ const FloatingBackground = () => {
 };
 
 const StoreCardSkeleton = () => (
-  <div className="glass-card store-card" style={{ height: '100%', minHeight: '380px' }}>
-    <div className="store-img-wrapper skeleton skeleton-img" style={{ height: '200px', marginBottom: '1.25rem' }}></div>
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+  <div className="glass-card store-card">
+    <div className="store-img-wrapper skeleton skeleton-img"></div>
+    <div className="store-info-wrapper" style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div className="skeleton skeleton-text" style={{ width: '60%', height: '1.25rem' }}></div>
-        <div className="skeleton skeleton-circle" style={{ width: '16px', height: '16px' }}></div>
+        <div className="skeleton skeleton-text" style={{ width: '80%', height: '1.25rem' }}></div>
       </div>
-      <div className="skeleton skeleton-text" style={{ width: '30%', height: '0.75rem' }}></div>
-      <div style={{ marginTop: 'auto', paddingTop: '1rem', borderTop: '1px solid var(--surface-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div className="skeleton skeleton-text store-category-text" style={{ width: '40%', height: '0.75rem' }}></div>
+      <div className="store-footer-row" style={{ marginTop: 'auto', paddingTop: '0.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ display: 'flex', gap: '1rem' }}>
           <div className="skeleton skeleton-text" style={{ width: '40px', height: '0.75rem' }}></div>
           <div className="skeleton skeleton-text" style={{ width: '40px', height: '0.75rem' }}></div>
         </div>
-        <div className="skeleton" style={{ width: '28px', height: '28px', borderRadius: '8px' }}></div>
+        <div className="skeleton btn-circle" style={{ width: '28px', height: '28px', borderRadius: '8px' }}></div>
       </div>
     </div>
   </div>
