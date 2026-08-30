@@ -323,33 +323,45 @@ const Home = () => {
                           onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=500&q=60'; }}
                         />
                         {!isOpen && (
-                          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.4)', backdropFilter: 'blur(8px)' }}>
-                            <span style={{ background: '#334155', color: 'white', padding: '0.5rem 1.5rem', borderRadius: '100px', fontWeight: '800', fontSize: '0.625rem', letterSpacing: '0.1em' }}>CLOSED</span>
+                          <div className="store-closed-overlay">
+                            <span className="store-closed-text">CLOSED</span>
                           </div>
                         )}
                       
-                        <div style={{ position: 'absolute', top: '0.75rem', right: '0.75rem', background: 'rgba(255,255,255,0.9)', backdropFilter: 'blur(10px)', padding: '0.35rem 0.6rem', borderRadius: '10px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                        <div className="store-rating-badge">
                            <Star size={12} color="#f59e0b" fill="#f59e0b" />
-                           <span style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-primary)' }}>{store.rating || '5.0'}</span>
+                           <span>{store.rating || '5.0'}</span>
                         </div>
                         
-                        <div style={{ position: 'absolute', bottom: '0.75rem', left: '0.75rem', background: 'rgba(255, 255, 255, 0.9)', backdropFilter: 'blur(8px)', padding: '0.35rem 0.75rem', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '0.4rem', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
+                        <div className="store-market-badge">
                           <MapPin size={10} color="var(--primary)" />
-                          <span style={{ fontSize: '0.6875rem', fontWeight: '800', color: 'var(--text-primary)' }}>{store.market || 'Campus'}</span>
+                          <span>{store.market || 'Campus'}</span>
                         </div>
                     </div>
 
-                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                    <div className="store-info-wrapper" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
                         <h3 style={{ fontSize: '1.125rem', fontWeight: '800', margin: 0, color: 'var(--text-primary)' }}>{store.name}</h3>
-                        {isOpen && <CheckCircle2 size={16} color="var(--secondary)" />}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                          <div className={`status-dot ${isOpen ? 'live' : 'offline'}`}></div>
+                          <span style={{ fontSize: '0.625rem', fontWeight: '800', letterSpacing: '0.05em', color: isOpen ? '#10b981' : '#ef4444', textTransform: 'uppercase' }}>
+                            {isOpen ? 'Live' : 'Closed'}
+                          </span>
+                        </div>
                       </div>
                       
-                      <p style={{ fontSize: '0.6875rem', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1.25rem' }}>
+                      <div className="store-mobile-meta">
+                        <Star size={12} color="#f59e0b" fill="#f59e0b" />
+                        <span className="rating-text">{store.rating || '5.0'}</span>
+                        <MapPin size={10} color="var(--primary)" />
+                        <span className="market-text">{store.market || 'Campus'}</span>
+                      </div>
+
+                      <p className="store-category-text" style={{ fontSize: '0.6875rem', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1.25rem' }}>
                         {store.category || 'General'}
                       </p>
                       
-                       <div style={{ marginTop: 'auto', paddingTop: '1rem', borderTop: '1px solid var(--surface-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                       <div className="store-footer-row" style={{ marginTop: 'auto', paddingTop: '1rem', borderTop: '1px solid var(--surface-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <div style={{ display: 'flex', gap: '1rem', color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: '600' }}>
                                <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><ShoppingBag size={14} /> {store.products?.length || 0}</span>
                                <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><Clock size={14} /> 15m</span>
