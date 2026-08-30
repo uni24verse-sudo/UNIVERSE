@@ -4,7 +4,6 @@ import './HeroCarousel.css';
 
 const HeroCarousel = ({ onSearch }) => {
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [searchQuery, setSearchQuery] = useState('');
 
   // Mock advertising data (this could come from DB in future)
   const slides = [
@@ -13,7 +12,7 @@ const HeroCarousel = ({ onSearch }) => {
       title: '50% Off Gourmet Burgers',
       subtitle: 'Satisfy your late-night cravings instantly.',
       image: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=1200&q=80',
-      color: '#f97316', // Orange
+      color: 'var(--primary)',
       tag: 'Flash Sale'
     },
     {
@@ -21,7 +20,7 @@ const HeroCarousel = ({ onSearch }) => {
       title: 'The Tandoori Hub Special',
       subtitle: 'Authentic flavors, delivered steaming hot.',
       image: 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?auto=format&fit=crop&w=1200&q=80',
-      color: '#ef4444', // Red
+      color: 'var(--primary)',
       tag: 'Featured Stall'
     },
     {
@@ -29,7 +28,7 @@ const HeroCarousel = ({ onSearch }) => {
       title: 'Craving Sweet?',
       subtitle: 'Fresh baked desserts right to your dorm.',
       image: 'https://images.unsplash.com/photo-1551024601-bec78aea704b?auto=format&fit=crop&w=1200&q=80',
-      color: '#8b5cf6', // Purple
+      color: 'var(--primary)',
       tag: 'New Arrivals'
     }
   ];
@@ -40,11 +39,6 @@ const HeroCarousel = ({ onSearch }) => {
     }, 5000);
     return () => clearInterval(timer);
   }, [slides.length]);
-
-  const handleSearchSubmit = (e) => {
-    e.preventDefault();
-    if (onSearch) onSearch(searchQuery);
-  };
 
   return (
     <div className="hero-carousel-container animate-fade-in-up">
@@ -78,19 +72,6 @@ const HeroCarousel = ({ onSearch }) => {
         ))}
       </div>
 
-      {/* Integrated Search Bar (Glassmorphism) */}
-      <div className="hero-search-wrapper">
-        <form className="hero-search-form" onSubmit={handleSearchSubmit}>
-          <Search size={20} className="hero-search-icon" />
-          <input 
-            type="text" 
-            placeholder="Search for momos, cold coffee, wraps..." 
-            className="hero-search-input"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-          <button type="submit" className="hero-search-btn">Search</button>
-        </form>
       </div>
     </div>
   );
