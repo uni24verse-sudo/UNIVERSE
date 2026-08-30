@@ -51,14 +51,19 @@ const OrderTracker = () => {
   const [showRefundCard, setShowRefundCard] = useState(true);
 
   useEffect(() => {
-    const fetchOrder = async () => {
+    const fetchOrder = async (retryCount = 0) => {
       try {
         const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/orders/${id}`);
         setOrder(res.data);
-      } catch (err) {
-        console.error(err);
-      } finally {
         setLoading(false);
+      } catch (err) {
+        if (err.response?.status === 404 && retryCount < 3) {
+          console.log(`[OrderTracker] Order not found, retrying... (${retryCount + 1}/3)`);
+          setTimeout(() => fetchOrder(retryCount + 1), 1000);
+        } else {
+          console.error(err);
+          setLoading(false);
+        }
       }
     };
 

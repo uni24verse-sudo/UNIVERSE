@@ -22,6 +22,7 @@ const sendStoreNotification = async (storeId, title, body, data = {}, categoryId
     
     // 1. Find all active devices for this store
     const devices = await DeviceRegistry.find({ storeId, active: true });
+    console.log(`[PushService] Found ${devices?.length || 0} active devices for store ${storeId}`);
     if (!devices || devices.length === 0) return;
 
     let messages = [];
@@ -61,13 +62,16 @@ const sendStoreNotification = async (storeId, title, body, data = {}, categoryId
     let chunks = expo.chunkPushNotifications(messages);
     let tickets = [];
     
+    console.log(`[PushService] Sending ${messages.length} messages in ${chunks.length} chunks`);
+    
     // 3. Send the chunks to the Expo push notification service
     for (let chunk of chunks) {
       try {
         let ticketChunk = await expo.sendPushNotificationsAsync(chunk);
+        console.log(`[PushService] Ticket Chunk Result:`, ticketChunk);
         tickets.push(...ticketChunk);
       } catch (error) {
-        console.error('Error sending push chunk:', error);
+        console.error('[PushService] Error sending push chunk:', error);
       }
     }
 

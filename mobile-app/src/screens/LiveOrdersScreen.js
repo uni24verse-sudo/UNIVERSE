@@ -10,6 +10,7 @@ import {
   TextInput,
   RefreshControl 
 } from 'react-native';
+import { useIsFocused } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AuthContext } from '../context/AuthContext';
 import { SocketContext } from '../context/SocketContext';
@@ -21,7 +22,7 @@ import * as Notifications from 'expo-notifications';
 
 export default function LiveOrdersScreen({ navigation }) {
   const { user } = useContext(AuthContext);
-  const { socket, isConnected } = useContext(SocketContext);
+  const { socket, isConnected, socketError } = useContext(SocketContext);
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -33,6 +34,8 @@ export default function LiveOrdersScreen({ navigation }) {
 
   // Role check: employees must not see financial/revenue summaries for privacy
   const isEmployee = user?.role === 'employee';
+
+  const isFocused = useIsFocused();
 
   // Tick every 30 seconds to refresh relative times and pre-order countdowns
   useEffect(() => {
@@ -68,8 +71,10 @@ export default function LiveOrdersScreen({ navigation }) {
   }, [user]);
 
   useEffect(() => {
-    fetchOrders();
-  }, [fetchOrders]);
+    if (isFocused) {
+      fetchOrders();
+    }
+  }, [isFocused, fetchOrders]);
 
   useEffect(() => {
     if (isConnected) fetchOrders();
@@ -483,7 +488,9 @@ export default function LiveOrdersScreen({ navigation }) {
           <Text style={styles.headerTitle}>Kitchen Orders</Text>
           <View style={styles.connectionStatus}>
             <View style={[styles.dot, { backgroundColor: isConnected ? '#10B981' : '#EF4444' }]} />
-            <Text style={styles.connectionText}>{isConnected ? 'Live Sync Active' : 'Reconnecting...'}</Text>
+            <Text style={styles.connectionText}>
+              {isConnected ? 'Live Sync Active' : (socketError ? `Err: ${socketError}` : 'Reconnecting...')}
+            </Text>
           </View>
         </View>
         
