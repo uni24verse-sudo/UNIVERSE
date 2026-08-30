@@ -97,12 +97,8 @@ router.get('/trending', async (req, res) => {
     const { locationId } = req.query;
     let trendingItems = [];
 
-    // 1. Calculate real trending items based on completed orders in the last 14 days
-    const twoWeeksAgo = new Date();
-    twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
-
     const pipeline = [
-      { $match: { status: 'Completed', createdAt: { $gte: twoWeeksAgo } } },
+      { $match: { status: 'Completed' } },
       { $unwind: '$items' },
       { $group: { _id: '$items.productId', count: { $sum: '$items.quantity' } } },
       { $sort: { count: -1 } },
@@ -118,7 +114,6 @@ router.get('/trending', async (req, res) => {
       const store = await Store.findOne({
         'products._id': item._id,
         isHidden: false,
-        isOpen: true,
         ...(locationId ? { locationId: locationId } : {})
       }, { 'products.$': 1, name: 1, market: 1, _id: 1, isOpen: 1 });
 
@@ -143,7 +138,7 @@ router.get('/trending', async (req, res) => {
     // 3. Fallback: If not enough real trending data, fill it up with items that have images
     if (trendingItems.length < 8) {
       const fallbackStores = await Store.aggregate([
-        { $match: { isHidden: false, isOpen: true, ...(locationId ? { locationId: mongoose.Types.ObjectId(locationId) } : {}) } },
+        { $match: { isHidden: false, ...(locationId ? { locationId: mongoose.Types.ObjectId(locationId) } : {}) } },
         { $unwind: '$products' },
         { $match: { 'products.image': { $exists: true, $ne: '' }, 'products.isAvailable': true } },
         { $sample: { size: 10 } }
