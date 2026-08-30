@@ -135,8 +135,7 @@
   }
 
   .hero-slide-subtitle {
-    font-size: 1rem;
-    margin-bottom: 1.25rem;
+    display: none;
   }
 
   .hero-slide-tag {
