@@ -344,7 +344,7 @@ const Home = () => {
                         <h3 style={{ fontSize: '1.125rem', fontWeight: '800', margin: 0, color: 'var(--text-primary)' }}>{store.name}</h3>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                           <div className={`status-dot ${isOpen ? 'live' : 'offline'}`}></div>
-                          <span style={{ fontSize: '0.625rem', fontWeight: '800', letterSpacing: '0.05em', color: isOpen ? '#10b981' : '#ef4444', textTransform: 'uppercase' }}>
+                          <span style={{ fontSize: '0.625rem', fontWeight: '800', letterSpacing: '0.05em', color: isOpen ? '#10b981' : '#ef4444', textTransform: 'uppercase', whiteSpace: 'nowrap', flexShrink: 0 }}>
                             {isOpen ? 'Live' : 'Closed'}
                           </span>
                         </div>
