@@ -1,9 +1,16 @@
-const { Expo } = require('expo-server-sdk');
 const DeviceRegistry = require('../models/DeviceRegistry');
 
-// Create a new Expo SDK client
-// optionally providing an access token if you have enabled push security
-let expo = new Expo();
+let expoClient = null;
+let ExpoClass = null;
+
+const getExpo = async () => {
+  if (!expoClient) {
+    const sdk = await import('expo-server-sdk');
+    ExpoClass = sdk.Expo;
+    expoClient = new ExpoClass();
+  }
+  return { expo: expoClient, Expo: ExpoClass };
+};
 
 /**
  * Sends a push notification to all active devices for a given store
@@ -11,6 +18,8 @@ let expo = new Expo();
  */
 const sendStoreNotification = async (storeId, title, body, data = {}, categoryId = null, badgeCount = undefined, channelId = 'default') => {
   try {
+    const { expo, Expo } = await getExpo();
+    
     // 1. Find all active devices for this store
     const devices = await DeviceRegistry.find({ storeId, active: true });
     if (!devices || devices.length === 0) return;
