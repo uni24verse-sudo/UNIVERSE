@@ -819,7 +819,7 @@ h1 {
   cursor: pointer;
   font-weight: 600;
   font-size: 0.875rem;
-  transition: var(--transition);
+  transition: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.25s ease, background-color 0.25s ease, color 0.25s ease, border-color 0.25s ease;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02);
   text-align: center;
 }
@@ -830,6 +830,10 @@ h1 {
   border-color: var(--primary);
   box-shadow: 0 8px 20px var(--primary-shadow);
   font-weight: 800;
+}
+
+.market-btn:active {
+  transform: scale(0.92);
 }
 
 .store-card {

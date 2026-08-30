@@ -38,11 +38,25 @@ const TrendingRow = () => {
   if (loading) {
     return (
       <div className="trending-section">
-        <h2 className="trending-title skeleton-text skeleton" style={{ width: '200px', height: '2rem' }}></h2>
-        <div className="trending-carousel">
-          {[1, 2, 3, 4].map(i => (
-            <div key={i} className="trending-card skeleton" style={{ minWidth: '220px', height: '260px', borderRadius: '16px' }}></div>
-          ))}
+        <div className="trending-header">
+           <div className="skeleton" style={{ width: '200px', height: '2rem', borderRadius: '8px' }}></div>
+        </div>
+        <div className="trending-carousel-wrapper">
+          <div className="trending-carousel">
+            {[1, 2, 3, 4].map(i => (
+              <div key={i} className="trending-card">
+                <div className="trending-img-wrapper skeleton"></div>
+                <div className="trending-info">
+                  <div className="skeleton" style={{ height: '1rem', width: '80%', marginBottom: '0.5rem', borderRadius: '4px' }}></div>
+                  <div className="skeleton" style={{ height: '0.75rem', width: '60%', marginBottom: '1rem', borderRadius: '4px' }}></div>
+                  <div className="trending-footer">
+                    <div className="skeleton" style={{ height: '1rem', width: '30%', borderRadius: '4px' }}></div>
+                    <div className="skeleton" style={{ height: '1.75rem', width: '60px', borderRadius: '8px' }}></div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     );
