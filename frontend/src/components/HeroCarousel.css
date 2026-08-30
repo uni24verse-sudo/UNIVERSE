@@ -120,15 +120,37 @@
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .hero-carousel-container {
-    height: 320px;
+    height: 240px;
     border-radius: 20px;
+    margin-bottom: 1.5rem;
   }
   
   .hero-slide-content {
-    padding: 2.5rem 1.5rem;
+    padding: 1.5rem 1.25rem;
   }
   
   .hero-slide-title {
-    font-size: 2.2rem;
+    font-size: 1.8rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .hero-slide-subtitle {
+    font-size: 1rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .hero-slide-tag {
+    font-size: 0.65rem;
+    padding: 0.25rem 0.75rem;
+    margin-bottom: 1rem;
+  }
+
+  .hero-slide-cta {
+    padding: 0.75rem 1.5rem;
+    font-size: 0.875rem;
+  }
+
+  .hero-carousel-controls {
+    bottom: 15px;
   }
 }

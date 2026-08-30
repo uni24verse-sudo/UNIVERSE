@@ -1000,6 +1000,28 @@ h1 {
   .store-footer-row .btn-circle {
     display: none; /* Hide chevron on mobile to save space */
   }
+  .market-btn-container {
+    display: flex;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    gap: 0.5rem;
+    padding-bottom: 0.5rem; /* for focus shadow */
+    margin-bottom: 1.5rem;
+    width: 100%;
+  }
+
+  .market-btn-container::-webkit-scrollbar {
+    display: none;
+  }
+
+  .market-btn {
+    width: auto;
+    flex-shrink: 0;
+    padding: 0.6rem 1.25rem;
+    font-size: 0.8125rem;
+    border-radius: 100px;
+  }
 }
 
 /* Navbar & Global Search Styles */
