@@ -10,7 +10,7 @@ const HeroCarousel = ({ onSearch }) => {
     {
       id: 1,
       title: 'Your Campus, Digitized',
-      subtitle: 'Experience seamless food delivery right across the campus.',
+      subtitle: 'Experience seamless food ordering right across the campus.',
       image: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=1200&q=80', // Veg salad bowl
       color: 'var(--primary)',
       tag: 'Welcome to UniVerse'
@@ -25,11 +25,11 @@ const HeroCarousel = ({ onSearch }) => {
     },
     {
       id: 3,
-      title: 'Late Night Cravings?',
-      subtitle: 'We are here to deliver your favorite midnight snacks.',
+      title: 'Craving Something Sweet?',
+      subtitle: 'Pre-order your favorite desserts and pick them up hot and fresh.',
       image: 'https://images.unsplash.com/photo-1551024601-bec78aea704b?auto=format&fit=crop&w=1200&q=80', // Sweet dessert
       color: 'var(--primary)',
-      tag: 'Always Open'
+      tag: 'Fresh & Tasty'
     }
   ];
 
