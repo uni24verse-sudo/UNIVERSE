@@ -95,7 +95,7 @@
 }
 
 .trending-info {
-  padding: 1rem;
+  padding: 0.75rem 0.85rem;
   display: flex;
   flex-direction: column;
   flex: 1;
@@ -115,7 +115,7 @@
   font-size: 0.75rem;
   font-weight: 500;
   color: var(--text-secondary);
-  margin: 0 0 1rem 0;
+  margin: 0 0 0.5rem 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -135,23 +135,20 @@
 }
 
 .trending-add-btn {
-  background: hsla(var(--primary-h), var(--primary-s), var(--primary-l), 0.1);
+  background: transparent;
   color: var(--primary);
-  border: none;
+  border: 1px solid var(--primary);
   border-radius: 8px;
-  padding: 0.4rem 0.6rem;
+  padding: 0.35rem 1rem;
   font-size: 0.75rem;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
+  font-weight: 800;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: all 0.2s;
+  letter-spacing: 0.05em;
 }
 
 .trending-card:hover .trending-add-btn {
-  background: var(--primary);
-  color: white;
+  background: rgba(239, 68, 68, 0.1);
 }
 
 @media (max-width: 768px) {
@@ -162,11 +159,28 @@
   }
   
   .trending-card {
-    min-width: 160px;
-    max-width: 160px;
+    min-width: 145px;
+    max-width: 145px;
   }
   
   .trending-img-wrapper {
-    height: 120px;
+    height: 110px;
+  }
+
+  .trending-info {
+    padding: 0.6rem;
+  }
+
+  .trending-item-name {
+    font-size: 0.9rem;
+  }
+  
+  .trending-store-name {
+    font-size: 0.65rem;
+  }
+  
+  .trending-add-btn {
+    padding: 0.3rem 0.8rem;
+    font-size: 0.7rem;
   }
 }

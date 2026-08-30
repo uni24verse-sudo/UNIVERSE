@@ -80,7 +80,7 @@ const TrendingRow = () => {
                 <div className="trending-footer">
                   <span className="trending-price">₹{item.price}</span>
                   <button className="trending-add-btn">
-                    <ShoppingBag size={14} /> Add
+                    ADD
                   </button>
                 </div>
               </div>
