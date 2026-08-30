@@ -38,12 +38,7 @@ export const SocketProvider = ({ children }) => {
 
       newSocket = io(SOCKET_URL, {
         auth: { token }, // Pass JWT for server-side verification
-        transports: ['websocket'],
-        forceNew: true,
-        secure: true,
-        extraHeaders: {
-          'Origin': 'https://api.universeorder.co.in'
-        }
+        forceNew: true
       });
 
       newSocket.on('connect', () => {
