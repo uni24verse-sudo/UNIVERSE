@@ -944,19 +944,20 @@ h1 {
   }
   
   .store-img-wrapper {
-    width: 100px;
-    height: 100px;
+    width: 115px;
+    height: 115px;
     flex-shrink: 0;
     margin-bottom: 0;
     border-radius: 14px;
   }
   
   .store-card h3 {
-    font-size: 1rem !important;
+    font-size: 1.05rem !important;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 140px;
+    width: 100%;
+    padding-right: 0.5rem;
   }
   
   .store-card .status-dot {
@@ -971,6 +972,10 @@ h1 {
 
   .store-rating-badge, .store-market-badge {
     display: none;
+  }
+
+  .store-desktop-status {
+    display: none !important;
   }
 
   .store-mobile-meta {
@@ -998,6 +1003,7 @@ h1 {
   }
 
   .store-footer-row {
+    margin-top: auto;
     padding-top: 0.5rem !important;
   }
 
@@ -1009,9 +1015,9 @@ h1 {
     overflow-x: auto;
     scrollbar-width: none;
     gap: 0.5rem;
-    padding-bottom: 1.5rem; /* give plenty of space for the active shadow */
-    margin-bottom: 0.5rem;
-    width: 100%;
+    padding: 0.5rem 1rem 1.5rem 1rem; /* 1rem on sides for shadow */
+    margin: -0.5rem -1rem 0.5rem -1rem; /* Negative margin to pull back */
+    width: calc(100% + 2rem);
   }
 
   .market-btn-container::-webkit-scrollbar {

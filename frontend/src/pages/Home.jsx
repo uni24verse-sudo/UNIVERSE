@@ -342,7 +342,7 @@ const Home = () => {
                     <div className="store-info-wrapper" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
                         <h3 style={{ fontSize: '1.125rem', fontWeight: '800', margin: 0, color: 'var(--text-primary)' }}>{store.name}</h3>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <div className="store-desktop-status" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                           <div className={`status-dot ${isOpen ? 'live' : 'offline'}`}></div>
                           <span style={{ fontSize: '0.625rem', fontWeight: '800', letterSpacing: '0.05em', color: isOpen ? '#10b981' : '#ef4444', textTransform: 'uppercase', whiteSpace: 'nowrap', flexShrink: 0 }}>
                             {isOpen ? 'Live' : 'Closed'}
@@ -357,11 +357,11 @@ const Home = () => {
                         <span className="market-text">{store.market || 'Campus'}</span>
                       </div>
 
-                      <p className="store-category-text" style={{ fontSize: '0.6875rem', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1.25rem' }}>
+                      <p className="store-category-text" style={{ fontSize: '0.75rem', fontWeight: '500', color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>
                         {store.category || 'General'}
                       </p>
                       
-                       <div className="store-footer-row" style={{ marginTop: 'auto', paddingTop: '1rem', borderTop: '1px solid var(--surface-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                       <div className="store-footer-row" style={{ marginTop: 'auto', paddingTop: '0.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <div style={{ display: 'flex', gap: '1rem', color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: '600' }}>
                                <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><ShoppingBag size={14} /> {store.products?.length || 0}</span>
                                <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><Clock size={14} /> 15m</span>
