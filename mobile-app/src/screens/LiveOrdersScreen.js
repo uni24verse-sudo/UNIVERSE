@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useContext, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useContext, useCallback, useMemo, useRef } from 'react';
 import { 
   View, 
   Text, 
@@ -19,6 +19,7 @@ import { useAudioAlerts } from '../hooks/useAudioAlerts';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as Notifications from 'expo-notifications';
+import PagerView from 'react-native-pager-view';
 
 export default function LiveOrdersScreen({ navigation }) {
   const { user } = useContext(AuthContext);
@@ -27,6 +28,7 @@ export default function LiveOrdersScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState('Active'); // 'Active', 'Ready', 'History'
+  const pagerRef = useRef(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [, setTick] = useState(0);
   
@@ -198,16 +200,7 @@ export default function LiveOrdersScreen({ navigation }) {
     const query = searchQuery.trim().toLowerCase();
 
     return orders.filter(o => {
-      // 1. Tab filter
-      if (filter === 'Active') {
-        if (!['Pending', 'Confirmed', 'Cooking'].includes(o.status)) return false;
-      } else if (filter === 'Ready') {
-        if (o.status !== 'Ready') return false;
-      } else if (filter === 'History') {
-        if (!['Completed', 'Cancelled'].includes(o.status)) return false;
-      }
-
-      // 2. Search query filter
+      // 1. Search query filter
       if (query) {
         const orderNum = (o.orderNumber || '').toString().toLowerCase();
         const custName = (o.customerName || '').toLowerCase();
@@ -230,7 +223,9 @@ export default function LiveOrdersScreen({ navigation }) {
       }
       return new Date(b.createdAt) - new Date(a.createdAt);
     });
-  }, [orders, filter, searchQuery]);
+  const activeOrders = useMemo(() => displayOrders.filter(o => ['Pending', 'Confirmed', 'Cooking'].includes(o.status)), [displayOrders]);
+  const readyOrders = useMemo(() => displayOrders.filter(o => o.status === 'Ready'), [displayOrders]);
+  const historyOrders = useMemo(() => displayOrders.filter(o => ['Completed', 'Cancelled'].includes(o.status)), [displayOrders]);
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -524,7 +519,11 @@ export default function LiveOrdersScreen({ navigation }) {
             <TouchableOpacity 
               key={tab.key} 
               style={[styles.tab, isActive && styles.tabActive]}
-              onPress={() => setFilter(tab.key)}
+              onPress={() => {
+                setFilter(tab.key);
+                const pageIndex = tab.key === 'Active' ? 0 : tab.key === 'Ready' ? 1 : 2;
+                pagerRef.current?.setPage(pageIndex);
+              }}
               activeOpacity={0.8}
             >
               <Text style={[styles.tabText, isActive && styles.activeTabText]}>
@@ -577,39 +576,74 @@ export default function LiveOrdersScreen({ navigation }) {
         </View>
       )}
 
-      {/* Main Order List */}
+      {/* Main Order List with Swiping */}
       {loading && orders.length === 0 ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#3B82F6" />
           <Text style={{ marginTop: 12, color: '#64748B', fontWeight: '600' }}>Loading orders...</Text>
         </View>
-      ) : (
-        <FlatList
-          data={displayOrders}
-          keyExtractor={(item) => item._id}
-          renderItem={renderItem}
-          contentContainerStyle={styles.list}
-          refreshControl={
-            <RefreshControl 
-              refreshing={refreshing} 
-              onRefresh={() => fetchOrders(true)} 
-              colors={['#3B82F6']} 
+        <PagerView 
+          style={styles.pagerView} 
+          initialPage={0}
+          ref={pagerRef}
+          onPageSelected={(e) => {
+            const index = e.nativeEvent.position;
+            if (index === 0) setFilter('Active');
+            if (index === 1) setFilter('Ready');
+            if (index === 2) setFilter('History');
+          }}
+        >
+          {/* Page 0: Active */}
+          <View key="1" style={styles.page}>
+            <FlatList
+              data={activeOrders}
+              keyExtractor={(item) => item._id}
+              renderItem={renderItem}
+              contentContainerStyle={styles.list}
+              refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => fetchOrders(true)} colors={['#3B82F6']} />}
+              ListEmptyComponent={
+                <View style={styles.emptyContainer}>
+                  <Text style={styles.emptyTitle}>Queue is Clear!</Text>
+                  <Text style={styles.emptySub}>New orders will automatically ring and show up here.</Text>
+                </View>
+              }
             />
-          }
-          ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Text style={{ fontSize: 44, marginBottom: 12 }}>
-                {filter === 'Active' ? '🎉' : (filter === 'Ready' ? '🥡' : '📜')}
-              </Text>
-              <Text style={styles.emptyTitle}>
-                {searchQuery ? 'No matching orders' : (filter === 'Active' ? 'Queue is Clear!' : `No ${filter.toLowerCase()} orders`)}
-              </Text>
-              <Text style={styles.emptySub}>
-                {searchQuery ? 'Try searching with another order number or name.' : (filter === 'Active' ? 'New orders will automatically ring and show up here.' : `Orders will appear here as they are processed.`)}
-              </Text>
-            </View>
-          }
-        />
+          </View>
+
+          {/* Page 1: Ready */}
+          <View key="2" style={styles.page}>
+            <FlatList
+              data={readyOrders}
+              keyExtractor={(item) => item._id}
+              renderItem={renderItem}
+              contentContainerStyle={styles.list}
+              refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => fetchOrders(true)} colors={['#3B82F6']} />}
+              ListEmptyComponent={
+                <View style={styles.emptyContainer}>
+                  <Text style={styles.emptyTitle}>No Ready Orders</Text>
+                  <Text style={styles.emptySub}>Orders that are marked ready will appear here.</Text>
+                </View>
+              }
+            />
+          </View>
+
+          {/* Page 2: History */}
+          <View key="3" style={styles.page}>
+            <FlatList
+              data={historyOrders}
+              keyExtractor={(item) => item._id}
+              renderItem={renderItem}
+              contentContainerStyle={styles.list}
+              refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => fetchOrders(true)} colors={['#3B82F6']} />}
+              ListEmptyComponent={
+                <View style={styles.emptyContainer}>
+                  <Text style={styles.emptyTitle}>No Order History</Text>
+                  <Text style={styles.emptySub}>Completed or cancelled orders will appear here.</Text>
+                </View>
+              }
+            />
+          </View>
+        </PagerView>
       )}
 
       {/* Floating QR Scanner Button on Ready tab */}
@@ -633,6 +667,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F8FAFC',
+  },
+  pagerView: {
+    flex: 1,
+  },
+  page: {
+    flex: 1,
   },
   header: {
     flexDirection: 'row',
