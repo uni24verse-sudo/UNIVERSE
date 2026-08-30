@@ -170,7 +170,7 @@ const pushService = require('../services/pushService');
 
   } catch (error) {
     console.error('Razorpay Verification & Creation Error:', error);
-    res.status(500).json({ message: 'Order creation failed after payment' });
+    res.status(500).json({ message: `Order creation failed after payment: ${error.message}` });
   }
 });
 
