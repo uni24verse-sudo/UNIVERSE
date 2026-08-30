@@ -231,11 +231,11 @@ const Cart = () => {
               clearCart();
               navigate(`/order-tracker/${savedOrder._id}`);
             } else {
-              alert('Payment verification failed. Please contact support.');
+              alert('Payment verification failed: ' + (verifyRes.data.message || 'Please contact support.'));
             }
           } catch (err) {
             console.error('Payment verification error:', err);
-            alert('Payment verification failed. Please contact support.');
+            alert('Payment verification failed: ' + (err.response?.data?.message || err.message || 'Please contact support.'));
           }
         },
         prefill: {
