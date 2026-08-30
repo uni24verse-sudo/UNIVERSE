@@ -24,6 +24,8 @@ import {
   Zap
 } from 'lucide-react';
 import Navbar from '../components/Navbar';
+import HeroCarousel from '../components/HeroCarousel';
+import TrendingRow from '../components/TrendingRow';
 
 const FloatingBackground = () => {
   const icons = [
@@ -225,53 +227,19 @@ const Home = () => {
     <div style={{ minHeight: '100vh', position: 'relative' }}>
       <FloatingBackground />
 
-      {/* Hero Section */}
-      <section className="hero-section animate-fade-in-up">
-        <div style={{ position: 'absolute', top: '-10%', left: '-10%', width: '40%', height: '40%', background: 'radial-gradient(circle, hsla(var(--primary-h), var(--primary-s), var(--primary-l), 0.08) 0%, transparent 70%)', filter: 'blur(60px)' }}></div>
-        <div style={{ position: 'absolute', bottom: '-10%', right: '-10%', width: '30%', height: '30%', background: 'radial-gradient(circle, rgba(252, 175, 23, 0.05) 0%, transparent 70%)', filter: 'blur(60px)' }}></div>
-        
-        <div className="hero-badge pulse">
-          <ChefHat size={14} /> Campus Favorites Delivered
-        </div>
-
-        <h1 className="hero-title">
-          {hubType === 'College' ? (
-            <>Your Campus, <span style={{ color: 'var(--primary)' }}>Digitized.</span></>
-          ) : (
-            <>Premium Dining, <span style={{ color: 'var(--primary)' }}>Delivered.</span></>
-          )}
-        </h1>
-        
-        {hubType === 'College' && (
-          <div className="hero-tip-card">
-            <div style={{ position: 'absolute', top: 0, left: 0, width: '4px', height: '100%', background: 'linear-gradient(to bottom, var(--primary), var(--secondary))' }}></div>
-            
-            <div style={{ 
-              width: '44px', 
-              height: '44px', 
-              borderRadius: '14px', 
-              background: 'hsla(var(--primary-h), var(--primary-s), var(--primary-l), 0.1)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0
-            }}>
-              <Sparkles size={20} color="var(--primary)" />
-            </div>
-
-            <div style={{ flex: 1 }}>
-               <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.2rem' }}>
-                  <span style={{ fontSize: '0.625rem', fontWeight: '900', letterSpacing: '0.05em', color: 'var(--primary)', textTransform: 'uppercase', background: 'hsla(var(--primary-h), var(--primary-s), var(--primary-l), 0.08)', padding: '0.15rem 0.5rem', borderRadius: '4px' }}>Expert Tip</span>
-               </div>
-               <p style={{ color: 'var(--text-primary)', fontSize: '0.875rem', fontWeight: '700', margin: 0, lineHeight: '1.4' }}>
-                  Order <span style={{ color: 'var(--primary)' }}>15 mins</span> ahead to skip the rush and eat fresh!
-               </p>
-            </div>
-          </div>
-        )}
-      </section>
+      {/* Premium Hero Carousel */}
+      <div style={{ padding: '2rem 2rem 0 2rem', maxWidth: '1200px', margin: '0 auto' }}>
+        <HeroCarousel onSearch={(q) => { 
+          setLocalSearchQuery(q); 
+          window.scrollTo({ top: 600, behavior: 'smooth' }); 
+        }} />
+      </div>
 
       <main style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 2rem 6rem 2rem' }}>
+        
+        {/* Dynamic Trending Row */}
+        <TrendingRow />
+
         {/* Navigation Filters */}
         {hubType === 'College' ? (
           <div className="market-btn-container animate-fade-in-up">
