@@ -136,7 +136,7 @@ const pushService = require('../services/pushService');
     
     const customerInfo = savedOrder.customerName ? ` • 👤 ${savedOrder.customerName}` : '';
     const notifTitle = `🔔 Order #${savedOrder.orderNumber} (${orderTypeLabel})`;
-    const notifBody = `${itemsSummary} • ₹${savedOrder.totalAmount}${customerInfo}`;
+    const notifBody = `Total: ₹${savedOrder.totalAmount}${customerInfo}\nItems:\n${itemsSummary.replace(/, /g, '\n')}`;
 
     // Notify vendor via FCM/Expo Push Notifications (Background)
     pushService.sendStoreNotification(
@@ -154,7 +154,7 @@ const pushService = require('../services/pushService');
       },
       'order_pending',
       activeOrdersCount,
-      'orders_alarm' // The custom alarm channel
+      'default' // Use default channel to guarantee OS delivery (avoids custom sound drop bug)
     );
 
     // Notify vendor via Telegram
