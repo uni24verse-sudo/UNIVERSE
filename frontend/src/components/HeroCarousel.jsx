@@ -71,8 +71,6 @@ const HeroCarousel = ({ onSearch }) => {
           />
         ))}
       </div>
-
-      </div>
     </div>
   );
 };
