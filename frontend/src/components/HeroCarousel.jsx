@@ -9,27 +9,27 @@ const HeroCarousel = ({ onSearch }) => {
   const slides = [
     {
       id: 1,
-      title: '50% Off Gourmet Burgers',
-      subtitle: 'Satisfy your late-night cravings instantly.',
-      image: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=1200&q=80',
+      title: 'Your Campus, Digitized',
+      subtitle: 'Experience seamless food delivery right across the campus.',
+      image: 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&w=1200&q=80',
       color: 'var(--primary)',
-      tag: 'Flash Sale'
+      tag: 'Welcome to UniVerse'
     },
     {
       id: 2,
-      title: 'The Tandoori Hub Special',
-      subtitle: 'Authentic flavors, delivered steaming hot.',
-      image: 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?auto=format&fit=crop&w=1200&q=80',
+      title: 'Skip the Line',
+      subtitle: 'Order ahead and pick up your food fresh and hot.',
+      image: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=1200&q=80',
       color: 'var(--primary)',
-      tag: 'Featured Stall'
+      tag: 'Save Time'
     },
     {
       id: 3,
-      title: 'Craving Sweet?',
-      subtitle: 'Fresh baked desserts right to your dorm.',
-      image: 'https://images.unsplash.com/photo-1551024601-bec78aea704b?auto=format&fit=crop&w=1200&q=80',
+      title: 'Late Night Cravings?',
+      subtitle: 'We are here to deliver your favorite midnight snacks.',
+      image: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=1200&q=80',
       color: 'var(--primary)',
-      tag: 'New Arrivals'
+      tag: 'Always Open'
     }
   ];
 
@@ -54,7 +54,7 @@ const HeroCarousel = ({ onSearch }) => {
               <h1 className="hero-slide-title">{slide.title}</h1>
               <p className="hero-slide-subtitle">{slide.subtitle}</p>
               <button className="hero-slide-cta" style={{ backgroundColor: slide.color }}>
-                Order Now
+                Explore Now
               </button>
             </div>
           </div>

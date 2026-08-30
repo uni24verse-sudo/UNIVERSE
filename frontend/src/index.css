@@ -368,6 +368,28 @@ h1 {
   animation: pulse 2s infinite;
 }
 
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.status-dot.live {
+  background-color: #10b981;
+  box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4);
+  animation: pulse-green 2s infinite;
+}
+
+.status-dot.offline {
+  background-color: #ef4444;
+}
+
+@keyframes pulse-green {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+  70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
 @keyframes pulse {
   0% {
     transform: scale(1);
@@ -844,6 +866,39 @@ h1 {
 
 .store-card:hover .store-img {
   transform: scale(1.1);
+}
+
+/* Mobile Compact View for Store Cards */
+@media (max-width: 768px) {
+  .store-card {
+    flex-direction: row;
+    align-items: stretch;
+    padding: 0.75rem !important;
+    gap: 1rem;
+    min-height: 120px;
+    border-radius: 20px;
+  }
+  
+  .store-img-wrapper {
+    width: 100px;
+    height: 100px;
+    flex-shrink: 0;
+    margin-bottom: 0;
+    border-radius: 14px;
+  }
+  
+  .store-card h3 {
+    font-size: 1rem !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 140px;
+  }
+  
+  .store-card .status-dot {
+    width: 6px;
+    height: 6px;
+  }
 }
 
 /* Navbar & Global Search Styles */
