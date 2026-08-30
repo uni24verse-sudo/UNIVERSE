@@ -114,6 +114,7 @@ router.get('/trending', async (req, res) => {
       const store = await Store.findOne({
         'products._id': item._id,
         isHidden: false,
+        name: { $ne: 'Hhh' },
         ...(locationId ? { locationId: locationId } : {})
       }, { 'products.$': 1, name: 1, market: 1, _id: 1, isOpen: 1 });
 
@@ -138,7 +139,7 @@ router.get('/trending', async (req, res) => {
     // 3. Fallback: If not enough real trending data, fill it up with items that have images
     if (trendingItems.length < 8) {
       const fallbackStores = await Store.aggregate([
-        { $match: { isHidden: false, ...(locationId ? { locationId: mongoose.Types.ObjectId(locationId) } : {}) } },
+        { $match: { isHidden: false, name: { $ne: 'Hhh' }, ...(locationId ? { locationId: mongoose.Types.ObjectId(locationId) } : {}) } },
         { $unwind: '$products' },
         { $match: { 'products.image': { $exists: true, $ne: '' }, 'products.isAvailable': true } },
         { $sample: { size: 10 } }
