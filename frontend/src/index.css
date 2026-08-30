@@ -1004,10 +1004,9 @@ h1 {
     display: flex;
     overflow-x: auto;
     scrollbar-width: none;
-    -ms-overflow-style: none;
     gap: 0.5rem;
-    padding-bottom: 0.5rem; /* for focus shadow */
-    margin-bottom: 1.5rem;
+    padding-bottom: 1.5rem; /* give plenty of space for the active shadow */
+    margin-bottom: 0.5rem;
     width: 100%;
   }
 
