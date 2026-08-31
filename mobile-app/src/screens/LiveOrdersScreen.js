@@ -8,7 +8,9 @@ import {
   ActivityIndicator, 
   Alert, 
   TextInput,
-  RefreshControl 
+  RefreshControl,
+  ScrollView,
+  Dimensions
 } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -28,7 +30,8 @@ export default function LiveOrdersScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState('Active'); // 'Active', 'Ready', 'History'
-  const pagerRef = useRef(null);
+  const scrollViewRef = useRef(null);
+  const { width: screenWidth } = Dimensions.get('window');
   const [searchQuery, setSearchQuery] = useState('');
   const [, setTick] = useState(0);
   
@@ -523,7 +526,7 @@ export default function LiveOrdersScreen({ navigation }) {
               onPress={() => {
                 setFilter(tab.key);
                 const pageIndex = tab.key === 'Active' ? 0 : tab.key === 'Ready' ? 1 : 2;
-                pagerRef.current?.setPage(pageIndex);
+                scrollViewRef.current?.scrollTo({ x: pageIndex * screenWidth, animated: true });
               }}
               activeOpacity={0.8}
             >
@@ -584,10 +587,22 @@ export default function LiveOrdersScreen({ navigation }) {
           <Text style={{ marginTop: 12, color: '#64748B', fontWeight: '600' }}>Loading orders...</Text>
         </View>
       ) : (
-        <View style={styles.pagerView}>
+        <ScrollView 
+          ref={scrollViewRef}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          style={styles.pagerView}
+          onMomentumScrollEnd={(e) => {
+            const offsetX = e.nativeEvent.contentOffset.x;
+            const pageIndex = Math.round(offsetX / screenWidth);
+            if (pageIndex === 0 && filter !== 'Active') setFilter('Active');
+            else if (pageIndex === 1 && filter !== 'Ready') setFilter('Ready');
+            else if (pageIndex === 2 && filter !== 'History') setFilter('History');
+          }}
+        >
           {/* Page 0: Active */}
-          {filter === 'Active' && (
-            <View style={styles.page}>
+          <View style={{ width: screenWidth, flex: 1 }}>
             <FlatList
               data={activeOrders}
               keyExtractor={(item) => item._id}
@@ -602,11 +617,9 @@ export default function LiveOrdersScreen({ navigation }) {
               }
             />
           </View>
-          )}
 
           {/* Page 1: Ready */}
-          {filter === 'Ready' && (
-          <View style={styles.page}>
+          <View style={{ width: screenWidth, flex: 1 }}>
             <FlatList
               data={readyOrders}
               keyExtractor={(item) => item._id}
@@ -621,11 +634,9 @@ export default function LiveOrdersScreen({ navigation }) {
               }
             />
           </View>
-          )}
 
           {/* Page 2: History */}
-          {filter === 'History' && (
-          <View style={styles.page}>
+          <View style={{ width: screenWidth, flex: 1 }}>
             <FlatList
               data={historyOrders}
               keyExtractor={(item) => item._id}
@@ -640,8 +651,7 @@ export default function LiveOrdersScreen({ navigation }) {
               }
             />
           </View>
-          )}
-        </View>
+        </ScrollView>
       )}
 
       {/* Floating QR Scanner Button on Ready tab */}
