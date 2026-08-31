@@ -18,6 +18,7 @@ const SuperAdminLogin = lazy(() => import('./pages/SuperAdminLogin'));
 const SuperAdminPanel = lazy(() => import('./pages/SuperAdminPanel'));
 const TermsAndConditions = lazy(() => import('./pages/TermsAndConditions'));
 const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
+const VendorAppDownload = lazy(() => import('./pages/VendorAppDownload'));
 
 import Navbar from './components/Navbar';
 import RecentOrders from './components/RecentOrders';
@@ -156,6 +157,7 @@ const AppLayout = () => {
             <Route path="/order-tracker/:id" element={<OrderTracker />} />
             <Route path="/terms" element={<TermsAndConditions />} />
             <Route path="/privacy" element={<PrivacyPolicy />} />
+            <Route path="/vendor-app-download" element={<VendorAppDownload />} />
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
         </React.Suspense>
