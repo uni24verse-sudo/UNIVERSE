@@ -183,3 +183,25 @@
     font-size: 0.7rem;
   }
 }
+
+.trending-badge-status {
+  font-size: 0.65rem;
+  font-weight: 800;
+  padding: 0.35rem 0.6rem;
+  border-radius: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.trending-badge-status.closed {
+  background: #f1f5f9;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+}
+
+.trending-badge-status.unavailable {
+  background: #fef2f2;
+  color: #ef4444;
+  border: 1px solid #fee2e2;
+}
+

@@ -120,19 +120,19 @@ router.get('/trending', async (req, res) => {
 
       if (store && store.products && store.products.length > 0) {
         const product = store.products[0];
-        if (product.isAvailable) { // only show available items
-          return {
-            storeId: store._id,
-            storeName: store.name,
-            market: store.market,
-            productId: product._id,
-            name: product.name,
-            price: product.price,
-            image: product.image,
-            category: product.category,
-            orderCount: item.count
-          };
-        }
+        return {
+          storeId: store._id,
+          storeName: store.name,
+          market: store.market,
+          isOpen: store.isOpen,
+          productId: product._id,
+          name: product.name,
+          price: product.price,
+          image: product.image,
+          category: product.category,
+          isAvailable: product.isAvailable !== false, // default true
+          orderCount: item.count
+        };
       }
       return null;
     });
@@ -145,7 +145,7 @@ router.get('/trending', async (req, res) => {
       const fallbackStores = await Store.aggregate([
         { $match: { isHidden: false, name: { $ne: 'Hhh' }, ...(locationId ? { locationId: mongoose.Types.ObjectId(locationId) } : {}) } },
         { $unwind: '$products' },
-        { $match: { 'products.image': { $exists: true, $ne: '' }, 'products.isAvailable': true } },
+        { $match: { 'products.image': { $exists: true, $ne: '' } } },
         { $sample: { size: 10 } }
       ]);
       
@@ -156,11 +156,13 @@ router.get('/trending', async (req, res) => {
             storeId: fs._id,
             storeName: fs.name,
             market: fs.market,
+            isOpen: fs.isOpen !== false,
             productId: fs.products._id,
             name: fs.products.name,
             price: fs.products.price,
             image: fs.products.image,
             category: fs.products.category,
+            isAvailable: fs.products.isAvailable !== false,
             orderCount: Math.floor(Math.random() * 20) + 5 // fake count for visual consistency
           });
         }

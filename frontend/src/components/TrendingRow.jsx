@@ -1,13 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import axios from 'axios';
-import { Flame, Star, ShoppingBag } from 'lucide-react';
+import { Flame, Star, ShoppingBag, Plus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { CartContext } from '../context/CartContext';
 import './TrendingRow.css';
 
 const TrendingRow = () => {
   const [trending, setTrending] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const { addToCart } = useContext(CartContext);
 
   useEffect(() => {
     const fetchTrending = async () => {
@@ -33,6 +35,26 @@ const TrendingRow = () => {
 
   const handleOrderClick = (storeId) => {
     navigate(`/store/${storeId}`);
+  };
+
+  const handleAddToCart = (e, item) => {
+    e.stopPropagation();
+    if (!item.isOpen || !item.isAvailable) return;
+    
+    const productForCart = {
+      _id: item.productId,
+      name: item.name,
+      price: item.price,
+      image: item.image,
+      category: item.category
+    };
+    
+    addToCart(productForCart, item.storeId);
+    
+    // Dispatch a custom event to show the notification toast (optional, if you have one)
+    window.dispatchEvent(new CustomEvent('show-notification', { 
+      detail: { message: `Added ${item.name} to cart!` } 
+    }));
   };
 
   if (loading) {
@@ -93,9 +115,19 @@ const TrendingRow = () => {
                 
                 <div className="trending-footer">
                   <span className="trending-price">₹{item.price}</span>
-                  <button className="trending-add-btn">
-                    ADD
-                  </button>
+                  
+                  {!item.isOpen ? (
+                    <span className="trending-badge-status closed">Closed</span>
+                  ) : !item.isAvailable ? (
+                    <span className="trending-badge-status unavailable">Out of Stock</span>
+                  ) : (
+                    <button 
+                      className="trending-add-btn" 
+                      onClick={(e) => handleAddToCart(e, item)}
+                    >
+                      ADD <Plus size={14} style={{ marginLeft: '2px' }} />
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
