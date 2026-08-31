@@ -686,7 +686,7 @@ const Dashboard = () => {
 
     // Sort: Pending first, then Confirmed, then by newest
     return filtered.sort((a, b) => {
-      const priority = { 'Pending': 0, 'Confirmed': 1, 'Completed': 2, 'Cancelled': 3 };
+      const priority = { 'Pending': 0, 'Confirmed': 1, 'Cooking': 2, 'Ready': 3, 'Completed': 4, 'Cancelled': 5 };
       if (priority[a.status] !== priority[b.status]) return priority[a.status] - priority[b.status];
       return new Date(b.createdAt) - new Date(a.createdAt);
     });

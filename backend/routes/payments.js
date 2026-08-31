@@ -154,7 +154,7 @@ const pushService = require('../services/pushService');
       },
       'order_pending',
       activeOrdersCount,
-      'default' // Use default channel to guarantee OS delivery (avoids custom sound drop bug)
+      'orders_alarm' // Use explicit alarm channel created by Android app
     );
 
     // Notify vendor via Telegram

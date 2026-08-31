@@ -6,14 +6,7 @@ import * as SecureStore from 'expo-secure-store';
 
 export const SocketContext = createContext();
 
-if (!window.navigator) {
-  window.navigator = {};
-}
-if (!window.navigator.userAgent) {
-  window.navigator.userAgent = 'react-native';
-}
-
-const SOCKET_URL = (process.env.EXPO_PUBLIC_API_URL || 'https://api.universeorder.co.in').replace('/api', '');
+const SOCKET_URL = 'https://api.universeorder.co.in';
 
 export const SocketProvider = ({ children }) => {
   const { user } = useContext(AuthContext);
@@ -38,7 +31,10 @@ export const SocketProvider = ({ children }) => {
 
       newSocket = io(SOCKET_URL, {
         auth: { token }, // Pass JWT for server-side verification
-        forceNew: true
+        secure: true,
+        reconnection: true,
+        reconnectionDelay: 1000,
+        reconnectionAttempts: 10
       });
 
       newSocket.on('connect', () => {

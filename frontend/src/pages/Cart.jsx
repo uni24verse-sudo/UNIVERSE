@@ -229,7 +229,7 @@ const Cart = () => {
               localStorage.setItem('universe_recent_orders', JSON.stringify(updatedRecent));
               
               clearCart();
-              navigate(`/order-tracker/${savedOrder._id}`);
+              window.location.href = `/order-tracker/${savedOrder._id}`;
             } else {
               alert('Payment verification failed: ' + (verifyRes.data.message || 'Please contact support.'));
             }

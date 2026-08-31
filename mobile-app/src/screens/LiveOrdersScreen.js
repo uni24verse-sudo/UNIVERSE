@@ -223,6 +223,7 @@ export default function LiveOrdersScreen({ navigation }) {
       }
       return new Date(b.createdAt) - new Date(a.createdAt);
     });
+  }, [orders, filter, searchQuery]);
   const activeOrders = useMemo(() => displayOrders.filter(o => ['Pending', 'Confirmed', 'Cooking'].includes(o.status)), [displayOrders]);
   const readyOrders = useMemo(() => displayOrders.filter(o => o.status === 'Ready'), [displayOrders]);
   const historyOrders = useMemo(() => displayOrders.filter(o => ['Completed', 'Cancelled'].includes(o.status)), [displayOrders]);
@@ -582,6 +583,7 @@ export default function LiveOrdersScreen({ navigation }) {
           <ActivityIndicator size="large" color="#3B82F6" />
           <Text style={{ marginTop: 12, color: '#64748B', fontWeight: '600' }}>Loading orders...</Text>
         </View>
+      ) : (
         <PagerView 
           style={styles.pagerView} 
           initialPage={0}
