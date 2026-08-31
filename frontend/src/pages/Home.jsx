@@ -228,7 +228,7 @@ const Home = () => {
 
       {/* Premium Hero Carousel */}
       <div style={{ padding: '2rem 2rem 0 2rem', maxWidth: '1200px', margin: '0 auto' }}>
-        <HeroCarousel onSearch={(q) => { 
+        <HeroCarousel hubType={hubType} onSearch={(q) => { 
           setLocalSearchQuery(q); 
           window.scrollTo({ top: 600, behavior: 'smooth' }); 
         }} />

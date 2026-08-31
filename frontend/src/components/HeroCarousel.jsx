@@ -2,11 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Search } from 'lucide-react';
 import './HeroCarousel.css';
 
-const HeroCarousel = ({ onSearch }) => {
+const HeroCarousel = ({ onSearch, hubType = 'College' }) => {
   const [currentSlide, setCurrentSlide] = useState(0);
 
-  // Mock advertising data (this could come from DB in future)
-  const slides = [
+  const collegeSlides = [
     {
       id: 1,
       title: 'Your Campus, Digitized',
@@ -32,6 +31,35 @@ const HeroCarousel = ({ onSearch }) => {
       tag: 'Fresh & Tasty'
     }
   ];
+
+  const citySlides = [
+    {
+      id: 1,
+      title: 'Your City\'s Best Bites',
+      subtitle: 'Discover top-rated street food and local stalls around you.',
+      image: 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&w=1200&q=80', // Street food
+      color: 'var(--primary)',
+      tag: 'Explore Local'
+    },
+    {
+      id: 2,
+      title: 'Fresh & Hot',
+      subtitle: 'From wok to box, order the freshest meals in your area.',
+      image: 'https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?auto=format&fit=crop&w=1200&q=80', // Hot food
+      color: 'var(--primary)',
+      tag: 'Authentic Taste'
+    },
+    {
+      id: 3,
+      title: 'Late Night Cravings?',
+      subtitle: 'Find places that serve hot food exactly when you need it.',
+      image: 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?auto=format&fit=crop&w=1200&q=80', // Late night food
+      color: 'var(--primary)',
+      tag: 'Night Owls'
+    }
+  ];
+
+  const slides = hubType === 'College' ? collegeSlides : citySlides;
 
   useEffect(() => {
     const timer = setInterval(() => {
