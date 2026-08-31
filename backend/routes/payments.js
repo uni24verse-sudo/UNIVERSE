@@ -124,19 +124,21 @@ const pushService = require('../services/pushService');
     });
 
     // Format rich push notification with full itemized details
-    const itemsSummary = (savedOrder.items || []).map(item => {
-      let itemStr = `${item.quantity}x ${item.name || 'Item'}`;
-      if (item.variant) itemStr += ` (${item.variant})`;
+    const itemsSummary = savedOrder.items.map(item => {
+      let itemStr = `• ${item.quantity}x ${item.name}`;
+      if (item.variant) {
+        itemStr += ` (${item.variant})`;
+      }
       return itemStr;
-    }).join(', ');
+    }).join('\n');
 
     const orderTypeLabel = savedOrder.isPreOrder 
       ? `⏰ Pre-Order (${savedOrder.scheduledTime})` 
       : (savedOrder.orderType === 'Take Away' ? '🛍️ Take Away' : '🍽️ Dine In');
     
-    const customerInfo = savedOrder.customerName ? ` • 👤 ${savedOrder.customerName}` : '';
+    const customerInfo = savedOrder.customerName ? `👤 ${savedOrder.customerName} ` : '';
     const notifTitle = `🔔 Order #${savedOrder.orderNumber} (${orderTypeLabel})`;
-    const notifBody = `Total: ₹${savedOrder.totalAmount}${customerInfo}\nItems:\n${itemsSummary.replace(/, /g, '\n')}`;
+    const notifBody = `${customerInfo}(₹${savedOrder.totalAmount})\n${itemsSummary}`;
 
     // Notify vendor via FCM/Expo Push Notifications (Background)
     pushService.sendStoreNotification(
