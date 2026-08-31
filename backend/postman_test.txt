@@ -1,0 +1,29 @@
+
+
+--- FOR POSTMAN ---
+URL: https://securegw-stage.paytm.in/theia/api/v1/initiateTransaction?mid=uKPGEK91260219944393&orderId=TEST_123
+METHOD: POST
+HEADERS: Content-Type: application/json
+BODY (raw JSON):
+{
+  "body": {
+    "requestType": "Payment",
+    "mid": "uKPGEK91260219944393",
+    "websiteName": "WEBSTAGING",
+    "orderId": "TEST_123",
+    "callbackUrl": "https://webhook.site/test",
+    "txnAmount": {
+      "value": "10.00",
+      "currency": "INR"
+    },
+    "userInfo": {
+      "custId": "CUST_123"
+    }
+  },
+  "head": {
+    "signature": "XXE7N5uFt1YzVwdziHehrCY23wkKL3DIfBcVA5u2KOsl518MwOwz5EPCgONw6ybYKXvFq6NhbQ+N1gRLCxDmoe/zdSfKbhfUJQw7FI5iuVo="
+  }
+}
+-------------------
+
+

@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notification Test - UniVerse</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 10px;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #2563eb;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 6px;
+        }
+        .success { background: #d1fae5; color: #065f46; }
+        .error { background: #fee2e2; color: #991b1b; }
+        .info { background: #dbeafe; color: #1e40af; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔔 Notification Test</h1>
+        <p>Test the notification system for UniVerse vendors</p>
+        
+        <div id="status"></div>
+        
+        <button onclick="requestPermission()">Request Notification Permission</button>
+        <button onclick="testBasicNotification()">Test Basic Notification</button>
+        <button onclick="testOrderNotification()">Test Order Notification</button>
+        <button onclick="testSound()">Test Notification Sound</button>
+        <button onclick="simulateTabHidden()">Simulate Tab Hidden</button>
+        
+        <h3>Instructions:</h3>
+        <ol>
+            <li>Click "Request Notification Permission" first</li>
+            <li>Test different notification types</li>
+            <li>Try switching tabs or minimizing browser</li>
+            <li>Notifications should work even when tab is not active</li>
+        </ol>
+    </div>
+
+    <script>
+        let notificationSound = null;
+        
+        // Initialize notification sound
+        function createNotificationSound() {
+            notificationSound = new Audio();
+            notificationSound.src = 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIG2m98OScTgwOUarm7blmFgU7k9n1unEiBC13yO/eizEIHWq+8+OWT';
+        }
+
+        function updateStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('status');
+            statusDiv.innerHTML = `<div class="status ${type}">${message}</div>`;
+            setTimeout(() => {
+                statusDiv.innerHTML = '';
+            }, 3000);
+        }
+
+        async function requestPermission() {
+            if ('Notification' in window) {
+                const permission = await Notification.requestPermission();
+                if (permission === 'granted') {
+                    updateStatus('✅ Notification permission granted!', 'success');
+                } else {
+                    updateStatus('❌ Notification permission denied', 'error');
+                }
+            } else {
+                updateStatus('❌ Notifications not supported', 'error');
+            }
+        }
+
+        function testBasicNotification() {
+            if (Notification.permission === 'granted') {
+                playSound();
+                new Notification('Test Notification', {
+                    body: 'This is a test notification from UniVerse',
+                    icon: '/icons.svg',
+                    badge: '/favicon.svg',
+                    vibrate: [100, 50, 100]
+                });
+                updateStatus('✅ Basic notification sent', 'success');
+            } else {
+                updateStatus('❌ Please request permission first', 'error');
+            }
+        }
+
+        function testOrderNotification() {
+            if (Notification.permission === 'granted') {
+                const orderData = {
+                    orderId: '1234',
+                    customerName: 'John Doe',
+                    totalAmount: 299,
+                    items: [
+                        { name: 'Burger', quantity: 2 },
+                        { name: 'Fries', quantity: 1 }
+                    ]
+                };
+                
+                playSound();
+                const notification = new Notification('🍔 New Order Received!', {
+                    body: `Order #${orderData.orderId} - ${orderData.customerName}\nAmount: ₹${orderData.totalAmount}\nItems: ${orderData.items.length} items`,
+                    icon: '/icons.svg',
+                    badge: '/favicon.svg',
+                    vibrate: [100, 50, 100],
+                    requireInteraction: true,
+                    actions: [
+                        { action: 'accept', title: '✅ Accept' },
+                        { action: 'reject', title: '❌ Reject' },
+                        { action: 'view', title: '👁️ View' }
+                    ]
+                });
+
+                notification.onclick = function(event) {
+                    event.preventDefault();
+                    updateStatus('Notification clicked!', 'info');
+                };
+
+                updateStatus('✅ Order notification sent', 'success');
+            } else {
+                updateStatus('❌ Please request permission first', 'error');
+            }
+        }
+
+        function testSound() {
+            playSound();
+            updateStatus('🔊 Playing notification sound', 'info');
+        }
+
+        function playSound() {
+            if (notificationSound) {
+                notificationSound.play().catch(error => {
+                    console.error('Failed to play sound:', error);
+                });
+            }
+        }
+
+        function simulateTabHidden() {
+            updateStatus('📱 Tab visibility test - switch tabs to see notifications', 'info');
+            
+            // Send a notification after 3 seconds to test background behavior
+            setTimeout(() => {
+                if (document.hidden) {
+                    testOrderNotification();
+                } else {
+                    updateStatus('ℹ️ Tab is still visible. Switch tabs and try again.', 'info');
+                }
+            }, 3000);
+        }
+
+        // Initialize
+        createNotificationSound();
+        
+        // Listen for visibility changes
+        document.addEventListener('visibilitychange', function() {
+            if (document.hidden) {
+                console.log('Tab is now hidden');
+            } else {
+                console.log('Tab is now visible');
+            }
+        });
+
+        // Check initial permission
+        if (Notification.permission === 'granted') {
+            updateStatus('✅ Notifications already enabled', 'success');
+        } else if (Notification.permission === 'denied') {
+            updateStatus('❌ Notifications are blocked in browser settings', 'error');
+        }
+    </script>
+</body>
+</html>

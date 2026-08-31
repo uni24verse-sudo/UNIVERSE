@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UniVerse Data Security Report</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.5.1/github-markdown.min.css">
+  <style>
+    body {
+      box-sizing: border-box;
+      min-width: 200px;
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 45px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
+    }
+    @media (max-width: 767px) {
+      body {
+        padding: 15px;
+      }
+    }
+    @media print {
+        body {
+            padding: 0;
+            max-width: 100%;
+        }
+        .loading { display: none !important; }
+    }
+    .loading {
+        text-align: center;
+        font-size: 20px;
+        margin-top: 50px;
+        color: #666;
+    }
+  </style>
+</head>
+<body class="markdown-body">
+  <div style="text-align: center; padding-top: 10px; " class="logo-container">
+    <img src="frontend/public/helmet-guy.png" alt="UniVerse Logo" style="max-height: 180px; margin: 0 auto; display: block;" onerror="this.outerHTML='<h1 style=\\'font-size: 46px; font-weight: 900; letter-spacing: 5px; color: #111; margin: 0; text-transform: uppercase;\\'>UNIVERSE</h1>'">
+  </div>
+  <div id="content" class="loading">Generating PDF... Please wait.</div>
+  
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script>
+    const rawMarkdown = `# 🔒 UniVerse: Data Security & High Availability Report
+
+**Prepared For:** University Approval Committee, Investors, & Engineering Team  
+**Project:** UniVerse (Campus Food Ordering & Management Platform)  
+**Objective:** To outline the enterprise-grade security protocols, data protection measures, and fail-proof infrastructure guaranteeing zero data loss and maximum user privacy.
+
+---
+
+## 1. The Threat Landscape
+As a campus food ordering platform, UniVerse processes highly sensitive information: live transaction data, order histories, and vendor financial ledgers. A data breach or catastrophic server failure would instantly destroy trust. 
+
+To mitigate this, UniVerse relies on a **Zero-Trust, Decoupled Architecture** utilizing Vercel, Railway, and MongoDB Atlas. This infrastructure inherits bank-grade security standards.
+
+---
+
+## 2. Platform Security (Protecting Against Hackers)
+Our primary objective is to ensure that malicious actors cannot intercept data over public campus Wi-Fi or breach our backend servers.
+
+### A. Automatic Bank-Grade Encryption (SSL/TLS)
+*   **The Implementation:** Both the Vercel (Frontend CDN) and Railway (Backend API) platforms force strict \`HTTPS\` connections. 
+*   **The Justification:** When a student places an order or a vendor manages their dashboard while connected to the open campus Wi-Fi network, all data is heavily encrypted in transit using TLS 1.3. It is mathematically impossible for a bad actor on the same network to intercept or read this data.
+
+### B. Payment Gateway Offloading (PCI-DSS Compliance)
+*   **The Implementation:** UniVerse does **not** store any credit card numbers, CVVs, or UPI PINs in our database. 
+*   **The Justification:** We offload 100% of payment processing to Razorpay, which is fully PCI-DSS compliant. If our database were theoretically breached, hackers would find zero financial instruments, neutralizing the primary incentive for a targeted attack.
+
+### C. Student Privacy by Design (No Logins)
+*   **The Implementation:** We do not force students to create accounts, provide passwords, or store permanent wallet balances on our servers. Order history is tied to local browser storage/sessions on the student's device.
+*   **The Justification:** The most effective way to secure student personal data is to not store it in the first place. By relying on local device sessions for tracking instead of a centralized student database, we eliminate the risk of mass student password leaks entirely.
+
+### D. Database IP Whitelisting (VPC Isolation)
+*   **The Implementation:** The MongoDB Atlas database is completely hidden from the public internet. It is configured with strict IP Whitelisting, meaning it will **only accept incoming connections from the exact IP address of our Railway backend server**.
+*   **The Justification:** Even if a hacker discovers our database URL and password, they cannot connect to it from their own computer. They would first have to compromise the secure Railway server, adding an extreme layer of defense.
+
+### E. JSON Web Token (JWT) Authorization (For Vendors/Admins)
+*   **The Implementation:** The Node.js API utilizes cryptographically signed JWTs for vendor and super-admin session management.
+*   **The Justification:** This ensures that a vendor can only ever view their own dashboard and earnings. The cryptographic signature prevents session hijacking or ID spoofing, keeping vendor financial ledgers completely isolated from one another.
+
+---
+
+## 3. High Availability (Protecting Against Failure & Data Loss)
+Hardware fails. Servers crash during massive spikes. UniVerse's architecture is designed to be **Self-Healing**, ensuring that a hardware failure does not result in lost orders or lost money.
+
+### A. The MongoDB "Replica Set" (Self-Healing Hardware)
+*   **The Implementation:** By selecting the MongoDB Atlas M10 Dedicated Tier, we do not just get one database server. Atlas provisions a **Replica Set**—usually three separate database servers located in completely different physical data centers.
+*   **The Justification:** If Server A catches fire or experiences a catastrophic hardware failure during the lunch rush, Server B instantly takes over in a matter of milliseconds. The students and vendors will not even notice a blip. Zero downtime. Zero data lost.
+
+### B. Automated Snapshot Backups (Human Error Protection)
+*   **The Implementation:** MongoDB Atlas automatically takes daily snapshot backups of the entire database.
+*   **The Justification:** The biggest threat to data is often human error (e.g., a developer accidentally running a script that deletes a vendor's menu). With automated snapshots, we can log into the Atlas dashboard and click "Restore," rolling the database back to exactly how it was 24 hours ago.
+
+### C. Decoupled Isolation
+*   **The Implementation:** The database, backend, and frontend live on entirely different physical networks (Atlas, Railway, Vercel).
+*   **The Justification:** In a traditional "All-in-One" ₹500 GoDaddy server, if the Node.js backend crashes due to high CPU, the database crashes with it, corrupting data. In UniVerse's decoupled model, if the Railway backend crashes for 2 minutes during a spike, the MongoDB database remains 100% untouched, isolated, and safe. When the backend restarts, it reconnects instantly without data corruption.
+
+---
+
+## 4. Conclusion
+By leveraging specialized, enterprise-grade cloud providers (Vercel, Railway, MongoDB Atlas), UniVerse achieves a level of security and high availability that would normally require a dedicated DevOps and Security team to maintain. User data is encrypted, financial data is isolated, and the core database is virtually immune to catastrophic hardware failure.`;
+
+    document.getElementById('content').innerHTML = marked.parse(rawMarkdown);
+    document.getElementById('content').classList.remove('loading');
+    
+    // Auto-open print dialog to save as PDF
+    setTimeout(() => {
+        window.print();
+    }, 800);
+  </script>
+</body>
+</html>

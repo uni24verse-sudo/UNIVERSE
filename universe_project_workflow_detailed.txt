@@ -1,0 +1,77 @@
+UNIVERSE: DETAILED PROJECT WORKFLOW & ARCHITECTURE
+==================================================
+
+This document provides a step-by-step breakdown of every major flow in the UniVerse platform. Use these sections to create slides for an "Impactful PPT."
+
+--------------------------------------------------------------------------------
+1. VENDOR ONBOARDING & STORE INITIALIZATION
+--------------------------------------------------------------------------------
+- [Phase 1: Registration] Vendor registers on the portal using JWT-based authentication.
+- [Phase 2: Store Creation] Vendor provides store details (Name, Market Location, Category).
+- [Phase 3: AI Magic Scan (Menu Digitization)] 
+    - Challenge: Manual menu entry is slow and tedious for vendors.
+    - Solution: Vendor uploads a photo of their physical menu card. 
+    - Process: The backend uses AI (OCR/Vision) to extract item names and prices, instantly populating the digital storefront.
+- [Phase 4: Store Go-Live] Vendor toggles the "Store Status" switch. WebSockets broadcast the status update to all connected customers in real-time.
+
+--------------------------------------------------------------------------------
+2. CUSTOMER DISCOVERY & ORDERING JOURNEY
+--------------------------------------------------------------------------------
+- [Discovery] Customers land on the "Your Campus, Digitized" home page. They can filter stalls by "Market Areas" (e.g., LIT Market, BH1 Market, Mall Market).
+- [Perceived Performance] High-fidelity skeleton screens appear instantly while the lean API fetches minimal store data (optimized for mobile 3G).
+- [Menu Browsing] Customers view categorized menus with support for:
+    - Variants: Small/Large, extra toppings, etc.
+    - Combos: Meal bundles with multiple sub-items.
+- [Dynamic Cart] Cart calculates sub-totals, items, and packaging charges in real-time.
+
+--------------------------------------------------------------------------------
+3. SECURE PAYMENT & ORDER CREATION (The "Razorpay" Flow)
+--------------------------------------------------------------------------------
+- [Order Init] Customer clicks "Pay." Frontend requests a `razorpay_order_id` from the backend.
+- [Database Integrity] We DO NOT create the order in the database yet to avoid "zombie orders" from failed payments.
+- [Checkout] The Razorpay overlay appears. Customer pays.
+- [Verification] Razorpay returns a cryptographic signature. The backend recreates the SHA256 HMAC hash using the Secret Key and compares it.
+- [Atomic Creation] Only after signature matching is successful does the order get saved to MongoDB with a "Confirmed" status.
+
+--------------------------------------------------------------------------------
+4. REAL-TIME NOTIFICATION & FULFILLMENT FLOW
+--------------------------------------------------------------------------------
+Once an order is confirmed, a three-pronged notification system triggers:
+1. [Socket.io] Instant sound and popup on the Vendor's active dashboard.
+2. [OneSignal] Push notification sent to the vendor's phone (even if the browser is closed).
+3. [Telegram Bot] A structured alert sent to the vendor's private Telegram chat with full order details.
+
+- [Acceptance] Vendor confirms the order. Status updates to "In Progress."
+- [Live Tracking] Customer sees the status change instantly on their tracker page via WebSockets.
+
+--------------------------------------------------------------------------------
+5. THE "HANDOVER VERIFICATION" WORKFLOW
+--------------------------------------------------------------------------------
+To prevent disputes ("I didn't get my food") and ensure security:
+- [The Token] Every order generates a unique 8-character `handoverToken`.
+- [The QR] The customer presents a QR code or the token on their screen.
+- [The Verification] The vendor scans the QR or enters the token. The backend verifies the match and marks the order as "Completed."
+- [Closure] Only completed orders are counted toward the vendor's revenue total.
+
+--------------------------------------------------------------------------------
+6. ADMINISTRATIVE & BILLING WORKFLOW (Super Admin)
+--------------------------------------------------------------------------------
+- [Market Control] Super Admin can re-order stalls (Priority) or hide bad actors.
+- [Subscription Logic] 
+    - New stores start with "Trial" status (30 days).
+    - Platform calculates 5% commission on revenue post-trial.
+- [Infrastructure View] Admin monitors server health, total transactions, and active vendors across all markets.
+
+--------------------------------------------------------------------------------
+7. TECH SPOTLIGHT: PERFORMANCE ARCHITECTURE (Great for Demo!)
+--------------------------------------------------------------------------------
+- [Initial Load Optimization] Moved to Route-based Code Splitting (React Lazy/Suspense). The browser only loads what is needed, reducing load time by up to 80%.
+- [Perceived Speed] Implemented "Skeleton Loading" UI components that mimic the content layout, keeping users engaged during network latency.
+- [Backend Efficiency] Aggregated and projected only necessary fields in MongoDB queries to keep JSON payloads lightweight.
+- [Image Strategy] Integrated Cloudinary CDN with standard resolution constraints to ensure fast asset delivery.
+
+==================================================
+TIPS FOR A WINNING PPT:
+1. Start with Section 2 (The Problem) and Section 3 (Payment Verification).
+2. Use the "Handover Verification" (Section 5) as your "Innovation" highlight.
+3. Mention Section 7 (Performance) when asked about "Technical Challenges."

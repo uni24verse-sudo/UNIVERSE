@@ -1,0 +1,15 @@
+{
+  "head": {
+    "requestId": null,
+    "responseTimestamp": "1774545346152",
+    "version": "v1"
+  },
+  "body": {
+    "extraParamsMap": null,
+    "resultInfo": {
+      "resultStatus": "F",
+      "resultCode": "501",
+      "resultMsg": "System Error"
+    }
+  }
+}

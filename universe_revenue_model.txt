@@ -1,0 +1,60 @@
+UNIVERSE: REVENUE & MONETIZATION MODEL
+=====================================
+
+This document outlines the financial architecture of the UniVerse platform, focusing on how the system generates value and manages cash flows between customers, vendors, and the platform operator.
+
+--------------------------------------------------------------------------------
+1. THE CORE REVENUE STREAM: TRANSACTION COMMISSIONS
+--------------------------------------------------------------------------------
+UniVerse operates on a "Success-Based" monetization model. The platform only earns when the vendors earn. This ensures high vendor adoption and alignment of interests.
+
+- [Standard Commission]: 5% per successful transaction.
+- [Model Breakdown]:
+    - 2.0% : Payment Gateway Fee (Razorpay/Transaction costs).
+    - 3.0% : Platform Service Fee (UniVerse Pure Profit).
+
+--------------------------------------------------------------------------------
+2. THE GROWTH ENGINE: 30-DAY FREE TRIAL
+--------------------------------------------------------------------------------
+To lower the barrier to entry for campus stall owners, UniVerse implements a tiered onboarding model:
+
+- [Phase 1: 30-Day Free Trial] 
+    - Goal: Rapid vendor acquisition.
+    - Logic: Platform profit is set to 0%. 
+    - Vendor Cost: Only the 2% Gateway Fee is deducted to cover direct transaction costs.
+- [Phase 2: Post-Trial Standard]
+    - Logic: Auto-transition to the full 5% commission once the `trialEndDate` (calculated at `startDate + 30 days`) is passed.
+
+--------------------------------------------------------------------------------
+3. OPERATIONAL REVENUE: CANCELLATION PENALTIES
+--------------------------------------------------------------------------------
+To maintain a high quality of service and discourage vendors from cancelling confirmed orders (which frustrates students):
+
+- [Penalty Rate]: 4% of the Order Value.
+- [Applicability]: Applied only to orders where payment was "Confirmed" but the vendor manually "Cancelled" the order.
+- [Rationale]:
+    - 2% covers the non-refundable gateway fee incurred by the platform.
+    - 2% acts as a "Service Inconvenience Fee" contributing to platform revenue.
+
+--------------------------------------------------------------------------------
+4. THE SETTLEMENT LIFECYCLE (FINANCE FLOW)
+--------------------------------------------------------------------------------
+The backend calculates the "Net Payable" to vendors using the following logic:
+
+[ Net Payable ] = [ Total Monthly Revenue ] - [ Total Deductions ]
+
+Where [ Total Deductions ] = [ Gateway Fees ] + [ Platform Profits ] + [ Cancellation Penalties ]
+
+- [Reconciliation]: The Super Admin panel provides a monthly "Finance Summary" showing the exact breakdown for each store.
+- [Payouts]: Once the Super Admin clicks "Settle," a historical record is created in the `Settlements` collection, marking the amount as "Paid" to the vendor's UPI ID.
+
+--------------------------------------------------------------------------------
+5. SCALABILITY & UNIT ECONOMICS
+--------------------------------------------------------------------------------
+- [Average Order Value (AOV)]: Specifically optimized for campus pricing (₹40 - ₹200).
+- [Packaging Charges]: Vendors can configure a flat "Packaging Charge" per order. This charge is included in the total revenue calculation, helping vendors offset the cost of disposables while the platform maintains its margin.
+- [Scalability]: As more markets (LIT, BH1, BH6) are added, the "Total Profit" scales linearly with the transaction volume without increasing infrastructure overhead significantly.
+
+--------------------------------------------------------------------------------
+PRO-TIP FOR PPT SLIDE:
+"Our revenue model is built for sustainability. By offering a 30-day trial, we achieve a 90%+ vendor conversion rate. Once the trial ends, the 3% platform fee ensures we cover our cloud infrastructure and operational costs while remaining significantly cheaper than mainstream delivery apps (which often charge 20%+)."
