@@ -584,19 +584,10 @@ export default function LiveOrdersScreen({ navigation }) {
           <Text style={{ marginTop: 12, color: '#64748B', fontWeight: '600' }}>Loading orders...</Text>
         </View>
       ) : (
-        <PagerView 
-          style={styles.pagerView} 
-          initialPage={0}
-          ref={pagerRef}
-          onPageSelected={(e) => {
-            const index = e.nativeEvent.position;
-            if (index === 0) setFilter('Active');
-            if (index === 1) setFilter('Ready');
-            if (index === 2) setFilter('History');
-          }}
-        >
+        <View style={styles.pagerView}>
           {/* Page 0: Active */}
-          <View key="1" style={styles.page}>
+          {filter === 'Active' && (
+            <View style={styles.page}>
             <FlatList
               data={activeOrders}
               keyExtractor={(item) => item._id}
@@ -611,9 +602,11 @@ export default function LiveOrdersScreen({ navigation }) {
               }
             />
           </View>
+          )}
 
           {/* Page 1: Ready */}
-          <View key="2" style={styles.page}>
+          {filter === 'Ready' && (
+          <View style={styles.page}>
             <FlatList
               data={readyOrders}
               keyExtractor={(item) => item._id}
@@ -628,9 +621,11 @@ export default function LiveOrdersScreen({ navigation }) {
               }
             />
           </View>
+          )}
 
           {/* Page 2: History */}
-          <View key="3" style={styles.page}>
+          {filter === 'History' && (
+          <View style={styles.page}>
             <FlatList
               data={historyOrders}
               keyExtractor={(item) => item._id}
@@ -645,7 +640,8 @@ export default function LiveOrdersScreen({ navigation }) {
               }
             />
           </View>
-        </PagerView>
+          )}
+        </View>
       )}
 
       {/* Floating QR Scanner Button on Ready tab */}
