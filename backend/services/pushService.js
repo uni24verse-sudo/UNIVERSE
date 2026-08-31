@@ -1,16 +1,5 @@
 const DeviceRegistry = require('../models/DeviceRegistry');
-
-let expoClient = null;
-let ExpoClass = null;
-
-const getExpo = async () => {
-  if (!expoClient) {
-    const sdk = await import('expo-server-sdk');
-    ExpoClass = sdk.Expo;
-    expoClient = new ExpoClass();
-  }
-  return { expo: expoClient, Expo: ExpoClass };
-};
+const axios = require('axios');
 
 /**
  * Sends a push notification to all active devices for a given store
@@ -18,8 +7,6 @@ const getExpo = async () => {
  */
 const sendStoreNotification = async (storeId, title, body, data = {}, categoryId = null, badgeCount = undefined, channelId = 'default') => {
   try {
-    const { expo, Expo } = await getExpo();
-    
     // 1. Find all active devices for this store
     const devices = await DeviceRegistry.find({ storeId, active: true });
     console.log(`[PushService] Found ${devices?.length || 0} active devices for store ${storeId}`);
@@ -27,15 +14,14 @@ const sendStoreNotification = async (storeId, title, body, data = {}, categoryId
 
     let messages = [];
     for (let device of devices) {
-      // Check that all your push tokens appear to be valid Expo push tokens
-      if (!Expo.isExpoPushToken(device.pushToken)) {
+      // Basic validation
+      if (!device.pushToken || !device.pushToken.startsWith('ExponentPushToken')) {
         console.error(`Push token ${device.pushToken} is not a valid Expo push token`);
-        // Mark as inactive immediately
         await DeviceRegistry.findByIdAndUpdate(device._id, { active: false });
         continue;
       }
 
-      // Construct the message
+      // Construct the message exactly as Expo expects via REST API
       let pushMessage = {
         to: device.pushToken,
         sound: 'default', // Ignored on Android when channelId is provided
@@ -45,44 +31,35 @@ const sendStoreNotification = async (storeId, title, body, data = {}, categoryId
         channelId: channelId,
       };
       
-      if (badgeCount !== undefined) {
-        pushMessage.badge = badgeCount;
-      }
-      
-      if (categoryId) {
-        pushMessage.categoryId = categoryId;
-      }
+      if (badgeCount !== undefined) pushMessage.badge = badgeCount;
+      if (categoryId) pushMessage.categoryId = categoryId;
 
       messages.push(pushMessage);
     }
 
     if (messages.length === 0) return;
 
-    // 2. Chunk messages
-    let chunks = expo.chunkPushNotifications(messages);
-    let tickets = [];
+    console.log(`[PushService] Sending ${messages.length} messages via HTTP...`);
     
-    console.log(`[PushService] Sending ${messages.length} messages in ${chunks.length} chunks`);
-    
-    // 3. Send the chunks to the Expo push notification service
-    for (let chunk of chunks) {
-      try {
-        let ticketChunk = await expo.sendPushNotificationsAsync(chunk);
-        console.log(`[PushService] Ticket Chunk Result:`, ticketChunk);
-        tickets.push(...ticketChunk);
-      } catch (error) {
-        console.error('[PushService] Error sending push chunk:', error);
+    // 2. Send the messages to the Expo push notification service
+    const response = await axios.post('https://exp.host/--/api/v2/push/send', messages, {
+      headers: {
+        'Accept': 'application/json',
+        'Accept-encoding': 'gzip, deflate',
+        'Content-Type': 'application/json',
       }
-    }
+    });
 
-    // 4. Handle receipt/errors (Prune invalid tokens)
+    console.log(`[PushService] Expo Response:`, response.data);
+
+    // 3. Handle errors/receipts (Prune invalid tokens)
+    const tickets = response.data.data;
     let invalidTokens = [];
-    for (let i = 0; i < tickets.length; i++) {
-      let ticket = tickets[i];
-      if (ticket.status === 'error') {
-        if (ticket.details && ticket.details.error === 'DeviceNotRegistered') {
-          // The token is invalid/expired. Extract the token to delete it.
-          // The ticket corresponds to the message at the same index
+    
+    if (Array.isArray(tickets)) {
+      for (let i = 0; i < tickets.length; i++) {
+        let ticket = tickets[i];
+        if (ticket.status === 'error' && ticket.details && ticket.details.error === 'DeviceNotRegistered') {
           invalidTokens.push(messages[i].to);
         }
       }
@@ -96,7 +73,7 @@ const sendStoreNotification = async (storeId, title, body, data = {}, categoryId
       );
     }
   } catch (error) {
-    console.error('Push Service Error:', error);
+    console.error('Push Service Error:', error.response?.data || error.message);
   }
 };
 
