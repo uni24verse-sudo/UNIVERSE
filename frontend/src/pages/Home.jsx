@@ -378,32 +378,7 @@ const Home = () => {
         )}
       </main>
 
-      {/* Vendor CTA Section */}
-      <section style={{ padding: '4rem 2rem 8rem 2rem', textAlign: 'center' }}>
-        <div className="glass-card animate-fade-in-up" style={{ 
-          maxWidth: '800px', 
-          margin: '0 auto', 
-          padding: '4rem 2rem', 
-          borderRadius: '48px', 
-          background: 'linear-gradient(135deg, hsla(var(--primary-h), var(--primary-s), var(--primary-l), 0.05) 0%, rgba(255, 255, 255, 0.4) 100%)',
-          border: '1px solid var(--surface-border)'
-        }}>
-          <div style={{ width: '64px', height: '64px', background: 'var(--primary)', borderRadius: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 2rem auto', boxShadow: '0 20px 40px var(--primary-shadow)' }}>
-            <User size={32} color="white" />
-          </div>
-          <h2 style={{ fontSize: '2rem', fontWeight: '900', marginBottom: '1rem', letterSpacing: '-0.02em' }}>Are you a stall owner?</h2>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '1rem', marginBottom: '3rem', maxWidth: '500px', margin: '0 auto 3rem auto', fontWeight: '500', lineHeight: '1.6' }}>
-            Transform your stall into a digital hub. Manage orders, accept digital payments, and grow your campus reach.
-          </p>
-          <button 
-            className="btn btn-primary" 
-            onClick={() => navigate('/vendor/login')}
-            style={{ width: 'auto', padding: '1.25rem 3rem', borderRadius: '100px', fontSize: '1rem', fontWeight: '800' }}
-          >
-            Access Vendor Portal
-          </button>
-        </div>
-      </section>
+
     </div>
   );
 };
