@@ -87,7 +87,7 @@ const AppLayout = () => {
     setSelectedLocationId(loc._id);
   };
 
-  if (!isSessionStarted && !isAdminPath) {
+  if (!isSessionStarted && !isAdminPath && !location.pathname.startsWith('/order-tracker')) {
     return <SplashScreen onComplete={() => setIsSessionStarted(true)} />;
   }
 

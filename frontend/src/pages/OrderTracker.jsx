@@ -57,8 +57,8 @@ const OrderTracker = () => {
         setOrder(res.data);
         setLoading(false);
       } catch (err) {
-        if (err.response?.status === 404 && retryCount < 3) {
-          console.log(`[OrderTracker] Order not found, retrying... (${retryCount + 1}/3)`);
+        if (err.response?.status === 404 && retryCount < 8) {
+          console.log(`[OrderTracker] Order not found, retrying... (${retryCount + 1}/8)`);
           setTimeout(() => fetchOrder(retryCount + 1), 1000);
         } else {
           console.error(err);
@@ -124,7 +124,7 @@ const OrderTracker = () => {
         <div className="pulse-circle" style={{ width: '80px', height: '80px', borderRadius: '50%', background: 'var(--glass-bg)', border: '2px solid var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <Clock size={32} color="var(--primary)" className="spin" />
         </div>
-        <p style={{ color: 'var(--text-secondary)' }}>Retrieving your order details...</p>
+        <p style={{ color: 'var(--text-secondary)' }}>Securing your order... Please wait</p>
       </div>
     );
   }
