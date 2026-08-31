@@ -129,6 +129,19 @@ const pushService = require('../services/pushService');
       if (item.variant) {
         itemStr += ` (${item.variant})`;
       }
+      
+      if (item.isCombo) {
+        const subItems = [];
+        if (item.comboItems && item.comboItems.length > 0) {
+          subItems.push(...item.comboItems.map(ci => `${ci.quantity} ${ci.name}`));
+        }
+        if (item.freeItems && item.freeItems.length > 0) {
+          subItems.push(...item.freeItems.map(fi => `+Free ${fi.quantity} ${fi.name}`));
+        }
+        if (subItems.length > 0) {
+          itemStr += `\n   ↳ [${subItems.join(', ')}]`;
+        }
+      }
       return itemStr;
     }).join('\n');
 
