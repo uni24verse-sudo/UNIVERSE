@@ -232,66 +232,112 @@
 
 /* Animations for Mockup */
 .vd-anim-card-1 {
-  animation: slideInCard 8s infinite;
+  animation: slideInCard 10s infinite;
 }
 
 .vd-anim-btn-1 {
-  animation: btnStatusChange 8s infinite;
+  animation: btnStatusChange 10s infinite;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.vd-anim-btn-1::after {
+  content: "PENDING";
+  color: white;
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 1px;
+  animation: btnTextChange 10s infinite;
 }
 
 .vd-anim-scanner {
   position: absolute;
   top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(0,0,0,0.8);
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(8px);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   opacity: 0;
-  animation: showScanner 8s infinite;
-  z-index: 10;
+  animation: showScanner 10s infinite;
+  z-index: 20;
 }
 
 .vd-scanner-box {
-  width: 150px;
-  height: 150px;
-  border: 4px solid #3b82f6;
-  border-radius: 12px;
+  width: 140px;
+  height: 140px;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
   position: relative;
+  overflow: hidden;
+  box-shadow: 0 0 0 4000px rgba(0,0,0,0.4);
 }
+
+.vd-scanner-box::before, .vd-scanner-box::after {
+  content: '';
+  position: absolute;
+  width: 20px; height: 20px;
+  border-color: #3b82f6;
+  border-style: solid;
+}
+.vd-scanner-box::before { top: 0; left: 0; border-width: 4px 0 0 4px; border-top-left-radius: 12px; }
+.vd-scanner-box::after { top: 0; right: 0; border-width: 4px 4px 0 0; border-top-right-radius: 12px; }
+
+.vd-scanner-corners-bottom::before, .vd-scanner-corners-bottom::after {
+  content: '';
+  position: absolute;
+  width: 20px; height: 20px;
+  border-color: #3b82f6;
+  border-style: solid;
+}
+.vd-scanner-corners-bottom::before { bottom: 0; left: 0; border-width: 0 0 4px 4px; border-bottom-left-radius: 12px; }
+.vd-scanner-corners-bottom::after { bottom: 0; right: 0; border-width: 0 4px 4px 0; border-bottom-right-radius: 12px; }
 
 .vd-scanner-line {
   position: absolute;
   top: 0; left: 0; right: 0;
-  height: 2px;
-  background: #ef4444;
-  box-shadow: 0 0 10px #ef4444;
+  height: 3px;
+  background: #10b981;
+  box-shadow: 0 0 15px #10b981;
   animation: scanUpDown 2s ease-in-out infinite;
 }
 
 @keyframes slideInCard {
-  0%, 10% { transform: translateY(-50px); opacity: 0; }
-  15%, 70% { transform: translateY(0); opacity: 1; }
-  75%, 100% { transform: translateY(-50px); opacity: 0; }
+  0%, 10% { transform: translateY(-50px) scale(0.9); opacity: 0; }
+  15%, 80% { transform: translateY(0) scale(1); opacity: 1; }
+  85%, 100% { transform: translateY(50px) scale(0.9); opacity: 0; }
 }
 
 @keyframes btnStatusChange {
-  0%, 25% { background: #f59e0b; width: 50%; } /* Pending */
-  30%, 45% { background: #3b82f6; width: 70%; } /* Cooking */
-  50%, 70% { background: #10b981; width: 100%; } /* Ready */
-  75%, 100% { background: #f59e0b; width: 50%; }
+  0%, 25% { background: #f59e0b; width: 40%; } /* Pending */
+  35%, 55% { background: #3b82f6; width: 70%; } /* Cooking */
+  65%, 85% { background: #10b981; width: 100%; } /* Ready */
+  95%, 100% { background: #f59e0b; width: 40%; }
+}
+
+@keyframes btnTextChange {
+  0%, 25% { content: "ACCEPT"; } 
+  35%, 55% { content: "COOKING"; }
+  65%, 85% { content: "READY"; }
+  95%, 100% { content: "ACCEPT"; }
 }
 
 @keyframes showScanner {
-  0%, 70% { opacity: 0; pointer-events: none; }
-  75%, 95% { opacity: 1; }
-  100% { opacity: 0; pointer-events: none; }
+  0%, 65% { opacity: 0; pointer-events: none; }
+  75%, 85% { opacity: 1; pointer-events: auto; }
+  90%, 100% { opacity: 0; pointer-events: none; }
 }
 
 @keyframes scanUpDown {
-  0% { top: 0; }
-  50% { top: 140px; }
-  100% { top: 0; }
+  0% { top: 10%; opacity: 0; }
+  10% { opacity: 1; }
+  50% { top: 90%; }
+  90% { opacity: 1; }
+  100% { top: 10%; opacity: 0; }
 }
 
 @media (max-width: 768px) {

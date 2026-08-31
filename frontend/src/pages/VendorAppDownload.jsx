@@ -90,6 +90,7 @@ const VendorAppDownload = () => {
             <div className="vd-anim-scanner">
               <div style={{ color: 'white', marginBottom: '1rem', fontWeight: 'bold', fontSize: '0.8rem' }}>Scan Student QR</div>
               <div className="vd-scanner-box">
+                <div className="vd-scanner-corners-bottom"></div>
                 <div className="vd-scanner-line"></div>
               </div>
             </div>
