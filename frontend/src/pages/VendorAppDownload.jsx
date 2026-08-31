@@ -68,16 +68,30 @@ const VendorAppDownload = () => {
         {/* CSS Drawn Mobile Mockup */}
         <div className="vd-mockup-image">
           <div className="vd-mockup-header"></div>
-          <div className="vd-mockup-body">
-            <div className="vd-mockup-card">
-              <div className="vd-mockup-line medium"></div>
+          <div className="vd-mockup-body" style={{ position: 'relative', overflow: 'hidden' }}>
+            {/* Animated Order Card */}
+            <div className="vd-mockup-card vd-anim-card-1" style={{ position: 'relative', zIndex: 2 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <div className="vd-mockup-line medium"></div>
+                <div style={{ fontSize: '0.65rem', fontWeight: 'bold', color: '#10b981' }}>NEW</div>
+              </div>
               <div className="vd-mockup-line short"></div>
-              <div className="vd-mockup-btn"></div>
+              <div className="vd-mockup-btn vd-anim-btn-1" style={{ width: '50%', background: '#f59e0b', transition: 'width 0.3s, background 0.3s' }}></div>
             </div>
-            <div className="vd-mockup-card" style={{ opacity: 0.6 }}>
+            
+            {/* Background static card */}
+            <div className="vd-mockup-card" style={{ opacity: 0.3, marginTop: '1rem' }}>
               <div className="vd-mockup-line medium"></div>
               <div className="vd-mockup-line short"></div>
-              <div className="vd-mockup-btn" style={{ background: '#3b82f6' }}></div>
+              <div className="vd-mockup-btn" style={{ width: '100%', background: '#3b82f6' }}></div>
+            </div>
+
+            {/* Animated QR Scanner Overlay */}
+            <div className="vd-anim-scanner">
+              <div style={{ color: 'white', marginBottom: '1rem', fontWeight: 'bold', fontSize: '0.8rem' }}>Scan Student QR</div>
+              <div className="vd-scanner-box">
+                <div className="vd-scanner-line"></div>
+              </div>
             </div>
           </div>
           {/* Fake Bottom Nav */}
