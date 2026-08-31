@@ -61,8 +61,13 @@ router.post('/create', async (req, res) => {
 // Get Vendor's Orders (Protected, Store Specific)
 router.get('/:storeId/vendor-orders', auth, async (req, res) => {
   try {
-    const store = await Store.findOne({ _id: req.params.storeId, admin: req.admin._id });
-    if (!store) return res.status(404).json({ message: 'Store not found or unauthorized' });
+    const store = await Store.findById(req.params.storeId);
+    if (!store) return res.status(404).json({ message: 'Store not found' });
+
+    // Ensure user is either the store owner or an employee of this store
+    if (store.admin.toString() !== req.admin._id && req.admin.storeId !== req.params.storeId) {
+      return res.status(403).json({ message: 'Unauthorized access to store orders' });
+    }
 
     const orders = await Order.find({ 
       store: store._id,
