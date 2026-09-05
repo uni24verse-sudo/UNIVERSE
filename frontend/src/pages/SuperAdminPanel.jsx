@@ -193,7 +193,7 @@ const SuperAdminPanel = () => {
 
         <nav style={{ padding: '1.5rem 1rem', flex: 1, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
           {[
-            { id: '3d_analytics', icon: Globe, label: '3D Live Analytics', badge: 'REALTIME' },
+            { id: '3d_analytics', icon: TrendingUp, label: 'Executive Analytics', badge: 'LIVE' },
             { id: 'overview', icon: Activity, label: 'Platform Overview' },
             { id: 'vendors', icon: Users, label: 'Vendor Registry' },
             { id: 'stores', icon: Store, label: 'Store Directory' },
