@@ -1,10 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>UniVerse Revenue Model Report</title>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.5.1/github-markdown.min.css">
+  <link rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.5.1/github-markdown.min.css">
   <style>
     body {
       box-sizing: border-box;
@@ -14,109 +16,157 @@
       padding: 45px;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
     }
+
     @media (max-width: 767px) {
       body {
         padding: 15px;
       }
     }
+
     @media print {
-        body {
-            padding: 0;
-            max-width: 100%;
-        }
-        .loading { display: none !important; }
+      body {
+        padding: 0;
+        max-width: 100%;
+      }
+
+      .loading {
+        display: none !important;
+      }
+
+      .no-print {
+        display: none !important;
+      }
     }
+
     .loading {
-        text-align: center;
-        font-size: 20px;
-        margin-top: 50px;
-        color: #666;
+      text-align: center;
+      font-size: 20px;
+      margin-top: 50px;
+      color: #666;
+    }
+
+    .logo-container {
+      margin-bottom: 24px;
+      text-align: center;
     }
   </style>
 </head>
+
 <body class="markdown-body">
-  <div style="text-align: center; padding-top: 10px; " class="logo-container">
-    <img src="frontend/public/helmet-guy.png" alt="UniVerse Logo" style="max-height: 180px; margin: 0 auto; display: block;" onerror="this.outerHTML='<h1 style=\\'font-size: 46px; font-weight: 900; letter-spacing: 5px; color: #111; margin: 0; text-transform: uppercase;\\'>UNIVERSE</h1>'">
+  <div class="logo-container">
+    <img src="frontend/public/helmet-guy.png" alt="UniVerse Logo"
+      style="max-height: 160px; margin: 0 auto; display: block;"
+      onerror="this.outerHTML='<h1 style=\\'font-size: 44px; font-weight: 900; letter-spacing: 5px; color: #111; margin: 0; text-transform: uppercase;\\'>UNIVERSE</h1>'">
   </div>
   <div id="content" class="loading">Generating PDF... Please wait.</div>
-  
+
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <script>
     const rawMarkdown = `# 📈 UniVerse: Realistic Business Model & Single Campus Projections
 
-**Prepared For:** University Approval Committee, Investors, & Core Team  
-**Objective:** To provide a highly realistic, ground-level financial projection for a single pilot campus. This report contrasts the current, low-friction adoption model against a fully monetized future model.
+**Prepared For:** University Approval Committee, Investors, & Core Leadership  
+**Project:** UniVerse (Campus Digital Marketplace & Food Management Platform)  
+**Objective:** A granular financial model detailing the ground-level economics for a single pilot campus. This report incorporates our **production AWS infrastructure (EC2 + RDS PostgreSQL + Vercel)** to demonstrate rock-solid profitability across both the Adoption Phase and Fully Monetized Phase.
 
 ---
 
-## 1. Baseline Assumptions (The Single Campus Pilot)
-To keep these numbers grounded in reality, we are assuming a conservative, stable volume for a mid-sized university campus.
+## 1. Baseline Assumptions (Single Campus Pilot)
+To keep all financial models grounded in reality, calculations use conservative, stable metrics for a standard university campus:
 
-*   **Active Orders:** 1,000 orders per day.
-*   **Active Days:** 25 days per month (excluding Sundays/Holidays).
-*   **Total Monthly Orders:** 25,000 orders/month.
-*   **Average Order Value (AOV):** ₹100.
-*   **Total Food Value Transacted (GMV):** ₹25,00,000 (₹25 Lakhs) per month.
+* **Daily Order Volume:** 1,000 orders / day during active campus hours.
+* **Operating Days:** 25 days / month (excluding Sundays & academic holidays).
+* **Monthly Order Volume:** **25,000 orders / month**.
+* **Average Order Value (AOV):** ₹100 per transaction.
+* **Monthly Gross Food Value (GMV):** **₹25,00,000 (₹25 Lakhs / month)**.
 
 ---
 
-## 2. Scenario A: The Current System (Growth & Adoption Phase)
-In this model, the primary goal is rapid user adoption. We do not charge the students anything extra, and we take a small cut from the vendors for providing the digital infrastructure.
+## 2. Production Cloud Infrastructure Expense (Current AWS Architecture)
 
-### The Revenue Engine
-*   **User Convenience Fee:** ₹0 (Free for students to use).
-*   **Vendor Commission:** 5% on every order.
-*   **Premium Placements:** None.
+By deploying directly on **AWS (EC2 \`t4g.small\` + RDS PostgreSQL \`db.t4g.small\`)** and utilizing **Vercel's Global Edge CDN** ($0) with GoDaddy DNS ($0), our total monthly technical overhead is reduced to **₹3,390 / month(approx) (~$40.60 USD)**:
+
+| Infrastructure Component | Provider & Tier | Purpose | Monthly Cost (INR) |
+| :--- | :--- | :--- | :--- |
+| **Backend Compute** | AWS EC2 (\`t4g.small\` ARM64) | Node.js API, Socket.io WebSockets, PM2 & Nginx | **~₹1,150** ($13.80) |
+| **Database Engine** | AWS RDS PostgreSQL (\`db.t4g.small\`) | High-integrity ACID DB with automated backups & PITR | **~₹2,240** ($26.80) |
+| **VPC & Security** | AWS VPC (Private/Public Subnet) | Complete database isolation *(No NAT Gateway)* | **₹0.00** |
+| **Frontend CDN** | Vercel (Free / Hobby Tier) | React SPA on Global Edge Network + Free SSL | **₹0.00** |
+| **Domain & DNS** | GoDaddy DNS Engine | Custom domain routing to Vercel & EC2 | **₹0.00** |
+| **TOTAL MONTHLY TECH COST** | | | **₹3,390 INR / month(approx)** |
+
+---
+
+## 3. Scenario A: Current Growth & Adoption Phase
+*Goal: Rapid student adoption and frictionless vendor onboarding with zero upfront student fees.*
+
+### Revenue Engine (Scenario A)
+* **Student Convenience Fee:** **₹0** (100% Free for students).
+* **Vendor Commission:** **5%** per successful order.
+* **Vendor 30-Day Free Trial:** 3% platform cut waived for the first 30 days; 2% gateway cost deducted.
 
 ### Monthly Financial Breakdown (Scenario A)
-1. **Gross Revenue (Vendor Commission):** 5% of ₹25,00,000 = **₹1,25,000**
-2. **Minus Razorpay Fees:** 2% of ₹25,00,000 = **-₹50,000** *(Note: PG fees are calculated on the total money processed through the app).*
-3. **Minus Tech Infrastructure:** Railway + MongoDB + Twilio = **-₹6,900**
-4. **Minus Operations/Marketing:** Support staff, posters, promos = **-₹20,000**
+1. **Gross Revenue (5% Vendor Commission):** 5% of ₹25,00,000 = **₹1,25,000**
+2. **Minus Razorpay Gateway Fees (2% of GMV):** 2% of ₹25,00,000 = **-₹50,000**
+3. **Minus AWS Production Infrastructure:** EC2 + RDS PostgreSQL + Vercel = **-₹3,390**
+4. **Minus Operations & Support:** Ground staff, posters, support promos = **-₹20,000**
 
-### 💰 Net Profit (Scenario A): ~₹48,100 / month
-**Analysis:** Even with zero fees charged to the students, and Razorpay taking a heavy 2% cut of the total GMV, the platform remains firmly profitable. This proves the core software is highly sustainable during the initial user-acquisition phase.
+### 💰 Net Profit (Scenario A): ~₹51,610 / month
+> **Strategic Takeaway:** Even with **₹0 charges to students** and covering full Razorpay gateway fees, the platform generates **~₹51,610 in clean monthly profit** from Day 1 on a single campus. The business never burns capital to acquire users.
 
 ---
 
-## 3. Scenario B: The Future System (Fully Monetized)
-Once the platform is deeply embedded in the campus culture (students are habituated to skipping lines), we activate the full monetization engine. This includes micro-transactions for users and premium real estate for vendors.
+## 4. Scenario B: Future Fully Monetized Phase
+*Goal: Activated once UniVerse is deeply embedded in campus culture and students are habituated to skipping physical queues.*
 
-### The Revenue Engine
-*   **User Convenience / Platform Fee:** A flat **₹5** added at checkout for the privilege of skipping the queue.
-*   **Vendor Commission:** Maintains the standard **5%** cut.
-*   **Premium Vendor Placements:** Vendors pay a flat fee (e.g., ₹1,000/month) to be featured in the "Hero Banner" or "Top Picks" section at the top of the app to drive more sales.
+### Revenue Engine (Scenario B)
+* **Student Convenience Fee:** Flat **₹5** added at checkout for queue-skipping privileges.
+* **Vendor Commission:** Standard **5%** per transaction.
+* **Featured Store Placements:** ₹1,000/month for "Top Campus Picks" & "Hero Banner" promotions (assuming 5 vendors).
 
 ### Monthly Financial Breakdown (Scenario B)
-1. **User Fees:** 25,000 orders × ₹5 = **₹1,25,000**
-2. **Vendor Commission:** 5% of ₹25,00,000 = **₹1,25,000**
-3. **Premium Placements:** Assuming 5 vendors opt-in at ₹1,000 = **₹5,000**
-*   **Total Gross Revenue:** **₹2,55,000**
+1. **Student Convenience Fees:** 25,000 orders × ₹5 = **₹1,25,000**
+2. **Vendor Commission (5%):** 5% of ₹25,00,000 = **₹1,25,000**
+3. **Featured Vendor Placements:** 5 vendors × ₹1,000 = **₹5,000**
+* **Total Gross Monthly Revenue:** **₹2,55,000**
 
-*Expenses:*
-1. **Minus Razorpay Fees (2%):** *Total transacted is now ₹26.25 Lakhs (Food + User Fee)*. 2% of ₹26.25L = **-₹52,500**
-2. **Minus Tech Infrastructure:** Railway + MongoDB + Twilio = **-₹6,900**
-3. **Minus Operations/Marketing:** Support staff, posters, promos = **-₹20,000**
+*Operating Expenses:*
+1. **Minus Razorpay Fees (2% on ₹26.25L total GMV + fees):** = **-₹52,500**
+2. **Minus AWS Production Infrastructure:** EC2 + RDS PostgreSQL + Vercel = **-₹3,390**
+3. **Minus Operations & Support:** Ground staff, marketing promos = **-₹20,000**
 
-### 💰 Net Profit (Scenario B): ~₹1,75,600 / month
-**Analysis:** By introducing a negligible ₹5 fee that students will happily pay to save 20 minutes standing in the heat, the net profit of a single campus nearly **quadruples**. 
+### 💰 Net Profit (Scenario B): ~₹1,79,110 / month
+> **Strategic Takeaway:** Adding a nominal ₹5 convenience fee that students eagerly pay to save 20 minutes standing in line increases single-campus net profit to **~₹1.79 Lakhs per month (a 3.5x increase)** with zero added server expense.
 
 ---
 
-## 4. Conclusion for Stakeholders
-The financial viability of UniVerse is exceptionally strong. 
+## 5. Multi-Campus Scalability Projections
 
-1. **It is profitable from Day 1:** Under Scenario A, we prove that the business does not burn money to acquire users. Earning ~₹48,000/month purely from a 5% vendor cut validates the base unit economics, even with a strict 2% Razorpay fee.
-2. **It has massive upside potential:** When transitioned to Scenario B, the platform generates over ₹1.7 Lakhs in pure net profit per month from a single campus.
-3. **Highly Scalable:** Because the technology is decoupled and fully automated (MongoDB + Railway), deploying Scenario B to 5 different campuses scales the revenue linearly while keeping the technical overhead and server costs extremely low.`;
+Because AWS EC2 (\`t4g.small\`) and RDS PostgreSQL handle high concurrency effortlessly without per-campus license costs, profitability scales linearly:
+
+| Campus Rollout Scale | Monthly Orders | Gross Revenue (Scenario B) | Total Tech Cost (AWS) | Net Profit / Month | Net Profit / Year |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **1 Pilot Campus** | 25,000 | ₹2,55,000 | ~₹3,390 | **~₹1.79 Lakhs** | **~₹21.5 Lakhs** |
+| **3 Campuses** | 75,000 | ₹7,65,000 | ~₹4,500 | **~₹5.42 Lakhs** | **~₹65.0 Lakhs** |
+| **5 Campuses** | 125,000 | ₹12,75,000 | ~₹6,000 | **~₹9.05 Lakhs** | **~₹1.08 Crore** |
+| **10 Campuses** | 250,000 | ₹25,50,000 | ~₹10,000 | **~₹18.15 Lakhs** | **~₹2.17 Crore** |
+
+---
+
+## 6. Executive Conclusion for Stakeholders
+
+1. **Profitable from Day 1:** The base 5% vendor fee fully covers all AWS cloud costs and payment gateway fees, generating ~₹51,600/month pure profit in the initial free-for-students phase.
+2. **High Operating Margin:** In the fully monetized phase, UniVerse achieves a **~70% net profit margin** per campus.
+3. **Infrastructure Efficiency:** Operating on AWS RDS PostgreSQL and EC2 (\`t4g.small\`) guarantees 99.9% uptime, zero cold starts, and rock-bottom fixed server costs (~₹3,390/mo).
+`;
 
     document.getElementById('content').innerHTML = marked.parse(rawMarkdown);
     document.getElementById('content').classList.remove('loading');
-    
+
     // Auto-open print dialog to save as PDF
     setTimeout(() => {
-        window.print();
+      window.print();
     }, 800);
   </script>
 </body>
+
 </html>

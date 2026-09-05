@@ -116,6 +116,7 @@ const pushService = require('../services/pushService');
     // Notify vendor via Socket.io (Foreground Sync)
     const io = req.app.get('io');
     io.to(storeId.toString()).emit('new_order', savedOrder);
+    io.to('superadmin_room').emit('superadmin:new_order', savedOrder);
 
     // Compute active badge count
     const activeOrdersCount = await Order.countDocuments({

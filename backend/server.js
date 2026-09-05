@@ -99,6 +99,28 @@ io.on('connection', (socket) => {
     }
   });
 
+  // Join SuperAdmin Room with Server-Side Authorization
+  socket.on('join_superadmin_room', (data) => {
+    const token = (data && data.token) || socket.handshake.auth.token;
+    if (!token) {
+      console.log(`WARN: Socket ${socket.id} attempted to join superadmin room without token`);
+      return;
+    }
+
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      if (decoded.role !== 'superadmin') {
+        console.log(`WARN: Socket ${socket.id} attempted to join superadmin room with invalid role: ${decoded.role}`);
+        return;
+      }
+
+      socket.join('superadmin_room');
+      console.log(`Socket ${socket.id} (SuperAdmin) joined superadmin_room`);
+    } catch (err) {
+      console.log(`WARN: Socket ${socket.id} invalid token for superadmin room`);
+    }
+  });
+
   socket.on('join_order_room', (orderId) => {
     socket.join(orderId);
     console.log(`Socket ${socket.id} joined order room ${orderId}`);

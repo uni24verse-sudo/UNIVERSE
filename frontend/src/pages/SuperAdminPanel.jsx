@@ -21,13 +21,16 @@ import {
   GraduationCap,
   Building2,
   Plus,
-  Edit2
+  Edit2,
+  Globe,
+  Sparkles
 } from 'lucide-react';
+import SuperAdmin3DAnalytics from '../components/superadmin/SuperAdmin3DAnalytics';
 
 const SuperAdminPanel = () => {
   const { token, vendor, logout } = useContext(AuthContext); // vendor holds admin data
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState('3d_analytics');
   const [stats, setStats] = useState(null);
   const [vendors, setVendors] = useState([]);
   const [orders, setOrders] = useState([]);
@@ -190,6 +193,7 @@ const SuperAdminPanel = () => {
 
         <nav style={{ padding: '1.5rem 1rem', flex: 1, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
           {[
+            { id: '3d_analytics', icon: Globe, label: '3D Live Analytics', badge: 'REALTIME' },
             { id: 'overview', icon: Activity, label: 'Platform Overview' },
             { id: 'vendors', icon: Users, label: 'Vendor Registry' },
             { id: 'stores', icon: Store, label: 'Store Directory' },
@@ -201,14 +205,29 @@ const SuperAdminPanel = () => {
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               style={{
-                display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem', 
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem', 
                 borderRadius: '12px', background: activeTab === tab.id ? 'var(--primary)' : 'transparent', 
                 color: activeTab === tab.id ? 'white' : 'var(--text-secondary)', 
                 border: 'none', cursor: 'pointer', fontWeight: '600', textAlign: 'left',
                 transition: 'all 0.2s ease'
               }}
             >
-              <tab.icon size={20} /> {tab.label}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                <tab.icon size={20} /> {tab.label}
+              </div>
+              {tab.badge && (
+                <span style={{
+                  fontSize: '0.65rem',
+                  fontWeight: '900',
+                  letterSpacing: '0.05em',
+                  padding: '2px 6px',
+                  borderRadius: '6px',
+                  background: activeTab === tab.id ? 'rgba(255,255,255,0.25)' : 'rgba(239, 65, 35, 0.15)',
+                  color: activeTab === tab.id ? '#ffffff' : '#ef4123'
+                }}>
+                  {tab.badge}
+                </span>
+              )}
             </button>
           ))}
         </nav>
@@ -223,6 +242,11 @@ const SuperAdminPanel = () => {
       {/* Main Content */}
       <main style={{ marginLeft: '280px', flex: 1, padding: '2.5rem 3rem' }}>
         
+        {/* 3D LIVE ANALYTICS TAB */}
+        {activeTab === '3d_analytics' && (
+          <SuperAdmin3DAnalytics token={token} />
+        )}
+
         {/* OVERVIEW TAB */}
         {activeTab === 'overview' && stats && (
           <div>

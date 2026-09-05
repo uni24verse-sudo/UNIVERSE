@@ -81,6 +81,239 @@ router.get('/stats', async (req, res) => {
   }
 });
 
+// 1.1 Real-Time 3D Analytics & Spatial Aggregations
+router.get('/realtime-analytics', async (req, res) => {
+  try {
+    const Location = require('../models/Location');
+    
+    // Time boundaries (IST based)
+    const now = new Date();
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+
+    // Fetch core collections in parallel
+    const [allOrders, allStores, allLocations, allVendors] = await Promise.all([
+      Order.find().populate('store', 'name market location isOpen isTrialStarted trialEndDate').sort({ createdAt: -1 }),
+      Store.find().populate('location', 'name type city').lean(),
+      Location.find().lean(),
+      Admin.find({ role: 'vendor' }).lean()
+    ]);
+
+    const completedOrders = allOrders.filter(o => o.status === 'Completed');
+    const todayOrders = allOrders.filter(o => new Date(o.createdAt) >= todayStart);
+    const todayCompleted = todayOrders.filter(o => o.status === 'Completed');
+    const lastHourOrders = allOrders.filter(o => new Date(o.createdAt) >= oneHourAgo);
+
+    const totalRevenue = completedOrders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+    const todayRevenue = todayCompleted.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+    const totalOrdersCount = allOrders.length;
+    const todayOrdersCount = todayOrders.length;
+
+    const activeOrdersCount = allOrders.filter(o => ['Pending', 'Confirmed', 'Cooking'].includes(o.status)).length;
+    const readyOrdersCount = allOrders.filter(o => o.status === 'Ready').length;
+    const cancelledOrdersCount = allOrders.filter(o => o.status === 'Cancelled').length;
+
+    const avgOrderValue = completedOrders.length > 0 ? Math.round(totalRevenue / completedOrders.length) : 0;
+    const todayAvgOrderValue = todayCompleted.length > 0 ? Math.round(todayRevenue / todayCompleted.length) : 0;
+    const ordersVelocityPerHour = lastHourOrders.length;
+
+    // Platform Profit Calculation
+    let totalPlatformProfit = 0;
+    for (const store of allStores) {
+      const storeCompleted = completedOrders.filter(o => o.store && (o.store._id?.toString() === store._id.toString() || o.store.toString() === store._id.toString()));
+      const trialEnd = store.trialEndDate ? new Date(store.trialEndDate) : null;
+      const isTrialOver = store.isTrialStarted && trialEnd && now > trialEnd;
+
+      if (isTrialOver) {
+        const postTrial = storeCompleted.filter(o => new Date(o.createdAt) > trialEnd);
+        totalPlatformProfit += postTrial.reduce((sum, o) => sum + (o.totalAmount || 0), 0) * 0.03;
+      }
+
+      const storeCancelled = allOrders.filter(o => 
+        o.store && 
+        (o.store._id?.toString() === store._id.toString() || o.store.toString() === store._id.toString()) && 
+        o.status === 'Cancelled' && 
+        o.paymentStatus === 'Confirmed'
+      );
+      totalPlatformProfit += storeCancelled.reduce((sum, o) => sum + (o.totalAmount || 0), 0) * 0.04;
+    }
+
+    // Hourly Distribution for 24 hours of today
+    const hourlyVelocity = Array.from({ length: 24 }, (_, h) => {
+      const hourStr = `${h.toString().padStart(2, '0')}:00`;
+      const ordersInHour = todayOrders.filter(o => {
+        const orderDate = new Date(o.createdAt);
+        return orderDate.getHours() === h;
+      });
+      const revInHour = ordersInHour
+        .filter(o => o.status === 'Completed')
+        .reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+
+      return {
+        hour: hourStr,
+        hourNum: h,
+        orders: ordersInHour.length,
+        revenue: revInHour,
+        activeRate: ordersInHour.filter(o => ['Pending', 'Confirmed', 'Cooking', 'Ready'].includes(o.status)).length
+      };
+    });
+
+    // Campus / Location Traffic & Revenue Breakdown
+    const locationMap = new Map();
+    allLocations.forEach(loc => {
+      locationMap.set(loc._id.toString(), {
+        locationId: loc._id,
+        name: loc.name,
+        type: loc.type || 'College',
+        city: loc.city || 'Campus',
+        storeCount: 0,
+        totalRevenue: 0,
+        todayRevenue: 0,
+        totalOrders: 0,
+        todayOrders: 0,
+        activeOrders: 0
+      });
+    });
+
+    // Fallback unassigned bucket
+    const unassignedLoc = {
+      locationId: 'unassigned',
+      name: 'General Campus / Unassigned',
+      type: 'Campus',
+      city: 'Campus',
+      storeCount: 0,
+      totalRevenue: 0,
+      todayRevenue: 0,
+      totalOrders: 0,
+      todayOrders: 0,
+      activeOrders: 0
+    };
+
+    // Associate stores with locations
+    const storeLocationLookup = new Map();
+    allStores.forEach(s => {
+      const locId = s.location?._id ? s.location._id.toString() : (s.location ? s.location.toString() : null);
+      if (locId && locationMap.has(locId)) {
+        storeLocationLookup.set(s._id.toString(), locId);
+        locationMap.get(locId).storeCount += 1;
+      } else {
+        storeLocationLookup.set(s._id.toString(), 'unassigned');
+        unassignedLoc.storeCount += 1;
+      }
+    });
+
+    // Aggregate orders by location
+    allOrders.forEach(o => {
+      if (!o.store) return;
+      const storeId = o.store._id ? o.store._id.toString() : o.store.toString();
+      const locId = storeLocationLookup.get(storeId) || 'unassigned';
+      const bucket = locId === 'unassigned' ? unassignedLoc : locationMap.get(locId);
+
+      if (bucket) {
+        bucket.totalOrders += 1;
+        if (o.status === 'Completed') bucket.totalRevenue += (o.totalAmount || 0);
+        if (new Date(o.createdAt) >= todayStart) {
+          bucket.todayOrders += 1;
+          if (o.status === 'Completed') bucket.todayRevenue += (o.totalAmount || 0);
+        }
+        if (['Pending', 'Confirmed', 'Cooking', 'Ready'].includes(o.status)) {
+          bucket.activeOrders += 1;
+        }
+      }
+    });
+
+    const zoneTraffic = Array.from(locationMap.values());
+    if (unassignedLoc.totalOrders > 0 || unassignedLoc.storeCount > 0) {
+      zoneTraffic.push(unassignedLoc);
+    }
+
+    // Top Stores Leaderboard
+    const storeStats = allStores.map(store => {
+      const sId = store._id.toString();
+      const storeOrders = allOrders.filter(o => o.store && (o.store._id?.toString() === sId || o.store.toString() === sId));
+      const sCompleted = storeOrders.filter(o => o.status === 'Completed');
+      const sToday = storeOrders.filter(o => new Date(o.createdAt) >= todayStart);
+      const sTodayCompleted = sToday.filter(o => o.status === 'Completed');
+      
+      const sTotalRevenue = sCompleted.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+      const sTodayRevenue = sTodayCompleted.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+      const activeQueue = storeOrders.filter(o => ['Pending', 'Confirmed', 'Cooking'].includes(o.status)).length;
+
+      return {
+        storeId: sId,
+        name: store.name,
+        market: store.market || 'Campus',
+        isOpen: store.isOpen,
+        totalRevenue: sTotalRevenue,
+        todayRevenue: sTodayRevenue,
+        totalOrders: storeOrders.length,
+        todayOrders: sToday.length,
+        activeQueue,
+        productCount: Array.isArray(store.products) ? store.products.length : 0,
+        isTrialStarted: store.isTrialStarted,
+        isTrialOver: !!(store.isTrialStarted && store.trialEndDate && now > new Date(store.trialEndDate))
+      };
+    }).sort((a, b) => b.totalRevenue - a.totalRevenue);
+
+    // Financial Flow Breakdown
+    const vendorShare = Math.round(totalRevenue * 0.97);
+    const platformCommission = Math.round(totalPlatformProfit);
+    const pgGatewayFee = Math.round(totalRevenue * 0.02); // ~2% PG standard pass-through
+    const netPlatformMargin = Math.max(0, platformCommission);
+
+    // Live Recent Activity Feed
+    const liveFeed = allOrders.slice(0, 20).map(o => ({
+      id: o._id,
+      orderNumber: o.orderNumber,
+      storeName: o.store?.name || 'Unknown Store',
+      market: o.store?.market || 'Campus',
+      totalAmount: o.totalAmount,
+      status: o.status,
+      paymentStatus: o.paymentStatus,
+      paymentMethod: o.paymentMethod || 'Online',
+      itemsCount: Array.isArray(o.items) ? o.items.reduce((s, i) => s + (i.quantity || 1), 0) : 1,
+      createdAt: o.createdAt
+    }));
+
+    res.json({
+      metrics: {
+        totalRevenue,
+        todayRevenue,
+        totalOrders: totalOrdersCount,
+        todayOrders: todayOrdersCount,
+        activeOrders: activeOrdersCount,
+        readyOrders: readyOrdersCount,
+        completedOrders: completedOrders.length,
+        cancelledOrders: cancelledOrdersCount,
+        avgOrderValue,
+        todayAvgOrderValue,
+        ordersVelocityPerHour,
+        totalProfit: Math.round(totalPlatformProfit),
+        vendorCount: allVendors.length,
+        storeCount: allStores.length,
+        openStoresCount: allStores.filter(s => s.isOpen).length
+      },
+      hourlyVelocity,
+      zoneTraffic,
+      storeStats: storeStats.slice(0, 15),
+      financeDistribution: {
+        totalRevenue,
+        vendorShare,
+        platformCommission,
+        pgGatewayFee,
+        netPlatformMargin
+      },
+      liveFeed,
+      timestamp: new Date().toISOString()
+    });
+  } catch (err) {
+    console.error('Realtime analytics error:', err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
 // 2. Get All Vendors with Store Info
 router.get('/vendors', async (req, res) => {
   try {

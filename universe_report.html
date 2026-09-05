@@ -34,11 +34,15 @@
         margin-top: 50px;
         color: #666;
     }
+    .logo-container {
+        margin-bottom: 24px;
+        text-align: center;
+    }
   </style>
 </head>
 <body class="markdown-body">
-  <div style="text-align: center; padding-top: 10px; " class="logo-container">
-    <img src="frontend/public/helmet-guy.png" alt="UniVerse Logo" style="max-height: 180px; margin: 0 auto; display: block;" onerror="this.outerHTML='<h1 style=\\'font-size: 46px; font-weight: 900; letter-spacing: 5px; color: #111; margin: 0; text-transform: uppercase;\\'>UNIVERSE</h1>'">
+  <div class="logo-container">
+    <img src="frontend/public/helmet-guy.png" alt="UniVerse Logo" style="max-height: 160px; margin: 0 auto; display: block;" onerror="this.outerHTML='<h1 style=\'font-size: 44px; font-weight: 900; letter-spacing: 5px; color: #111; margin: 0; text-transform: uppercase;\'>UNIVERSE</h1>'">
   </div>
   <div id="content" class="loading">Generating Report... Please wait.</div>
   
@@ -46,115 +50,150 @@
   <script>
     const rawMarkdown = `# 🚀 UniVerse: Comprehensive Infrastructure & Financial Architecture Report
 
-**Prepared For:** University Approval Committee & Engineering Team  
-**Project:** UniVerse (Campus Food Ordering & Management Platform)  
-**Objective:** A granular, exhaustive analysis of the market's hosting options to finalize a scalable, fail-proof, and highly cost-efficient production architecture for a multi-campus rollout.
+**Prepared For:** University Approval Committee, Stakeholders, & Engineering Team  
+**Project:** UniVerse (Campus Digital Marketplace & Food Management Platform)  
+**Objective:** A strategic analysis of hosting solutions evaluated, reasons for provider rejections, the finalized production AWS architecture, and a complete financial breakdown.
 
 ---
 
-## 1. Project Requirements: What UniVerse Actually Needs
-Before selecting service providers, we defined the exact technical profile and traffic behavior of UniVerse:
-1. **Traffic Pattern (The "Lunch Rush"):** The app experiences massive spikes in traffic between 11:30 AM and 2:30 PM (hundreds of concurrent students). From 10:00 PM to 8:00 AM, traffic drops to near zero.
-2. **Frontend Architecture:** Built as a Single Page Application (SPA) using React/Vite. This requires a Global Edge CDN to deliver static files (HTML/CSS/JS) instantly, rather than traditional server rendering.
-3. **Backend Architecture:** Built on Node.js. Requires an "Always-On" server to handle live WebSocket connections (\`Socket.io\`) for real-time order tracking without going to sleep (preventing "Cold Starts").
-4. **Database:** Built with MongoDB (Mongoose ORM). Requires strict data safety (automated backups) and the ability to scale up instantly without taking the app offline.
+## 1. Executive Summary & System Workload
+
+**UniVerse** is a multi-tenant digital food ordering and campus commerce ecosystem engineered to eliminate physical queues, automate vendor management, and provide real-time order tracking.
+
+### System Technical Profile & Traffic Dynamics:
+1. **The Campus "Lunch Rush":** Intense traffic surges between **11:30 AM and 2:30 PM** (hundreds of concurrent students placing simultaneous orders). From 10:00 PM to 8:00 AM, traffic drops to near zero.
+2. **Frontend Architecture:** Single Page Application (SPA) built on **React + Vite**, requiring Global Edge CDN delivery for sub-50ms load times across campus Wi-Fi and mobile networks.
+3. **Backend & Real-Time Engine:** Built on **Node.js & Express**. Requires an "Always-On" server to sustain persistent **Socket.io** WebSocket connections (live order status tracking) without cold-start delays.
+4. **Data Layer Requirements:** Strict ACID transactional integrity for payments, commissions, and payouts, with automated daily backups, point-in-time recovery (PITR), and flexible \`JSONB\` support for multi-vendor menus.
 
 ---
 
-## 2. The Monolithic "All-In-One" Trap
-Initially, we evaluated traditional shared hosting providers like **Hostinger, GoDaddy, and Bluehost**.
+## 2. Infrastructure Evolution: Evaluated Options & Rejection Rationale
 
-*   **What they offer:** Shared cPanel hosting or basic Virtual Private Servers (VPS) ranging from ₹200 to ₹1,500/month. They bundle the database, backend, and frontend onto one single machine.
-*   **Why we rejected them:**
-    *   **Single Point of Failure (SPOF):** If the Node.js backend maxes out the CPU during a lunch rush, the database (sharing the same CPU) freezes. The entire app crashes.
-    *   **No Edge CDN(Content Delivery Network):** React apps served from a single GoDaddy server in Mumbai will load sluggishly for students on poor campus WiFi.
-    *   **Manual DevOps:** Zero automation. Deployments require manual SSH login, server restarts, and manual database backup scripts. 
-    *   **Data Risk:** If the hardware fails, all vendor menus and order histories are permanently lost.
+During architecture planning, various hosting paradigms were evaluated and filtered out:
 
-**Decision:** We adopted a **Decoupled Microservices Architecture**, splitting the app into specialized platforms for Frontend, Backend, and Database.
+\`\`\`
+[ Traditional Monoliths ]     [ Free / PaaS Platforms ]     [ Enterprise AWS Monoliths ]
+(Hostinger / GoDaddy VPS)     (Render Free / Railway)       (DocumentDB / AWS Amplify)
+         │                               │                                │
+         ▼                               ▼                                ▼
+❌ REJECTED: Single Point       ❌ REJECTED: 30s Cold Starts    ❌ REJECTED: \$200+/mo Clones
+of Failure & Manual DevOps      or Recurring Base Platform Fees & High Bill-Shock Risk
+                                         │
+                                         ▼
+                 ═════════════════════════════════════════════════
+                 ✅ FINAL SELECTION: LEAN DECOUPLED AWS PRODUCTION
+                 • EC2 t4g.small (Node.js + WebSockets)
+                 • RDS PostgreSQL db.t4g.small (Isolated DB)
+                 • VPC Private Subnet & IAM Role Security
+                 • Vercel Edge CDN (Frontend) + GoDaddy DNS
+                 ═════════════════════════════════════════════════
+\`\`\`
 
----
+### Granular Comparison of Rejected Alternatives:
 
-## 3. Frontend Hosting Comparison (React/Vite)
-*Goal: Deliver UI assets instantly via a Global Edge Network with automated GitHub deployments.*
-
-### Options Evaluated:
-1.  **Amazon Web Services (AWS Amplify)**
-    *   *Price:* Pay-as-you-go based on storage and bandwidth.
-    *   *Rejection Reason:* While immensely powerful for large enterprises, AWS Amplify introduces unnecessary complexity for a startup. Configuring CI/CD pipelines is harder than dedicated frontend platforms. Furthermore, the granular billing model carries a high risk of "Bill Shock" if a traffic spike occurs.
-2.  **Vercel Pro / Enterprise**
-    *   *Price:* \$20 per developer/month.
-    *   *Rejection Reason:* Because UniVerse is a static React build, we do not need to pay \$20 per seat just to serve static files right now. 
-3.  **Netlify Pro**
-    *   *Price:* \$20/month flat rate for the entire team.
-    *   *Rejection Reason:* Still an unnecessary expense while traffic is under 100GB/month.
-4.  **Cloudflare Pages**
-    *   *Price:* Free static hosting, \$5/month minimum for backend workers.
-    *   *Rejection Reason:* Dashboard and CI/CD pipelines are slightly less intuitive for React developers compared to Vercel.
-
-### **Final Decision: Vercel (Free / Hobby Tier)**
-*   **Why it fits perfectly:** Vercel's Free Tier utilizes the exact same premium Global Edge CDN as their paid tiers. It includes 100GB of free bandwidth per month, which is massive for a campus launch. It provides automated "Git-Push to Deploy" functionality. We can serve tens of thousands of students perfectly for **\$0.00/month**. 
-
----
-
-## 4. Backend Hosting Comparison (Node.js)
-*Goal: An "Always-On" compute engine to prevent "Cold Starts" (30-second loading screens) and handle live WebSocket order tracking.*
-
-### Options Evaluated:
-1.  **Amazon Web Services (AWS Elastic Beanstalk / ECS)**
-    *   *Price:* Pay for underlying EC2 instances and load balancers.
-    *   *Rejection Reason:* Setting up a robust Node.js environment on AWS requires configuring Virtual Private Clouds (VPCs), security groups, and manual load balancing. It requires a dedicated DevOps engineer, pulling resources away from product development.
-2.  **Free Tiers (Render Free / Heroku Free)**
-    *   *Rejection Reason:* Servers "spin down" after 15 minutes of inactivity. When a student opens the app, they face a massive delay (Cold Start) as the server boots up. Unacceptable for food delivery.
-3.  **Render (Standard Plan)**
-    *   *Price:* ~\$25/month flat fee.
-    *   *Rejection Reason:* Because it charges a flat fee, we would be paying full price from 10 PM to 8 AM when the campus is asleep and the server is idle.
-
-### **Final Decision: Railway (Pro Plan)**
-*   **Why it fits perfectly:** Railway operates as a highly optimized Platform-as-a-Service (PaaS). The Pro plan has a **\$20/month base subscription**, plus usage costs billed strictly by the minute for CPU and RAM consumed. 
-*   **The Advantage:** Even with the \$20 base fee, Railway provides unparalleled scaling compared to raw AWS instances without the DevOps headache. During the intense lunch rush, Railway will automatically draw enough power to process hundreds of orders without crashing. At night, when traffic stops, the usage drops to 0. The server remains "Always-On" (preventing cold starts), ensuring enterprise-grade performance.
-*   **Estimated Cost:** \$20 (Base) + \$5 (Usage) = **(approx) $25.00/month**.
-
----
-
-## 5. Database Architecture Comparison
-*Goal: A fail-proof data layer. We cannot afford to lose a single transaction, user wallet balance, or vendor menu.*
-
-### Why We Specifically Chose NoSQL (MongoDB) Over Relational SQL (PostgreSQL/MySQL):
-When designing a multi-vendor food platform, database structure is critical. We deliberately rejected Relational SQL databases for the following reasons:
-1.  **Flexible Schema Requirements:** In a Relational SQL database, data structures are rigid. If Vendor A sells a standard ₹50 Thali, but Vendor B sells a customized Pizza with 10 different dynamic crust and topping arrays, forcing both into a rigid SQL table requires complex, messy joins. **MongoDB (NoSQL)** stores data as flexible JSON documents, allowing each vendor's menu items to have entirely unique shapes and nested arrays without breaking the database structure.
-2.  **Development Speed & Iteration:** Relational databases require strict "Migrations" every time you want to add a new feature (like adding a "Dietary Preferences" tag to a food item). In a fast-moving startup, this slows down development. MongoDB allows us to update our models instantly.
-3.  **Codebase Synergy:** Our entire Node.js backend is already seamlessly integrated with Mongoose (the MongoDB ORM). Rewriting this to a SQL ORM (like Prisma) would needlessly delay our launch.
-
-### Database Provider Evaluation:
-1.  **Amazon Web Services (AWS DocumentDB)**
-    *   *Price:* Starts around \$200+/month for highly available production clusters.
-    *   *Rejection Reason:* DocumentDB is Amazon's clone of MongoDB. It is incredibly powerful but lacks some native MongoDB features and is significantly more expensive at the entry-level than MongoDB's official service.
-2.  **MongoDB Atlas (Free & Flex Tiers)**
-    *   *Rejection Reason:* Flex tier caps at 500 Operations/Sec. A single food order requires multiple ops. 500 ops/sec will bottleneck and crash during a campus lunch rush. 
-
-### **Final Decision: MongoDB Atlas M10 (Dedicated Cluster)**
-*   **Why it fits perfectly:** At **~\$57/month**, the M10 gives us a dedicated machine (2GB RAM, 2 vCPUs) that can handle 1,000–3,000 concurrent students effortlessly. It is the official, native host for MongoDB.
-*   **The Killer Feature:** *Zero-downtime auto-scaling.* If UniVerse goes viral, Atlas will automatically upgrade the server hardware on the fly without taking the app offline. It includes automated daily backups, ensuring 100% data safety.
-
----
-
-## 💰 Final Tech Stack & Projected Monthly Cost
-
-By critically analyzing the market—specifically avoiding overly complex AWS configurations and monolithic hosting traps—we have achieved a Silicon-Valley-grade infrastructure for an incredibly lean budget.
-
-| Component | Selected Provider | Rationale Summary | Estimated Monthly Cost |
+| Architecture Layer | Provider / Service Evaluated | Estimated Cost | Why It Was Rejected |
 | :--- | :--- | :--- | :--- |
-| **Frontend CDN** | Vercel (Free Tier) | Instant edge loading for static React files; 100GB free bandwidth. | **\$0.00** |
-| **Backend Compute** | Railway (Pro Plan) | \$20 Base + Usage. Prevents cold starts, autoscales during lunch rush. | **~\$25.00** |
-| **Database Engine** | MongoDB Atlas (M10) | Dedicated NoSQL structure, automated backups, auto-scaling. | **~\$57.00** |
-| **Payment Gateway**| Razorpay | Standard 2% transaction fee (no upfront monthly server cost). | **\$0.00** (deducted later) |
-| **Domain & DNS** | Cloudflare DNS | Unbreakable routing and security. | **\$0.00** |
-| --- | --- | --- | --- |
-| **TOTAL ESTIMATE:** | | | **~\$82.00 USD** <br>*(Approx. ₹6,900 INR / month)* |
+| **All-in-One Monolith** | **Hostinger / GoDaddy Shared VPS** | ₹500 – ₹1,500/mo | **Single Point of Failure (SPOF):** Bundling frontend, backend, and DB on one server means a lunch-rush CPU spike crashes the database. Zero automated backups or Edge CDN. |
+| **Backend Compute** | **Render / Heroku Free Tier** | \$0.00 | **Severe Cold Starts:** Servers sleep after 15 minutes of inactivity, causing 30-second loading delays for students. Unacceptable for food delivery. |
+| **Backend Compute** | **Railway Pro Plan** | ~\$25.00/mo | **Third-Party Overhead:** Charges a \$20 base subscription fee regardless of usage; lacks native private cloud isolation (VPC) with enterprise databases. |
+| **Frontend CDN** | **AWS Amplify** | Pay-as-you-go | **Complexity & Billing Risk:** Unnecessary CI/CD configuration overhead for static React builds; carries high risk of bandwidth "Bill Shock" on traffic surges. |
+| **Database Engine** | **AWS DocumentDB** | ~\$200+/mo | **Excessive Cost:** Amazon's MongoDB clone is prohibitively expensive for a startup and lacks full native feature parity. |
+| **Database Engine** | **MongoDB Atlas M10** | ~\$57.00/mo | **Shift to Relational SQL:** While reliable, relational **PostgreSQL** provides superior ACID transaction safety for financial ledgers, settlements, and order states at half the cost. |
 
-### Conclusion for the Committee
-For roughly ₹6,900 per month, UniVerse is equipped with an enterprise-grade, highly available microservices architecture. By utilizing specialized platforms (Vercel, Railway, MongoDB Atlas) rather than raw AWS infrastructure, we eliminate the need for a dedicated DevOps engineer while achieving identical scalability and reliability. The platform is immune to the "Cold Start" slow loading problem, perfectly optimized for complex vendor menus, and designed to scale linearly to multi-campus deployments.
+---
+
+## 3. Final Production Architecture: Why We Chose AWS
+
+We selected a **decoupled, security-hardened AWS architecture** optimized for high performance and low cost:
+
+\`\`\`
+                             🌐 USERS (Students & Vendors)
+                                          │
+                 ┌────────────────────────┴────────────────────────┐
+                 │ (Web App: yourdomain.com)                       │ (API & Sockets: api.yourdomain.com)
+                 ▼                                                 ▼
+   ┌───────────────────────────┐                     ┌───────────────────────────┐
+   │    VERCEL (Free Tier)     │                     │     GoDaddy DNS Engine    │
+   │  • React / Vite SPA       │                     │  (Direct A & CNAME Records│
+   │  • Global Edge CDN        │                     └─────────────┬─────────────┘
+   │  • Auto Free SSL          │                                   │ (Points to Elastic IP)
+   │  • \$0.00 / month          │                                   ▼
+   └─────────────┬─────────────┘                     ┌───────────────────────────┐
+                 │                                   │   AWS VPC (Public Subnet) │
+                 │ (REST API & WebSockets)           │                           │
+                 └──────────────────────────────────►│    AWS EC2 (t4g.small)    │
+                                                     │    • Node.js & Socket.io  │
+                                                     │    • Nginx & Let's Encrypt│
+                                                     │    • PM2 Process Manager  │
+                                                     │    • IAM Instance Role    │
+                                                     └─────────────┬─────────────┘
+                                                                   │ (Port 5432 - Internal Only)
+                                                                   ▼
+                                                     ┌───────────────────────────┐
+                                                     │   AWS VPC (Private Subnet)│
+                                                     │                           │
+                                                     │   AWS RDS (PostgreSQL)    │
+                                                     │   • db.t4g.small (SingleAZ│
+                                                     │   • 20GB gp3 (3000 IOPS)  │
+                                                     │   • Automated Backups ON  │
+                                                     │   • KMS Encryption ON     │
+                                                     └───────────────────────────┘
+\`\`\`
+
+### Core AWS Services Breakdown:
+
+1. **Compute: Amazon EC2 (\`t4g.small\` on ARM64 / Graviton2)**
+   * **Specs:** 2 vCPUs, 2 GB RAM, 20GB gp3 SSD (~\$13.80/mo).
+   * **Why Graviton2 (\`t4g\`) over Intel (\`t3\`):** Costs **~20% less** while delivering up to **40% better price-performance** for Node.js V8 event loops and WebSocket connections.
+   * **Server Stack:** Ubuntu 24.04 LTS, Nginx reverse proxy with WebSocket upgrade support, PM2 process management, and Certbot SSL.
+
+2. **Database: Amazon RDS for PostgreSQL (\`db.t4g.small\`)**
+   * **Specs:** 2 vCPUs, 2 GB RAM, 20GB gp3 storage (~\$26.80/mo).
+   * **Key Features:** True ACID compliance for Razorpay settlements, automated daily snapshots, Point-in-Time Recovery (PITR), KMS encryption at rest, and 3,000 baseline IOPS with 125 MB/s throughput included free.
+
+3. **Security & Isolation: Amazon VPC & AWS IAM (\$0.00)**
+   * **Zero Public DB Exposure:** RDS resides in a **Private Subnet with no Public IP**. Port \`5432\` is strictly locked to the EC2 Security Group.
+   * **Zero Cost Trap:** Configured **without a NAT Gateway**, saving **~\$32.00/month**.
+   * **IAM Instance Roles:** The EC2 server accesses AWS services securely without hardcoding credentials in \`.env\` files.
+
+4. **Frontend & DNS Routing: Vercel Free Tier + GoDaddy DNS (\$0.00)**
+   * **Domain:** GoDaddy DNS routes root traffic to Vercel (\`76.76.21.21\`) and \`api.yourdomain.com\` directly to the EC2 Elastic IP.
+   * **Frontend:** Vercel Free Tier provides 100 GB/month edge bandwidth, automated GitHub CI/CD, and free SSL at **\$0.00/month**.
+
+5. **Media Storage (Database Audit Outcome - \$0.00):**
+   * An audit of all 423 media assets in the database confirmed **57.4% external URLs, 26.2% inline Base64, and 16.3% Cloudinary**.
+   * **Result:** AWS S3 is not required for MVP launch, eliminating unnecessary monthly storage overhead.
+
+---
+
+## 4. 💰 Complete Final Architecture Cost Table
+
+Everything required to run the UniVerse production ecosystem smoothly and reliably:
+
+| Service & Layer | Provider & Configuration | Role in UniVerse | Monthly Cost (USD) | Monthly Cost (INR Approx.) |
+| :--- | :--- | :--- | :--- | :--- |
+| **Backend Compute** | **AWS EC2 (\`t4g.small\`)**<br>2 vCPU, 2 GB RAM, 20GB gp3 SSD | Node.js API, \`Socket.io\` WebSockets, Nginx, PM2 | **~\$13.80** | ~₹1,150 |
+| **Primary Database** | **AWS RDS PostgreSQL (\`db.t4g.small\`)**<br>2 vCPU, 2 GB RAM, 20GB gp3, Backups ON | Orders, Stores, Users, Settlements, Menus | **~\$26.80** | ~₹2,240 |
+| **Network & Isolation**| **AWS VPC & Security Groups**<br>Public Subnet (EC2) + Private Subnet (RDS) | Bank-grade network isolation *(No NAT Gateway)* | **\$0.00** | ₹0 |
+| **Identity & Secrets** | **AWS IAM & SSM Parameter Store** | Server roles and environment variables | **\$0.00** | ₹0 |
+| **Frontend Web App** | **Vercel (Hobby / Free Tier)** | React/Vite SPA on Global Edge CDN + Free SSL | **\$0.00** | ₹0 |
+| **Domain & DNS** | **GoDaddy DNS Engine** | A & CNAME records routing to Vercel & EC2 | **\$0.00** | ₹0 |
+| **Media & Images** | **Cloudinary (Free Tier)** + Web URLs | Store logos and food pictures | **\$0.00** | ₹0 |
+| **Push & Alerts** | **OneSignal / FCM & Telegram Bot** | Order status push alerts & vendor notifications | **\$0.00** | ₹0 |
+| **AI Menu Scanner** | **Groq Vision SDK** | Physical menu card OCR | **\$0.00** *(pay-as-you-go)* | ₹0 |
+| **Payment Gateway** | **Razorpay** | 2% per transaction (deducted from payouts) | **\$0.00** *(fixed cost)* | ₹0 |
+| **TOTAL MONTHLY EXPENSE** | | | **~\$40.60 / month** | **~₹3,390 INR / month** |
+
+---
+
+## 5. Conclusion for Stakeholders & Engineering
+
+For approximately **₹3,390 INR per month (\$40.60 USD)**, UniVerse achieves a robust, enterprise-grade architecture:
+1. **Zero Cold Starts:** Always-on ARM compute ensures instant response times during peak campus lunch rushes.
+2. **Absolute Data Integrity:** Relational PostgreSQL locked in a private VPC guarantees secure financial transactions, automated daily backups, and zero public exposure.
+3. **Maximized Budget Efficiency:** Eliminating monolithic hosting traps, expensive database clones, and redundant NAT gateways saves thousands of rupees while maintaining 99.9% uptime.
+4. **Ready for Multi-Campus Scale:** The architecture can seamlessly scale to 10,000+ daily orders with zero structural redesign.
 `;
     document.getElementById('content').innerHTML = marked.parse(rawMarkdown);
     document.getElementById('content').classList.remove('loading');

@@ -39,9 +39,16 @@ const html = `<!DOCTYPE html>
         margin-top: 50px;
         color: #666;
     }
+    .logo-container {
+        margin-bottom: 24px;
+        text-align: center;
+    }
   </style>
 </head>
 <body class="markdown-body">
+  <div class="logo-container">
+    <img src="frontend/public/helmet-guy.png" alt="UniVerse Logo" style="max-height: 160px; margin: 0 auto; display: block;" onerror="this.outerHTML='<h1 style=\\'font-size: 44px; font-weight: 900; letter-spacing: 5px; color: #111; margin: 0; text-transform: uppercase;\\'>UNIVERSE</h1>'">
+  </div>
   <div id="content" class="loading">Generating Report... Please wait.</div>
   
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>

@@ -177,6 +177,8 @@ router.put('/:id/status', auth, async (req, res) => {
     io.to(updatedOrder._id.toString()).emit('order_status_update', updatedOrder);
     // Notify store room
     io.to(updatedOrder.store._id.toString()).emit('order_status_update', updatedOrder);
+    // Notify superadmin room for real-time 3D graphs
+    io.to('superadmin_room').emit('superadmin:order_update', updatedOrder);
 
     res.json(updatedOrder);
   } catch (err) {
@@ -198,6 +200,7 @@ router.delete('/:id', async (req, res) => {
     
     const io = req.app.get('io');
     io.to(order.store.toString()).emit('order_cancelled', order);
+    io.to('superadmin_room').emit('superadmin:order_cancelled', order);
     
     res.json({ message: 'Order cancelled successfully' });
   } catch (err) {
@@ -281,6 +284,9 @@ router.put('/verify-handover', auth, async (req, res) => {
     
     // Also notify vendors in the store room so dashboards update
     io.to(updatedOrder.store._id.toString()).emit('order_status_update', updatedOrder);
+
+    // Notify superadmin room
+    io.to('superadmin_room').emit('superadmin:order_update', updatedOrder);
 
     res.json({ success: true, message: 'Handover verified and order completed', order: updatedOrder });
   } catch (err) {
