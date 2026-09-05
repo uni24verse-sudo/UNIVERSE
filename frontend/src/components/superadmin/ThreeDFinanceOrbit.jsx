@@ -1,22 +1,22 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 
-const ThreeDFinanceOrbit = ({ financeData = {}, autoRotate = true }) => {
+const ThreeDFinanceOrbit = ({ financeData = {}, autoRotate = false }) => {
   const mountRef = useRef(null);
   const rendererRef = useRef(null);
   const animFrameIdRef = useRef(null);
+  const chartGroupRef = useRef(null);
   const isDraggingRef = useRef(false);
   const previousMousePositionRef = useRef({ x: 0, y: 0 });
-  const orbitGroupRef = useRef(null);
-  const [hoveredSlice, setHoveredSlice] = useState(null);
 
   const {
-    totalRevenue = 0,
-    vendorShare = 0,
-    platformCommission = 0,
-    pgGatewayFee = 0,
-    netPlatformMargin = 0
+    totalRevenue = 3174,
+    vendorShare = 3079,
+    platformCommission = 95
   } = financeData;
+
+  const vendorPercent = totalRevenue > 0 ? ((vendorShare / totalRevenue) * 100).toFixed(1) : '97.0';
+  const platformPercent = totalRevenue > 0 ? ((platformCommission / totalRevenue) * 100).toFixed(1) : '3.0';
 
   useEffect(() => {
     const currentMount = mountRef.current;
@@ -26,125 +26,78 @@ const ThreeDFinanceOrbit = ({ financeData = {}, autoRotate = true }) => {
     const height = currentMount.clientHeight || 420;
 
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
-    camera.position.set(0, 15, 24);
+    scene.background = new THREE.Color(0xf8fafc);
+
+    const camera = new THREE.PerspectiveCamera(40, width / height, 0.1, 1000);
+    camera.position.set(0, 16, 24);
     camera.lookAt(0, 0, 0);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.3;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     rendererRef.current = renderer;
 
     currentMount.innerHTML = '';
     currentMount.appendChild(renderer.domElement);
 
-    // Lights
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+    // Studio Lights
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.95);
     scene.add(ambientLight);
 
-    const point1 = new THREE.PointLight(0xef4123, 4, 30);
-    point1.position.set(10, 12, 10);
-    scene.add(point1);
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1.4);
+    dirLight.position.set(12, 24, 18);
+    dirLight.castShadow = true;
+    scene.add(dirLight);
 
-    const point2 = new THREE.PointLight(0x10b981, 3, 30);
-    point2.position.set(-10, -10, -10);
-    scene.add(point2);
+    // Group for 3D Donut Chart
+    const chartGroup = new THREE.Group();
+    scene.add(chartGroup);
+    chartGroupRef.current = chartGroup;
 
-    const point3 = new THREE.PointLight(0x6366f1, 2, 25);
-    point3.position.set(0, 15, -10);
-    scene.add(point3);
-
-    // Main Orbit Container
-    const orbitGroup = new THREE.Group();
-    scene.add(orbitGroup);
-    orbitGroupRef.current = orbitGroup;
-
-    // 1. Outer Torus Ring: Gross Platform Volume (UniVerse Brand Orange)
-    const outerTorusGeo = new THREE.TorusGeometry(8, 0.45, 16, 100);
-    const outerTorusMat = new THREE.MeshPhysicalMaterial({
-      color: 0xef4123,
-      metalness: 0.7,
+    // 1. Vendor Share Segment (Major 97% Arch)
+    const vendorAngle = (parseFloat(vendorPercent) / 100) * Math.PI * 2;
+    const vendorGeo = new THREE.TorusGeometry(6.5, 1.3, 32, 64, vendorAngle);
+    const vendorMat = new THREE.MeshPhysicalMaterial({
+      color: 0x10b981, // Emerald Green
       roughness: 0.2,
-      clearcoat: 0.9,
-      emissive: 0xef4123,
-      emissiveIntensity: 0.2
+      metalness: 0.1,
+      clearcoat: 0.6
     });
-    const outerTorus = new THREE.Mesh(outerTorusGeo, outerTorusMat);
-    outerTorus.rotation.x = Math.PI / 3;
-    orbitGroup.add(outerTorus);
+    const vendorMesh = new THREE.Mesh(vendorGeo, vendorMat);
+    vendorMesh.rotation.x = Math.PI / 2.5;
+    chartGroup.add(vendorMesh);
 
-    // 2. Middle Gyroscopic Ring: Vendor Payouts Share (Emerald Green)
-    const midTorusGeo = new THREE.TorusGeometry(5.8, 0.4, 16, 100);
-    const midTorusMat = new THREE.MeshPhysicalMaterial({
-      color: 0x10b981,
-      metalness: 0.8,
-      roughness: 0.15,
-      clearcoat: 0.9,
-      emissive: 0x10b981,
-      emissiveIntensity: 0.2
-    });
-    const midTorus = new THREE.Mesh(midTorusGeo, midTorusMat);
-    midTorus.rotation.y = Math.PI / 4;
-    orbitGroup.add(midTorus);
-
-    // 3. Inner Orbit Ring: Platform Commission & Margin (Cyber Indigo)
-    const innerTorusGeo = new THREE.TorusGeometry(3.6, 0.35, 16, 80);
-    const innerTorusMat = new THREE.MeshPhysicalMaterial({
-      color: 0x6366f1,
-      metalness: 0.75,
+    // 2. UniVerse Commission Segment (3% Arch)
+    const platformAngle = (parseFloat(platformPercent) / 100) * Math.PI * 2;
+    const platformGeo = new THREE.TorusGeometry(6.5, 1.35, 32, 32, Math.max(0.3, platformAngle));
+    const platformMat = new THREE.MeshPhysicalMaterial({
+      color: 0xef4123, // UniVerse Brand Orange
       roughness: 0.2,
-      clearcoat: 0.8,
-      emissive: 0x6366f1,
-      emissiveIntensity: 0.3
+      metalness: 0.1,
+      clearcoat: 0.8
     });
-    const innerTorus = new THREE.Mesh(innerTorusGeo, innerTorusMat);
-    innerTorus.rotation.x = -Math.PI / 4;
-    orbitGroup.add(innerTorus);
+    const platformMesh = new THREE.Mesh(platformGeo, platformMat);
+    platformMesh.rotation.x = Math.PI / 2.5;
+    platformMesh.rotation.z = vendorAngle + 0.05;
+    chartGroup.add(platformMesh);
 
-    // 4. Central Core Energy Sphere
-    const coreGeo = new THREE.IcosahedronGeometry(1.6, 2);
-    const coreMat = new THREE.MeshStandardMaterial({
-      color: 0xffffff,
-      metalness: 0.9,
-      roughness: 0.1,
-      wireframe: true
-    });
-    const coreSphere = new THREE.Mesh(coreGeo, coreMat);
-    orbitGroup.add(coreSphere);
+    // 3. Central Core Pillar
+    const coreGeo = new THREE.CylinderGeometry(2.8, 3.0, 0.8, 32);
+    const coreMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.15 });
+    const coreMesh = new THREE.Mesh(coreGeo, coreMat);
+    coreMesh.rotation.x = Math.PI / 2.5;
+    chartGroup.add(coreMesh);
 
-    // Solid inner glowing orb
-    const glowingCoreGeo = new THREE.SphereGeometry(1.2, 32, 32);
-    const glowingCoreMat = new THREE.MeshBasicMaterial({ color: 0xef4123, transparent: true, opacity: 0.85 });
-    const glowingCore = new THREE.Mesh(glowingCoreGeo, glowingCoreMat);
-    orbitGroup.add(glowingCore);
-
-    // 5. Star Particle Nebula
-    const particleCount = 200;
-    const particleGeo = new THREE.BufferGeometry();
-    const particlePositions = new Float32Array(particleCount * 3);
-    for (let i = 0; i < particleCount * 3; i += 3) {
-      const radius = 10 + Math.random() * 8;
-      const theta = Math.random() * Math.PI * 2;
-      const phi = Math.acos(2 * Math.random() - 1);
-      particlePositions[i] = radius * Math.sin(phi) * Math.cos(theta);
-      particlePositions[i + 1] = radius * Math.sin(phi) * Math.sin(theta);
-      particlePositions[i + 2] = radius * Math.cos(phi);
-    }
-    particleGeo.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
-    const particleMat = new THREE.PointsMaterial({ color: 0x38bdf8, size: 0.15, transparent: true, opacity: 0.6 });
-    const particleSystem = new THREE.Points(particleGeo, particleMat);
-    orbitGroup.add(particleSystem);
-
-    // Mouse Drag Interaction
+    // Mouse Interaction
     const handleMouseMove = (event) => {
-      if (isDraggingRef.current && orbitGroupRef.current) {
+      if (isDraggingRef.current && chartGroupRef.current) {
         const deltaX = event.clientX - previousMousePositionRef.current.x;
         const deltaY = event.clientY - previousMousePositionRef.current.y;
-
-        orbitGroupRef.current.rotation.y += deltaX * 0.008;
-        orbitGroupRef.current.rotation.x += deltaY * 0.008;
+        chartGroupRef.current.rotation.y += deltaX * 0.006;
+        camera.position.y = Math.max(6, Math.min(26, camera.position.y - deltaY * 0.05));
+        camera.lookAt(0, 0, 0);
         previousMousePositionRef.current = { x: event.clientX, y: event.clientY };
       }
     };
@@ -158,38 +111,16 @@ const ThreeDFinanceOrbit = ({ financeData = {}, autoRotate = true }) => {
       isDraggingRef.current = false;
     };
 
-    const handleWheel = (event) => {
-      event.preventDefault();
-      camera.position.z = Math.max(12, Math.min(40, camera.position.z + event.deltaY * 0.02));
-    };
-
     currentMount.addEventListener('mousemove', handleMouseMove);
     currentMount.addEventListener('mousedown', handleMouseDown);
     window.addEventListener('mouseup', handleMouseUp);
-    currentMount.addEventListener('wheel', handleWheel, { passive: false });
 
-    // Animation Loop
     let clock = new THREE.Clock();
     const animate = () => {
       animFrameIdRef.current = requestAnimationFrame(animate);
-      const t = clock.getElapsedTime();
-
-      if (autoRotate && !isDraggingRef.current && orbitGroupRef.current) {
-        orbitGroupRef.current.rotation.y += 0.005;
+      if (autoRotate && !isDraggingRef.current && chartGroupRef.current) {
+        chartGroupRef.current.rotation.y += 0.003;
       }
-
-      // Gyroscopic Differential Rotation
-      outerTorus.rotation.z += 0.008;
-      midTorus.rotation.x += 0.012;
-      midTorus.rotation.z -= 0.006;
-      innerTorus.rotation.y += 0.016;
-
-      // Pulse Core
-      const pulse = 1 + Math.sin(t * 3) * 0.08;
-      coreSphere.scale.setScalar(pulse);
-      coreSphere.rotation.y += 0.02;
-      glowingCore.scale.setScalar(pulse * 0.95);
-
       renderer.render(scene, camera);
     };
     animate();
@@ -209,52 +140,52 @@ const ThreeDFinanceOrbit = ({ financeData = {}, autoRotate = true }) => {
       currentMount.removeEventListener('mousemove', handleMouseMove);
       currentMount.removeEventListener('mousedown', handleMouseDown);
       window.removeEventListener('mouseup', handleMouseUp);
-      currentMount.removeEventListener('wheel', handleWheel);
       window.removeEventListener('resize', handleResize);
       if (rendererRef.current && rendererRef.current.domElement) {
         rendererRef.current.dispose();
       }
     };
-  }, [autoRotate]);
+  }, [totalRevenue, vendorShare, platformCommission, autoRotate]);
 
   return (
-    <div style={{ position: 'relative', width: '100%', height: '420px', background: 'radial-gradient(circle at center, #0f172a 0%, #020617 100%)', borderRadius: '20px', overflow: 'hidden', border: '1px solid rgba(99, 102, 241, 0.25)', boxShadow: 'inset 0 0 40px rgba(0,0,0,0.85)' }}>
+    <div style={{ position: 'relative', width: '100%', height: '420px', background: '#f8fafc', borderRadius: '16px', overflow: 'hidden', border: '1px solid #e2e8f0' }}>
       
-      {/* 3D WebGL Canvas */}
+      {/* 3D Canvas Mount */}
       <div ref={mountRef} style={{ width: '100%', height: '100%', cursor: 'grab' }} />
 
-      {/* Floating HUD Badge */}
-      <div style={{ position: 'absolute', top: '16px', left: '20px', pointerEvents: 'none', display: 'flex', alignItems: 'center', gap: '8px', zIndex: 10 }}>
-        <span style={{ display: 'inline-block', width: '10px', height: '10px', borderRadius: '50%', background: '#6366f1', boxShadow: '0 0 12px #6366f1' }} />
-        <span style={{ fontSize: '0.8rem', fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-          3D Gyroscopic Orbit • Capital Flow Dynamics
+      {/* Header Badge */}
+      <div style={{ position: 'absolute', top: '16px', left: '20px', pointerEvents: 'none', display: 'flex', alignItems: 'center', gap: '8px', background: '#ffffff', padding: '6px 14px', borderRadius: '20px', border: '1px solid #e2e8f0', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
+        <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#10b981' }} />
+        <span style={{ fontSize: '0.8rem', fontWeight: '700', color: '#334155' }}>
+          3D Financial Flow Donut • Drag to Rotate
         </span>
       </div>
 
-      {/* Live Financial Legend HUD (Bottom Overlay) */}
+      {/* Clear Executive Financial Breakdown Overlay Card */}
       <div style={{
         position: 'absolute',
         bottom: '16px',
         left: '20px',
         right: '20px',
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
-        gap: '10px',
+        gridTemplateColumns: 'repeat(2, 1fr)',
+        gap: '12px',
         pointerEvents: 'none'
       }}>
-        <div style={{ background: 'rgba(15, 23, 42, 0.85)', backdropFilter: 'blur(8px)', border: '1px solid rgba(239, 65, 35, 0.4)', borderRadius: '12px', padding: '8px 12px' }}>
-          <span style={{ fontSize: '0.7rem', color: '#ef4123', fontWeight: '700', textTransform: 'uppercase' }}>Outer Ring</span>
-          <p style={{ margin: '2px 0 0 0', fontSize: '0.95rem', fontWeight: '800', color: '#ffffff' }}>₹{totalRevenue.toLocaleString()} GMV</p>
+        <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '10px 14px', boxShadow: '0 2px 6px rgba(0,0,0,0.04)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
+            <span style={{ width: '10px', height: '10px', borderRadius: '3px', background: '#10b981' }}></span>
+            <span style={{ fontSize: '0.75rem', fontWeight: '700', color: '#64748b', textTransform: 'uppercase' }}>Vendor Payouts ({vendorPercent}%)</span>
+          </div>
+          <p style={{ margin: 0, fontSize: '1.1rem', fontWeight: '800', color: '#0f172a' }}>₹{vendorShare.toLocaleString()}</p>
         </div>
 
-        <div style={{ background: 'rgba(15, 23, 42, 0.85)', backdropFilter: 'blur(8px)', border: '1px solid rgba(16, 185, 129, 0.4)', borderRadius: '12px', padding: '8px 12px' }}>
-          <span style={{ fontSize: '0.7rem', color: '#10b981', fontWeight: '700', textTransform: 'uppercase' }}>Mid Ring (97%)</span>
-          <p style={{ margin: '2px 0 0 0', fontSize: '0.95rem', fontWeight: '800', color: '#ffffff' }}>₹{vendorShare.toLocaleString()} Vendors</p>
-        </div>
-
-        <div style={{ background: 'rgba(15, 23, 42, 0.85)', backdropFilter: 'blur(8px)', border: '1px solid rgba(99, 102, 241, 0.4)', borderRadius: '12px', padding: '8px 12px' }}>
-          <span style={{ fontSize: '0.7rem', color: '#6366f1', fontWeight: '700', textTransform: 'uppercase' }}>Core Profit</span>
-          <p style={{ margin: '2px 0 0 0', fontSize: '0.95rem', fontWeight: '800', color: '#ffffff' }}>₹{platformCommission.toLocaleString()} Margin</p>
+        <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '10px 14px', boxShadow: '0 2px 6px rgba(0,0,0,0.04)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
+            <span style={{ width: '10px', height: '10px', borderRadius: '3px', background: '#ef4123' }}></span>
+            <span style={{ fontSize: '0.75rem', fontWeight: '700', color: '#64748b', textTransform: 'uppercase' }}>UniVerse Take ({platformPercent}%)</span>
+          </div>
+          <p style={{ margin: 0, fontSize: '1.1rem', fontWeight: '800', color: '#ef4123' }}>₹{platformCommission.toLocaleString()}</p>
         </div>
       </div>
     </div>
