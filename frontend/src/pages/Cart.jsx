@@ -261,7 +261,7 @@ const Cart = () => {
 
     } catch (error) {
       console.error('Error initiating checkout:', error);
-      alert('Failed to initiate checkout. Please try again.');
+      alert(error.response?.data?.message || 'Failed to initiate checkout. Please try again.');
       setLoading(false);
     }
   };

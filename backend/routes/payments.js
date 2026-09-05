@@ -7,9 +7,10 @@ const Store = require('../models/Store');
 const paymentConfig = require('../config/payments.js');
 const telegramService = require('../services/telegramService');
 
-const razorpay = new Razorpay({
-  key_id: paymentConfig.razorpay.keyId,
-  key_secret: paymentConfig.razorpay.keySecret
+// Helper to obtain active Razorpay instance
+const getRazorpay = () => new Razorpay({
+  key_id: process.env.RAZORPAY_KEY_ID || paymentConfig.razorpay.keyId,
+  key_secret: process.env.RAZORPAY_KEY_SECRET || paymentConfig.razorpay.keySecret
 });
 
 // Helper to generate a unique 4-digit order number
@@ -30,6 +31,7 @@ router.post('/razorpay/create-order', async (req, res) => {
     const store = await Store.findById(storeId);
     if (!store) return res.status(404).json({ message: 'Store not found' });
 
+    const razorpay = getRazorpay();
     const razorpayOrder = await razorpay.orders.create({
       amount: Math.round(amount * 100), // Razorpay expects paise
       currency: 'INR',
@@ -44,12 +46,13 @@ router.post('/razorpay/create-order', async (req, res) => {
       razorpayOrderId: razorpayOrder.id,
       amount: razorpayOrder.amount,
       currency: razorpayOrder.currency,
-      keyId: paymentConfig.razorpay.keyId
+      keyId: process.env.RAZORPAY_KEY_ID || paymentConfig.razorpay.keyId
     });
 
   } catch (error) {
     console.error('Razorpay Order Creation Error:', error);
-    res.status(500).json({ message: 'Failed to create Razorpay order' });
+    const errorMsg = error?.error?.description || error?.message || 'Failed to create Razorpay order';
+    res.status(500).json({ message: errorMsg });
   }
 });
 
@@ -63,9 +66,10 @@ router.post('/razorpay/verify', async (req, res) => {
     }
 
     // Verify signature
+    const secret = process.env.RAZORPAY_KEY_SECRET || paymentConfig.razorpay.keySecret;
     const body = razorpay_order_id + '|' + razorpay_payment_id;
     const expectedSignature = crypto
-      .createHmac('sha256', paymentConfig.razorpay.keySecret)
+      .createHmac('sha256', secret)
       .update(body)
       .digest('hex');
 
