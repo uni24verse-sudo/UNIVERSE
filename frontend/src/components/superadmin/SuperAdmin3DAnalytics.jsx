@@ -154,11 +154,11 @@ const SuperAdmin3DAnalytics = ({ token }) => {
     { name: 'Payment Gateway (~2%)', value: financeDistribution.pgGatewayFee || 0, color: '#3b82f6' }
   ];
 
-  // Multi-campus simulator calculations
+  // Multi-campus simulator calculations (Conservative ₹120 / order baseline)
   const simStudents = simulatedCampuses * 32000;
   const simStores = simulatedCampuses * 18;
   const simDailyOrders = simulatedCampuses * 550;
-  const simMonthlyGMV = simDailyOrders * 30 * 220;
+  const simMonthlyGMV = simDailyOrders * 30 * 120;
   const simAnnualGMV = simMonthlyGMV * 12;
   const simAnnualProfit = Math.round(simAnnualGMV * 0.03 + (simAnnualGMV * 0.04 * 0.05));
   const simAnnualCloudSpend = Math.round((3390 + (simulatedCampuses - 1) * 600) * 12);
@@ -713,8 +713,8 @@ const SuperAdmin3DAnalytics = ({ token }) => {
 
                   <div style={{ padding: '1.25rem', background: 'var(--background)', borderRadius: '12px', border: '1px solid var(--surface-border)' }}>
                     <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: '700' }}>Average Ticket Size</span>
-                    <h4 style={{ margin: '0.25rem 0', fontSize: '1.5rem', fontWeight: '900' }}>₹220</h4>
-                    <span style={{ fontSize: '0.75rem', color: '#3b82f6', fontWeight: '600' }}>High order frequency</span>
+                    <h4 style={{ margin: '0.25rem 0', fontSize: '1.5rem', fontWeight: '900' }}>₹120</h4>
+                    <span style={{ fontSize: '0.75rem', color: '#3b82f6', fontWeight: '600' }}>Individual student orders</span>
                   </div>
 
                   <div style={{ padding: '1.25rem', background: 'var(--background)', borderRadius: '12px', border: '1px solid var(--surface-border)' }}>
@@ -822,20 +822,20 @@ const SuperAdmin3DAnalytics = ({ token }) => {
 
                     <div>
                       <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: '700' }}>3. Average Ticket</span>
-                      <p style={{ margin: '2px 0 0 0', fontSize: '0.85rem', fontWeight: '800' }}>₹220 / Order</p>
-                      <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Meals, thalis & group snacks</span>
+                      <p style={{ margin: '2px 0 0 0', fontSize: '0.85rem', fontWeight: '800' }}>₹120 / Order</p>
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Rolls, burgers, meals & snacks</span>
                     </div>
 
                     <div>
                       <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: '700' }}>4. Daily Gross GMV</span>
-                      <p style={{ margin: '2px 0 0 0', fontSize: '0.85rem', fontWeight: '800', color: '#10b981' }}>₹{(simDailyOrders * 220).toLocaleString()} / Day</p>
-                      <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>{simDailyOrders.toLocaleString()} orders × ₹220</span>
+                      <p style={{ margin: '2px 0 0 0', fontSize: '0.85rem', fontWeight: '800', color: '#10b981' }}>₹{(simDailyOrders * 120).toLocaleString()} / Day</p>
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>{simDailyOrders.toLocaleString()} orders × ₹120</span>
                     </div>
                   </div>
 
                   <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid var(--surface-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
                     <span>
-                      <strong>Formula:</strong> ₹{(simDailyOrders * 220).toLocaleString()}/day × 30 days = <strong>₹{((simDailyOrders * 220 * 30) / 100000).toFixed(1)} Lakhs/mo</strong> × 12 = <strong>₹{(simAnnualGMV / 10000000).toFixed(2)} Cr Annual GMV</strong>
+                      <strong>Formula:</strong> ₹{(simDailyOrders * 120).toLocaleString()}/day × 30 days = <strong>₹{((simDailyOrders * 120 * 30) / 100000).toFixed(1)} Lakhs/mo</strong> × 12 = <strong>₹{(simAnnualGMV / 10000000).toFixed(2)} Cr Annual GMV</strong>
                     </span>
                     <span style={{ color: '#ef4123', fontWeight: '800' }}>
                       3% Commission = ₹{(simAnnualProfit / 100000).toFixed(1)} Lakhs Net Profit
