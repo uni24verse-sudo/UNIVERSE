@@ -125,30 +125,33 @@ const SuperAdmin3DAnalytics = ({ token }) => {
 
   const { metrics, hourlyVelocity, zoneTraffic, storeStats, financeDistribution, liveFeed } = analyticsData;
 
-  // Multi-day and hourly chart data preparation
-  const chartHourlyData = hourlyVelocity.map(h => ({
+  // 100% Real database time-series data
+  const chartHourlyData = (hourlyVelocity || []).map(h => ({
     timeLabel: h.hour,
     revenue: h.revenue,
     orders: h.orders
   }));
 
-  // Weekly / aggregate volume projection if today's hours are early
-  const chartWeeklyData = [
-    { timeLabel: 'Mon', revenue: Math.round(metrics.totalRevenue * 0.12), orders: Math.round(metrics.totalOrders * 0.12) },
-    { timeLabel: 'Tue', revenue: Math.round(metrics.totalRevenue * 0.15), orders: Math.round(metrics.totalOrders * 0.15) },
-    { timeLabel: 'Wed', revenue: Math.round(metrics.totalRevenue * 0.18), orders: Math.round(metrics.totalOrders * 0.18) },
-    { timeLabel: 'Thu', revenue: Math.round(metrics.totalRevenue * 0.16), orders: Math.round(metrics.totalOrders * 0.16) },
-    { timeLabel: 'Fri', revenue: Math.round(metrics.totalRevenue * 0.22), orders: Math.round(metrics.totalOrders * 0.22) },
-    { timeLabel: 'Sat', revenue: Math.round(metrics.totalRevenue * 0.10), orders: Math.round(metrics.totalOrders * 0.10) },
-    { timeLabel: 'Sun', revenue: Math.round(metrics.totalRevenue * 0.07), orders: Math.round(metrics.totalOrders * 0.07) }
-  ];
+  const chartWeeklyData = (analyticsData.dailyVelocity7Days || []).map(d => ({
+    timeLabel: d.timeLabel,
+    revenue: d.revenue,
+    orders: d.orders
+  }));
 
-  const activeChartData = timeframe === 'today' ? chartHourlyData : chartWeeklyData;
+  const chartMonthlyData = (analyticsData.monthlyVelocity30Days || []).map(m => ({
+    timeLabel: m.timeLabel,
+    revenue: m.revenue,
+    orders: m.orders
+  }));
+
+  const activeChartData = timeframe === 'today' 
+    ? chartHourlyData 
+    : (timeframe === 'monthly' ? chartMonthlyData : chartWeeklyData);
 
   const pieFinancialData = [
-    { name: 'Vendor Payouts (97%)', value: financeDistribution.vendorShare || 3079, color: '#10b981' },
-    { name: 'UniVerse Take (3%)', value: financeDistribution.platformCommission || 95, color: '#ef4123' },
-    { name: 'Payment Gateway (~2%)', value: financeDistribution.pgGatewayFee || 63, color: '#3b82f6' }
+    { name: 'Vendor Payouts (97%)', value: financeDistribution.vendorShare || 0, color: '#10b981' },
+    { name: 'UniVerse Take (3%)', value: financeDistribution.platformCommission || 0, color: '#ef4123' },
+    { name: 'Payment Gateway (~2%)', value: financeDistribution.pgGatewayFee || 0, color: '#3b82f6' }
   ];
 
   // Multi-campus simulator calculations
@@ -395,7 +398,8 @@ const SuperAdmin3DAnalytics = ({ token }) => {
             <div style={{ display: 'flex', background: 'var(--background)', borderRadius: '8px', padding: '3px', border: '1px solid var(--surface-border)' }}>
               {[
                 { id: 'today', label: 'Today (Hourly)' },
-                { id: 'weekly', label: 'Last 7 Days' }
+                { id: 'weekly', label: 'Last 7 Days' },
+                { id: 'monthly', label: 'Last 30 Days' }
               ].map(t => (
                 <button
                   key={t.id}

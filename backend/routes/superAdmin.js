@@ -160,6 +160,56 @@ router.get('/realtime-analytics', async (req, res) => {
       };
     });
 
+    // Real Last 7 Days Daily Breakdown from actual database timestamps
+    const dailyVelocity7Days = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date();
+      d.setDate(d.getDate() - (6 - i));
+      d.setHours(0, 0, 0, 0);
+      const nextD = new Date(d);
+      nextD.setDate(nextD.getDate() + 1);
+
+      const dayOrders = allOrders.filter(o => {
+        const oDate = new Date(o.createdAt);
+        return oDate >= d && oDate < nextD;
+      });
+
+      const dayCompleted = dayOrders.filter(o => o.status === 'Completed');
+      const dayRevenue = dayCompleted.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+      const dayLabel = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+
+      return {
+        timeLabel: dayLabel,
+        revenue: dayRevenue,
+        orders: dayOrders.length,
+        completedOrders: dayCompleted.length
+      };
+    });
+
+    // Real Last 30 Days Breakdown
+    const monthlyVelocity30Days = Array.from({ length: 6 }, (_, i) => {
+      const dEnd = new Date();
+      dEnd.setDate(dEnd.getDate() - (5 - i) * 5);
+      const dStart = new Date(dEnd);
+      dStart.setDate(dStart.getDate() - 5);
+      dStart.setHours(0, 0, 0, 0);
+
+      const bucketOrders = allOrders.filter(o => {
+        const oDate = new Date(o.createdAt);
+        return oDate >= dStart && oDate <= dEnd;
+      });
+
+      const bucketCompleted = bucketOrders.filter(o => o.status === 'Completed');
+      const bucketRevenue = bucketCompleted.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+      const label = `${dStart.getDate()} ${dStart.toLocaleDateString('en-GB', { month: 'short' })} - ${dEnd.getDate()} ${dEnd.toLocaleDateString('en-GB', { month: 'short' })}`;
+
+      return {
+        timeLabel: label,
+        revenue: bucketRevenue,
+        orders: bucketOrders.length,
+        completedOrders: bucketCompleted.length
+      };
+    });
+
     // Campus / Location Traffic & Revenue Breakdown
     const locationMap = new Map();
     allLocations.forEach(loc => {
@@ -296,6 +346,8 @@ router.get('/realtime-analytics', async (req, res) => {
         openStoresCount: allStores.filter(s => s.isOpen).length
       },
       hourlyVelocity,
+      dailyVelocity7Days,
+      monthlyVelocity30Days,
       zoneTraffic,
       storeStats: storeStats.slice(0, 15),
       financeDistribution: {
