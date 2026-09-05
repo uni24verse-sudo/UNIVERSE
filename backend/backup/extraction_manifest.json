@@ -1,0 +1,43 @@
+{
+  "extractedAt": "2026-09-04T17:15:14.200Z",
+  "databaseName": "test",
+  "totalCollections": 7,
+  "collections": {
+    "vendordevices": {
+      "count": 0,
+      "file": "vendordevices.json",
+      "sizeBytes": 2
+    },
+    "orders": {
+      "count": 67,
+      "file": "orders.json",
+      "sizeBytes": 75084
+    },
+    "admins": {
+      "count": 25,
+      "file": "admins.json",
+      "sizeBytes": 14921
+    },
+    "deviceregistries": {
+      "count": 35,
+      "file": "deviceregistries.json",
+      "sizeBytes": 14772
+    },
+    "settlements": {
+      "count": 19,
+      "file": "settlements.json",
+      "sizeBytes": 10485
+    },
+    "locations": {
+      "count": 2,
+      "file": "locations.json",
+      "sizeBytes": 515
+    },
+    "stores": {
+      "count": 20,
+      "file": "stores.json",
+      "sizeBytes": 2107374
+    }
+  },
+  "summary": {}
+}

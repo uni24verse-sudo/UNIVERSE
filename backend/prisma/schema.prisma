@@ -1,0 +1,148 @@
+// UniVerse PostgreSQL Schema (Prisma ORM)
+// Optimized for AWS RDS PostgreSQL with JSONB dynamic flexibility
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Admin {
+  id              String       @id
+  name            String
+  email           String       @unique
+  password        String
+  role            String       @default("vendor") // "vendor" | "superadmin" | "staff"
+  telegramChatId  String?      @default("")
+  isBanned        Boolean      @default(false)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  stores          Store[]
+  settlements     Settlement[]
+
+  @@map("admins")
+}
+
+model Location {
+  id        String   @id
+  name      String
+  type      String   @default("College") // "College" | "External"
+  city      String?  @default("")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  stores    Store[]
+
+  @@map("locations")
+}
+
+model Store {
+  id                 String       @id
+  adminId            String
+  name               String
+  category           String       @default("General")
+  market             String       @default("BH1 Market")
+  locationId         String?
+  image              String?      @default("")
+  qrLink             String?      @default("")
+  isOpen             Boolean      @default(true)
+  openingTime        String       @default("10:00")
+  closingTime        String       @default("22:00")
+  isAutomated        Boolean      @default(true)
+  isHidden           Boolean      @default(false)
+  packagingCharge    Float        @default(0)
+  priority           Int          @default(0)
+  isTrialStarted     Boolean      @default(false)
+  trialStartDate     DateTime?
+  trialEndDate       DateTime?
+  subscriptionStatus String       @default("trial") // "trial" | "active" | "suspended"
+  commissionRate     Float        @default(5)
+  upiId              String?      @default("")
+  telegramChatId     String?      @default("")
+  telegramBotToken   String?      @default("")
+  categoryImages     Json?        @default("[]")
+  accentColor        String       @default("#ef4123")
+  storeType          String       @default("FastFood") // "FastFood" | "Restaurant"
+  products           Json         @default("[]")
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  admin              Admin        @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  location           Location?    @relation(fields: [locationId], references: [id])
+  orders             Order[]
+  settlements        Settlement[]
+
+  @@map("stores")
+}
+
+model Order {
+  id                 String   @id
+  storeId            String
+  customerName       String
+  customerPhone      String
+  items              Json     @default("[]")
+  totalAmount        Float
+  status             String   @default("Pending") // "Pending" | "Confirmed" | "In Preparation" | "Ready for Pickup" | "Completed" | "Cancelled"
+  paymentMethod      String   @default("UPI")
+  paymentStatus      String   @default("Pending") // "Pending" | "Paid" | "Failed"
+  razorpayOrderId    String?  @default("")
+  razorpayPaymentId  String?  @default("")
+  handoverToken      String?  @default("")
+  cancellationReason String?  @default("")
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  store              Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@map("orders")
+}
+
+model Settlement {
+  id                    String    @id
+  adminId               String
+  storeId               String
+  periodStart           DateTime
+  periodEnd             DateTime
+  totalOrders           Int       @default(0)
+  grossSales            Float     @default(0)
+  gatewayFee            Float     @default(0)
+  platformCommission    Float     @default(0)
+  cancellationPenalties Float     @default(0)
+  netPayable            Float     @default(0)
+  status                String    @default("Pending") // "Pending" | "Settled"
+  utr                   String?   @default("")
+  processedAt           DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  admin                 Admin     @relation(fields: [adminId], references: [id])
+  store                 Store     @relation(fields: [storeId], references: [id])
+
+  @@map("settlements")
+}
+
+model DeviceRegistry {
+  id         String   @id
+  token      String   @unique
+  platform   String   @default("android")
+  deviceInfo Json?    @default("{}")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("deviceregistries")
+}
+
+model VendorDevice {
+  id         String   @id
+  adminId    String?  @default("")
+  token      String?  @default("")
+  deviceInfo Json?    @default("{}")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("vendordevices")
+}

@@ -1,0 +1,22 @@
+[
+  {
+    "_id": "69e7913ddcad79aeb3f8ce23",
+    "name": "Lovely Professional University",
+    "type": "College",
+    "city": "Phagwara",
+    "isHidden": false,
+    "createdAt": "2026-04-21T15:01:17.017Z",
+    "updatedAt": "2026-04-21T15:01:17.017Z",
+    "__v": 0
+  },
+  {
+    "_id": "69e7a49ce6811d655c964f1b",
+    "name": "LAW GATE",
+    "type": "External",
+    "city": "Phagwara",
+    "isHidden": false,
+    "createdAt": "2026-04-21T16:23:56.600Z",
+    "updatedAt": "2026-04-21T16:23:56.600Z",
+    "__v": 0
+  }
+]
