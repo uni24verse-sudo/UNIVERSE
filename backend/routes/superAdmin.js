@@ -95,8 +95,8 @@ router.get('/realtime-analytics', async (req, res) => {
 
     // Fetch core collections in parallel
     const [allOrders, allStores, allLocations, allVendors] = await Promise.all([
-      Order.find().populate('store', 'name market location isOpen isTrialStarted trialEndDate').sort({ createdAt: -1 }),
-      Store.find().populate('location', 'name type city').lean(),
+      Order.find().populate({ path: 'store', select: 'name market locationId isOpen isTrialStarted trialEndDate', strictPopulate: false }).sort({ createdAt: -1 }),
+      Store.find().lean(),
       Location.find().lean(),
       Admin.find({ role: 'vendor' }).lean()
     ]);
@@ -194,7 +194,7 @@ router.get('/realtime-analytics', async (req, res) => {
     // Associate stores with locations
     const storeLocationLookup = new Map();
     allStores.forEach(s => {
-      const locId = s.location?._id ? s.location._id.toString() : (s.location ? s.location.toString() : null);
+      const locId = s.locationId?._id ? s.locationId._id.toString() : (s.locationId ? s.locationId.toString() : (s.location?._id ? s.location._id.toString() : (s.location ? s.location.toString() : null)));
       if (locId && locationMap.has(locId)) {
         storeLocationLookup.set(s._id.toString(), locId);
         locationMap.get(locId).storeCount += 1;
