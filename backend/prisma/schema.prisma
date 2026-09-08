@@ -82,8 +82,11 @@ model Store {
 model Order {
   id                 String   @id
   storeId            String
+  orderNumber        String?  @default("")
+  userId             String?  @default("")
   customerName       String
   customerPhone      String
+  customerEmail      String?  @default("")
   items              Json     @default("[]")
   totalAmount        Float
   status             String   @default("Pending") // "Pending" | "Confirmed" | "In Preparation" | "Ready for Pickup" | "Completed" | "Cancelled"
@@ -91,14 +94,103 @@ model Order {
   paymentStatus      String   @default("Pending") // "Pending" | "Paid" | "Failed"
   razorpayOrderId    String?  @default("")
   razorpayPaymentId  String?  @default("")
+  transactionId      String?  @default("")
   handoverToken      String?  @default("")
+  refundStatus       String?  @default("None") // "None" | "Processed" | "Failed"
+  refundId           String?  @default("")
+  refundAmount       Float?   @default(0)
   cancellationReason String?  @default("")
+  cancelledBy        Json?    @default("{}")
+  isPreOrder         Boolean  @default(false)
+  scheduledTime      String?  @default("")
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
   store              Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
 
   @@map("orders")
+}
+
+model Customer {
+  id             String   @id
+  userId         String   @unique
+  phone          String
+  email          String?  @default("")
+  currentName    String   @default("UniVerse Student")
+  campus         String   @default("Lovely Professional University")
+  status         String   @default("Active")
+  metrics        Json     @default("{}")
+  riskSignals    Json     @default("[]")
+  lastActivityAt DateTime @default(now())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("customers")
+}
+
+model Payment {
+  id         String   @id
+  paymentId  String   @unique
+  orderId    String
+  userId     String
+  amount     Float
+  currency   String   @default("INR")
+  status     String   @default("CAPTURED")
+  method     String   @default("Razorpay")
+  capturedAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("payments")
+}
+
+model Refund {
+  id               String   @id
+  refundId         String   @unique
+  paymentId        String
+  orderId          String
+  userId           String
+  amount           Float
+  idempotencyKey   String?  @default("")
+  reason           String
+  status           String   @default("PROCESSED")
+  mode             String   @default("RAZORPAY_AUTO")
+  processedAt      DateTime @default(now())
+  whatsappNotified Boolean  @default(true)
+  rawResponse      Json?    @default("{}")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@map("refunds")
+}
+
+model OrderEvent {
+  id          String   @id
+  eventId     String   @unique
+  orderId     String
+  orderNumber String?  @default("")
+  userId      String?  @default("")
+  actorType   String   @default("SYSTEM")
+  actorId     String   @default("SYSTEM")
+  eventType   String
+  oldStatus   String?  @default("")
+  newStatus   String?  @default("")
+  metadata    Json?    @default("{}")
+  createdAt   DateTime @default(now())
+
+  @@map("orderevents")
+}
+
+model WebhookEvent {
+  id         String   @id
+  eventId    String   @unique
+  source     String   @default("RAZORPAY")
+  eventType  String
+  payload    Json?    @default("{}")
+  status     String   @default("PROCESSED")
+  receivedAt DateTime @default(now())
+
+  @@map("webhookevents")
 }
 
 model Settlement {
@@ -146,3 +238,4 @@ model VendorDevice {
 
   @@map("vendordevices")
 }
+

@@ -1,0 +1,407 @@
+const Journey = require('../models/Journey');
+const UserJourneyState = require('../models/UserJourneyState');
+const MasterTemplate = require('../models/MasterTemplate');
+const ChannelAccount = require('../models/ChannelAccount');
+const whatsappMultiDeviceService = require('./whatsappMultiDeviceService');
+const emailMultiAccountService = require('./emailMultiAccountService');
+const Order = require('../models/Order');
+
+class JourneyEngineService {
+  constructor() {
+    this.intervalId = null;
+    this.isProcessing = false;
+  }
+
+  start() {
+    console.log('--- Starting Journey Builder Background Worker ---');
+    // Run tick every 30 seconds
+    this.intervalId = setInterval(() => this.processScheduledNodes(), 30000);
+    // Initial run
+    setTimeout(() => this.processScheduledNodes(), 5000);
+  }
+
+  stop() {
+    if (this.intervalId) clearInterval(this.intervalId);
+  }
+
+  /**
+   * Enroll a user into a specific active journey
+   */
+  async enrollUser(journeyId, { userId, userType = 'Student', name = 'Student', phone = '', email = '', metadata = {} }) {
+    try {
+      const journey = await Journey.findById(journeyId);
+      if (!journey || journey.status !== 'Active') return null;
+
+      // Find initial trigger node
+      const triggerNode = journey.nodes.find(n => n.type === 'trigger');
+      if (!triggerNode || !triggerNode.nextNodeId) return null;
+
+      const firstActiveNode = journey.nodes.find(n => n.id === triggerNode.nextNodeId);
+      if (!firstActiveNode) return null;
+
+      let scheduledTime = new Date();
+      if (firstActiveNode.type === 'delay') {
+        const delayMs = ((firstActiveNode.config?.delayHours || 0) * 3600 + (firstActiveNode.config?.delayMinutes || 0) * 60) * 1000;
+        scheduledTime = new Date(Date.now() + Math.max(delayMs, 1000));
+      }
+
+      const state = new UserJourneyState({
+        journeyId: journey._id,
+        userId: userId || null,
+        userType,
+        name: name || 'Student',
+        phone: phone || '',
+        email: email || '',
+        metadata: metadata || {},
+        currentNodeId: firstActiveNode.id,
+        scheduledExecutionTime: scheduledTime,
+        status: 'Pending'
+      });
+
+      await state.save();
+      await Journey.findByIdAndUpdate(journey._id, { $inc: { totalEnrolled: 1 } });
+      console.log(`[JourneyEngine] Enrolled user ${name} (${phone}) into "${journey.name}" at node ${firstActiveNode.id}`);
+      return state;
+    } catch (err) {
+      console.error('[JourneyEngine] Enrollment Error:', err.message);
+      return null;
+    }
+  }
+
+  /**
+   * Fire an event trigger (e.g. 'Order Completed', 'User Registered')
+   */
+  async triggerEvent(triggerType, userDetails) {
+    try {
+      const activeJourneys = await Journey.find({ triggerType, status: 'Active' });
+      for (const journey of activeJourneys) {
+        await this.enrollUser(journey._id, userDetails);
+      }
+    } catch (err) {
+      console.error(`[JourneyEngine] Error firing event "${triggerType}":`, err.message);
+    }
+  }
+
+  /**
+   * Background processor: Find all pending user journey states that are due for execution
+   */
+  async processScheduledNodes() {
+    if (this.isProcessing) return;
+    this.isProcessing = true;
+
+    try {
+      const now = new Date();
+      const dueStates = await UserJourneyState.find({
+        status: 'Pending',
+        scheduledExecutionTime: { $lte: now }
+      }).limit(50).populate('journeyId');
+
+      for (const state of dueStates) {
+        await this.executeNode(state);
+      }
+    } catch (err) {
+      console.error('[JourneyEngine] Worker Execution Error:', err.message);
+    } finally {
+      this.isProcessing = false;
+    }
+  }
+
+  /**
+   * Resume an active journey waiting on an order event (e.g. 'Order Accepted', 'Order Ready', 'Order Completed', 'Order Rejected')
+   */
+  async resumeOrderJourney(orderId, eventType, orderDetails = {}) {
+    try {
+      if (!orderId) return;
+      const orderIdStr = orderId.toString();
+
+      const activeStates = await UserJourneyState.find({
+        status: { $in: ['Pending', 'Waiting_Event'] },
+        $or: [
+          { 'metadata.orderId': orderIdStr },
+          { 'metadata.orderNumber': orderDetails?.metadata?.orderNumber || '' },
+          { phone: orderDetails?.phone || '__none__' }
+        ]
+      }).populate('journeyId');
+
+      for (const state of activeStates) {
+        const journey = state.journeyId;
+        if (!journey || journey.status !== 'Active') continue;
+
+        const node = journey.nodes.find(n => n.id === state.currentNodeId);
+        if (!node) continue;
+
+        // Merge updated metadata
+        if (orderDetails?.metadata) {
+          state.metadata = { ...(state.metadata || {}), ...orderDetails.metadata };
+        }
+
+        let nextNodeId = null;
+
+        // 1. If at wait_event node
+        if (node.type === 'wait_event') {
+          const targetEvent = node.config?.eventType || 'order_completed';
+          if (
+            (targetEvent === 'order_decision' && (eventType === 'Order Accepted' || eventType === 'Order Rejected')) ||
+            (targetEvent === 'order_ready' && eventType === 'Order Ready') ||
+            (targetEvent === 'order_completed' && eventType === 'Order Completed')
+          ) {
+            if (targetEvent === 'order_decision') {
+              nextNodeId = eventType === 'Order Accepted' ? (node.trueNodeId || node.nextNodeId) : (node.falseNodeId || null);
+            } else {
+              nextNodeId = node.nextNodeId;
+            }
+          }
+        } else if (node.type === 'condition' && (node.config?.conditionType === 'order_decision' || node.config?.conditionType === 'is_accepted')) {
+          nextNodeId = (eventType === 'Order Accepted' || eventType === 'Order Ready' || eventType === 'Order Completed')
+            ? (node.trueNodeId || node.nextNodeId)
+            : (node.falseNodeId || null);
+        }
+
+        if (nextNodeId) {
+          console.log(`[JourneyEngine] Order ${orderIdStr} event "${eventType}" triggered advancement from [${node.label}] to node ${nextNodeId}`);
+          const nextNode = journey.nodes.find(n => n.id === nextNodeId);
+          if (nextNode) {
+            state.currentNodeId = nextNode.id;
+            state.status = 'Pending';
+            state.scheduledExecutionTime = new Date();
+            await state.save();
+            // Execute immediately without delay
+            await this.executeNode(state);
+          }
+        }
+      }
+    } catch (err) {
+      console.error('[JourneyEngine] Error resuming order journey:', err.message);
+    }
+  }
+
+  /**
+   * Execute single node for a user state
+   */
+  async executeNode(state) {
+    try {
+      const journey = state.journeyId;
+      if (!journey || journey.status !== 'Active') {
+        state.status = 'Cancelled';
+        await state.save();
+        return;
+      }
+
+      const node = journey.nodes.find(n => n.id === state.currentNodeId);
+      if (!node) {
+        state.status = 'Completed';
+        await state.save();
+        await Journey.findByIdAndUpdate(journey._id, { $inc: { totalCompleted: 1 } });
+        return;
+      }
+
+      console.log(`[JourneyEngine] Executing Node [${node.type}] "${node.label}" for user ${state.phone || state.email}...`);
+
+      let nextNodeId = null;
+
+      // Handle Node Types
+      if (node.type === 'action') {
+        await this.performActionNode(node, state);
+        nextNodeId = node.nextNodeId;
+      } else if (node.type === 'condition') {
+        const passed = await this.evaluateCondition(node.config?.conditionType, state, node.config || {});
+        nextNodeId = passed ? (node.trueNodeId || node.nextNodeId) : (node.falseNodeId || null);
+      } else if (node.type === 'delay') {
+        // If delay just finished, advance to next
+        nextNodeId = node.nextNodeId;
+      } else if (node.type === 'wait_event') {
+        // Pause here and wait for real-time order event trigger
+        state.status = 'Waiting_Event';
+        await state.save();
+        console.log(`[JourneyEngine] User ${state.phone} paused at [${node.label}], waiting for event: ${node.config?.eventType || 'order_event'}`);
+        return;
+      } else if (node.type === 'tag') {
+        // Customer profile tag
+        console.log(`[JourneyEngine] Tagged user ${state.phone} with tag "${node.config?.tagName || 'VIP'}"`);
+        nextNodeId = node.nextNodeId;
+      }
+
+      // Check if journey is finished
+      if (!nextNodeId) {
+        state.status = 'Completed';
+        await state.save();
+        await Journey.findByIdAndUpdate(journey._id, { $inc: { totalCompleted: 1 } });
+        console.log(`[JourneyEngine] User ${state.phone} completed journey "${journey.name}"`);
+        return;
+      }
+
+      // Advance to next node
+      const nextNode = journey.nodes.find(n => n.id === nextNodeId);
+      if (!nextNode) {
+        state.status = 'Completed';
+        await state.save();
+        await Journey.findByIdAndUpdate(journey._id, { $inc: { totalCompleted: 1 } });
+        return;
+      }
+
+      state.currentNodeId = nextNode.id;
+
+      if (nextNode.type === 'delay') {
+        const delayMs = ((nextNode.config?.delayDays || 0) * 86400 + (nextNode.config?.delayHours || 0) * 3600 + (nextNode.config?.delayMinutes || 0) * 60) * 1000;
+        state.scheduledExecutionTime = new Date(Date.now() + Math.max(delayMs, 1000));
+        state.status = 'Pending';
+      } else if (nextNode.type === 'wait_event') {
+        state.status = 'Waiting_Event';
+      } else {
+        state.scheduledExecutionTime = new Date(); // Execute immediately
+        state.status = 'Pending';
+      }
+
+      await state.save();
+
+      // If next node is immediate action or condition, execute immediately
+      if (nextNode.type === 'action' || nextNode.type === 'condition' || nextNode.type === 'tag') {
+        await this.executeNode(state);
+      }
+
+    } catch (err) {
+      console.error(`[JourneyEngine] Error executing node ${state.currentNodeId}:`, err.message);
+      state.status = 'Failed';
+      await state.save();
+    }
+  }
+
+  /**
+   * Perform dispatch action (WhatsApp or Email)
+   */
+  async performActionNode(node, state) {
+    const { 
+      channel, 
+      channelAccountId, 
+      masterTemplateId, 
+      customBody, 
+      subject: customSubject, 
+      btn1Text, 
+      btn2Text, 
+      btn3Text,
+      ctaText: customCtaText, 
+      ctaLink: customCtaLink,
+      headerMediaUrl: customHeaderMediaUrl 
+    } = node.config || {};
+
+    let template = null;
+    if (masterTemplateId) {
+      template = await MasterTemplate.findById(masterTemplateId);
+    }
+
+    // Compile dynamic tags
+    const meta = state.metadata || {};
+    let rawBody = customBody || template?.body || '';
+    if (!rawBody && !template) return;
+
+    let body = rawBody
+      .replace(/{{name}}/gi, state.name || 'Student')
+      .replace(/{{phone}}/gi, state.phone || '')
+      .replace(/{{email}}/gi, state.email || '')
+      .replace(/{{orderId}}/gi, meta.orderId || meta.orderNumber || '')
+      .replace(/{{orderNumber}}/gi, meta.orderNumber || meta.orderId || '')
+      .replace(/{{storeName}}/gi, meta.storeName || 'UniVerse Campus')
+      .replace(/{{amount}}/gi, meta.amount ? `₹${meta.amount}` : '');
+
+    if (channel === 'whatsapp' && state.phone) {
+      const channelAccount = await ChannelAccount.findById(channelAccountId);
+      const slotIndex = channelAccount?.slotIndex || 1;
+
+      // Construct dynamic buttons if customized
+      let buttons = template?.buttons || [];
+      if (btn1Text || btn2Text) {
+        buttons = [];
+        if (btn1Text) buttons.push({ buttonId: 'btn_1', buttonText: { displayText: btn1Text }, type: 1 });
+        if (btn2Text) buttons.push({ buttonId: 'btn_2', buttonText: { displayText: btn2Text }, type: 1 });
+        if (btn3Text) buttons.push({ buttonId: 'btn_3', buttonText: { displayText: btn3Text }, type: 1 });
+      }
+
+      const payload = {
+        headerType: customHeaderMediaUrl ? 'IMAGE' : (template?.headerType || 'NONE'),
+        headerMediaUrl: customHeaderMediaUrl || template?.headerMediaUrl,
+        body,
+        footer: template?.footer || 'UniVerse Automated Engine',
+        buttons
+      };
+
+      await whatsappMultiDeviceService.sendMessage(slotIndex, state.phone, payload);
+
+      state.history.push({
+        nodeId: node.id,
+        action: 'whatsapp_sent',
+        channelAccountId,
+        status: 'Delivered',
+        executedAt: new Date()
+      });
+    } else if (channel === 'email' && state.email) {
+      const finalSubject = (customSubject || template?.subject || template?.name || 'UniVerse Campus Update')
+        .replace(/{{name}}/gi, state.name || 'Student')
+        .replace(/{{storeName}}/gi, meta.storeName || 'UniVerse Campus');
+
+      const ctaText = customCtaText || template?.emailCtaText || 'View in UniVerse';
+      const ctaUrl = customCtaLink || template?.emailCtaUrl || 'https://universe.app';
+      const heroImage = customHeaderMediaUrl || template?.emailHeroImageUrl;
+
+      const htmlBody = `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: auto; padding: 2rem; background: #ffffff; color: #0f172a; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 4px 20px rgba(0,0,0,0.05);">
+          ${heroImage ? `<img src="${heroImage}" style="width: 100%; max-height: 240px; object-fit: cover; border-radius: 12px; margin-bottom: 1.5rem;" />` : ''}
+          <h2 style="color: #ef4123; margin-top: 0; font-size: 1.4rem;">${finalSubject}</h2>
+          <div style="line-height: 1.6; font-size: 1rem; color: #334155;">${body.replace(/\n/g, '<br/>')}</div>
+          ${ctaText ? `<div style="margin: 2rem 0; text-align: center;"><a href="${ctaUrl}" style="background: linear-gradient(135deg, #ef4123, #ea580c); color: white; padding: 0.9rem 2.2rem; border-radius: 100px; text-decoration: none; font-weight: 800; display: inline-block; box-shadow: 0 4px 12px rgba(239, 65, 35, 0.3);">${ctaText}</a></div>` : ''}
+          <div style="font-size: 0.75rem; color: #94a3b8; text-align: center; margin-top: 2.5rem; border-top: 1px solid #f1f5f9; padding-top: 1rem;">UniVerse Campus Platform • Automated Notification</div>
+        </div>
+      `;
+
+      await emailMultiAccountService.sendEmail(channelAccountId, {
+        to: state.email,
+        subject: finalSubject,
+        html: htmlBody,
+        text: body
+      });
+
+      state.history.push({
+        nodeId: node.id,
+        action: 'email_sent',
+        channelAccountId,
+        status: 'Delivered',
+        executedAt: new Date()
+      });
+    }
+  }
+
+  /**
+   * Evaluate conditional node branch
+   */
+  async evaluateCondition(conditionType, state, nodeConfig = {}) {
+    if (!conditionType || conditionType === 'none') return true;
+
+    if (conditionType === 'order_amount_gt') {
+      const amount = Number(state.metadata?.amount || 0);
+      const target = Number(nodeConfig.conditionValue || 0);
+      return amount > target;
+    }
+
+    if (conditionType === 'has_ordered_in_last_24h' && state.phone) {
+      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const count = await Order.countDocuments({
+        customerPhone: state.phone,
+        createdAt: { $gte: oneDayAgo },
+        status: { $in: ['Completed', 'Confirmed', 'Cooking', 'Ready'] }
+      });
+      return count > 0;
+    }
+
+    if (conditionType === 'has_completed_orders' && state.phone) {
+      const count = await Order.countDocuments({
+        customerPhone: state.phone,
+        status: 'Completed'
+      });
+      return count > 0;
+    }
+
+    return true;
+  }
+}
+
+const journeyEngineService = new JourneyEngineService();
+module.exports = journeyEngineService;

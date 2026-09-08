@@ -6,6 +6,7 @@ const Order = require('../models/Order');
 const Store = require('../models/Store');
 const paymentConfig = require('../config/payments.js');
 const telegramService = require('../services/telegramService');
+const journeyEngineService = require('../services/journeyEngineService');
 
 // Helper to obtain active Razorpay instance
 const getRazorpay = () => new Razorpay({
@@ -80,7 +81,7 @@ router.post('/razorpay/verify', async (req, res) => {
     // Payment verified - NOW Create the Order in DB
     const { storeId, items, totalAmount, paymentMethod, customerPhone, customerName, orderType, packagingChargeApplied, isPreOrder, scheduledTime, isQRScan } = orderData;
 
-    const store = await Store.findById(storeId).populate('admin');
+    const store = await Store.findById(storeId).populate('admin').populate('locationId');
     if (!store) return res.status(404).json({ message: 'Store not found' });
 
     // Set acceptance deadline: 
@@ -93,14 +94,31 @@ router.post('/razorpay/verify', async (req, res) => {
     // If not a QR scan, they get the standard 5 min deadline to prevent spam
     const acceptDeadline = deadlineMinutes ? new Date(Date.now() + deadlineMinutes * 60 * 1000) : null;
 
+    // Customer Identity: Get or Create Stable Customer Profile
+    const auditService = require('../services/auditService');
+    const Payment = require('../models/Payment');
+
+    const campusName = store.locationId?.name 
+      ? `${store.locationId.name}${store.market ? ' • ' + store.market : ''}` 
+      : (store.market ? `Lovely Professional University • ${store.market}` : 'Lovely Professional University');
+
+    const customer = await auditService.getOrCreateCustomer({
+      phone: customerPhone,
+      name: customerName,
+      email: orderData.customerEmail || '',
+      campus: campusName
+    });
+
     const newOrder = new Order({
       store: storeId,
       orderNumber: generateOrderNumber(),
       items,
       totalAmount,
       paymentMethod: paymentMethod || 'Razorpay',
+      userId: customer ? customer.userId : null,
       customerPhone,
       customerName,
+      customerEmail: orderData.customerEmail || (customer?.email || ''),
       orderType,
       packagingChargeApplied,
       paymentStatus: 'Confirmed',
@@ -114,6 +132,61 @@ router.post('/razorpay/verify', async (req, res) => {
     });
 
     const savedOrder = await newOrder.save();
+
+    // Financial Ledger: Record Captured Payment
+    await Payment.create({
+      paymentId: razorpay_payment_id,
+      orderId: savedOrder._id,
+      userId: customer ? customer.userId : 'GUEST',
+      amount: totalAmount,
+      currency: 'INR',
+      status: 'CAPTURED',
+      method: 'Razorpay',
+      capturedAt: new Date(),
+      rawResponse: { razorpay_order_id, razorpay_payment_id }
+    }).catch(err => console.error('[PaymentLedger] Error saving payment:', err.message));
+
+    // Audit Trail: Log Immutable Event
+    await auditService.logEvent({
+      orderId: savedOrder._id,
+      orderNumber: savedOrder.orderNumber,
+      userId: customer ? customer.userId : 'GUEST',
+      actorType: 'CUSTOMER',
+      actorId: customer ? customer.userId : customerPhone,
+      eventType: 'PAYMENT_CAPTURED',
+      oldStatus: 'Payment Pending',
+      newStatus: 'Pending',
+      metadata: {
+        paymentId: razorpay_payment_id,
+        amount: totalAmount,
+        storeName: store?.name || 'Campus Outlet'
+      }
+    });
+
+    // Trigger Lifecycle Journey Automation (First Lifetime Order vs Repeat Order)
+    if (savedOrder.customerPhone) {
+      const userPayload = {
+        userId: customer ? customer.userId : savedOrder.customerPhone,
+        name: savedOrder.customerName || 'Student',
+        phone: savedOrder.customerPhone,
+        metadata: {
+          orderId: savedOrder.orderNumber || savedOrder._id.toString(),
+          orderNumber: savedOrder.orderNumber || '',
+          storeName: store?.name || 'Campus Food Court',
+          amount: savedOrder.totalAmount
+        }
+      };
+
+      // 1. Trigger Order Placed Journey
+      journeyEngineService.triggerEvent('Order Placed', userPayload)
+        .catch(e => console.error('[JourneyEngine] Order Placed trigger error:', e.message));
+
+      // 2. Trigger First Order or Repeat Order Journey
+      Order.countDocuments({ customerPhone: savedOrder.customerPhone }).then(orderCount => {
+        const triggerEvent = orderCount === 1 ? 'First Lifetime Order' : 'Repeat Order Placed';
+        return journeyEngineService.triggerEvent(triggerEvent, userPayload);
+      }).catch(e => console.error('[JourneyEngine] Payment order trigger error:', e.message));
+    }
 
 const pushService = require('../services/pushService');
 

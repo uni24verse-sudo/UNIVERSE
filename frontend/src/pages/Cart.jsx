@@ -4,7 +4,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import {
   Trash2, Plus, Minus, ArrowLeft, CreditCard, Coins, ShoppingBag,
-  ChevronRight, ShieldCheck, Store, Clock, User, Phone,
+  ChevronRight, ShieldCheck, Store, Clock, User, Phone, Mail,
   CheckCircle, AlertCircle, X, Utensils,
   Sun, CloudSun, Moon, Coffee, Sparkles
 } from 'lucide-react';
@@ -17,8 +17,9 @@ const Cart = () => {
   const [store, setStore] = useState(null);
   const [loading, setLoading] = useState(false);
   const [orderType, setOrderType] = useState('Dine In');
-  const [customerPhone, setCustomerPhone] = useState('');
-  const [customerName, setCustomerName] = useState('');
+  const [customerPhone, setCustomerPhone] = useState(localStorage.getItem('universe_customer_phone') || '');
+  const [customerName, setCustomerName] = useState(localStorage.getItem('universe_customer_name') || '');
+  const [customerEmail, setCustomerEmail] = useState(localStorage.getItem('universe_customer_email') || '');
   const [orderPlaced, setOrderPlaced] = useState(false);
   const [currentOrder, setCurrentOrder] = useState(null);
   const [validationError, setValidationError] = useState('');
@@ -78,6 +79,25 @@ const Cart = () => {
   useEffect(() => {
     fetchPairings();
   }, [storeId, cart.length]);
+
+  // Fast Customer Pre-fill on 10-Digit Phone Number
+  useEffect(() => {
+    const cleanPhone = customerPhone.replace(/\D/g, '');
+    if (cleanPhone.length === 10) {
+      axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/orders/customer/lookup?phone=${cleanPhone}`)
+        .then(res => {
+          if (res.data?.exists) {
+            if (!customerName && res.data.currentName) {
+              setCustomerName(res.data.currentName);
+            }
+            if (!customerEmail && res.data.email) {
+              setCustomerEmail(res.data.email);
+            }
+          }
+        })
+        .catch(() => {});
+    }
+  }, [customerPhone]);
 
   const generateTimeSlots = useCallback(() => {
     const slots = [];
@@ -180,6 +200,7 @@ const Cart = () => {
         paymentMethod: 'Razorpay',
         customerPhone,
         customerName,
+        customerEmail,
         orderType,
         packagingChargeApplied: deliveryFee > 0,
         isPreOrder,
@@ -209,6 +230,11 @@ const Cart = () => {
             if (verifyRes.data.success) {
               const savedOrder = verifyRes.data.order;
               
+              // Persist customer identity in localStorage for frictionless next checkout
+              localStorage.setItem('universe_customer_name', customerName);
+              localStorage.setItem('universe_customer_phone', customerPhone);
+              if (customerEmail) localStorage.setItem('universe_customer_email', customerEmail);
+
               // Clear scan source after successful order
               localStorage.removeItem('universe_order_source');
               // Add to recent orders for tracking
@@ -242,7 +268,8 @@ const Cart = () => {
         },
         prefill: {
           name: customerName,
-          contact: customerPhone
+          contact: customerPhone,
+          email: customerEmail || undefined
         },
         theme: {
           color: '#ef4123'
@@ -680,6 +707,33 @@ const Cart = () => {
                       if (validationError) setValidationError('');
                     }}
                     maxLength={10}
+                    style={{
+                      width: '100%',
+                      padding: '0.75rem',
+                      borderRadius: '12px',
+                      border: '1px solid var(--surface-border)',
+                      background: '#f8fafc',
+                      fontSize: '0.9rem',
+                      fontWeight: '600',
+                      color: 'var(--text-primary)',
+                      outline: 'none',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.8rem', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '0.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span><Mail size={14} style={{ marginRight: '0.4rem', verticalAlign: 'middle' }} /> Email</span>
+                    <span style={{ fontSize: '0.68rem', color: '#64748b' }}>Optional - for e-receipt</span>
+                  </label>
+                  <input
+                    type="email"
+                    placeholder="student@university.edu (Optional)"
+                    value={customerEmail}
+                    onChange={(e) => {
+                      setCustomerEmail(e.target.value);
+                      localStorage.setItem('universe_customer_email', e.target.value);
+                    }}
                     style={{
                       width: '100%',
                       padding: '0.75rem',

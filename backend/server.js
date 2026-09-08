@@ -1,3 +1,8 @@
+const dns = require('dns');
+if (dns.setDefaultResultOrder) {
+  dns.setDefaultResultOrder('ipv4first');
+}
+
 require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
@@ -47,9 +52,21 @@ app.use(cors({
 
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Database Connection
-mongoose.connect(process.env.MONGODB_URI)
-  .then(() => console.log('Connected to MongoDB'))
+// Initialize WhatsApp Multi-Device & Journey Engine services
+const whatsappMultiDeviceService = require('./services/whatsappMultiDeviceService');
+const journeyEngineService = require('./services/journeyEngineService');
+whatsappMultiDeviceService.setIO(io);
+
+// Database Connection with Auto-reconnect & Post-connection service initialization
+mongoose.connect(process.env.MONGODB_URI, {
+  serverSelectionTimeoutMS: 5000,
+  socketTimeoutMS: 45000
+})
+  .then(() => {
+    console.log('Connected to MongoDB');
+    whatsappMultiDeviceService.init().catch(err => console.error('WhatsApp Engine Init Error:', err.message));
+    journeyEngineService.start();
+  })
   .catch(err => console.log('Failed to connect to MongoDB', err));
 
 // Routes
@@ -60,6 +77,10 @@ app.use('/api/store', require('./routes/store'));
 app.use('/api/orders', require('./routes/orders'));
 app.use('/api/scan-menu', require('./routes/menuScanner'));
 app.use('/api/super-admin', require('./routes/superAdmin'));
+app.use('/api/super-admin/channels', require('./routes/channelSettings'));
+app.use('/api/super-admin/master-templates', require('./routes/masterTemplates'));
+app.use('/api/super-admin/broadcasting', require('./routes/broadcasting'));
+app.use('/api/super-admin/customers', require('./routes/superAdminCustomers'));
 app.use('/api/payments', require('./routes/payments'));
 app.use('/api/whatsapp', require('./routes/whatsapp'));
 app.use('/api/analytics', require('./routes/analytics'));
@@ -100,7 +121,7 @@ io.on('connection', (socket) => {
   });
 
   // Join SuperAdmin Room with Server-Side Authorization
-  socket.on('join_superadmin_room', (data) => {
+  socket.on('join_superadmin_room', async (data) => {
     const token = (data && data.token) || socket.handshake.auth.token;
     if (!token) {
       console.log(`WARN: Socket ${socket.id} attempted to join superadmin room without token`);
@@ -109,7 +130,17 @@ io.on('connection', (socket) => {
 
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      if (decoded.role !== 'superadmin') {
+      let isSuperAdmin = decoded.role === 'superadmin';
+
+      if (!isSuperAdmin && decoded._id) {
+        const Admin = require('./models/Admin');
+        const adminUser = await Admin.findById(decoded._id);
+        if (adminUser && adminUser.role === 'superadmin') {
+          isSuperAdmin = true;
+        }
+      }
+
+      if (!isSuperAdmin) {
         console.log(`WARN: Socket ${socket.id} attempted to join superadmin room with invalid role: ${decoded.role}`);
         return;
       }

@@ -23,12 +23,23 @@ import {
   Plus,
   Edit2,
   Globe,
-  Sparkles
+  Sparkles,
+  FileText,
+  Radio,
+  GitBranch,
+  Sliders
 } from 'lucide-react';
 import SuperAdmin3DAnalytics from '../components/superadmin/SuperAdmin3DAnalytics';
+import SuperAdminMasterTemplates from '../components/superadmin/SuperAdminMasterTemplates';
+import SuperAdminBroadcasting from '../components/superadmin/SuperAdminBroadcasting';
+import SuperAdminJourneyBuilder from '../components/superadmin/SuperAdminJourneyBuilder';
+import SuperAdminChannelSettings from '../components/superadmin/SuperAdminChannelSettings';
+import SuperAdminCustomerIntelligence from '../components/superadmin/SuperAdminCustomerIntelligence';
+import { useSocket } from '../context/SocketContext';
 
 const SuperAdminPanel = () => {
   const { token, vendor, logout } = useContext(AuthContext); // vendor holds admin data
+  const { socket, connected } = useSocket();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('3d_analytics');
   const [stats, setStats] = useState(null);
@@ -74,36 +85,45 @@ const SuperAdminPanel = () => {
     };
   }, [token]);
 
+  // Join SuperAdmin Socket Room for real-time telemetry, QR pairing & broadcast progress
+  useEffect(() => {
+    if (socket && connected && token) {
+      socket.emit('join_superadmin_room', { token });
+    }
+  }, [socket, connected, token]);
+
   const fetchDashboardData = async (silent = false) => {
     if (!silent) setLoading(true);
     try {
-      const headers = { Authorization: `Bearer ${token}` };
       const url = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      const config = { 
+        headers: { Authorization: `Bearer ${token}` },
+        timeout: 6000 
+      };
       
       const [statsRes, vendorsRes, ordersRes, storesRes, financeRes, historyRes, locationsRes] = await Promise.all([
-        axios.get(`${url}/api/super-admin/stats`, { headers }),
-        axios.get(`${url}/api/super-admin/vendors`, { headers }),
-        axios.get(`${url}/api/super-admin/orders`, { headers }),
-        axios.get(`${url}/api/super-admin/stores`, { headers }),
-        axios.get(`${url}/api/super-admin/finance/summary`, { headers }),
-        axios.get(`${url}/api/super-admin/finance/history`, { headers }),
-        axios.get(`${url}/api/super-admin/locations`, { headers })
+        axios.get(`${url}/api/super-admin/stats`, config).catch(e => ({ data: null })),
+        axios.get(`${url}/api/super-admin/vendors`, config).catch(e => ({ data: [] })),
+        axios.get(`${url}/api/super-admin/orders`, config).catch(e => ({ data: [] })),
+        axios.get(`${url}/api/super-admin/stores`, config).catch(e => ({ data: [] })),
+        axios.get(`${url}/api/super-admin/finance/summary`, config).catch(e => ({ data: [] })),
+        axios.get(`${url}/api/super-admin/finance/history`, config).catch(e => ({ data: [] })),
+        axios.get(`${url}/api/super-admin/locations`, config).catch(e => ({ data: [] }))
       ]);
 
-      setStats(statsRes.data);
-      setVendors(vendorsRes.data);
-      setOrders(ordersRes.data);
-      setStores(storesRes.data);
-      setFinanceData(financeRes.data);
-      setSettlementHistory(historyRes.data);
-      setLocations(locationsRes.data);
+      if (statsRes?.data) setStats(statsRes.data);
+      if (vendorsRes?.data) setVendors(vendorsRes.data);
+      if (ordersRes?.data) setOrders(ordersRes.data);
+      if (storesRes?.data) setStores(storesRes.data);
+      if (financeRes?.data) setFinanceData(financeRes.data);
+      if (historyRes?.data) setSettlementHistory(historyRes.data);
+      if (locationsRes?.data) setLocations(locationsRes.data);
     } catch (err) {
-      if (err.response?.status === 403) {
-        alert('Forbidden: You are not a super admin.');
+      if (err.response?.status === 403 || err.response?.status === 401) {
         logout();
-        navigate('/vendor/login');
+        navigate('/super-admin/login');
       } else {
-        console.error('Failed to fetch SA data', err);
+        console.error('Failed to fetch SuperAdmin data:', err);
       }
     } finally {
       setLoading(false);
@@ -180,13 +200,26 @@ const SuperAdminPanel = () => {
   );
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--background)', color: 'var(--text-primary)' }}>
-      {/* Sidebar */}
-      <aside style={{ width: '280px', background: '#ffffff', borderRight: '1px solid var(--surface-border)', display: 'flex', flexDirection: 'column', position: 'fixed', height: '100vh', zIndex: 100 }}>
-        <div style={{ padding: '2rem', display: 'flex', alignItems: 'center', gap: '0.75rem', borderBottom: '1px solid var(--surface-border)' }}>
-          <img src="/helmet-guy.png" alt="UNIVERSE Symbol" style={{ width: '40px', height: '40px', objectFit: 'contain' }} />
+    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--background)' }}>
+      {/* Sidebar Navigation */}
+      <aside style={{ 
+        width: '280px', 
+        background: '#ffffff', 
+        borderRight: '1px solid var(--surface-border)', 
+        display: 'flex', 
+        flexDirection: 'column',
+        position: 'fixed',
+        top: 0,
+        bottom: 0,
+        zIndex: 100,
+        overflowY: 'auto'
+      }}>
+        <div style={{ padding: '2rem 1.5rem', borderBottom: '1px solid var(--surface-border)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'linear-gradient(135deg, #ef4123 0%, #ea580c 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ffffff', boxShadow: '0 4px 12px rgba(239, 65, 35, 0.2)' }}>
+            <Shield size={24} />
+          </div>
           <div>
-            <span style={{ fontSize: '1.25rem', fontWeight: '900', letterSpacing: '-0.02em', display: 'block', color: 'var(--text-primary)', fontFamily: "'Poppins', sans-serif" }}>UNIVERSE</span>
+            <h2 style={{ fontSize: '1.25rem', fontWeight: '900', margin: 0, letterSpacing: '-0.02em' }}>UniVerse</h2>
             <span style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Super Admin</span>
           </div>
         </div>
@@ -194,6 +227,11 @@ const SuperAdminPanel = () => {
         <nav style={{ padding: '1.5rem 1rem', flex: 1, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
           {[
             { id: '3d_analytics', icon: TrendingUp, label: 'Executive Analytics', badge: 'LIVE' },
+            { id: 'customers', icon: Users, label: 'Customer 360 & Audit', badge: 'NEW' },
+            { id: 'master_templates', icon: FileText, label: 'Master Templates' },
+            { id: 'broadcasting', icon: Radio, label: 'Broadcasting Hub' },
+            { id: 'journey_builder', icon: GitBranch, label: 'Journey Builder' },
+            { id: 'channel_settings', icon: Sliders, label: 'Channels & Devices', badge: '5 SLOTS' },
             { id: 'overview', icon: Activity, label: 'Platform Overview' },
             { id: 'vendors', icon: Users, label: 'Vendor Registry' },
             { id: 'stores', icon: Store, label: 'Store Directory' },
@@ -240,11 +278,44 @@ const SuperAdminPanel = () => {
       </aside>
 
       {/* Main Content */}
-      <main style={{ marginLeft: '280px', flex: 1, padding: '2.5rem 3rem' }}>
+      <main style={{
+        marginLeft: '280px',
+        flex: 1,
+        width: 'calc(100vw - 280px)',
+        maxWidth: 'calc(100vw - 280px)',
+        boxSizing: 'border-box',
+        padding: activeTab === 'journey_builder' ? '1.25rem 1.5rem' : '2.5rem 3rem',
+        overflowX: 'hidden'
+      }}>
         
         {/* 3D LIVE ANALYTICS TAB */}
         {activeTab === '3d_analytics' && (
           <SuperAdmin3DAnalytics token={token} />
+        )}
+
+        {/* CUSTOMER 360 & AUDIT LEDGER TAB */}
+        {activeTab === 'customers' && (
+          <SuperAdminCustomerIntelligence token={token} />
+        )}
+
+        {/* MASTER TEMPLATES TAB */}
+        {activeTab === 'master_templates' && (
+          <SuperAdminMasterTemplates token={token} />
+        )}
+
+        {/* BROADCASTING TAB */}
+        {activeTab === 'broadcasting' && (
+          <SuperAdminBroadcasting token={token} socket={socket} />
+        )}
+
+        {/* JOURNEY BUILDER TAB */}
+        {activeTab === 'journey_builder' && (
+          <SuperAdminJourneyBuilder token={token} />
+        )}
+
+        {/* CHANNELS & DEVICE SETTINGS TAB */}
+        {activeTab === 'channel_settings' && (
+          <SuperAdminChannelSettings token={token} socket={socket} />
         )}
 
         {/* OVERVIEW TAB */}

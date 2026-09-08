@@ -1,4 +1,4 @@
-﻿node_modules/
+node_modules/
 .env
 dist/
 uploads/
@@ -8,3 +8,5 @@ backend/config/firebase-key.json
 *.pem
 *.key
 *.apk
+backend/sessions/
+scratch/

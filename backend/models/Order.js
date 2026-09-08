@@ -17,7 +17,11 @@ const OrderSchema = new mongoose.Schema({
   items: [OrderItemSchema],
   totalAmount: { type: Number, required: true },
   paymentMethod: { type: String, enum: ['Razorpay', 'UPI'], default: 'Razorpay' },
-  status: { type: String, enum: ['Payment Pending', 'Pending', 'Confirmed', 'Cooking', 'Ready', 'Completed', 'Cancelled'], default: 'Payment Pending' },
+  status: { 
+    type: String, 
+    enum: ['Payment Pending', 'Pending', 'Confirmed', 'Cooking', 'Ready', 'Completed', 'Cancelled'], 
+    default: 'Payment Pending' 
+  },
   paymentStatus: { 
     type: String, 
     enum: ['Pending', 'Confirmed', 'Failed'], 
@@ -25,12 +29,34 @@ const OrderSchema = new mongoose.Schema({
   },
   orderType: { type: String, enum: ['Dine In', 'Take Away'], default: 'Dine In' },
   packagingChargeApplied: { type: Number, default: 0 },
-  customerPhone: { type: String },
-  customerName: { type: String },
-  transactionId: { type: String, unique: true, sparse: true },
+
+  // Customer Identity & Historical Snapshot
+  userId: { type: String, ref: 'Customer', index: true }, // Stable customer account ID (e.g. USR-XXXXX)
+  customerPhone: { type: String, required: true, index: true }, // Snapshot phone at checkout
+  customerName: { type: String, default: 'UniVerse Student' }, // Snapshot name at checkout
+  customerEmail: { type: String, default: '' }, // Optional snapshot email at checkout
+
+  // Financial & Payment Gateway Tracking
+  transactionId: { type: String, unique: true, sparse: true }, // Razorpay pay_xxxxx
   paymentProvider: { type: String, default: 'Razorpay' },
+  
+  // Refund Tracking
+  refundId: { type: String }, // Razorpay rfnd_xxxxx or manual ref
+  refundAmount: { type: Number, default: 0 },
+  refundStatus: { 
+    type: String, 
+    enum: ['None', 'Requested', 'Initiated', 'Processed', 'Failed'], 
+    default: 'None' 
+  },
+  refundIdempotencyKey: { type: String, unique: true, sparse: true },
+  cancellationReason: { type: String },
+  cancelledBy: { 
+    actorType: { type: String, enum: ['VENDOR_STAFF', 'SYSTEM', 'SUPER_ADMIN'] },
+    actorId: { type: String }
+  },
+
   acceptDeadline: { type: Date },
-  handoverToken: { type: String, select: false }, // Store hashed token here (select: false so it doesn't leak in generic queries)
+  handoverToken: { type: String, select: false },
   handoverTokenExpiresAt: { type: Date },
   handoverTokenUsedAt: { type: Date },
   isPreOrder: { type: Boolean, default: false },
@@ -39,7 +65,7 @@ const OrderSchema = new mongoose.Schema({
   reminder15Sent: { type: Boolean, default: false },
   reminder10Sent: { type: Boolean, default: false },
   
-  // Finance Tracking
+  // Finance Payout & Settlement
   isSettled: { type: Boolean, default: false },
   settlementId: { type: mongoose.Schema.Types.ObjectId, ref: 'Settlement' }
 }, { timestamps: true });

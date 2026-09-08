@@ -5,6 +5,7 @@ const Order = require('../models/Order');
 const Store = require('../models/Store');
 const Admin = require('../models/Admin');
 const notificationService = require('../services/notificationService');
+const journeyEngineService = require('../services/journeyEngineService');
 
 const crypto = require('crypto');
 
@@ -172,6 +173,40 @@ router.put('/:id/status', auth, async (req, res) => {
       });
     }
 
+    const auditService = require('../services/auditService');
+    const refundService = require('../services/refundService');
+
+    // If order was cancelled / rejected by vendor, trigger 100% automated refund and WhatsApp alert
+    if (status === 'Cancelled') {
+      const reason = req.body.reason || 'Kitchen closed or item out of stock';
+      refundService.processAutomatedRefund({
+        orderId: updatedOrder._id,
+        reason,
+        actorType: 'VENDOR_STAFF',
+        actorId: req.admin?.name || 'VENDOR_STAFF'
+      }).catch(err => console.error('[OrderUpdate] Auto refund error:', err.message));
+    } else {
+      // Log event in immutable audit trail
+      let eventType = 'ORDER_ACCEPTED';
+      if (status === 'Cooking') eventType = 'ORDER_COOKING';
+      else if (status === 'Ready') eventType = 'ORDER_READY';
+
+      auditService.logEvent({
+        orderId: updatedOrder._id,
+        orderNumber: updatedOrder.orderNumber,
+        userId: updatedOrder.userId,
+        actorType: 'VENDOR_STAFF',
+        actorId: req.admin?.name || 'VENDOR_STAFF',
+        eventType,
+        oldStatus: expectedCurrentStatuses[0] || 'Pending',
+        newStatus: status,
+        metadata: {
+          storeName: updatedOrder.store?.name || 'Kitchen Counter',
+          prepTime: status === 'Ready' ? new Date() : null
+        }
+      }).catch(err => console.error('[AuditService] Log event error:', err.message));
+    }
+
     const io = req.app.get('io');
     // Notify customer
     io.to(updatedOrder._id.toString()).emit('order_status_update', updatedOrder);
@@ -179,6 +214,38 @@ router.put('/:id/status', auth, async (req, res) => {
     io.to(updatedOrder.store._id.toString()).emit('order_status_update', updatedOrder);
     // Notify superadmin room for real-time 3D graphs
     io.to('superadmin_room').emit('superadmin:order_update', updatedOrder);
+
+    // Trigger / Resume Lifecycle Journey Automation across all order status transitions
+    if (updatedOrder.customerPhone) {
+      const orderPayload = {
+        userId: updatedOrder.userId || updatedOrder.customerPhone,
+        name: updatedOrder.customerName || 'Student',
+        phone: updatedOrder.customerPhone,
+        metadata: {
+          orderId: updatedOrder.orderNumber || updatedOrder._id.toString(),
+          orderNumber: updatedOrder.orderNumber || '',
+          storeName: updatedOrder.store?.name || 'Campus Food Court',
+          amount: updatedOrder.totalAmount
+        }
+      };
+
+      if (status === 'Cooking' || status === 'Confirmed') {
+        journeyEngineService.resumeOrderJourney(updatedOrder._id, 'Order Accepted', orderPayload)
+          .catch(e => console.error('[JourneyEngine] Order Accepted resume error:', e.message));
+        journeyEngineService.triggerEvent('Order Accepted', orderPayload)
+          .catch(e => console.error('[JourneyEngine] Order Accepted trigger error:', e.message));
+      } else if (status === 'Ready') {
+        journeyEngineService.resumeOrderJourney(updatedOrder._id, 'Order Ready', orderPayload)
+          .catch(e => console.error('[JourneyEngine] Order Ready resume error:', e.message));
+        journeyEngineService.triggerEvent('Order Ready', orderPayload)
+          .catch(e => console.error('[JourneyEngine] Order Ready trigger error:', e.message));
+      } else if (status === 'Cancelled') {
+        journeyEngineService.resumeOrderJourney(updatedOrder._id, 'Order Rejected', orderPayload)
+          .catch(e => console.error('[JourneyEngine] Order Rejected resume error:', e.message));
+        journeyEngineService.triggerEvent('Order Cancelled', orderPayload)
+          .catch(e => console.error('[JourneyEngine] Order Cancelled trigger error:', e.message));
+      }
+    }
 
     res.json(updatedOrder);
   } catch (err) {
@@ -285,10 +352,70 @@ router.put('/verify-handover', auth, async (req, res) => {
     // Also notify vendors in the store room so dashboards update
     io.to(updatedOrder.store._id.toString()).emit('order_status_update', updatedOrder);
 
-    // Notify superadmin room
-    io.to('superadmin_room').emit('superadmin:order_update', updatedOrder);
+    // Log ORDER_COMPLETED event in immutable audit trail
+    const auditService = require('../services/auditService');
+    auditService.logEvent({
+      orderId: updatedOrder._id,
+      orderNumber: updatedOrder.orderNumber,
+      userId: updatedOrder.userId,
+      actorType: 'VENDOR_STAFF',
+      actorId: req.admin?.name || 'VENDOR_STAFF',
+      eventType: 'ORDER_COMPLETED',
+      oldStatus: 'Ready',
+      newStatus: 'Completed',
+      metadata: {
+        storeName: updatedOrder.store?.name || 'Kitchen Counter',
+        handoverTime: new Date()
+      }
+    }).catch(err => console.error('[AuditService] Handover log error:', err.message));
+
+    // Trigger / Resume Lifecycle Journey Automation for verified QR handover
+    if (updatedOrder.customerPhone) {
+      const orderPayload = {
+        userId: updatedOrder.userId || updatedOrder.customerPhone,
+        name: updatedOrder.customerName || 'Student',
+        phone: updatedOrder.customerPhone,
+        metadata: {
+          orderId: updatedOrder.orderNumber || updatedOrder._id.toString(),
+          orderNumber: updatedOrder.orderNumber || '',
+          storeName: updatedOrder.store?.name || 'Campus Food Court',
+          amount: updatedOrder.totalAmount
+        }
+      };
+
+      journeyEngineService.resumeOrderJourney(updatedOrder._id, 'Order Completed', orderPayload)
+        .catch(e => console.error('[JourneyEngine] Handover resume error:', e.message));
+      journeyEngineService.triggerEvent('Order Completed', orderPayload)
+        .catch(e => console.error('[JourneyEngine] Handover trigger error:', e.message));
+    }
 
     res.json({ success: true, message: 'Handover verified and order completed', order: updatedOrder });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// Quick Customer Lookup for Checkout Pre-fill (Safe, no sensitive data exposed)
+router.get('/customer/lookup', async (req, res) => {
+  try {
+    const { phone } = req.query;
+    if (!phone) return res.json({ exists: false });
+
+    const cleanPhone = phone.toString().replace(/\D/g, '');
+    const Customer = require('../models/Customer');
+    const customer = await Customer.findOne({ 
+      phone: { $regex: cleanPhone.slice(-10) } 
+    }).select('currentName email campus -_id');
+
+    if (!customer) {
+      return res.json({ exists: false });
+    }
+
+    res.json({
+      exists: true,
+      currentName: customer.currentName,
+      email: customer.email || ''
+    });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

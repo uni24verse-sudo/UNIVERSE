@@ -51,8 +51,8 @@ router.post('/login', async (req, res) => {
     const validPassword = await bcrypt.compare(password, admin.password);
     if (!validPassword) return res.status(400).json({ message: 'Invalid email or password' });
 
-    // Create and assign token
-    const token = jwt.sign({ _id: admin._id, name: admin.name }, process.env.JWT_SECRET, { expiresIn: '10h' });
+    // Create and assign token with role
+    const token = jwt.sign({ _id: admin._id, name: admin.name, role: admin.role }, process.env.JWT_SECRET, { expiresIn: '7d' });
     res.header('Authorization', token).json({ 
       token, 
       admin: { 
