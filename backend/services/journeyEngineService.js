@@ -70,6 +70,9 @@ class JourneyEngineService {
       await Journey.findByIdAndUpdate(journey._id, { $inc: { totalEnrolled: 1 } });
       console.log(`[JourneyEngine] Enrolled user ${name} (${phone}) into "${journey.name}" at node ${firstActiveNode.id}`);
 
+      // Attach populated journey so executeNode can access journey.nodes directly
+      state.journeyId = journey;
+
       // If first node is an immediate action/condition, execute it right away
       if (firstActiveNode.type !== 'delay' && firstActiveNode.type !== 'wait_event') {
         await this.executeNode(state);
@@ -194,7 +197,13 @@ class JourneyEngineService {
    */
   async executeNode(state) {
     try {
-      const journey = state.journeyId;
+      // Ensure journey is fully populated (not just an ObjectId reference)
+      let journey = state.journeyId;
+      if (!journey || !journey.nodes) {
+        // journeyId is an ObjectId ref - need to populate it
+        await state.populate('journeyId');
+        journey = state.journeyId;
+      }
       if (!journey || journey.status !== 'Active') {
         state.status = 'Cancelled';
         await state.save();

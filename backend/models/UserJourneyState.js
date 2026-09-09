@@ -29,11 +29,14 @@ const UserJourneyStateSchema = new mongoose.Schema({
     action: String,
     channelAccountId: mongoose.Schema.Types.ObjectId,
     status: String,
+    recipient: String,
+    renderedBody: String,
+    slotIndex: Number,
     executedAt: { type: Date, default: Date.now }
   }],
   status: {
     type: String,
-    enum: ['Pending', 'Completed', 'Failed', 'Cancelled'],
+    enum: ['Pending', 'Waiting_Event', 'Completed', 'Failed', 'Cancelled'],
     default: 'Pending'
   },
   createdAt: { type: Date, default: Date.now }
@@ -41,5 +44,6 @@ const UserJourneyStateSchema = new mongoose.Schema({
 
 UserJourneyStateSchema.index({ journeyId: 1, phone: 1, status: 1 });
 UserJourneyStateSchema.index({ scheduledExecutionTime: 1, status: 1 });
+UserJourneyStateSchema.index({ 'metadata.orderId': 1, status: 1 });
 
 module.exports = mongoose.model('UserJourneyState', UserJourneyStateSchema);
