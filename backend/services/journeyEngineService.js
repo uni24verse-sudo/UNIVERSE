@@ -61,6 +61,12 @@ class JourneyEngineService {
       await state.save();
       await Journey.findByIdAndUpdate(journey._id, { $inc: { totalEnrolled: 1 } });
       console.log(`[JourneyEngine] Enrolled user ${name} (${phone}) into "${journey.name}" at node ${firstActiveNode.id}`);
+
+      // If first node is an immediate action/condition, execute it right away
+      if (firstActiveNode.type !== 'delay' && firstActiveNode.type !== 'wait_event') {
+        await this.executeNode(state);
+      }
+
       return state;
     } catch (err) {
       console.error('[JourneyEngine] Enrollment Error:', err.message);
