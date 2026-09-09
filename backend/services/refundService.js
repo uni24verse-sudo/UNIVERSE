@@ -52,7 +52,7 @@ const processAutomatedRefund = async ({
         const razorpay = getRazorpay();
         const refundResponse = await razorpay.payments.refund(order.transactionId, {
           amount: Math.round(order.totalAmount * 100), // paise
-          speed: 'normal',
+          speed: 'optimum', // ⚡ Prioritizes Instant Refund from pre-funded Refund Credits pool
           notes: {
             reason: reason.substring(0, 250),
             orderId: order._id.toString(),
