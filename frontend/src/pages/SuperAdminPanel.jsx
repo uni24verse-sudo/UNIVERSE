@@ -295,7 +295,7 @@ const SuperAdminPanel = () => {
 
         {/* CUSTOMER 360 & AUDIT LEDGER TAB */}
         {activeTab === 'customers' && (
-          <SuperAdminCustomerIntelligence token={token} />
+          <SuperAdminCustomerIntelligence token={token} socket={socket} />
         )}
 
         {/* MASTER TEMPLATES TAB */}
