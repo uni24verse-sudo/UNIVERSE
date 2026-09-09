@@ -394,11 +394,11 @@ const SuperAdminJourneyBuilder = ({ token }) => {
       },
       {
         id: 'node_wait_decision',
-        type: 'condition',
-        label: '2. Kitchen Decision (Fork)',
+        type: 'wait_event',
+        label: '2. Wait for Kitchen Decision',
         config: {
-          conditionType: 'order_status_accepted',
-          conditionLabel: 'Vendor Decision (Accepted vs Rejected)'
+          eventType: 'order_decision',
+          timeoutMinutes: 30
         },
         position: { x: 980, y: 160 },
         nextNodeId: 'node_msg_accepted',

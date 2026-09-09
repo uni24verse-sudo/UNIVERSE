@@ -156,22 +156,30 @@ class JourneyEngineService {
 
         // 1. If at wait_event node
         if (node.type === 'wait_event') {
-          const targetEvent = node.config?.eventType || 'order_completed';
-          if (
-            (targetEvent === 'order_decision' && (eventType === 'Order Accepted' || eventType === 'Order Rejected')) ||
-            (targetEvent === 'order_ready' && eventType === 'Order Ready') ||
-            (targetEvent === 'order_completed' && eventType === 'Order Completed')
-          ) {
-            if (targetEvent === 'order_decision') {
-              nextNodeId = eventType === 'Order Accepted' ? (node.trueNodeId || node.nextNodeId) : (node.falseNodeId || null);
+          const targetEvent = (node.config?.eventType || 'order_completed').toLowerCase().replace(/[\s_-]+/g, '');
+          const incomingEvent = (eventType || '').toLowerCase().replace(/[\s_-]+/g, '');
+
+          const isDecision = (targetEvent.includes('decision') || targetEvent.includes('accept')) && (incomingEvent.includes('accept') || incomingEvent.includes('reject'));
+          const isReady = (targetEvent.includes('ready')) && incomingEvent.includes('ready');
+          const isCompleted = (targetEvent.includes('complete') || targetEvent.includes('handover')) && incomingEvent.includes('complete');
+          const isExact = targetEvent === incomingEvent;
+
+          if (isDecision || isReady || isCompleted || isExact) {
+            if (isDecision || targetEvent.includes('decision')) {
+              nextNodeId = (incomingEvent.includes('accept') || incomingEvent.includes('cooking') || incomingEvent.includes('confirm'))
+                ? (node.trueNodeId || node.nextNodeId)
+                : (node.falseNodeId || null);
             } else {
               nextNodeId = node.nextNodeId;
             }
           }
-        } else if (node.type === 'condition' && (node.config?.conditionType === 'order_decision' || node.config?.conditionType === 'is_accepted')) {
-          nextNodeId = (eventType === 'Order Accepted' || eventType === 'Order Ready' || eventType === 'Order Completed')
-            ? (node.trueNodeId || node.nextNodeId)
-            : (node.falseNodeId || null);
+        } else if (node.type === 'condition') {
+          const cond = (node.config?.conditionType || '').toLowerCase();
+          const incomingEvent = (eventType || '').toLowerCase().replace(/[\s_-]+/g, '');
+          if (cond.includes('decision') || cond.includes('accept') || cond.includes('status')) {
+            const isAccepted = incomingEvent.includes('accept') || incomingEvent.includes('cooking') || incomingEvent.includes('confirm') || incomingEvent.includes('ready') || incomingEvent.includes('complete');
+            nextNodeId = isAccepted ? (node.trueNodeId || node.nextNodeId) : (node.falseNodeId || null);
+          }
         }
 
         if (nextNodeId) {
