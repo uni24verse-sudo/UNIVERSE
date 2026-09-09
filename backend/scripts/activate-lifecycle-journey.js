@@ -18,6 +18,11 @@ async function run() {
   await mongoose.connect(process.env.MONGODB_URI);
   console.log('Connected to MongoDB Atlas');
 
+  // 1. Remove duplicate Repeat Order Placed journey to avoid duplicate messages
+  const delRes = await Journey.deleteMany({ triggerType: 'Repeat Order Placed' });
+  console.log('Deleted duplicate repeat journeys:', delRes.deletedCount);
+
+  // 2. Ensure the primary Real-Time Order Lifecycle Flow has all button text properly set
   const lifecycleNodes = [
     {
       id: 'node_order_placed',
@@ -129,50 +134,24 @@ async function run() {
     }
   ];
 
-  let journey = await Journey.findOne({ triggerType: 'Order Placed' });
-  if (!journey) {
-    journey = new Journey({
+  await Journey.findOneAndUpdate(
+    { triggerType: 'Order Placed' },
+    {
       name: '⚡ Real-Time Order Lifecycle Flow',
-      description: 'Instant WhatsApp notifications across Placed -> Accepted/Rejected -> Ready -> Completed -> Feedback',
+      description: 'Single source of truth for Order Placed -> Accepted -> Ready -> Completed -> Feedback',
       triggerType: 'Order Placed',
       nodes: lifecycleNodes,
       status: 'Active',
       updatedAt: new Date()
-    });
-    await journey.save();
-    console.log('✅ Created and Activated Real-Time Order Lifecycle Journey:', journey._id);
-  } else {
-    journey.name = '⚡ Real-Time Order Lifecycle Flow';
-    journey.nodes = lifecycleNodes;
-    journey.status = 'Active';
-    journey.updatedAt = new Date();
-    await journey.save();
-    console.log('✅ Updated and Activated existing Journey:', journey._id);
-  }
-
-  // Also ensure any Repeat Order Placed trigger is handled if present
-  let repeatJourney = await Journey.findOne({ triggerType: 'Repeat Order Placed' });
-  if (!repeatJourney) {
-    repeatJourney = new Journey({
-      name: '🔁 Repeat Order Lifecycle Flow',
-      description: 'Instant WhatsApp notifications for returning students across Placed -> Accepted -> Ready -> Completed',
-      triggerType: 'Repeat Order Placed',
-      nodes: lifecycleNodes,
-      status: 'Active',
-      updatedAt: new Date()
-    });
-    await repeatJourney.save();
-    console.log('✅ Created and Activated Repeat Order Lifecycle Journey:', repeatJourney._id);
-  } else {
-    repeatJourney.nodes = lifecycleNodes;
-    repeatJourney.status = 'Active';
-    await repeatJourney.save();
-    console.log('✅ Updated Repeat Order Lifecycle Journey:', repeatJourney._id);
-  }
+    },
+    { upsert: true }
+  );
 
   const all = await Journey.find({});
-  console.log('\n--- ALL ACTIVE JOURNEYS IN DATABASE ---');
-  all.forEach(j => console.log(`• [${j.status}] ${j.name} (Trigger: "${j.triggerType}", Nodes: ${j.nodes?.length})`));
+  console.log('\n--- ACTIVE JOURNEYS IN DATABASE ---');
+  all.forEach(j => {
+    console.log(`• [${j.status}] ${j.name} (Trigger: ${j.triggerType}, Nodes: ${j.nodes ? j.nodes.length : 0})`);
+  });
 
   process.exit(0);
 }

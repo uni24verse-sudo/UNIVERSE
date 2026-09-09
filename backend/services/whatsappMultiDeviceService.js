@@ -350,15 +350,19 @@ class WhatsAppMultiDeviceService {
     // Append action buttons text if provided
     if (messagePayload.buttons && messagePayload.buttons.length > 0) {
       const buttonLines = messagePayload.buttons.map(b => {
-        if (b.type === 'URL') return `🔗 ${b.text}: ${b.value}`;
-        if (b.type === 'PHONE_NUMBER') return `📞 ${b.text}: ${b.value}`;
-        return `👉 [ ${b.text} ]`;
-      }).join('\n');
+        const text = b.text || b.buttonText?.displayText || b.displayText || (typeof b === 'string' ? b : '');
+        if (!text || text.trim() === '' || text === 'undefined') return '';
+        if (b.type === 'URL' || b.url) return `🔗 ${text}: ${b.value || b.url}`;
+        if (b.type === 'PHONE_NUMBER' || b.phoneNumber) return `📞 ${text}: ${b.value || b.phoneNumber}`;
+        return `👉 [ ${text} ]`;
+      }).filter(Boolean).join('\n');
 
-      if (messageContent.caption) {
-        messageContent.caption += `\n\n${buttonLines}`;
-      } else {
-        messageContent.text += `\n\n${buttonLines}`;
+      if (buttonLines) {
+        if (messageContent.caption) {
+          messageContent.caption += `\n\n${buttonLines}`;
+        } else {
+          messageContent.text += `\n\n${buttonLines}`;
+        }
       }
     }
 

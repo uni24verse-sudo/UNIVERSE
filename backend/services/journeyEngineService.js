@@ -359,11 +359,11 @@ class JourneyEngineService {
 
       // Construct dynamic buttons if customized
       let buttons = template?.buttons || [];
-      if (btn1Text || btn2Text) {
+      if (btn1Text || btn2Text || btn3Text) {
         buttons = [];
-        if (btn1Text) buttons.push({ buttonId: 'btn_1', buttonText: { displayText: btn1Text }, type: 1 });
-        if (btn2Text) buttons.push({ buttonId: 'btn_2', buttonText: { displayText: btn2Text }, type: 1 });
-        if (btn3Text) buttons.push({ buttonId: 'btn_3', buttonText: { displayText: btn3Text }, type: 1 });
+        if (btn1Text) buttons.push({ buttonId: 'btn_1', text: btn1Text, buttonText: { displayText: btn1Text }, type: 1 });
+        if (btn2Text) buttons.push({ buttonId: 'btn_2', text: btn2Text, buttonText: { displayText: btn2Text }, type: 1 });
+        if (btn3Text) buttons.push({ buttonId: 'btn_3', text: btn3Text, buttonText: { displayText: btn3Text }, type: 1 });
       }
 
       const payload = {
