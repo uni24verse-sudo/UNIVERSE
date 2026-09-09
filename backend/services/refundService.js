@@ -32,11 +32,11 @@ const processAutomatedRefund = async ({
       return { success: false, message: 'Order not found' };
     }
 
-    // Idempotency: If already refunded/processed, avoid double processing
-    if (order.refundStatus === 'Processed' || order.status === 'Cancelled') {
+    // Idempotency: If already refunded, avoid double processing
+    if (order.refundStatus === 'Processed' || order.refundStatus === 'Refunded') {
       return { 
         success: true, 
-        message: 'Order was already processed or refunded', 
+        message: 'Order was already refunded', 
         refundId: order.refundId 
       };
     }
