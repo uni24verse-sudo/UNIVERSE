@@ -347,21 +347,22 @@ class WhatsAppMultiDeviceService {
       };
     }
 
-    // Append action buttons text if provided
+    // Omit fake text-bullet pseudo-buttons (👉 [ ... ]) as they are unclickable and look odd.
+    // Only include actual URL links if explicitly provided with a web destination.
     if (messagePayload.buttons && messagePayload.buttons.length > 0) {
-      const buttonLines = messagePayload.buttons.map(b => {
-        const text = b.text || b.buttonText?.displayText || b.displayText || (typeof b === 'string' ? b : '');
-        if (!text || text.trim() === '' || text === 'undefined') return '';
-        if (b.type === 'URL' || b.url) return `🔗 ${text}: ${b.value || b.url}`;
-        if (b.type === 'PHONE_NUMBER' || b.phoneNumber) return `📞 ${text}: ${b.value || b.phoneNumber}`;
-        return `👉 [ ${text} ]`;
-      }).filter(Boolean).join('\n');
+      const linkLines = messagePayload.buttons
+        .filter(b => (b.type === 'URL' || b.url) && (b.value || b.url))
+        .map(b => {
+          const text = b.text || b.buttonText?.displayText || 'Link';
+          return `🔗 ${text}: ${b.value || b.url}`;
+        })
+        .join('\n');
 
-      if (buttonLines) {
+      if (linkLines) {
         if (messageContent.caption) {
-          messageContent.caption += `\n\n${buttonLines}`;
+          messageContent.caption += `\n\n${linkLines}`;
         } else {
-          messageContent.text += `\n\n${buttonLines}`;
+          messageContent.text += `\n\n${linkLines}`;
         }
       }
     }

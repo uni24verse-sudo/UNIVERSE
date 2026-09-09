@@ -46,6 +46,23 @@ class JourneyEngineService {
         scheduledTime = new Date(Date.now() + Math.max(delayMs, 1000));
       }
 
+      // Prevent duplicate enrollment for the same order in the same journey
+      const orderIdentifier = metadata?.orderId || metadata?.orderNumber;
+      if (orderIdentifier) {
+        const existingState = await UserJourneyState.findOne({
+          journeyId: journey._id,
+          status: { $in: ['Pending', 'Waiting_Event'] },
+          $or: [
+            { 'metadata.orderId': orderIdentifier.toString() },
+            { 'metadata.orderNumber': orderIdentifier.toString() }
+          ]
+        });
+        if (existingState) {
+          console.log(`[JourneyEngine] Order ${orderIdentifier} already active in "${journey.name}" - skipping duplicate enrollment.`);
+          return existingState;
+        }
+      }
+
       const state = new UserJourneyState({
         journeyId: journey._id,
         userId: userId || null,
@@ -131,14 +148,21 @@ class JourneyEngineService {
       if (!orderId) return;
       const orderIdStr = orderId.toString();
 
-      const activeStates = await UserJourneyState.find({
+      const orderNumStr = (orderDetails?.metadata?.orderNumber || orderDetails?.metadata?.orderId || '').toString();
+
+      const query = {
         status: { $in: ['Pending', 'Waiting_Event'] },
         $or: [
           { 'metadata.orderId': orderIdStr },
-          { 'metadata.orderNumber': orderDetails?.metadata?.orderNumber || '' },
-          { phone: orderDetails?.phone || '__none__' }
+          { 'metadata.orderNumber': orderIdStr }
         ]
-      }).populate('journeyId');
+      };
+      if (orderNumStr) {
+        query.$or.push({ 'metadata.orderId': orderNumStr });
+        query.$or.push({ 'metadata.orderNumber': orderNumStr });
+      }
+
+      const activeStates = await UserJourneyState.find(query).populate('journeyId');
 
       for (const state of activeStates) {
         const journey = state.journeyId;
