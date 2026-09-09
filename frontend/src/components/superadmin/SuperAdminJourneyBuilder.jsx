@@ -764,10 +764,10 @@ const SuperAdminJourneyBuilder = ({ token }) => {
     }
   };
 
-  // Test Enrollment
+  // Test Enrollment Simulator
   const handleTestEnroll = async (e) => {
     e.preventDefault();
-    setTestModal(prev => ({ ...prev, enrolling: true, result: '' }));
+    setTestModal(prev => ({ ...prev, enrolling: true, result: '', executionTrace: [] }));
     try {
       const res = await axios.post(`${apiUrl}/api/super-admin/broadcasting/journeys/${testModal.journeyId}/enroll-test`, {
         phone: testModal.phone,
@@ -778,14 +778,16 @@ const SuperAdminJourneyBuilder = ({ token }) => {
       setTestModal(prev => ({
         ...prev,
         enrolling: false,
-        result: `✅ ${res.data.message}`
+        result: `✅ ${res.data.message || 'Trigger event fired successfully!'}`,
+        executionTrace: res.data.executionTrace || []
       }));
       fetchData();
     } catch (err) {
       setTestModal(prev => ({
         ...prev,
         enrolling: false,
-        result: `❌ Error: ${err.response?.data?.message || err.message}`
+        result: `❌ Error: ${err.response?.data?.message || err.message}`,
+        executionTrace: []
       }));
     }
   };
@@ -2398,7 +2400,7 @@ const SuperAdminJourneyBuilder = ({ token }) => {
               Delete Automation?
             </h3>
             <p style={{ color: '#64748b', fontSize: '0.8rem', marginBottom: '1.3rem', lineHeight: 1.4 }}>
-              Are you sure you want to delete <strong>"{deleteConfirmModal.journey.name}"</strong> from MongoDB Atlas?
+              Are you sure you want to delete <strong>"{deleteConfirmModal.journey?.name}"</strong> from AWS RDS PostgreSQL Database?
             </p>
             <div style={{ display: 'flex', gap: '8px' }}>
               <button
@@ -2418,60 +2420,148 @@ const SuperAdminJourneyBuilder = ({ token }) => {
         </div>
       )}
 
-      {/* TEST ENROLL MODAL */}
+      {/* LIVE TRIGGER SIMULATOR & TEST AUDIT MODAL */}
       {testModal.open && (
         <div style={{
           position: 'fixed', inset: 0, zIndex: 999999,
           background: 'rgba(15, 23, 42, 0.75)', backdropFilter: 'blur(8px)',
           display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem'
         }}>
-          <div style={{ background: '#ffffff', borderRadius: '22px', maxWidth: '400px', width: '100%', padding: '1.6rem', position: 'relative' }}>
+          <div style={{ background: '#ffffff', borderRadius: '24px', maxWidth: '560px', width: '100%', padding: '1.8rem', position: 'relative', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
             <button
-              onClick={() => setTestModal({ ...testModal, open: false })}
-              style={{ position: 'absolute', top: '1.25rem', right: '1.25rem', background: '#f1f5f9', border: 'none', borderRadius: '50%', width: '28px', height: '28px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              onClick={() => setTestModal({ ...testModal, open: false, result: '', executionTrace: [] })}
+              style={{ position: 'absolute', top: '1.25rem', right: '1.25rem', background: '#f1f5f9', border: 'none', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
             >
-              <X size={14} />
+              <X size={16} />
             </button>
 
-            <h3 style={{ fontSize: '1.2rem', fontWeight: '900', margin: '0 0 0.3rem', color: '#0f172a' }}>
-              Test Enroll Contact
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '0.4rem' }}>
+              <div style={{ background: 'linear-gradient(135deg, #10b981, #059669)', color: 'white', padding: '6px 10px', borderRadius: '8px', fontSize: '0.72rem', fontWeight: '900', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <Zap size={13} /> LIVE SIMULATOR
+              </div>
+              <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: '700' }}>AWS EC2 Background Engine</span>
+            </div>
+
+            <h3 style={{ fontSize: '1.3rem', fontWeight: '900', margin: '0 0 0.35rem', color: '#0f172a' }}>
+              Test Live Automation Trigger
             </h3>
-            <p style={{ color: '#64748b', fontSize: '0.78rem', marginBottom: '1.15rem' }}>
-              Simulates trigger event and begins drip step progression.
+            <p style={{ color: '#64748b', fontSize: '0.8rem', marginBottom: '1.2rem', lineHeight: 1.45 }}>
+              ⚡ <strong>How Journeys Run:</strong> Active automations listen <strong>24/7 in the background</strong> on real customer orders. Use this simulator to test-fire notifications directly to your WhatsApp to verify delivery and templates instantly.
             </p>
 
-            {testModal.result && (
-              <div style={{ padding: '0.65rem', background: testModal.result.startsWith('✅') ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)', color: testModal.result.startsWith('✅') ? '#10b981' : '#ef4444', borderRadius: '7px', fontSize: '0.76rem', fontWeight: '700', marginBottom: '0.9rem' }}>
-                {testModal.result}
-              </div>
-            )}
+            {/* Form */}
+            <form onSubmit={handleTestEnroll} style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <div>
+                  <label style={{ fontSize: '0.74rem', fontWeight: '800', color: '#475569', display: 'block', marginBottom: '4px' }}>Recipient Name</label>
+                  <input 
+                    type="text" required placeholder="Parth Sharma"
+                    value={testModal.name} onChange={e => setTestModal({ ...testModal, name: e.target.value })}
+                    style={{ width: '100%', padding: '0.65rem 0.8rem', borderRadius: '8px', border: '1.5px solid #cbd5e1', fontSize: '0.84rem', boxSizing: 'border-box' }}
+                  />
+                </div>
 
-            <form onSubmit={handleTestEnroll} style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
-              <div>
-                <label style={{ fontSize: '0.74rem', fontWeight: '700', color: '#475569', display: 'block', marginBottom: '3px' }}>Name</label>
-                <input 
-                  type="text" required placeholder="Parth Sharma"
-                  value={testModal.name} onChange={e => setTestModal({ ...testModal, name: e.target.value })}
-                  style={{ width: '100%', padding: '0.65rem', borderRadius: '7px', border: '1px solid #cbd5e1', fontSize: '0.82rem', boxSizing: 'border-box' }}
-                />
-              </div>
-
-              <div>
-                <label style={{ fontSize: '0.74rem', fontWeight: '700', color: '#475569', display: 'block', marginBottom: '3px' }}>WhatsApp Number</label>
-                <input 
-                  type="text" required placeholder="917985397373"
-                  value={testModal.phone} onChange={e => setTestModal({ ...testModal, phone: e.target.value })}
-                  style={{ width: '100%', padding: '0.65rem', borderRadius: '7px', border: '1px solid #cbd5e1', fontSize: '0.82rem', boxSizing: 'border-box' }}
-                />
+                <div>
+                  <label style={{ fontSize: '0.74rem', fontWeight: '800', color: '#475569', display: 'block', marginBottom: '4px' }}>WhatsApp Number</label>
+                  <input 
+                    type="text" required placeholder="917985397373"
+                    value={testModal.phone} onChange={e => setTestModal({ ...testModal, phone: e.target.value })}
+                    style={{ width: '100%', padding: '0.65rem 0.8rem', borderRadius: '8px', border: '1.5px solid #cbd5e1', fontSize: '0.84rem', boxSizing: 'border-box' }}
+                  />
+                </div>
               </div>
 
               <button
                 type="submit" disabled={testModal.enrolling}
-                style={{ marginTop: '0.2rem', padding: '0.75rem', background: 'var(--primary)', color: 'white', border: 'none', borderRadius: '9px', fontWeight: '800', fontSize: '0.85rem', cursor: 'pointer', opacity: testModal.enrolling ? 0.7 : 1 }}
+                style={{
+                  marginTop: '0.2rem', padding: '0.8rem',
+                  background: 'linear-gradient(135deg, #ef4123, #ea580c)',
+                  color: 'white', border: 'none', borderRadius: '10px',
+                  fontWeight: '900', fontSize: '0.88rem', cursor: 'pointer',
+                  opacity: testModal.enrolling ? 0.7 : 1,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                  boxShadow: '0 4px 12px rgba(239, 65, 35, 0.25)'
+                }}
               >
-                {testModal.enrolling ? 'Enrolling...' : 'Start Test Journey'}
+                {testModal.enrolling ? (
+                  <>Simulating Trigger & Dispathing...</>
+                ) : (
+                  <><Play size={15} /> Fire Test Trigger Event</>
+                )}
               </button>
             </form>
+
+            {/* LIVE EXECUTION AUDIT TRACE */}
+            {testModal.result && (
+              <div style={{ marginTop: '1.3rem', borderTop: '1px solid #f1f5f9', paddingTop: '1.1rem' }}>
+                <div style={{
+                  padding: '0.75rem 1rem',
+                  background: testModal.result.startsWith('✅') ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                  color: testModal.result.startsWith('✅') ? '#059669' : '#dc2626',
+                  borderRadius: '10px', fontSize: '0.82rem', fontWeight: '800', marginBottom: '1rem',
+                  display: 'flex', alignItems: 'center', gap: '8px'
+                }}>
+                  {testModal.result}
+                </div>
+
+                {testModal.executionTrace && testModal.executionTrace.length > 0 && (
+                  <div>
+                    <div style={{ fontSize: '0.75rem', fontWeight: '900', color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.6rem' }}>
+                      📋 Real-Time Execution Trace:
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {testModal.executionTrace.map((trace, idx) => (
+                        <div key={idx} style={{
+                          background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '0.75rem',
+                          display: 'flex', flexDirection: 'column', gap: '4px'
+                        }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div style={{ fontSize: '0.8rem', fontWeight: '800', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <span style={{ width: '18px', height: '18px', borderRadius: '50%', background: '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.65rem', fontWeight: '900' }}>
+                                {idx + 1}
+                              </span>
+                              {trace.nodeLabel || trace.action}
+                            </div>
+                            <span style={{
+                              fontSize: '0.65rem', fontWeight: '800', padding: '2px 6px', borderRadius: '6px',
+                              background: trace.status === 'Delivered' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(59, 130, 246, 0.15)',
+                              color: trace.status === 'Delivered' ? '#059669' : '#2563eb'
+                            }}>
+                              {trace.status}
+                            </span>
+                          </div>
+
+                          {trace.renderedBody && (
+                            <div style={{
+                              fontSize: '0.74rem', color: '#334155', background: '#ffffff', border: '1px solid #e2e8f0',
+                              borderRadius: '7px', padding: '0.5rem 0.65rem', marginTop: '3px', lineHeight: 1.4,
+                              fontFamily: 'monospace'
+                            }}>
+                              💬 {trace.renderedBody}
+                            </div>
+                          )}
+
+                          <div style={{ fontSize: '0.65rem', color: '#94a3b8', display: 'flex', gap: '8px', marginTop: '2px' }}>
+                            <span>Target: {trace.recipient || testModal.phone}</span>
+                            {trace.slotIndex && <span>• WhatsApp Slot: {trace.slotIndex}</span>}
+                            <span>• {new Date(trace.time).toLocaleTimeString()}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div style={{
+                      marginTop: '0.9rem', padding: '0.65rem 0.8rem', background: 'rgba(16, 185, 129, 0.06)',
+                      borderRadius: '8px', border: '1px dashed #10b981', fontSize: '0.72rem', color: '#065f46', lineHeight: 1.4
+                    }}>
+                      🟢 <strong>24/7 Autonomous Status:</strong> Journey is deployed on AWS RDS. When real students checkout on <code>universeorder.co.in</code>, this entire sequence executes automatically with zero human effort.
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}

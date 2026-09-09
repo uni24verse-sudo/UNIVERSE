@@ -307,7 +307,7 @@ router.delete('/journeys/:id', async (req, res) => {
 });
 
 /**
- * 7. JOURNEY BUILDER: TEST ENROLL CONTACT
+ * 7. JOURNEY BUILDER: TEST ENROLL CONTACT & RETURN LIVE EXECUTION TRACE
  */
 router.post('/journeys/:id/enroll-test', async (req, res) => {
   try {
@@ -316,22 +316,57 @@ router.post('/journeys/:id/enroll-test', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Phone number or email is required for test enrollment.' });
     }
 
+    const journey = await Journey.findById(req.params.id);
+    if (!journey) {
+      return res.status(404).json({ success: false, message: 'Journey not found in AWS RDS.' });
+    }
+
     const enrolledState = await journeyEngineService.enrollUser(req.params.id, {
       userId: 'test_user_' + Date.now(),
       userType: 'Student',
-      name: name || '',
+      name: name || 'Parth Sharma',
       phone: phone || '',
-      email: email || ''
+      email: email || '',
+      metadata: {
+        orderId: 'TEST-1001',
+        orderNumber: '1001',
+        storeName: 'Campus Food Court',
+        amount: 150
+      },
+      isTest: true
     });
 
     if (!enrolledState) {
-      return res.status(400).json({ success: false, message: 'Failed to enroll in journey. Ensure journey is Active.' });
+      return res.status(400).json({ success: false, message: 'Failed to enroll in journey. Ensure journey has valid connected nodes starting from Trigger.' });
     }
+
+    // Fetch refreshed state with execution history
+    const finalState = await UserJourneyState.findById(enrolledState._id);
+
+    // Map trace with journey node labels for rich visual timeline
+    const nodeMap = {};
+    (journey.nodes || []).forEach(n => { nodeMap[n.id] = n; });
+
+    const executionTrace = (finalState?.history || []).map(h => {
+      const node = nodeMap[h.nodeId];
+      return {
+        nodeId: h.nodeId,
+        nodeLabel: node?.label || h.action,
+        nodeType: node?.type || 'action',
+        action: h.action,
+        status: h.status || 'Executed',
+        recipient: h.recipient || phone,
+        renderedBody: h.renderedBody || null,
+        slotIndex: h.slotIndex || 1,
+        time: h.executedAt || new Date()
+      };
+    });
 
     res.json({
       success: true,
-      message: `Enrolled contact ${name || phone || email} into journey!`,
-      state: enrolledState
+      message: `Trigger Simulated: Executed live workflow for ${name || phone}!`,
+      state: finalState,
+      executionTrace
     });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });

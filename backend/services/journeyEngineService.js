@@ -27,10 +27,11 @@ class JourneyEngineService {
   /**
    * Enroll a user into a specific active journey
    */
-  async enrollUser(journeyId, { userId, userType = 'Student', name = 'Student', phone = '', email = '', metadata = {} }) {
+  async enrollUser(journeyId, { userId, userType = 'Student', name = 'Student', phone = '', email = '', metadata = {}, isTest = false }) {
     try {
       const journey = await Journey.findById(journeyId);
-      if (!journey || journey.status !== 'Active') return null;
+      if (!journey) return null;
+      if (!isTest && journey.status !== 'Active') return null;
 
       // Find initial trigger node
       const triggerNode = journey.nodes.find(n => n.type === 'trigger');
@@ -55,7 +56,14 @@ class JourneyEngineService {
         metadata: metadata || {},
         currentNodeId: firstActiveNode.id,
         scheduledExecutionTime: scheduledTime,
-        status: 'Pending'
+        status: 'Pending',
+        history: [{
+          nodeId: triggerNode.id,
+          action: 'trigger_fired',
+          status: 'Simulated',
+          renderedBody: `Trigger event "${journey.triggerType || 'Order Placed'}" fired.`,
+          executedAt: new Date()
+        }]
       });
 
       await state.save();
@@ -251,8 +259,22 @@ class JourneyEngineService {
         const delayMs = ((nextNode.config?.delayDays || 0) * 86400 + (nextNode.config?.delayHours || 0) * 3600 + (nextNode.config?.delayMinutes || 0) * 60) * 1000;
         state.scheduledExecutionTime = new Date(Date.now() + Math.max(delayMs, 1000));
         state.status = 'Pending';
+        state.history.push({
+          nodeId: nextNode.id,
+          action: 'delay_scheduled',
+          status: 'Scheduled',
+          renderedBody: `Scheduled wait: ${nextNode.label || 'Timer delay'} (executes at ${state.scheduledExecutionTime.toLocaleTimeString()})`,
+          executedAt: new Date()
+        });
       } else if (nextNode.type === 'wait_event') {
         state.status = 'Waiting_Event';
+        state.history.push({
+          nodeId: nextNode.id,
+          action: 'waiting_order_event',
+          status: 'Listening 24/7',
+          renderedBody: `Workflow standing by at [${nextNode.label}]. Awaiting real-time event "${nextNode.config?.eventType || 'Order Event'}" to advance.`,
+          executedAt: new Date()
+        });
       } else {
         state.scheduledExecutionTime = new Date(); // Execute immediately
         state.status = 'Pending';
@@ -342,6 +364,9 @@ class JourneyEngineService {
         action: 'whatsapp_sent',
         channelAccountId,
         status: 'Delivered',
+        recipient: state.phone,
+        renderedBody: body,
+        slotIndex,
         executedAt: new Date()
       });
     } else if (channel === 'email' && state.email) {
@@ -375,6 +400,8 @@ class JourneyEngineService {
         action: 'email_sent',
         channelAccountId,
         status: 'Delivered',
+        recipient: state.email,
+        renderedBody: body,
         executedAt: new Date()
       });
     }
