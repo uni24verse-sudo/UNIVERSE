@@ -37,11 +37,18 @@ const BroadcastCampaignSchema = new mongoose.Schema({
     deliveredCount: { type: Number, default: 0 },
     failedCount: { type: Number, default: 0 }
   },
-  status: {
+    status: {
     type: String,
     enum: ['Draft', 'Queued', 'In-Progress', 'Completed', 'Failed', 'Cancelled'],
     default: 'Draft'
   },
+  lastError: { type: String, default: null },
+  logs: [{
+    recipient: { type: String },
+    status: { type: String },
+    error: { type: String },
+    timestamp: { type: Date, default: Date.now }
+  }],
   startedAt: { type: Date, default: null },
   completedAt: { type: Date, default: null },
   createdAt: { type: Date, default: Date.now }

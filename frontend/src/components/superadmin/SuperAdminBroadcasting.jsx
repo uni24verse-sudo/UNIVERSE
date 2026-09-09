@@ -200,58 +200,99 @@ const SuperAdminBroadcasting = ({ token, socket }) => {
   return (
     <div>
       {/* Header */}
-      <header style={{ marginBottom: '2.5rem' }}>
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'rgba(239, 65, 35, 0.1)', color: 'var(--primary)', padding: '4px 12px', borderRadius: '100px', fontSize: '0.8rem', fontWeight: '800', marginBottom: '0.5rem' }}>
-          <Zap size={14} /> Targeted Dispatch & Anti-Ban Pacing
+      <header style={{ marginBottom: '2rem' }}>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'rgba(239, 65, 35, 0.08)', color: 'var(--primary)', padding: '4px 12px', borderRadius: '100px', fontSize: '0.78rem', fontWeight: '800', marginBottom: '0.5rem' }}>
+          <Zap size={14} /> Multi-Device Campus Messaging
         </div>
-        <h1 style={{ fontSize: '2rem', fontWeight: '900', margin: 0, color: '#0f172a' }}>Broadcasting Engine</h1>
-        <p style={{ color: 'var(--text-secondary)', marginTop: '0.4rem', fontSize: '1rem' }}>
-          Dispatch personalized WhatsApp and Email campaigns across campus segments with sender device selection and 2-second rate-limiting.
+        <h1 style={{ fontSize: '1.85rem', fontWeight: '900', margin: 0, color: '#0f172a' }}>Broadcasting Studio</h1>
+        <p style={{ color: 'var(--text-secondary)', marginTop: '0.35rem', fontSize: '0.95rem' }}>
+          Deploy announcements, flash deals, and campus updates across student & vendor segments via connected WhatsApp devices & Email.
         </p>
       </header>
 
-      {/* Live Dispatch Progress Banner */}
+      {/* Live Dispatch Progress Banner (Clean Enterprise Design) */}
       {liveProgress && (
         <div style={{
-          background: '#0f172a', borderRadius: '24px', padding: '1.75rem', color: '#f8fafc', marginBottom: '2.5rem',
-          boxShadow: '0 15px 35px rgba(15, 23, 42, 0.15)', border: '1px solid rgba(255,255,255,0.1)'
+          background: '#ffffff',
+          borderRadius: '20px',
+          padding: '1.4rem 1.6rem',
+          marginBottom: '2rem',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.04)',
+          border: '1.5px solid #e2e8f0',
+          position: 'relative'
         }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+          <button
+            onClick={() => setLiveProgress(null)}
+            title="Dismiss Monitor"
+            style={{ position: 'absolute', top: '1.2rem', right: '1.2rem', background: '#f1f5f9', border: 'none', borderRadius: '50%', width: '28px', height: '28px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}
+          >
+            <X size={14} />
+          </button>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.9rem', paddingRight: '2rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <RefreshCw size={20} className="spin" color="var(--primary)" />
+              <div style={{ background: 'rgba(239, 65, 35, 0.1)', color: 'var(--primary)', padding: '8px', borderRadius: '10px', display: 'flex' }}>
+                <RefreshCw size={18} className={dispatching ? "spin" : ""} />
+              </div>
               <div>
-                <h4 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '800' }}>Broadcasting Campaign in Progress</h4>
-                <p style={{ margin: 0, fontSize: '0.8rem', color: '#94a3b8' }}>Anti-ban delay active (2-second pacing per recipient)</p>
+                <h4 style={{ margin: 0, fontSize: '1.05rem', fontWeight: '900', color: '#0f172a' }}>
+                  {dispatching ? 'Broadcast Dispatch in Progress' : (liveProgress.failedCount > 0 ? 'Broadcast Dispatch Finished with Errors' : 'Broadcast Dispatch Completed')}
+                </h4>
+                <p style={{ margin: '2px 0 0', fontSize: '0.78rem', color: '#64748b' }}>
+                  Anti-ban pacing active • Sending via AWS EC2
+                </p>
               </div>
             </div>
-            <span style={{ fontSize: '1.5rem', fontWeight: '900', color: 'var(--primary)' }}>
+            
+            <div style={{
+              fontSize: '0.82rem', fontWeight: '900', padding: '4px 10px', borderRadius: '8px',
+              background: liveProgress.failedCount > 0 ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)',
+              color: liveProgress.failedCount > 0 ? '#dc2626' : '#059669'
+            }}>
               {liveProgress.progressPercent || 0}%
-            </span>
+            </div>
           </div>
 
           {/* Progress Track */}
-          <div style={{ width: '100%', height: '8px', background: 'rgba(255,255,255,0.1)', borderRadius: '100px', overflow: 'hidden', marginBottom: '1.25rem' }}>
-            <div style={{ width: `${liveProgress.progressPercent || 0}%`, height: '100%', background: 'linear-gradient(90deg, #ef4123, #f59e0b)', transition: 'width 0.3s ease' }} />
+          <div style={{ width: '100%', height: '6px', background: '#f1f5f9', borderRadius: '100px', overflow: 'hidden', marginBottom: '1.1rem' }}>
+            <div style={{
+              width: `${liveProgress.progressPercent || 0}%`,
+              height: '100%',
+              background: liveProgress.failedCount > 0 ? 'linear-gradient(90deg, #ef4123, #ef4444)' : 'linear-gradient(90deg, #ef4123, #10b981)',
+              transition: 'width 0.3s ease'
+            }} />
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem', textAlign: 'center' }}>
-            <div style={{ background: 'rgba(255,255,255,0.05)', padding: '0.75rem', borderRadius: '12px' }}>
-              <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Total Recipients</span>
-              <p style={{ margin: '4px 0 0', fontSize: '1.2rem', fontWeight: '900' }}>{liveProgress.total || 0}</p>
+          {/* 4 Clean Metric Tiles */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.75rem', textAlign: 'center' }}>
+            <div style={{ background: '#f8fafc', padding: '0.65rem', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+              <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: '700' }}>Total</span>
+              <p style={{ margin: '2px 0 0', fontSize: '1.15rem', fontWeight: '900', color: '#0f172a' }}>{liveProgress.total || 0}</p>
             </div>
-            <div style={{ background: 'rgba(255,255,255,0.05)', padding: '0.75rem', borderRadius: '12px' }}>
-              <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Sent</span>
-              <p style={{ margin: '4px 0 0', fontSize: '1.2rem', fontWeight: '900', color: '#38bdf8' }}>{liveProgress.sentCount || 0}</p>
+            <div style={{ background: '#f8fafc', padding: '0.65rem', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+              <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: '700' }}>Processed</span>
+              <p style={{ margin: '2px 0 0', fontSize: '1.15rem', fontWeight: '900', color: '#0284c7' }}>{liveProgress.sentCount || 0}</p>
             </div>
-            <div style={{ background: 'rgba(255,255,255,0.05)', padding: '0.75rem', borderRadius: '12px' }}>
-              <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Delivered</span>
-              <p style={{ margin: '4px 0 0', fontSize: '1.2rem', fontWeight: '900', color: '#10b981' }}>{liveProgress.deliveredCount || 0}</p>
+            <div style={{ background: '#f8fafc', padding: '0.65rem', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+              <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: '700' }}>Delivered</span>
+              <p style={{ margin: '2px 0 0', fontSize: '1.15rem', fontWeight: '900', color: '#10b981' }}>{liveProgress.deliveredCount || 0}</p>
             </div>
-            <div style={{ background: 'rgba(255,255,255,0.05)', padding: '0.75rem', borderRadius: '12px' }}>
-              <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Failed</span>
-              <p style={{ margin: '4px 0 0', fontSize: '1.2rem', fontWeight: '900', color: '#ef4444' }}>{liveProgress.failedCount || 0}</p>
+            <div style={{ background: '#f8fafc', padding: '0.65rem', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+              <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: '700' }}>Failed</span>
+              <p style={{ margin: '2px 0 0', fontSize: '1.15rem', fontWeight: '900', color: liveProgress.failedCount > 0 ? '#ef4444' : '#64748b' }}>{liveProgress.failedCount || 0}</p>
             </div>
           </div>
+
+          {/* Diagnostic Error Note if Failed */}
+          {liveProgress.lastError && (
+            <div style={{
+              marginTop: '0.9rem', padding: '0.65rem 0.85rem', background: 'rgba(239, 68, 68, 0.08)',
+              borderRadius: '8px', border: '1px solid rgba(239, 68, 68, 0.2)', fontSize: '0.75rem', color: '#dc2626',
+              display: 'flex', alignItems: 'center', gap: '8px'
+            }}>
+              <span>⚠️ <strong>Dispatch Diagnostics:</strong> {liveProgress.lastError}</span>
+            </div>
+          )}
         </div>
       )}
 

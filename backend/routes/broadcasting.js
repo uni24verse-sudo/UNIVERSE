@@ -130,6 +130,8 @@ async function executeBroadcastAsync(campaignId, channelAccount, template, recip
   let sentCount = 0;
   let deliveredCount = 0;
   let failedCount = 0;
+  let lastErrorMsg = null;
+  const logs = [];
 
   for (let i = 0; i < recipients.length; i++) {
     const recipient = recipients[i];
@@ -137,14 +139,24 @@ async function executeBroadcastAsync(campaignId, channelAccount, template, recip
     try {
       // Dynamic tag substitution
       let body = template.body
-        .replace(/{{name}}/gi, recipient.name || '')
-        .replace(/{{campus}}/gi, recipient.campus || '')
+        .replace(/{{name}}/gi, recipient.name || 'Campus Member')
+        .replace(/{{campus}}/gi, recipient.campus || 'UniVerse Campus')
         .replace(/{{discount_code}}/gi, recipient.discountCode || '')
         .replace(/{{phone}}/gi, recipient.phone || '')
         .replace(/{{email}}/gi, recipient.email || '');
 
       if (channelAccount.type === 'whatsapp' && recipient.phone) {
-        const slotIndex = channelAccount.slotIndex || 1;
+        let slotIndex = channelAccount.slotIndex || 1;
+        // Verify slot connection, or auto-fallback to any connected slot
+        if (whatsappMultiDeviceService.status.get(slotIndex) !== 'connected') {
+          for (let s = 1; s <= 5; s++) {
+            if (whatsappMultiDeviceService.status.get(s) === 'connected') {
+              slotIndex = s;
+              break;
+            }
+          }
+        }
+
         const payload = {
           headerType: template.headerType,
           headerMediaUrl: template.headerMediaUrl,
@@ -153,8 +165,25 @@ async function executeBroadcastAsync(campaignId, channelAccount, template, recip
           buttons: template.buttons
         };
 
-        await whatsappMultiDeviceService.sendMessage(slotIndex, recipient.phone, payload);
+        try {
+          await whatsappMultiDeviceService.sendMessage(slotIndex, recipient.phone, payload);
+        } catch (sendErr) {
+          // If failed with image/media, retry as pure text
+          if (payload.headerMediaUrl) {
+            console.warn(`[Broadcast] Image dispatch failed (${sendErr.message}), falling back to text for ${recipient.phone}`);
+            await whatsappMultiDeviceService.sendMessage(slotIndex, recipient.phone, {
+              ...payload,
+              headerType: 'NONE',
+              headerMediaUrl: null,
+              body: `${body}\n\n📷 Image: ${payload.headerMediaUrl}`
+            });
+          } else {
+            throw sendErr;
+          }
+        }
+
         deliveredCount++;
+        logs.push({ recipient: recipient.phone, status: 'Delivered', error: null });
       } else if (channelAccount.type === 'email' && recipient.email) {
         const html = `
           <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 1.5rem; background: #0f172a; color: #f8fafc; border-radius: 16px;">
@@ -171,11 +200,14 @@ async function executeBroadcastAsync(campaignId, channelAccount, template, recip
           text: body
         });
         deliveredCount++;
+        logs.push({ recipient: recipient.email, status: 'Delivered', error: null });
       }
       sentCount++;
     } catch (err) {
       console.error(`Broadcast error for recipient ${recipient.phone || recipient.email}:`, err.message);
+      lastErrorMsg = err.message;
       failedCount++;
+      logs.push({ recipient: recipient.phone || recipient.email, status: 'Failed', error: err.message });
     }
 
     // Stream live progress via Socket.io
@@ -186,7 +218,8 @@ async function executeBroadcastAsync(campaignId, channelAccount, template, recip
         deliveredCount,
         failedCount,
         total: recipients.length,
-        progressPercent: Math.round(((i + 1) / recipients.length) * 100)
+        progressPercent: Math.round(((i + 1) / recipients.length) * 100),
+        lastError: lastErrorMsg
       };
       io.to('superadmin_room').emit('superadmin:broadcast_progress', progressData);
       io.emit('superadmin:broadcast_progress', progressData);
@@ -194,9 +227,11 @@ async function executeBroadcastAsync(campaignId, channelAccount, template, recip
   }
 
   // Finalize campaign stats
-  const finalStatus = failedCount === recipients.length ? 'Failed' : 'Completed';
+  const finalStatus = failedCount === recipients.length ? 'Failed' : (failedCount > 0 ? 'Partial' : 'Completed');
   await BroadcastCampaign.findByIdAndUpdate(campaignId, {
     status: finalStatus,
+    lastError: lastErrorMsg,
+    logs: logs.slice(0, 100),
     'stats.sentCount': sentCount,
     'stats.deliveredCount': deliveredCount,
     'stats.failedCount': failedCount,
@@ -211,7 +246,8 @@ async function executeBroadcastAsync(campaignId, channelAccount, template, recip
       failedCount,
       total: recipients.length,
       progressPercent: 100,
-      status: finalStatus
+      status: finalStatus,
+      lastError: lastErrorMsg
     };
     io.to('superadmin_room').emit('superadmin:broadcast_progress', finalData);
     io.emit('superadmin:broadcast_progress', finalData);
