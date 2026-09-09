@@ -290,15 +290,17 @@ class JourneyEngineService {
       headerMediaUrl: customHeaderMediaUrl 
     } = node.config || {};
 
+    // Determine active channel (default to WhatsApp)
+    const activeChannel = channel || 'whatsapp';
+
     let template = null;
     if (masterTemplateId) {
-      template = await MasterTemplate.findById(masterTemplateId);
+      template = await MasterTemplate.findById(masterTemplateId).catch(() => null);
     }
 
-    // Compile dynamic tags
+    // Compile dynamic tags with fallback message
     const meta = state.metadata || {};
-    let rawBody = customBody || template?.body || '';
-    if (!rawBody && !template) return;
+    let rawBody = customBody || template?.body || '👋 Hi {{name}}, welcome to UniVerse! Order fresh food easily on campus at https://universeorder.co.in 🍔🍕';
 
     let body = rawBody
       .replace(/{{name}}/gi, state.name || 'Student')
@@ -309,9 +311,12 @@ class JourneyEngineService {
       .replace(/{{storeName}}/gi, meta.storeName || 'UniVerse Campus')
       .replace(/{{amount}}/gi, meta.amount ? `₹${meta.amount}` : '');
 
-    if (channel === 'whatsapp' && state.phone) {
-      const channelAccount = await ChannelAccount.findById(channelAccountId);
-      const slotIndex = channelAccount?.slotIndex || 1;
+    if (activeChannel === 'whatsapp' && state.phone) {
+      let slotIndex = 1;
+      if (channelAccountId) {
+        const channelAccount = await ChannelAccount.findById(channelAccountId).catch(() => null);
+        if (channelAccount?.slotIndex) slotIndex = channelAccount.slotIndex;
+      }
 
       // Construct dynamic buttons if customized
       let buttons = template?.buttons || [];
