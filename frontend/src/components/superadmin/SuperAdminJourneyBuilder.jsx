@@ -817,7 +817,7 @@ const SuperAdminJourneyBuilder = ({ token }) => {
             </div>
             <div>
               <div style={{ fontSize: '0.86rem', fontWeight: '900', color: '#0f172a', lineHeight: 1.1 }}>Journey Studio</div>
-              <div style={{ fontSize: '0.64rem', color: '#64748b', fontWeight: '700' }}>Atlas Engine</div>
+              <div style={{ fontSize: '0.64rem', color: '#10b981', fontWeight: '800' }}>AWS RDS Engine</div>
             </div>
           </div>
 
@@ -1103,7 +1103,7 @@ const SuperAdminJourneyBuilder = ({ token }) => {
                   boxShadow: '0 3px 10px rgba(239, 65, 35, 0.25)', transition: 'all 0.2s', flexShrink: 0
                 }}
               >
-                <Save size={13} /> {saving ? 'Saving...' : (saveSuccess ? 'Saved to Atlas!' : 'Save Flow')}
+                <Save size={13} /> {saving ? 'Saving...' : (saveSuccess ? 'Saved to AWS RDS!' : 'Save Flow')}
               </button>
             </div>
           </div>
@@ -1780,9 +1780,28 @@ const SuperAdminJourneyBuilder = ({ token }) => {
                     </button>
                   </div>
 
+                  {/* ⚡ WHATSAPP SENDING SLOT SELECTOR */}
                   <div>
                     <label style={{ fontSize: '0.74rem', fontWeight: '700', color: '#166534', display: 'block', marginBottom: '4px' }}>
-                      Master Template from Atlas DB (Optional base)
+                      ⚡ Select Sending WhatsApp Device / Slot
+                    </label>
+                    <select
+                      value={activeConfigNode.config?.channelAccountId || ''}
+                      onChange={e => updateConfiguringNode('config.channelAccountId', e.target.value)}
+                      style={{ width: '100%', padding: '0.65rem', borderRadius: '8px', border: '1px solid #bbf7d0', fontSize: '0.82rem', background: '#ffffff', boxSizing: 'border-box', fontWeight: '700', color: '#0f172a' }}
+                    >
+                      <option value="">-- Auto-select active connected slot (Default) --</option>
+                      {(channelData.whatsapp?.slots || []).map(s => (
+                        <option key={s.slotIndex} value={s._id || s.slotIndex}>
+                          Slot #{s.slotIndex}: {s.nickname || s.phoneNumber || `WhatsApp Slot ${s.slotIndex}`} {s.status === 'connected' ? '🟢 (Connected)' : '⚪ (Empty)'}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: '0.74rem', fontWeight: '700', color: '#166534', display: 'block', marginBottom: '4px' }}>
+                      Master Template from Database (Optional base)
                     </label>
                     <select
                       value={activeConfigNode.config?.masterTemplateId || ''}
@@ -2149,14 +2168,14 @@ const SuperAdminJourneyBuilder = ({ token }) => {
             </button>
 
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', background: 'rgba(239, 65, 35, 0.1)', color: 'var(--primary)', padding: '3px 9px', borderRadius: '100px', fontSize: '0.72rem', fontWeight: '800', marginBottom: '0.4rem' }}>
-              <FilePlus size={12} /> Atlas Master Template
+              <FilePlus size={12} /> Master Template
             </div>
 
             <h3 style={{ margin: '0 0 0.3rem', fontSize: '1.25rem', fontWeight: '900', color: '#0f172a' }}>
               Create New Master Template
             </h3>
             <p style={{ color: '#64748b', fontSize: '0.78rem', marginBottom: '1.1rem' }}>
-              Directly saves to MongoDB Atlas and auto-assigns to this step without leaving Journey Studio.
+              Directly saves to AWS RDS and auto-assigns to this step without leaving Journey Studio.
             </p>
 
             <form onSubmit={handleCreateNewTemplateModalSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
@@ -2235,7 +2254,7 @@ const SuperAdminJourneyBuilder = ({ token }) => {
                 type="submit" disabled={newTemplateModal.saving}
                 style={{ marginTop: '0.3rem', padding: '0.8rem', background: 'var(--primary)', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '800', fontSize: '0.88rem', cursor: 'pointer', opacity: newTemplateModal.saving ? 0.7 : 1 }}
               >
-                {newTemplateModal.saving ? 'Saving to Atlas...' : 'Save & Select Template'}
+                {newTemplateModal.saving ? 'Saving to Database...' : 'Save & Select Template'}
               </button>
             </form>
           </div>
