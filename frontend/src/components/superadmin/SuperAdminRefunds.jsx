@@ -55,18 +55,19 @@ const SuperAdminRefunds = ({ token, socket }) => {
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
   const authConfig = { headers: { Authorization: `Bearer ${token}` } };
 
-  // Fetch pending refunds and alert config on mount
+  // Fetch pending refunds, history count, and alert config on mount
   useEffect(() => {
     fetchPendingRefunds();
+    fetchRefundHistory();
     fetchRefundConfig();
   }, []);
 
-  // Fetch history when switching to history tab
+  // Fetch history when searching
   useEffect(() => {
     if (activeSubTab === 'history') {
       fetchRefundHistory();
     }
-  }, [activeSubTab, searchQuery]);
+  }, [searchQuery]);
 
   // Real-time Socket Listeners for new refund requests & settlement events
   useEffect(() => {
@@ -76,14 +77,13 @@ const SuperAdminRefunds = ({ token, socket }) => {
       console.log('⚡ [Socket] New Refund Request Received:', data);
       new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3').play().catch(() => {});
       fetchPendingRefunds(true);
+      fetchRefundHistory(true);
     };
 
     const handleRefundSettled = (data) => {
       console.log('✅ [Socket] Refund Settled Event:', data);
       fetchPendingRefunds(true);
-      if (activeSubTab === 'history') {
-        fetchRefundHistory(true);
-      }
+      fetchRefundHistory(true);
     };
 
     socket.on('new_refund_request', handleNewRefund);
@@ -93,7 +93,7 @@ const SuperAdminRefunds = ({ token, socket }) => {
       socket.off('new_refund_request', handleNewRefund);
       socket.off('refund_settled', handleRefundSettled);
     };
-  }, [socket, activeSubTab]);
+  }, [socket]);
 
   const fetchPendingRefunds = async (silent = false) => {
     if (!silent) setLoading(true);
@@ -208,7 +208,7 @@ const SuperAdminRefunds = ({ token, socket }) => {
     const studentName = (refund.customerName || refund.orderId?.customerName || 'UniVerse Student').replace(/[^a-zA-Z0-9 ]/g, '');
     const amount = (refund.amount || refund.orderId?.totalAmount || 0).toFixed(2);
     const orderNumber = refund.orderId?.orderNumber || 'REFUND';
-    return `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(studentName)}&am=${amount}&tn=UniVerse_Refund_${orderNumber}&cu=INR`;
+    return `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(studentName)}&am=${amount}&tn=UniVerse${orderNumber}&cu=INR`;
   };
 
   // Metrics Calculations
