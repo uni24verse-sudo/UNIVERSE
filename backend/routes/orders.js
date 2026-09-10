@@ -176,15 +176,16 @@ router.put('/:id/status', auth, async (req, res) => {
     const auditService = require('../services/auditService');
     const refundService = require('../services/refundService');
 
-    // If order was cancelled / rejected by vendor, trigger 100% automated refund and WhatsApp alert
+    // If order was cancelled / rejected by vendor, trigger direct UPI refund queue and team alert
     if (status === 'Cancelled') {
       const reason = req.body.reason || 'Kitchen closed or item out of stock';
-      refundService.processAutomatedRefund({
+      refundService.handleOrderCancellation({
         orderId: updatedOrder._id,
         reason,
         actorType: 'VENDOR_STAFF',
-        actorId: req.admin?.name || 'VENDOR_STAFF'
-      }).catch(err => console.error('[OrderUpdate] Auto refund error:', err.message));
+        actorId: req.admin?.name || 'VENDOR_STAFF',
+        io: req.app.get('io')
+      }).catch(err => console.error('[OrderUpdate] Cancellation refund error:', err.message));
     } else {
       // Log event in immutable audit trail
       let eventType = 'ORDER_ACCEPTED';
@@ -417,7 +418,217 @@ router.get('/customer/lookup', async (req, res) => {
       email: customer.email || ''
     });
   } catch (err) {
+    console.error('[orders.customer.lookup] Error:', err);
+    res.status(500).json({ exists: false });
+  }
+});
+
+// ⚡ Request Direct UPI Refund for a Cancelled Order (Customer Facing)
+router.post('/:id/request-upi-refund', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { upiId } = req.body;
+
+    const refundService = require('../services/refundService');
+    const result = await refundService.requestUpiRefund({
+      orderId: id,
+      upiId,
+      io: req.app.get('io')
+    });
+
+    if (!result.success) {
+      return res.status(400).json(result);
+    }
+
+    res.json(result);
+  } catch (err) {
+    console.error('[orders.request-upi-refund] Error:', err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// 🛍️ Customer Lifetime Orders History (24/7 Unified Student Dock)
+router.get('/customer/history', async (req, res) => {
+  try {
+    const { phone } = req.query;
+    if (!phone) return res.json({ orders: [], activeOrders: [] });
+
+    const cleanPhone = phone.toString().replace(/\D/g, '').slice(-10);
+    if (cleanPhone.length < 10) {
+      return res.json({ orders: [], activeOrders: [] });
+    }
+
+    const Customer = require('../models/Customer');
+    const customer = await Customer.findOne({ phone: { $regex: cleanPhone } });
+
+    const orders = await Order.find({
+      $or: [
+        { customerPhone: { $regex: cleanPhone } },
+        ...(customer?.userId ? [{ userId: customer.userId }] : [])
+      ]
+    })
+    .populate('store', 'name market image isOpen')
+    .sort({ createdAt: -1 })
+    .limit(30);
+
+    const activeOrders = orders.filter(o => ['Payment Pending', 'Pending', 'Confirmed', 'Cooking', 'Ready'].includes(o.status));
+    const pastOrders = orders.filter(o => ['Completed', 'Cancelled'].includes(o.status));
+
+    res.json({
+      orders: pastOrders,
+      activeOrders,
+      customer: customer ? {
+        name: customer.currentName,
+        phone: customer.phone,
+        totalOrders: customer.totalOrders,
+        favoriteItems: customer.favoriteItems || []
+      } : null
+    });
+  } catch (err) {
+    console.error('[orders.customer.history] Error:', err);
     res.status(500).json({ message: err.message });
+  }
+});
+
+// ⚡ 3-Minute Claim & Lock 1-Tap Mobile Payment Launchpad
+router.get('/refund/claim-pay/:refundId', async (req, res) => {
+  try {
+    const { refundId } = req.params;
+    const Refund = require('../models/Refund');
+    const whatsappMultiDeviceService = require('../services/whatsappMultiDeviceService');
+    const RefundConfig = require('../models/RefundConfig');
+
+    const refund = await Refund.findById(refundId).populate({
+      path: 'orderId',
+      populate: { path: 'store', select: 'name market' }
+    });
+
+    if (!refund) {
+      return res.status(404).send(`
+        <div style="font-family:system-ui;text-align:center;padding:3rem 1rem;">
+          <h2>❌ Refund Record Not Found</h2>
+          <p>This refund link is invalid or expired.</p>
+        </div>
+      `);
+    }
+
+    const order = refund.orderId || {};
+
+    // 1. Check if already settled
+    if (refund.status === 'PROCESSED' || order.refundStatus === 'Refunded') {
+      return res.send(`
+        <!DOCTYPE html>
+        <html>
+        <head><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Refund Already Settled</title></head>
+        <body style="font-family: system-ui, -apple-system, sans-serif; text-align: center; padding: 2rem; background: #f8fafc; color: #1e293b;">
+          <div style="background: white; padding: 2rem; border-radius: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.06); max-width: 420px; margin: 2rem auto; border: 1px solid #e2e8f0;">
+            <div style="width: 60px; height: 60px; border-radius: 50%; background: #ecfdf5; color: #10b981; display: flex; align-items: center; justify-content: center; font-size: 2rem; margin: 0 auto 1rem;">✓</div>
+            <h2 style="color: #0f172a; margin: 0 0 0.5rem 0;">Already Settled!</h2>
+            <p style="color: #64748b; font-size: 0.95rem; line-height: 1.5; margin: 0 0 1.5rem 0;">
+              Refund for <strong>Order #${order.orderNumber}</strong> was already completed by <strong>${refund.settledBy || 'Super Admin'}</strong>.
+            </p>
+            <div style="background: #f1f5f9; padding: 1rem; border-radius: 14px; text-align: left; font-size: 0.85rem;">
+              <div style="display:flex;justify-content:space-between;margin-bottom:0.4rem;"><span>Amount:</span><strong>₹${(refund.amount || 0).toFixed(2)}</strong></div>
+              <div style="display:flex;justify-content:space-between;margin-bottom:0.4rem;"><span>To UPI:</span><strong>${refund.customerUpiId}</strong></div>
+              <div style="display:flex;justify-content:space-between;"><span>Bank UTR:</span><strong>${refund.utr || 'Logged in DB'}</strong></div>
+            </div>
+          </div>
+        </body>
+        </html>
+      `);
+    }
+
+    // 2. Check if currently locked by another admin
+    const now = new Date();
+    if (refund.lockExpiresAt && refund.lockExpiresAt > now && refund.lockedBy) {
+      const remainingSeconds = Math.round((refund.lockExpiresAt - now) / 1000);
+      return res.send(`
+        <!DOCTYPE html>
+        <html>
+        <head><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Refund In Progress</title></head>
+        <body style="font-family: system-ui, -apple-system, sans-serif; text-align: center; padding: 2rem; background: #fffbeb; color: #78350f;">
+          <div style="background: white; padding: 2rem; border-radius: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.06); max-width: 420px; margin: 2rem auto; border: 1.5px solid #fde68a;">
+            <div style="width: 60px; height: 60px; border-radius: 50%; background: #fef3c7; color: #d97706; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; margin: 0 auto 1rem;">🔒</div>
+            <h2 style="color: #92400e; margin: 0 0 0.5rem 0;">Already Claimed!</h2>
+            <p style="color: #78350f; font-size: 0.95rem; line-height: 1.5; margin: 0 0 1.5rem 0;">
+              <strong>${refund.lockedBy}</strong> is currently processing the refund for <strong>Order #${order.orderNumber}</strong>.
+            </p>
+            <div style="background: #fef3c7; padding: 0.85rem; border-radius: 12px; font-size: 0.85rem; font-weight: 700; color: #b45309;">
+              ⚠️ Please DO NOT pay to avoid duplicate transfer.<br>
+              <span style="font-size:0.75rem;font-weight:normal;opacity:0.85;">Lock releases in ${remainingSeconds}s if unpaid.</span>
+            </div>
+          </div>
+        </body>
+        </html>
+      `);
+    }
+
+    // 3. Atomically Lock for 3 minutes
+    const adminTag = req.query.admin || 'Team Member';
+    refund.lockedBy = adminTag;
+    refund.lockedAt = now;
+    refund.lockExpiresAt = new Date(Date.now() + 3 * 60 * 1000); // 3 mins lock
+    await refund.save();
+
+    // 4. Notify WhatsApp Group of Lock
+    try {
+      const config = await RefundConfig.findOne();
+      if (config?.notifyGroup && config?.groupJid) {
+        whatsappMultiDeviceService.sendDirectMessage(
+          config.groupJid,
+          `🔒 *Refund Claimed:* ${adminTag} is processing ₹${refund.amount} for Order #${order.orderNumber}.`
+        ).catch(() => {});
+      }
+    } catch (_) {}
+
+    // 5. Build native UPI Intent URL
+    const studentName = (refund.customerName || order.customerName || 'UniVerse Student').replace(/[^a-zA-Z0-9 ]/g, '');
+    const amount = (refund.amount || order.totalAmount || 0).toFixed(2);
+    const upiId = refund.customerUpiId || order.customerUpiId || '';
+    const upiDeepLink = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(studentName)}&am=${amount}&tn=UniVerse_Refund_${order.orderNumber}&cu=INR`;
+
+    // 6. Serve 1-Tap Launchpad (with auto redirect to PhonePe/GPay)
+    res.send(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>UniVerse Refund Launchpad</title>
+        <script>
+          window.onload = function() {
+            setTimeout(function() {
+              window.location.href = "${upiDeepLink}";
+            }, 300);
+          };
+        </script>
+      </head>
+      <body style="font-family: system-ui, -apple-system, sans-serif; text-align: center; padding: 2rem 1rem; background: #09090b; color: #ffffff;">
+        <div style="background: #18181b; padding: 2rem 1.5rem; border-radius: 24px; max-width: 420px; margin: 1.5rem auto; border: 1.5px solid #27272a; box-shadow: 0 20px 50px rgba(0,0,0,0.5);">
+          <div style="width: 50px; height: 50px; border-radius: 14px; background: linear-gradient(135deg, #10b981, #059669); color: white; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; margin: 0 auto 1rem;">⚡</div>
+          <h2 style="margin: 0 0 0.25rem 0; font-size: 1.4rem; font-weight: 900;">UniVerse Refund Desk</h2>
+          <p style="color: #a1a1aa; font-size: 0.85rem; margin: 0 0 1.5rem 0;">Opening your UPI app in 1 tap...</p>
+          
+          <div style="background: #27272a; padding: 1rem; border-radius: 16px; margin-bottom: 1.5rem; text-align: left; font-size: 0.9rem;">
+            <div style="display:flex;justify-content:space-between;margin-bottom:0.4rem;"><span style="color:#a1a1aa;">Order:</span><strong>#${order.orderNumber}</strong></div>
+            <div style="display:flex;justify-content:space-between;margin-bottom:0.4rem;"><span style="color:#a1a1aa;">Recipient:</span><strong>${studentName}</strong></div>
+            <div style="display:flex;justify-content:space-between;margin-bottom:0.4rem;"><span style="color:#a1a1aa;">UPI ID:</span><strong style="color:#60a5fa;">${upiId}</strong></div>
+            <div style="display:flex;justify-content:space-between;padding-top:0.6rem;border-top:1px solid #3f3f46;"><span style="color:#a1a1aa;">Refund Amount:</span><strong style="color:#34d399;font-size:1.2rem;">₹${amount}</strong></div>
+          </div>
+
+          <a href="${upiDeepLink}" style="display: block; padding: 1rem; border-radius: 14px; background: linear-gradient(135deg, #10b981, #059669); color: white; text-decoration: none; font-weight: 800; font-size: 1rem; box-shadow: 0 4px 20px rgba(16, 185, 129, 0.4); margin-bottom: 1rem;">
+            🚀 Open GPay / PhonePe (₹${amount})
+          </a>
+
+          <p style="color: #71717a; font-size: 0.75rem; margin: 0;">
+            🔒 Claimed for 3 minutes. Lock expires if unpaid.
+          </p>
+        </div>
+      </body>
+      </html>
+    `);
+  } catch (err) {
+    console.error('[orders.refund.claim-pay] Error:', err);
+    res.status(500).send('Server Error');
   }
 });
 

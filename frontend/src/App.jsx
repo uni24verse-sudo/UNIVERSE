@@ -21,10 +21,9 @@ const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
 const VendorAppDownload = lazy(() => import('./pages/VendorAppDownload'));
 
 import Navbar from './components/Navbar';
-import RecentOrders from './components/RecentOrders';
+import UnifiedStudentDock from './components/UnifiedStudentDock';
 import Footer from './components/Footer';
 import NotificationsToast from './components/NotificationsToast';
-import FloatingCart from './components/FloatingCart';
 import LocationPortal from './components/LocationPortal';
 import SplashScreen from './components/SplashScreen';
 import ScrollToTop from './components/ScrollToTop';
@@ -114,9 +113,8 @@ const AppLayout = () => {
           flexShrink: 0 
         }} />
       )}
-      <RecentOrders />
       <NotificationsToast />
-      <FloatingCart />
+      <UnifiedStudentDock />
       <div style={{ flex: 1 }}>
         <React.Suspense fallback={
           <div className="auth-wrapper">

@@ -9,19 +9,28 @@ const RefundSchema = new mongoose.Schema({
   }, // Razorpay rfnd_xxxxx or manual ref
   paymentId: { 
     type: String, 
-    required: true,
     index: true 
   },
   orderId: { 
     type: mongoose.Schema.Types.ObjectId, 
     ref: 'Order', 
-    required: true,
+    required: true, 
     index: true 
   },
   userId: { 
     type: String, 
     ref: 'Customer',
     index: true 
+  },
+  customerName: { 
+    type: String, 
+    default: 'Student' 
+  },
+  customerPhone: { 
+    type: String 
+  },
+  customerUpiId: { 
+    type: String 
   },
   amount: { 
     type: Number, 
@@ -44,10 +53,31 @@ const RefundSchema = new mongoose.Schema({
   },
   mode: {
     type: String,
-    enum: ['RAZORPAY_AUTO', 'MANUAL_OFFLINE'],
-    default: 'RAZORPAY_AUTO'
+    enum: ['RAZORPAY_AUTO', 'MANUAL_OFFLINE', 'DIRECT_UPI'],
+    default: 'DIRECT_UPI'
+  },
+  utr: { 
+    type: String, 
+    default: '' 
+  },
+  settledBy: { 
+    type: String, 
+    default: '' 
+  },
+  settledAt: { 
+    type: Date 
   },
   processedAt: { 
+    type: Date 
+  },
+  lockedBy: { 
+    type: String, 
+    default: '' 
+  },
+  lockedAt: { 
+    type: Date 
+  },
+  lockExpiresAt: { 
     type: Date 
   },
   whatsappNotified: {
@@ -58,5 +88,7 @@ const RefundSchema = new mongoose.Schema({
     type: Object 
   }
 }, { timestamps: true });
+
+RefundSchema.index({ status: 1, createdAt: -1 });
 
 module.exports = mongoose.model('Refund', RefundSchema);

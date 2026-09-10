@@ -109,6 +109,18 @@ router.post('/razorpay/verify', async (req, res) => {
       campus: campusName
     });
 
+    // Capture payer UPI ID / VPA if payment was made via UPI
+    let payerUpiId = null;
+    try {
+      const razorpay = getRazorpay();
+      const rzpPayment = await razorpay.payments.fetch(razorpay_payment_id);
+      if (rzpPayment && rzpPayment.vpa) {
+        payerUpiId = rzpPayment.vpa;
+      }
+    } catch (fetchErr) {
+      console.warn('[Payments] Could not fetch Razorpay payment VPA details:', fetchErr.message);
+    }
+
     const newOrder = new Order({
       store: storeId,
       orderNumber: generateOrderNumber(),
@@ -125,6 +137,8 @@ router.post('/razorpay/verify', async (req, res) => {
       status: 'Pending',
       transactionId: razorpay_payment_id,
       paymentProvider: 'Razorpay',
+      payerUpiId,
+      customerUpiId: payerUpiId || null,
       acceptDeadline,
       handoverToken: generateHandoverToken(),
       isPreOrder: isPreOrder || false,

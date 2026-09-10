@@ -326,12 +326,18 @@ class WhatsAppMultiDeviceService {
       throw new Error(`WhatsApp Slot ${slotIndex} is not connected.`);
     }
 
-    // Sanitize destination number (ensure proper JID format)
-    let cleanNumber = destinationNumber.toString().replace(/\D/g, '');
-    if (cleanNumber.length === 10) {
-      cleanNumber = '91' + cleanNumber; // Default to India 91 prefix
+    // Sanitize destination (support both individual phone numbers and WhatsApp Group JIDs)
+    let recipientJid;
+    const destStr = destinationNumber.toString().trim();
+    if (destStr.endsWith('@g.us') || destStr.endsWith('@s.whatsapp.net')) {
+      recipientJid = destStr;
+    } else {
+      let cleanNumber = destStr.replace(/\D/g, '');
+      if (cleanNumber.length === 10) {
+        cleanNumber = '91' + cleanNumber; // Default to India 91 prefix
+      }
+      recipientJid = `${cleanNumber}@s.whatsapp.net`;
     }
-    const recipientJid = `${cleanNumber}@s.whatsapp.net`;
 
     // Construct Baileys message content
     let messageContent = {};
@@ -381,7 +387,7 @@ class WhatsAppMultiDeviceService {
     await delay(jitter);
 
     const result = await socket.sendMessage(recipientJid, messageContent);
-    return { success: true, messageId: result.key.id, recipient: cleanNumber };
+    return { success: true, messageId: result.key.id, recipient: recipientJid };
   }
 
   /**
@@ -405,6 +411,149 @@ class WhatsAppMultiDeviceService {
 
     console.warn(`⚠️ [WhatsApp Direct] No connected WhatsApp slot available to send message to ${destinationNumber}`);
     return false;
+  }
+
+  /**
+   * Fetch all participating WhatsApp groups from connected WhatsApp instance
+   */
+  async fetchParticipatingGroups(slotIndex = null) {
+    let targetSocket = null;
+    if (slotIndex && this.sockets.has(slotIndex) && this.status.get(slotIndex) === 'connected') {
+      targetSocket = this.sockets.get(slotIndex);
+    } else {
+      for (let s = 1; s <= this.MAX_SLOTS; s++) {
+        if (this.status.get(s) === 'connected') {
+          targetSocket = this.sockets.get(s);
+          break;
+        }
+      }
+    }
+
+    if (!targetSocket) {
+      return [];
+    }
+
+    try {
+      const groupsMap = await targetSocket.groupFetchAllParticipating();
+      const groups = Object.values(groupsMap).map(g => ({
+        id: g.id,
+        subject: g.subject,
+        creation: g.creation,
+        owner: g.owner,
+        desc: g.desc,
+        participantsCount: g.participants?.length || 0
+      }));
+      return groups;
+    } catch (err) {
+      console.error('[WhatsApp] Error fetching participating groups:', err.message);
+      return [];
+    }
+  }
+
+  /**
+   * Send a high-priority refund alert to the configured Team WhatsApp Group & Admin Phones
+   */
+  async sendRefundAlertToTeam({ order, refund }) {
+    try {
+      const RefundConfig = require('../models/RefundConfig');
+      let config = await RefundConfig.findOne();
+      if (!config) {
+        config = {
+          groupJid: process.env.REFUND_ALERT_WHATSAPP_GROUP_JID || '',
+          phoneNumbers: ['7985397373', '8295886832'],
+          notifyGroup: true,
+          notifyPhones: true
+        };
+      }
+
+      const amount = (order.totalAmount || refund.amount || 0).toFixed(2);
+      const studentName = order.customerName || refund.customerName || 'Student';
+      const studentPhone = order.customerPhone || refund.customerPhone || 'N/A';
+      const upiId = refund.customerUpiId || order.customerUpiId || order.payerUpiId || 'Pending student input';
+      const storeName = order.store?.name || 'Kitchen Counter';
+      const reason = order.cancellationReason || refund.reason || 'Vendor rejected or timeout';
+      
+      const upiPayLink = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(studentName.replace(/[^a-zA-Z0-9 ]/g, ''))}&am=${amount}&tn=UniVerse_Refund_${order.orderNumber}&cu=INR`;
+
+      const alertMessage = 
+        `🚨 *NEW REFUND REQUEST* 💸\n` +
+        `━━━━━━━━━━━━━━━━━━━━\n` +
+        `📋 *Order:* #${order.orderNumber} (${storeName})\n` +
+        `👤 *Student:* ${studentName} (${studentPhone})\n` +
+        `💰 *Refund Amount:* ₹${amount}\n` +
+        `💳 *Target UPI ID:* \`${upiId}\`\n` +
+        `⚠️ *Reason:* ${reason}\n\n` +
+        `⚡ *1-Tap Instant Payment Link:*\n` +
+        `${upiPayLink}\n\n` +
+        `🖥️ *Admin Refund Desk:*\n` +
+        `https://www.universeorder.co.in/super-admin\n` +
+        `━━━━━━━━━━━━━━━━━━━━\n` +
+        `_UniVerse Automated Refund Dispatch_`;
+
+      const destinations = [];
+      if (config.notifyGroup && config.groupJid) {
+        destinations.push(config.groupJid);
+      }
+      if (config.notifyPhones && config.phoneNumbers && config.phoneNumbers.length > 0) {
+        destinations.push(...config.phoneNumbers);
+      }
+
+      // If no destinations configured in DB, fallback to default admin numbers
+      if (destinations.length === 0) {
+        destinations.push('7985397373', '8295886832');
+      }
+
+      for (const dest of destinations) {
+        this.sendDirectMessage(dest, alertMessage).catch(e => {
+          console.error(`[WhatsApp Refund Alert] Failed to send to ${dest}:`, e.message);
+        });
+      }
+    } catch (err) {
+      console.error('[WhatsApp] sendRefundAlertToTeam Error:', err.message);
+    }
+  }
+
+  /**
+   * Post settlement confirmation into Team WhatsApp Group so no one pays twice
+   */
+  async sendRefundSettlementNoticeToTeam({ order, refund, settledBy }) {
+    try {
+      const RefundConfig = require('../models/RefundConfig');
+      const config = await RefundConfig.findOne();
+      const destinations = [];
+      if (config?.notifyGroup && config?.groupJid) {
+        destinations.push(config.groupJid);
+      } else if (process.env.REFUND_ALERT_WHATSAPP_GROUP_JID) {
+        destinations.push(process.env.REFUND_ALERT_WHATSAPP_GROUP_JID);
+      }
+
+      if (destinations.length === 0) return;
+
+      const amount = (order.totalAmount || refund.amount || 0).toFixed(2);
+      const studentName = order.customerName || refund.customerName || 'Student';
+      const upiId = refund.customerUpiId || order.customerUpiId || 'UPI';
+      const utrText = refund.utr ? `\n📌 *Bank Ref / UTR:* ${refund.utr}` : '';
+
+      const settledMessage =
+        `✅ *REFUND SETTLED & COMPLETED* 🎉\n` +
+        `━━━━━━━━━━━━━━━━━━━━\n` +
+        `📋 *Order:* #${order.orderNumber}\n` +
+        `👤 *Student:* ${studentName}\n` +
+        `💰 *Amount:* ₹${amount}\n` +
+        `💳 *Transferred to:* \`${upiId}\`${utrText}\n` +
+        `👤 *Settled by:* ${settledBy || 'Super Admin'}\n` +
+        `⏰ *Time:* ${new Date().toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' })}\n` +
+        `━━━━━━━━━━━━━━━━━━━━\n` +
+        `_Status: Order marked Refunded in database._`;
+
+      for (const dest of destinations) {
+        this.sendDirectMessage(dest, settledMessage).catch(e => {
+          console.error(`[WhatsApp Settlement Notice] Failed to send to ${dest}:`, e.message);
+        });
+      }
+    } catch (err) {
+      console.error('[WhatsApp] sendRefundSettlementNoticeToTeam Error:', err.message);
+    }
   }
 }
 

@@ -825,4 +825,167 @@ router.put('/store/:storeId/assign-location', async (req, res) => {
   }
 });
 
+// ==========================================
+// ⚡ DIRECT UPI INSTANT REFUND COMMAND DESK
+// ==========================================
+
+const Refund = require('../models/Refund');
+const RefundConfig = require('../models/RefundConfig');
+const refundService = require('../services/refundService');
+const whatsappMultiDeviceService = require('../services/whatsappMultiDeviceService');
+
+// 1. Get Pending Direct UPI Refunds
+router.get('/refunds/pending', async (req, res) => {
+  try {
+    const pendingRefunds = await Refund.find({ status: 'REQUESTED' })
+      .populate({
+        path: 'orderId',
+        populate: { path: 'store', select: 'name market' }
+      })
+      .sort({ createdAt: 1 }); // oldest first for priority queue
+
+    res.json(pendingRefunds);
+  } catch (err) {
+    console.error('[superAdmin.refunds.pending] Error:', err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 2. Get Refund Settlement History
+router.get('/refunds/history', async (req, res) => {
+  try {
+    const { search = '', page = 1, limit = 50 } = req.query;
+    const query = { status: 'PROCESSED' };
+
+    if (search) {
+      query.$or = [
+        { customerName: { $regex: search, $options: 'i' } },
+        { customerPhone: { $regex: search, $options: 'i' } },
+        { customerUpiId: { $regex: search, $options: 'i' } },
+        { utr: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    const total = await Refund.countDocuments(query);
+    const refunds = await Refund.find(query)
+      .populate({
+        path: 'orderId',
+        select: 'orderNumber totalAmount customerName customerPhone createdAt items store',
+        populate: { path: 'store', select: 'name' }
+      })
+      .sort({ settledAt: -1, processedAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(Number(limit));
+
+    res.json({ refunds, total, page: Number(page), pages: Math.ceil(total / limit) });
+  } catch (err) {
+    console.error('[superAdmin.refunds.history] Error:', err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 3. Settle a Refund (Mark Paid)
+router.post('/refunds/:id/settle', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { utr } = req.body;
+    const adminIdentifier = req.admin?.name || req.admin?.email || 'SUPER_ADMIN';
+
+    const result = await refundService.settleRefund({
+      refundId: id,
+      utr: utr || '',
+      settledBy: adminIdentifier,
+      io: req.app.get('io')
+    });
+
+    if (!result.success) {
+      return res.status(400).json(result);
+    }
+
+    res.json(result);
+  } catch (err) {
+    console.error('[superAdmin.refunds.settle] Error:', err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 4. Update / Edit UTR post-settlement
+router.put('/refunds/:id/utr', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { utr } = req.body;
+    const adminIdentifier = req.admin?.name || req.admin?.email || 'SUPER_ADMIN';
+
+    const result = await refundService.updateRefundUtr({
+      refundId: id,
+      utr,
+      updatedBy: adminIdentifier
+    });
+
+    if (!result.success) {
+      return res.status(400).json(result);
+    }
+
+    res.json(result);
+  } catch (err) {
+    console.error('[superAdmin.refunds.utr] Error:', err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 5. Get Available Participating WhatsApp Groups
+router.get('/refunds/whatsapp-groups', async (req, res) => {
+  try {
+    const groups = await whatsappMultiDeviceService.fetchParticipatingGroups();
+    res.json(groups);
+  } catch (err) {
+    console.error('[superAdmin.refunds.groups] Error:', err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 6. Get Refund Notification Config
+router.get('/refunds/config', async (req, res) => {
+  try {
+    let config = await RefundConfig.findOne();
+    if (!config) {
+      config = await RefundConfig.create({
+        groupJid: process.env.REFUND_ALERT_WHATSAPP_GROUP_JID || '',
+        groupName: '',
+        phoneNumbers: ['7985397373', '8295886832'],
+        notifyGroup: true,
+        notifyPhones: true
+      });
+    }
+    res.json(config);
+  } catch (err) {
+    console.error('[superAdmin.refunds.config.get] Error:', err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 7. Update Refund Notification Config
+router.post('/refunds/config', async (req, res) => {
+  try {
+    const { groupJid, groupName, phoneNumbers, notifyGroup, notifyPhones } = req.body;
+    let config = await RefundConfig.findOne();
+    if (!config) {
+      config = new RefundConfig();
+    }
+
+    if (groupJid !== undefined) config.groupJid = groupJid;
+    if (groupName !== undefined) config.groupName = groupName;
+    if (phoneNumbers !== undefined) config.phoneNumbers = phoneNumbers;
+    if (notifyGroup !== undefined) config.notifyGroup = notifyGroup;
+    if (notifyPhones !== undefined) config.notifyPhones = notifyPhones;
+    config.updatedBy = req.admin?.name || req.admin?.email || 'SUPER_ADMIN';
+
+    await config.save();
+    res.json({ success: true, message: 'Refund alert configuration saved.', config });
+  } catch (err) {
+    console.error('[superAdmin.refunds.config.post] Error:', err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
 module.exports = router;

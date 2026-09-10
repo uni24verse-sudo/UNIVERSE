@@ -45,9 +45,13 @@ const OrderSchema = new mongoose.Schema({
   refundAmount: { type: Number, default: 0 },
   refundStatus: { 
     type: String, 
-    enum: ['None', 'Requested', 'Initiated', 'Processed', 'Failed'], 
+    enum: ['None', 'Requested', 'Initiated', 'Processed', 'Refunded', 'Failed'], 
     default: 'None' 
   },
+  payerUpiId: { type: String }, // Original VPA captured from Razorpay
+  customerUpiId: { type: String }, // UPI ID provided for refund
+  refundUtr: { type: String }, // Bank UTR or Ref #
+  refundSettledAt: { type: Date },
   refundIdempotencyKey: { type: String, unique: true, sparse: true },
   cancellationReason: { type: String },
   cancelledBy: { 

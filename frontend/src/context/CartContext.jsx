@@ -72,10 +72,25 @@ export const CartProvider = ({ children }) => {
     localStorage.removeItem('universe_storeId');
   };
 
+  const reorder = (items, targetStoreId) => {
+    const newCart = (items || []).map(item => ({
+      _id: item.productId || item._id,
+      name: item.name,
+      price: item.price,
+      quantity: item.quantity || 1,
+      variant: item.variant || null,
+      cartItemId: `${item.productId || item._id}${item.variant ? '-' + item.variant : ''}`
+    }));
+    setCart(newCart);
+    if (targetStoreId) {
+      setStoreId(targetStoreId);
+    }
+  };
+
   const total = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
 
   return (
-    <CartContext.Provider value={{ cart, storeId, addToCart, removeFromCart, updateQuantity, clearCart, total }}>
+    <CartContext.Provider value={{ cart, storeId, addToCart, removeFromCart, updateQuantity, clearCart, reorder, total }}>
       {children}
     </CartContext.Provider>
   );

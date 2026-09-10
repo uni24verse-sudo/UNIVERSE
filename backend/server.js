@@ -173,20 +173,21 @@ setInterval(async () => {
     // Standardize to Indian Standard Time (IST)
     const nowIST = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Kolkata"}));
     
-    // 1. Cancel expired orders (ASAP and Pre-orders) and trigger automated instant refund
+    // 1. Cancel expired orders (ASAP and Pre-orders) and trigger direct UPI refund queue
     const refundService = require('./services/refundService');
     const expiredOrders = await Order.find({ status: 'Pending', acceptDeadline: { $lt: new Date() } });
     for (const order of expiredOrders) {
-      await refundService.processAutomatedRefund({
+      await refundService.handleOrderCancellation({
         orderId: order._id,
-        reason: 'Vendor acceptance timed out (5 mins)',
+        reason: order.isPreOrder ? 'Pre-order acceptance timed out (15 mins)' : 'Vendor acceptance timed out (5 mins)',
         actorType: 'SYSTEM',
-        actorId: 'AUTO_TIMEOUT'
-      }).catch(err => console.error(`[AutoTimeout] Refund error for order #${order.orderNumber}:`, err.message));
+        actorId: 'AUTO_TIMEOUT',
+        io
+      }).catch(err => console.error(`[AutoTimeout] Cancellation error for order #${order.orderNumber}:`, err.message));
 
       io.to(order.store.toString()).emit('order_status_update', order);
       io.to(order._id.toString()).emit('order_status_update', order);
-      console.log(`Auto-cancelled & refunded order #${order.orderNumber} due to timeout.`);
+      console.log(`Auto-cancelled order #${order.orderNumber} due to timeout.`);
     }
 
     // 2. Pre-Order Telegram Reminders (15 mins and 10 mins before)

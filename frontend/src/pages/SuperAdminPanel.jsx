@@ -27,7 +27,8 @@ import {
   FileText,
   Radio,
   GitBranch,
-  Sliders
+  Sliders,
+  RotateCcw
 } from 'lucide-react';
 import SuperAdmin3DAnalytics from '../components/superadmin/SuperAdmin3DAnalytics';
 import SuperAdminMasterTemplates from '../components/superadmin/SuperAdminMasterTemplates';
@@ -35,6 +36,7 @@ import SuperAdminBroadcasting from '../components/superadmin/SuperAdminBroadcast
 import SuperAdminJourneyBuilder from '../components/superadmin/SuperAdminJourneyBuilder';
 import SuperAdminChannelSettings from '../components/superadmin/SuperAdminChannelSettings';
 import SuperAdminCustomerIntelligence from '../components/superadmin/SuperAdminCustomerIntelligence';
+import SuperAdminRefunds from '../components/superadmin/SuperAdminRefunds';
 import { useSocket } from '../context/SocketContext';
 
 const SuperAdminPanel = () => {
@@ -53,6 +55,7 @@ const SuperAdminPanel = () => {
   const [historySearch, setHistorySearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [orderFilter, setOrderFilter] = useState('All');
+  const [pendingRefundCount, setPendingRefundCount] = useState(0);
   
   // New Location Form State
   const [showLocationForm, setShowLocationForm] = useState(false);
@@ -89,6 +92,17 @@ const SuperAdminPanel = () => {
   useEffect(() => {
     if (socket && connected && token) {
       socket.emit('join_superadmin_room', { token });
+
+      const handleNewRefund = () => setPendingRefundCount(prev => prev + 1);
+      const handleRefundSettled = () => setPendingRefundCount(prev => Math.max(0, prev - 1));
+
+      socket.on('new_refund_request', handleNewRefund);
+      socket.on('refund_settled', handleRefundSettled);
+
+      return () => {
+        socket.off('new_refund_request', handleNewRefund);
+        socket.off('refund_settled', handleRefundSettled);
+      };
     }
   }, [socket, connected, token]);
 
@@ -101,15 +115,18 @@ const SuperAdminPanel = () => {
         timeout: 6000 
       };
       
-      const [statsRes, vendorsRes, ordersRes, storesRes, financeRes, historyRes, locationsRes] = await Promise.all([
+      const [statsRes, vendorsRes, ordersRes, storesRes, financeRes, historyRes, locationsRes, refundsRes] = await Promise.all([
         axios.get(`${url}/api/super-admin/stats`, config).catch(e => ({ data: null })),
         axios.get(`${url}/api/super-admin/vendors`, config).catch(e => ({ data: [] })),
         axios.get(`${url}/api/super-admin/orders`, config).catch(e => ({ data: [] })),
         axios.get(`${url}/api/super-admin/stores`, config).catch(e => ({ data: [] })),
-        axios.get(`${url}/api/super-admin/finance/summary`, config).catch(e => ({ data: [] })),
+        axios.get(`${url}/api/super-admin/finance`, config).catch(e => ({ data: [] })),
         axios.get(`${url}/api/super-admin/finance/history`, config).catch(e => ({ data: [] })),
-        axios.get(`${url}/api/super-admin/locations`, config).catch(e => ({ data: [] }))
+        axios.get(`${url}/api/super-admin/locations`, config).catch(e => ({ data: [] })),
+        axios.get(`${url}/api/super-admin/refunds/pending`, config).catch(e => ({ data: [] }))
       ]);
+
+      setPendingRefundCount(refundsRes.data?.length || 0);
 
       if (statsRes?.data) setStats(statsRes.data);
       if (vendorsRes?.data) setVendors(vendorsRes.data);
@@ -227,6 +244,7 @@ const SuperAdminPanel = () => {
         <nav style={{ padding: '1.5rem 1rem', flex: 1, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
           {[
             { id: '3d_analytics', icon: TrendingUp, label: 'Executive Analytics', badge: 'LIVE' },
+            { id: 'refunds', icon: RotateCcw, label: '⚡ Instant Refunds', badge: pendingRefundCount > 0 ? `${pendingRefundCount} PENDING` : null },
             { id: 'customers', icon: Users, label: 'Customer 360 & Audit', badge: 'NEW' },
             { id: 'master_templates', icon: FileText, label: 'Master Templates' },
             { id: 'broadcasting', icon: Radio, label: 'Broadcasting Hub' },
@@ -291,6 +309,11 @@ const SuperAdminPanel = () => {
         {/* 3D LIVE ANALYTICS TAB */}
         {activeTab === '3d_analytics' && (
           <SuperAdmin3DAnalytics token={token} />
+        )}
+
+        {/* ⚡ INSTANT DIRECT REFUNDS DESK */}
+        {activeTab === 'refunds' && (
+          <SuperAdminRefunds token={token} socket={socket} />
         )}
 
         {/* CUSTOMER 360 & AUDIT LEDGER TAB */}

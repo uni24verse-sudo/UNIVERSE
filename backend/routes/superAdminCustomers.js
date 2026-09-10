@@ -133,11 +133,12 @@ router.post('/orders/:orderId/refund', async (req, res) => {
     const { orderId } = req.params;
     const { reason = 'Super Admin initiated refund' } = req.body;
 
-    const result = await refundService.processAutomatedRefund({
+    const result = await refundService.handleOrderCancellation({
       orderId,
       reason,
       actorType: 'SUPER_ADMIN',
-      actorId: req.superAdmin?.email || 'SUPER_ADMIN'
+      actorId: req.superAdmin?.email || 'SUPER_ADMIN',
+      io: req.app.get('io')
     });
 
     if (!result.success) {

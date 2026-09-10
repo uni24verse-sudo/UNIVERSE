@@ -3,7 +3,26 @@ import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { io } from 'socket.io-client';
 import { QRCodeSVG } from 'qrcode.react';
-import { CheckCircle2, Clock, ChefHat, PackageCheck, ArrowLeft, Home, Receipt, X, Phone, MessageCircle } from 'lucide-react';
+import { 
+  CheckCircle2, 
+  Clock, 
+  ChefHat, 
+  PackageCheck, 
+  ArrowLeft, 
+  Home, 
+  Receipt, 
+  X, 
+  Phone, 
+  MessageCircle,
+  Zap,
+  Check,
+  RotateCcw,
+  Sparkles,
+  Copy,
+  AlertCircle,
+  Send,
+  Edit3
+} from 'lucide-react';
 
 const CountdownTimer = ({ deadline }) => {
   const [timeLeft, setTimeLeft] = useState(0);
@@ -50,6 +69,13 @@ const OrderTracker = () => {
   const [loading, setLoading] = useState(true);
   const [showRefundCard, setShowRefundCard] = useState(true);
 
+  // Direct UPI Refund Interaction States
+  const [customUpi, setCustomUpi] = useState('');
+  const [showCustomInput, setShowCustomInput] = useState(false);
+  const [isSubmittingRefund, setIsSubmittingRefund] = useState(false);
+  const [refundError, setRefundError] = useState('');
+  const [copiedUtr, setCopiedUtr] = useState(false);
+
   useEffect(() => {
     const fetchOrder = async (retryCount = 0) => {
       try {
@@ -81,6 +107,9 @@ const OrderTracker = () => {
             new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3').play().catch(() => {});
           }
         }
+        if (updatedOrder.refundStatus === 'Refunded' && prev?.refundStatus !== 'Refunded') {
+          new Audio('https://assets.mixkit.co/active_storage/sfx/2019/2019-preview.mp3').play().catch(() => {});
+        }
         return updatedOrder;
       });
     });
@@ -93,7 +122,6 @@ const OrderTracker = () => {
     const handleWakeup = () => {
       if (document.visibilityState === 'visible') {
         console.log('[OrderTracker] Device woke up, syncing fresh order data...');
-        // Silent fetch to ensure no status update was missed while the screen was off/backgrounded
         axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/orders/${id}`)
           .then(res => setOrder(res.data))
           .catch(console.error);
@@ -108,6 +136,46 @@ const OrderTracker = () => {
       window.removeEventListener('focus', handleWakeup);
     };
   }, [id]);
+
+  // Handle Direct UPI Refund Request Submission
+  const handleRequestRefund = async (upiToUse) => {
+    const targetUpi = (upiToUse || customUpi || '').trim();
+    if (!targetUpi) {
+      setRefundError('Please enter a valid UPI ID (e.g. name@oksbi)');
+      return;
+    }
+    const upiRegex = /^[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}$/;
+    if (!upiRegex.test(targetUpi)) {
+      setRefundError('Invalid UPI format. Must contain @ (e.g. 9876543210@paytm)');
+      return;
+    }
+
+    setIsSubmittingRefund(true);
+    setRefundError('');
+    try {
+      const res = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/orders/${id}/request-upi-refund`, {
+        upiId: targetUpi
+      });
+      if (res.data?.success) {
+        setOrder(prev => ({
+          ...prev,
+          customerUpiId: targetUpi,
+          refundStatus: 'Requested'
+        }));
+        setShowCustomInput(false);
+      }
+    } catch (err) {
+      setRefundError(err.response?.data?.message || 'Failed to submit refund request. Please try again.');
+    } finally {
+      setIsSubmittingRefund(false);
+    }
+  };
+
+  const copyUtrToClipboard = (utr) => {
+    navigator.clipboard.writeText(utr);
+    setCopiedUtr(true);
+    setTimeout(() => setCopiedUtr(false), 2000);
+  };
 
   const statusSteps = [
     { label: 'Pending', icon: Clock, color: '#f59e0b', desc: 'Vendor is reviewing your order' },
@@ -139,36 +207,45 @@ const OrderTracker = () => {
     );
   }
 
+  // Derive target UPI and clean customer phone for auto-suggestions
+  const rawPhone = (order.customerPhone || '').replace(/\D/g, '').slice(-10);
+  const originalPayerUpi = order.payerUpiId || null;
+  const activeRefundUpi = order.customerUpiId || originalPayerUpi || '';
+  const isRefunded = order.refundStatus === 'Refunded' || order.refundStatus === 'Processed';
+  const isRequested = order.refundStatus === 'Requested';
+
   return (
     <div style={{ minHeight: '100vh', padding: '2rem 1rem', maxWidth: '600px', margin: '0 auto' }}>
 
-      {/* Floating Refund Contact Card - Only for Cancelled Orders */}
+      {/* ⚡ INTERACTIVE DIRECT UPI REFUND MODULE (For Cancelled Orders) */}
       {order.status === 'Cancelled' && showRefundCard && (
         <div style={{
           position: 'fixed',
-          bottom: '1.5rem',
+          bottom: '1.25rem',
           left: '50%',
           transform: 'translateX(-50%)',
           width: 'calc(100% - 2rem)',
           maxWidth: '560px',
           zIndex: 9999,
-          animation: 'slideUp 0.4s ease-out'
+          animation: 'slideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1)'
         }}>
           <div style={{
-            background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.12), rgba(220, 38, 38, 0.08))',
-            backdropFilter: 'blur(24px)',
-            border: '1.5px solid rgba(239, 68, 68, 0.35)',
+            background: isRefunded 
+              ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.98), rgba(5, 150, 105, 0.98))'
+              : 'linear-gradient(135deg, #18181b, #09090b)',
+            color: '#ffffff',
+            border: isRefunded ? '1.5px solid #34d399' : '1.5px solid rgba(239, 68, 68, 0.4)',
             borderRadius: '24px',
             padding: '1.5rem',
-            boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5), 0 0 40px rgba(239, 68, 68, 0.1)',
+            boxShadow: '0 24px 70px rgba(0, 0, 0, 0.7), 0 0 40px rgba(239, 68, 68, 0.15)',
             position: 'relative'
           }}>
-            {/* Close Button */}
+            {/* Dismiss Button */}
             <button 
               onClick={() => setShowRefundCard(false)}
               style={{ 
-                position: 'absolute', top: '0.75rem', right: '0.75rem', 
-                background: 'rgba(0,0,0,0.05)', border: 'none', color: 'var(--text-primary)', 
+                position: 'absolute', top: '0.85rem', right: '0.85rem', 
+                background: 'rgba(255,255,255,0.15)', border: 'none', color: '#ffffff', 
                 width: '28px', height: '28px', borderRadius: '50%', 
                 display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' 
               }}
@@ -176,55 +253,217 @@ const OrderTracker = () => {
               <X size={14} />
             </button>
 
-            {/* Header */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
-              <div style={{
-                width: '44px', height: '44px', borderRadius: '14px',
-                background: 'linear-gradient(135deg, #ef4444, #dc2626)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                boxShadow: '0 4px 15px rgba(239, 68, 68, 0.3)'
-              }}>
-                <MessageCircle size={22} color="white" />
-              </div>
+            {/* STATE 1: REFUND SETTLED / COMPLETED */}
+            {isRefunded ? (
               <div>
-                <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: '800', color: '#ef4444' }}>Need an Instant Refund?</h4>
-                <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: '600' }}>Your order was cancelled • Contact us now</p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                  <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#10b981' }}>
+                    <CheckCircle2 size={24} />
+                  </div>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: '900' }}>Instant Refund Sent! 🎉</h3>
+                    <p style={{ margin: 0, fontSize: '0.75rem', opacity: 0.9 }}>Credited directly via UPI</p>
+                  </div>
+                </div>
+
+                <div style={{ background: 'rgba(0,0,0,0.2)', padding: '1rem', borderRadius: '16px', marginBottom: '1rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontSize: '0.85rem' }}>
+                    <span style={{ opacity: 0.8 }}>Amount Credited</span>
+                    <span style={{ fontWeight: '900', fontSize: '1.25rem' }}>₹{order.totalAmount}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+                    <span style={{ opacity: 0.8 }}>Destination UPI</span>
+                    <span style={{ fontWeight: '700' }}>{activeRefundUpi || 'Your UPI Account'}</span>
+                  </div>
+                  {order.refundUtr && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid rgba(255,255,255,0.15)', fontSize: '0.85rem' }}>
+                      <span style={{ opacity: 0.8 }}>Bank Ref / UTR</span>
+                      <button 
+                        onClick={() => copyUtrToClipboard(order.refundUtr)}
+                        style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: 'white', padding: '0.25rem 0.6rem', borderRadius: '8px', fontSize: '0.75rem', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+                      >
+                        {copiedUtr ? <Check size={12} /> : <Copy size={12} />}
+                        {order.refundUtr}
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <p style={{ margin: 0, fontSize: '0.75rem', textAlign: 'center', opacity: 0.9 }}>
+                  Please check your UPI app (GPay / PhonePe / Paytm). Thank you for your patience! ❤️
+                </p>
               </div>
-            </div>
+            ) : isRequested ? (
+              /* STATE 2: REFUND REQUEST IN PROGRESS (QUEUED) */
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                  <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(245, 158, 11, 0.2)', border: '1px solid #f59e0b', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#f59e0b' }}>
+                    <Zap size={22} className="spin" />
+                  </div>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: '900', color: '#fbbf24' }}>Refund In Queue ⚡</h3>
+                    <p style={{ margin: 0, fontSize: '0.75rem', color: '#d1d5db' }}>Admin is initiating your transfer</p>
+                  </div>
+                </div>
 
-            {/* Info Text */}
-            <p style={{ 
-              fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: '1.5', marginBottom: '1rem',
-              padding: '0.75rem', background: '#f8fafc', borderRadius: '12px', border: '1px solid var(--surface-border)'
-            }}>
-              Your payment of <span style={{ color: '#ef4444', fontWeight: '800' }}>₹{order.totalAmount}</span> will be refunded. 
-              Call or WhatsApp us for <span style={{ color: '#10b981', fontWeight: '700' }}>instant processing</span>.
-            </p>
+                <div style={{ background: 'rgba(255,255,255,0.06)', padding: '1rem', borderRadius: '16px', marginBottom: '0.85rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem', fontSize: '0.85rem' }}>
+                    <span style={{ color: '#9ca3af' }}>Refund Amount</span>
+                    <span style={{ fontWeight: '900', color: '#10b981', fontSize: '1.2rem' }}>₹{order.totalAmount}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.85rem' }}>
+                    <span style={{ color: '#9ca3af' }}>Target UPI</span>
+                    <span style={{ fontWeight: '800', color: '#60a5fa' }}>{activeRefundUpi}</span>
+                  </div>
+                </div>
 
-            {/* Phone Numbers */}
-            <div style={{ display: 'flex', gap: '0.75rem' }}>
-              <a href="tel:7985397373" style={{
-                flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
-                padding: '0.85rem', borderRadius: '14px',
-                background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(16, 185, 129, 0.08))',
-                border: '1px solid rgba(16, 185, 129, 0.3)',
-                color: '#10b981', fontWeight: '800', fontSize: '0.85rem',
-                textDecoration: 'none', transition: 'all 0.2s',
-                boxShadow: '0 4px 12px rgba(16, 185, 129, 0.1)'
-              }}>
-                <Phone size={16} /> 7985397373
-              </a>
-              <a href="tel:8295886832" style={{
-                flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
-                padding: '0.85rem', borderRadius: '14px',
-                background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(59, 130, 246, 0.08))',
-                border: '1px solid rgba(59, 130, 246, 0.3)',
-                color: '#3b82f6', fontWeight: '800', fontSize: '0.85rem',
-                textDecoration: 'none', transition: 'all 0.2s',
-                boxShadow: '0 4px 12px rgba(59, 130, 246, 0.1)'
-              }}>
-                <Phone size={16} /> 8295886832
-              </a>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: '0.75rem', color: '#9ca3af' }}>⏱️ Usually credited in 2–5 minutes</span>
+                  <button 
+                    onClick={() => setShowCustomInput(true)}
+                    style={{ background: 'transparent', border: 'none', color: '#60a5fa', fontSize: '0.75rem', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.3rem' }}
+                  >
+                    <Edit3 size={12} /> Change UPI ID
+                  </button>
+                </div>
+              </div>
+            ) : (
+              /* STATE 3: NEED UPI ID - CHOOSE OPTION 1 OR OPTION 2 */
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+                  <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'linear-gradient(135deg, #ef4444, #dc2626)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Zap size={22} color="white" />
+                  </div>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: '900', color: '#ef4444' }}>Instant Direct Refund</h3>
+                    <p style={{ margin: 0, fontSize: '0.75rem', color: '#9ca3af' }}>Order cancelled • ₹{order.totalAmount} will be refunded directly</p>
+                  </div>
+                </div>
+
+                {/* OPTION 1: 1-TAP REFUND TO ORIGINAL PAYER UPI (If captured) */}
+                {originalPayerUpi && !showCustomInput && (
+                  <div style={{ background: 'rgba(255,255,255,0.06)', padding: '1rem', borderRadius: '16px', marginBottom: '0.75rem', border: '1px solid rgba(255,255,255,0.1)' }}>
+                    <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.75rem', color: '#9ca3af', fontWeight: '600' }}>⚡ Recommended 1-Tap Refund:</p>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                      <span style={{ fontSize: '0.9rem', fontWeight: '800', color: '#60a5fa' }}>{originalPayerUpi}</span>
+                      <span style={{ fontSize: '0.7rem', background: 'rgba(59, 130, 246, 0.2)', color: '#93c5fd', padding: '0.2rem 0.5rem', borderRadius: '6px', fontWeight: '700' }}>Original Payment UPI</span>
+                    </div>
+
+                    <button 
+                      onClick={() => handleRequestRefund(originalPayerUpi)}
+                      disabled={isSubmittingRefund}
+                      style={{
+                        width: '100%', height: '44px', borderRadius: '12px',
+                        background: 'linear-gradient(135deg, #10b981, #059669)',
+                        color: 'white', border: 'none', fontWeight: '800', fontSize: '0.9rem',
+                        cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
+                        boxShadow: '0 4px 14px rgba(16, 185, 129, 0.4)'
+                      }}
+                    >
+                      {isSubmittingRefund ? 'Submitting...' : `Confirm & Claim ₹${order.totalAmount}`}
+                    </button>
+
+                    <div style={{ textAlign: 'center', marginTop: '0.75rem' }}>
+                      <button 
+                        onClick={() => setShowCustomInput(true)}
+                        style={{ background: 'transparent', border: 'none', color: '#9ca3af', fontSize: '0.75rem', cursor: 'pointer', textDecoration: 'underline' }}
+                      >
+                        Want refund on a different UPI ID? Click here
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* OPTION 2: ENTER CUSTOM UPI ID */}
+                {(!originalPayerUpi || showCustomInput) && (
+                  <div>
+                    <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.8rem', color: '#d1d5db' }}>
+                      Enter your UPI ID to receive ₹<strong style={{ color: '#10b981' }}>{order.totalAmount}</strong> instantly:
+                    </p>
+
+                    <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                      <input 
+                        type="text"
+                        placeholder="e.g. 9876543210@paytm or name@oksbi"
+                        value={customUpi}
+                        onChange={(e) => setCustomUpi(e.target.value)}
+                        style={{
+                          flex: 1, height: '44px', padding: '0 0.75rem', borderRadius: '12px',
+                          background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.2)',
+                          color: '#ffffff', fontSize: '0.85rem', outline: 'none'
+                        }}
+                      />
+                      <button 
+                        onClick={() => handleRequestRefund()}
+                        disabled={isSubmittingRefund}
+                        style={{
+                          height: '44px', padding: '0 1.25rem', borderRadius: '12px',
+                          background: 'linear-gradient(135deg, #ef4444, #dc2626)',
+                          color: 'white', border: 'none', fontWeight: '800', fontSize: '0.85rem',
+                          cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem',
+                          boxShadow: '0 4px 12px rgba(239, 68, 68, 0.4)'
+                        }}
+                      >
+                        {isSubmittingRefund ? 'Sending...' : <><Send size={14} /> Submit</>}
+                      </button>
+                    </div>
+
+                    {/* Quick Autofill Chips from student phone */}
+                    {rawPhone.length === 10 && (
+                      <div style={{ marginBottom: '0.75rem' }}>
+                        <span style={{ fontSize: '0.7rem', color: '#9ca3af', display: 'block', marginBottom: '0.35rem' }}>Quick Auto-fill:</span>
+                        <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                          {['paytm', 'ybl', 'oksbi', 'ibl'].map(bank => (
+                            <button
+                              key={bank}
+                              type="button"
+                              onClick={() => setCustomUpi(`${rawPhone}@${bank}`)}
+                              style={{
+                                background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)',
+                                color: '#93c5fd', borderRadius: '6px', padding: '0.2rem 0.5rem',
+                                fontSize: '0.7rem', fontWeight: '700', cursor: 'pointer'
+                              }}
+                            >
+                              +{bank}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {originalPayerUpi && (
+                      <div style={{ textAlign: 'center', marginTop: '0.5rem' }}>
+                        <button 
+                          onClick={() => setShowCustomInput(false)}
+                          style={{ background: 'transparent', border: 'none', color: '#60a5fa', fontSize: '0.75rem', cursor: 'pointer' }}
+                        >
+                          ← Back to original UPI ({originalPayerUpi})
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Error Banner */}
+                {refundError && (
+                  <div style={{ background: 'rgba(239, 68, 68, 0.2)', border: '1px solid #ef4444', color: '#fca5a5', padding: '0.5rem 0.75rem', borderRadius: '10px', fontSize: '0.75rem', marginTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <AlertCircle size={14} /> {refundError}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Direct Phone Assistance Footer */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem', paddingTop: '0.75rem', borderTop: '1px solid rgba(255,255,255,0.1)', fontSize: '0.75rem' }}>
+              <span style={{ color: '#9ca3af' }}>Need urgent help?</span>
+              <div style={{ display: 'flex', gap: '0.75rem' }}>
+                <a href="tel:7985397373" style={{ color: '#34d399', textDecoration: 'none', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                  <Phone size={12} /> 7985397373
+                </a>
+                <a href="tel:8295886832" style={{ color: '#60a5fa', textDecoration: 'none', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                  <Phone size={12} /> 8295886832
+                </a>
+              </div>
             </div>
           </div>
         </div>
