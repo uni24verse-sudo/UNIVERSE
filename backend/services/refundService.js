@@ -171,7 +171,11 @@ const requestUpiRefund = async ({ orderId, upiId, io = null }) => {
       return { success: false, message: 'Invalid UPI ID format. Example: name@okhdfcbank or 9876543210@paytm' };
     }
 
-    const order = await Order.findById(orderId).populate('store');
+    const mongoose = require('mongoose');
+    const isObjectId = mongoose.Types.ObjectId.isValid(orderId) && orderId.toString().length === 24;
+    const query = isObjectId ? { $or: [{ _id: orderId }, { orderNumber: orderId }] } : { orderNumber: orderId };
+
+    const order = await Order.findOne(query).populate('store');
     if (!order) {
       return { success: false, message: 'Order not found.' };
     }
@@ -238,6 +242,9 @@ const requestUpiRefund = async ({ orderId, upiId, io = null }) => {
     if (io) {
       // Notify student's tracker room
       io.to(order._id.toString()).emit('order_status_update', order);
+      if (order.orderNumber) {
+        io.to(order.orderNumber.toString()).emit('order_status_update', order);
+      }
       // Notify SuperAdmin command center
       io.to('superadmin_room').emit('new_refund_request', {
         refundId: refund._id,
@@ -346,6 +353,9 @@ const settleRefund = async ({ refundId, utr = '', settledBy = 'Super Admin', io 
     // 🌐 Real-time Socket Updates
     if (io) {
       io.to(order._id.toString()).emit('order_status_update', order);
+      if (order.orderNumber) {
+        io.to(order.orderNumber.toString()).emit('order_status_update', order);
+      }
       io.to('superadmin_room').emit('refund_settled', {
         refundId: refund._id,
         orderId: order._id,

@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const mongoose = require('mongoose');
 const auth = require('../middleware/auth');
 const Order = require('../models/Order');
 const Store = require('../models/Store');
@@ -279,9 +280,13 @@ router.delete('/:id', async (req, res) => {
 // Get Single Order Status (Public, for customer tracking)
 router.get('/:id', async (req, res) => {
   try {
+    const param = req.params.id;
+    const isObjectId = mongoose.Types.ObjectId.isValid(param) && param.length === 24;
+    const query = isObjectId ? { $or: [{ _id: param }, { orderNumber: param }] } : { orderNumber: param };
+
     // We explicitly select +handoverToken here so the tracking page can generate the QR code
     // The tracking page ONLY displays the QR code if status === 'Ready'
-    const order = await Order.findById(req.params.id).select('+handoverToken').populate({
+    const order = await Order.findOne(query).select('+handoverToken').populate({
       path: 'store',
       populate: { path: 'admin', select: 'name' }
     });
