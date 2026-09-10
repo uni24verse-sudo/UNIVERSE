@@ -581,46 +581,119 @@ router.get('/refund/claim-pay/:refundId', async (req, res) => {
       }
     } catch (_) {}
 
-    // 5. Build native UPI Intent URL
+    // 5. Build clean native UPI Intent URLs (No underscores to comply with SBI/NPCI rules)
     const studentName = (refund.customerName || order.customerName || 'UniVerse Student').replace(/[^a-zA-Z0-9 ]/g, '');
-    const amount = (refund.amount || order.totalAmount || 0).toFixed(2);
-    const upiId = refund.customerUpiId || order.customerUpiId || '';
-    const upiDeepLink = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(studentName)}&am=${amount}&tn=UniVerse_Refund_${order.orderNumber}&cu=INR`;
+    const amount = Number(refund.amount || order.totalAmount || 0).toFixed(2);
+    const upiId = (refund.customerUpiId || order.customerUpiId || '').trim();
+    const cleanNote = `UniVerse${order.orderNumber || ''}`;
+    
+    const standardUpiLink = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(studentName)}&am=${amount}&tn=${cleanNote}&cu=INR`;
+    const gpayLink = `tez://upi/pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(studentName)}&am=${amount}&tn=${cleanNote}&cu=INR`;
+    const phonepeLink = `phonepe://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(studentName)}&am=${amount}&tn=${cleanNote}&cu=INR`;
+    const paytmLink = `paytmmp://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(studentName)}&am=${amount}&tn=${cleanNote}&cu=INR`;
+    const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(standardUpiLink)}`;
 
-    // 6. Serve 1-Tap Launchpad (with auto redirect to PhonePe/GPay)
+    // 6. Serve Resilient 1-Tap Mobile Launchpad (Clean theme, multi-app buttons, copy fallback & QR)
     res.send(`
       <!DOCTYPE html>
       <html>
       <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>UniVerse Refund Launchpad</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+        <title>UniVerse Instant Refund Launchpad</title>
+        <style>
+          * { box-sizing: border-box; margin: 0; padding: 0; }
+          body { font-family: system-ui, -apple-system, sans-serif; background: #0f172a; color: #f8fafc; padding: 1.25rem 1rem; }
+          .card { background: #1e293b; border-radius: 24px; padding: 1.5rem; max-width: 440px; margin: 0 auto; border: 1px solid #334155; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
+          .badge { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 8px; font-size: 0.75rem; font-weight: 800; }
+          .btn { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 0.85rem; border-radius: 14px; text-decoration: none; font-weight: 800; font-size: 0.95rem; border: none; cursor: pointer; transition: transform 0.15s ease; margin-bottom: 0.6rem; }
+          .btn:active { transform: scale(0.98); }
+          .btn-primary { background: linear-gradient(135deg, #ef4123, #f97316); color: white; box-shadow: 0 4px 15px rgba(239, 65, 35, 0.35); }
+          .btn-secondary { background: #334155; color: white; }
+          .btn-phonepe { background: #5f259f; color: white; }
+          .btn-gpay { background: #1a73e8; color: white; }
+          .btn-paytm { background: #00b9f5; color: #002e6e; }
+          .btn-settle { background: linear-gradient(135deg, #10b981, #059669); color: white; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.35); }
+          .info-box { background: #0f172a; border-radius: 16px; padding: 1rem; margin: 1rem 0; border: 1px solid #334155; }
+          .info-row { display: flex; justify-content: space-between; margin-bottom: 0.45rem; font-size: 0.88rem; }
+          .copy-chip { background: #334155; padding: 6px 12px; border-radius: 10px; font-size: 0.8rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: space-between; border: 1px solid #475569; margin-top: 0.5rem; }
+          .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #10b981; color: white; padding: 8px 16px; border-radius: 20px; font-size: 0.85rem; font-weight: 800; display: none; z-index: 1000; box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+        </style>
         <script>
-          window.onload = function() {
-            setTimeout(function() {
-              window.location.href = "${upiDeepLink}";
-            }, 300);
-          };
+          function copyText(text, label) {
+            navigator.clipboard.writeText(text);
+            var toast = document.getElementById('toast');
+            toast.innerText = '✓ Copied ' + label + ' (' + text + ')';
+            toast.style.display = 'block';
+            setTimeout(function() { toast.style.display = 'none'; }, 2500);
+          }
+          function toggleQR() {
+            var qr = document.getElementById('qrContainer');
+            qr.style.display = qr.style.display === 'none' ? 'block' : 'none';
+          }
         </script>
       </head>
-      <body style="font-family: system-ui, -apple-system, sans-serif; text-align: center; padding: 2rem 1rem; background: #09090b; color: #ffffff;">
-        <div style="background: #18181b; padding: 2rem 1.5rem; border-radius: 24px; max-width: 420px; margin: 1.5rem auto; border: 1.5px solid #27272a; box-shadow: 0 20px 50px rgba(0,0,0,0.5);">
-          <div style="width: 50px; height: 50px; border-radius: 14px; background: linear-gradient(135deg, #10b981, #059669); color: white; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; margin: 0 auto 1rem;">⚡</div>
-          <h2 style="margin: 0 0 0.25rem 0; font-size: 1.4rem; font-weight: 900;">UniVerse Refund Desk</h2>
-          <p style="color: #a1a1aa; font-size: 0.85rem; margin: 0 0 1.5rem 0;">Opening your UPI app in 1 tap...</p>
-          
-          <div style="background: #27272a; padding: 1rem; border-radius: 16px; margin-bottom: 1.5rem; text-align: left; font-size: 0.9rem;">
-            <div style="display:flex;justify-content:space-between;margin-bottom:0.4rem;"><span style="color:#a1a1aa;">Order:</span><strong>#${order.orderNumber}</strong></div>
-            <div style="display:flex;justify-content:space-between;margin-bottom:0.4rem;"><span style="color:#a1a1aa;">Recipient:</span><strong>${studentName}</strong></div>
-            <div style="display:flex;justify-content:space-between;margin-bottom:0.4rem;"><span style="color:#a1a1aa;">UPI ID:</span><strong style="color:#60a5fa;">${upiId}</strong></div>
-            <div style="display:flex;justify-content:space-between;padding-top:0.6rem;border-top:1px solid #3f3f46;"><span style="color:#a1a1aa;">Refund Amount:</span><strong style="color:#34d399;font-size:1.2rem;">₹${amount}</strong></div>
+      <body>
+        <div id="toast" class="toast">✓ Copied to clipboard!</div>
+        <div class="card">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <div style="width: 38px; height: 38px; border-radius: 10px; background: #ef4123; color: white; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; font-weight: 900;">⚡</div>
+              <div>
+                <h3 style="font-size: 1.05rem; font-weight: 900; margin: 0;">UniVerse Refund</h3>
+                <span style="font-size: 0.72rem; color: #94a3b8;">Order #${order.orderNumber}</span>
+              </div>
+            </div>
+            <span class="badge" style="background: rgba(245, 158, 11, 0.2); color: #fbbf24;">🔒 Claimed</span>
           </div>
 
-          <a href="${upiDeepLink}" style="display: block; padding: 1rem; border-radius: 14px; background: linear-gradient(135deg, #10b981, #059669); color: white; text-decoration: none; font-weight: 800; font-size: 1rem; box-shadow: 0 4px 20px rgba(16, 185, 129, 0.4); margin-bottom: 1rem;">
-            🚀 Open GPay / PhonePe (₹${amount})
+          <div class="info-box">
+            <div class="info-row"><span style="color: #94a3b8;">Student:</span><strong>${studentName}</strong></div>
+            <div class="info-row"><span style="color: #94a3b8;">Refund Amount:</span><strong style="color: #34d399; font-size: 1.15rem;">₹${amount}</strong></div>
+            <div class="info-row" style="margin-bottom: 0;"><span style="color: #94a3b8;">Target UPI:</span><strong style="color: #60a5fa; font-size: 0.88rem; word-break: break-all;">${upiId}</strong></div>
+            
+            <div class="copy-chip" onclick="copyText('${upiId}', 'UPI ID')">
+              <span>📋 Copy Target UPI ID</span>
+              <span style="color: #38bdf8; font-size: 0.75rem;">TAP TO COPY</span>
+            </div>
+          </div>
+
+          <!-- 🚀 1-TAP APP LAUNCHERS -->
+          <p style="font-size: 0.75rem; color: #94a3b8; margin: 0 0 0.5rem 0; font-weight: 700; text-transform: uppercase;">1-Tap Instant Payment:</p>
+          <a href="${gpayLink}" class="btn btn-gpay">
+            <span>🚀 Pay with Google Pay (₹${amount})</span>
+          </a>
+          <a href="${phonepeLink}" class="btn btn-phonepe">
+            <span>🟣 Pay with PhonePe (₹${amount})</span>
+          </a>
+          <a href="${paytmLink}" class="btn btn-paytm">
+            <span>🔵 Pay with Paytm (₹${amount})</span>
+          </a>
+          <a href="${standardUpiLink}" class="btn btn-secondary" style="font-size: 0.85rem;">
+            <span>⚡ Open Any Other UPI App</span>
           </a>
 
-          <p style="color: #71717a; font-size: 0.75rem; margin: 0;">
-            🔒 Claimed for 3 minutes. Lock expires if unpaid.
+          <!-- 📱 QR CODE TOGGLE -->
+          <button onclick="toggleQR()" class="btn btn-secondary" style="margin-top: 0.4rem; font-size: 0.82rem; background: #0f172a; border: 1px solid #334155;">
+            📷 Show QR Code to Scan / Screenshot
+          </button>
+          <div id="qrContainer" style="display: none; text-align: center; padding: 1rem 0; background: white; border-radius: 16px; margin: 0.8rem 0;">
+            <img src="${qrImageUrl}" alt="Scan QR" style="width: 200px; height: 200px; display: inline-block;" />
+            <p style="color: #0f172a; font-size: 0.75rem; font-weight: 800; margin-top: 0.4rem;">Scan or Screenshot in GPay/Paytm</p>
+          </div>
+
+          <!-- ✅ MOBILE SETTLEMENT FORM -->
+          <div style="border-top: 1px solid #334155; margin-top: 1.25rem; padding-top: 1.25rem;">
+            <p style="font-size: 0.75rem; color: #94a3b8; margin-bottom: 0.5rem; font-weight: 700; text-transform: uppercase;">Step 2: Mark Paid & Notify Student</p>
+            <form method="POST" action="/api/orders/refund/mobile-settle/${refund._id}">
+              <input type="text" name="utr" placeholder="Bank UTR (Optional, e.g. 423891029831)" style="width: 100%; background: #0f172a; border: 1px solid #334155; color: white; padding: 0.75rem 1rem; border-radius: 12px; font-size: 0.85rem; outline: none; margin-bottom: 0.6rem;" />
+              <button type="submit" class="btn btn-settle">
+                <span>✓ Confirm Paid & Close Refund</span>
+              </button>
+            </form>
+          </div>
+
+          <p style="color: #64748b; font-size: 0.72rem; text-align: center; margin-top: 0.8rem;">
+            🔒 3-Minute Lock Active. Duplicate protection enforced.
           </p>
         </div>
       </body>
@@ -629,6 +702,48 @@ router.get('/refund/claim-pay/:refundId', async (req, res) => {
   } catch (err) {
     console.error('[orders.refund.claim-pay] Error:', err);
     res.status(500).send('Server Error');
+  }
+});
+
+// ⚡ Mobile 1-Tap Settlement Endpoint (Called from Mobile Launchpad)
+router.post('/refund/mobile-settle/:refundId', async (req, res) => {
+  try {
+    const { refundId } = req.params;
+    const { utr } = req.body;
+    const refundService = require('../services/refundService');
+
+    const result = await refundService.settleRefund({
+      refundId,
+      utr: utr || 'MOBILE_SETTLED',
+      settledBy: 'WhatsApp Admin',
+      io: req.app.get('io')
+    });
+
+    if (!result.success) {
+      return res.status(400).send(`<h3>Error: ${result.message}</h3>`);
+    }
+
+    res.send(`
+      <!DOCTYPE html>
+      <html>
+      <head><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Refund Completed</title></head>
+      <body style="font-family: system-ui, sans-serif; text-align: center; padding: 2rem 1rem; background: #0f172a; color: white;">
+        <div style="background: #1e293b; padding: 2rem; border-radius: 24px; max-width: 420px; margin: 2rem auto; border: 1px solid #334155;">
+          <div style="width: 55px; height: 55px; border-radius: 50%; background: #064e3b; color: #34d399; display: flex; align-items: center; justify-content: center; font-size: 2rem; margin: 0 auto 1rem;">✓</div>
+          <h2 style="margin: 0 0 0.5rem 0;">Refund Settled!</h2>
+          <p style="color: #94a3b8; font-size: 0.9rem; margin-bottom: 1.5rem;">The student has been notified on WhatsApp and their live order tracker updated to completed.</p>
+          <div style="background: #0f172a; padding: 1rem; border-radius: 14px; text-align: left; font-size: 0.85rem; margin-bottom: 1.5rem;">
+            <div style="display:flex;justify-content:space-between;margin-bottom:0.4rem;"><span>UTR Reference:</span><strong>${utr || 'Logged in DB'}</strong></div>
+            <div style="display:flex;justify-content:space-between;"><span>Status:</span><strong style="color:#34d399;">Processed & Closed</strong></div>
+          </div>
+          <p style="color: #64748b; font-size: 0.75rem;">You can safely close this browser window.</p>
+        </div>
+      </body>
+      </html>
+    `);
+  } catch (err) {
+    console.error('[orders.refund.mobile-settle] Error:', err);
+    res.status(500).send('Failed to process settlement');
   }
 });
 
