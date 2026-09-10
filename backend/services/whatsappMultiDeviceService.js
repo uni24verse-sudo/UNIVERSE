@@ -480,7 +480,7 @@ class WhatsAppMultiDeviceService {
       const upiPayLink = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(studentName.replace(/[^a-zA-Z0-9 ]/g, ''))}&am=${amount}&tn=${cleanNote}&cu=INR`;
       const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=350x350&data=${encodeURIComponent(upiPayLink)}`;
 
-      const claimPayUrl = `https://www.universeorder.co.in/api/orders/refund/claim-pay/${refund._id}`;
+      const claimPayUrl = `https://api.universeorder.co.in/api/orders/refund/claim-pay/${refund._id}`;
       const adminDeskUrl = `https://www.universeorder.co.in/super-admin/panel?tab=refunds`;
 
       const alertMessage = 
@@ -502,14 +502,13 @@ class WhatsAppMultiDeviceService {
       const destinations = [];
       if (config.notifyGroup && config.groupJid) {
         destinations.push(config.groupJid);
-      }
-      if (config.notifyPhones && config.phoneNumbers && config.phoneNumbers.length > 0) {
+      } else if (config.notifyPhones && config.phoneNumbers && config.phoneNumbers.length > 0) {
         destinations.push(...config.phoneNumbers);
-      }
-
-      // If no destinations configured in DB, fallback to default admin numbers
-      if (destinations.length === 0) {
-        destinations.push('7985397373', '8295886832');
+      } else if (process.env.REFUND_ALERT_WHATSAPP_GROUP_JID) {
+        destinations.push(process.env.REFUND_ALERT_WHATSAPP_GROUP_JID);
+      } else {
+        // Fallback to primary admin only if no group exists
+        destinations.push('7985397373');
       }
 
       for (const dest of destinations) {

@@ -690,6 +690,10 @@ router.get('/refund/claim-pay/:refundId', async (req, res) => {
                 <span>✓ Confirm Paid & Close Refund</span>
               </button>
             </form>
+            
+            <a href="https://www.universeorder.co.in/super-admin/panel?tab=refunds" class="btn btn-secondary" style="font-size: 0.8rem; margin-top: 0.75rem; text-decoration: none; display: flex; align-items: center; justify-content: center; background: #0f172a; border: 1px solid #334155; color: #94a3b8;">
+              🖥️ Open Super Admin Portal
+            </a>
           </div>
 
           <p style="color: #64748b; font-size: 0.72rem; text-align: center; margin-top: 0.8rem;">
