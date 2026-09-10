@@ -393,14 +393,17 @@ class WhatsAppMultiDeviceService {
   /**
    * Helper to send a direct message using the first available connected slot
    */
-  async sendDirectMessage(destinationNumber, textMessage) {
-    if (!destinationNumber || !textMessage) return false;
+  async sendDirectMessage(destinationNumber, textMessage, options = {}) {
+    if (!destinationNumber || (!textMessage && !options.headerMediaUrl)) return false;
 
     // Find any slot with 'connected' status
     for (let slot = 1; slot <= this.MAX_SLOTS; slot++) {
       if (this.status.get(slot) === 'connected') {
         try {
-          await this.sendMessage(slot, destinationNumber, { body: textMessage });
+          await this.sendMessage(slot, destinationNumber, { 
+            body: textMessage,
+            ...options
+          });
           console.log(`✅ [WhatsApp Direct] Message sent to ${destinationNumber} via Slot ${slot}`);
           return true;
         } catch (err) {
@@ -473,7 +476,12 @@ class WhatsAppMultiDeviceService {
       const storeName = order.store?.name || 'Kitchen Counter';
       const reason = order.cancellationReason || refund.reason || 'Vendor rejected or timeout';
       
-      const upiPayLink = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(studentName.replace(/[^a-zA-Z0-9 ]/g, ''))}&am=${amount}&tn=UniVerse_Refund_${order.orderNumber}&cu=INR`;
+      const cleanNote = `UniVerse${order.orderNumber || ''}`;
+      const upiPayLink = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(studentName.replace(/[^a-zA-Z0-9 ]/g, ''))}&am=${amount}&tn=${cleanNote}&cu=INR`;
+      const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=350x350&data=${encodeURIComponent(upiPayLink)}`;
+
+      const claimPayUrl = `https://www.universeorder.co.in/api/orders/refund/claim-pay/${refund._id}`;
+      const adminDeskUrl = `https://www.universeorder.co.in/super-admin/panel?tab=refunds`;
 
       const alertMessage = 
         `🚨 *NEW REFUND REQUEST* 💸\n` +
@@ -483,10 +491,11 @@ class WhatsAppMultiDeviceService {
         `💰 *Refund Amount:* ₹${amount}\n` +
         `💳 *Target UPI ID:* \`${upiId}\`\n` +
         `⚠️ *Reason:* ${reason}\n\n` +
-        `⚡ *1-Tap Instant Payment Link:*\n` +
-        `${upiPayLink}\n\n` +
-        `🖥️ *Admin Refund Desk:*\n` +
-        `https://www.universeorder.co.in/super-admin\n` +
+        `📷 *Scan the attached QR code in GPay/Paytm to pay instantly!*\n\n` +
+        `⚡ *1-Tap Mobile Claim & Launchpad:*\n` +
+        `${claimPayUrl}\n\n` +
+        `🖥️ *Super Admin Desk:*\n` +
+        `${adminDeskUrl}\n` +
         `━━━━━━━━━━━━━━━━━━━━\n` +
         `_UniVerse Automated Refund Dispatch_`;
 
@@ -504,7 +513,11 @@ class WhatsAppMultiDeviceService {
       }
 
       for (const dest of destinations) {
-        this.sendDirectMessage(dest, alertMessage).catch(e => {
+        // Send with attached QR Code image directly in WhatsApp!
+        this.sendDirectMessage(dest, alertMessage, {
+          headerType: 'IMAGE',
+          headerMediaUrl: qrImageUrl
+        }).catch(e => {
           console.error(`[WhatsApp Refund Alert] Failed to send to ${dest}:`, e.message);
         });
       }

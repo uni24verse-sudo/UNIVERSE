@@ -87,12 +87,19 @@ const AppLayout = () => {
     setSelectedLocationId(loc._id);
   };
 
-  if (!isSessionStarted && !isAdminPath && !location.pathname.startsWith('/order-tracker')) {
+  const isDirectBypass = location.pathname.startsWith('/order-tracker') || 
+                         location.pathname.startsWith('/orders') || 
+                         location.pathname.startsWith('/store/') ||
+                         location.pathname.startsWith('/terms') ||
+                         location.pathname.startsWith('/privacy') ||
+                         location.pathname.startsWith('/vendor-app-download');
+
+  if (!isSessionStarted && !isAdminPath && !isDirectBypass) {
     return <SplashScreen onComplete={() => setIsSessionStarted(true)} />;
   }
 
-  // If no location is selected and we are NOT on an admin path or a direct store path, show the portal
-  if (!selectedLocationId && !isAdminPath && !location.pathname.startsWith('/store/')) {
+  // If no location is selected and we are NOT on an admin path or a direct bypass path, show the portal
+  if (!selectedLocationId && !isAdminPath && !isDirectBypass) {
     return <LocationPortal onLocationSelect={handleLocationSelect} />;
   }
 
@@ -153,6 +160,7 @@ const AppLayout = () => {
             <Route path="/store/:id" element={<StoreMenu />} />
             <Route path="/cart" element={<Cart />} />
             <Route path="/order-tracker/:id" element={<OrderTracker />} />
+            <Route path="/orders/:id" element={<OrderTracker />} />
             <Route path="/terms" element={<TermsAndConditions />} />
             <Route path="/privacy" element={<PrivacyPolicy />} />
             <Route path="/vendor-app-download" element={<VendorAppDownload />} />

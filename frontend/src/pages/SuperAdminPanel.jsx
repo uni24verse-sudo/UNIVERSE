@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
 import { 
@@ -43,7 +43,9 @@ const SuperAdminPanel = () => {
   const { token, vendor, logout } = useContext(AuthContext); // vendor holds admin data
   const { socket, connected } = useSocket();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('3d_analytics');
+  const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || '3d_analytics');
   const [stats, setStats] = useState(null);
   const [vendors, setVendors] = useState([]);
   const [orders, setOrders] = useState([]);
@@ -68,6 +70,13 @@ const SuperAdminPanel = () => {
     if (!token) return navigate('/super-admin/login');
     fetchDashboardData();
   }, [token, navigate]);
+
+  useEffect(() => {
+    const tabParam = new URLSearchParams(location.search).get('tab');
+    if (tabParam) {
+      setActiveTab(tabParam);
+    }
+  }, [location.search]);
 
   // Robust Wakeup Mechanism: Refetch data when returning from inactivity/sleep
   useEffect(() => {

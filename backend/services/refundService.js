@@ -116,7 +116,7 @@ const handleOrderCancellation = async ({
       (targetUpi 
         ? `We have your UPI ID: *${targetUpi}* on file.\n` 
         : `Please confirm your UPI ID on the live order tracker so we can send your money.\n`) +
-      `🔗 *Live Refund Tracker:*\nhttps://www.universeorder.co.in/orders/${order._id}\n\n` +
+      `🔗 *Live Refund Tracker:*\nhttps://www.universeorder.co.in/order-tracker/${order._id}\n\n` +
       `_UniVerse Student Support_`;
 
     if (studentPhone) {
