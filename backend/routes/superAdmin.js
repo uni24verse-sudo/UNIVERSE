@@ -889,11 +889,19 @@ router.post('/refunds/:id/settle', async (req, res) => {
   try {
     const { id } = req.params;
     const { utr } = req.body;
+
+    if (!utr || typeof utr !== 'string' || !utr.trim()) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Bank UTR / Transaction Reference Number is strictly required to settle a refund.' 
+      });
+    }
+
     const adminIdentifier = req.admin?.name || req.admin?.email || 'SUPER_ADMIN';
 
     const result = await refundService.settleRefund({
       refundId: id,
-      utr: utr || '',
+      utr: utr.trim(),
       settledBy: adminIdentifier,
       io: req.app.get('io')
     });

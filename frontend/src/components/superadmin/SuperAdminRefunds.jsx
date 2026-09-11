@@ -153,7 +153,11 @@ const SuperAdminRefunds = ({ token, socket }) => {
   };
 
   const handleSettle = async (refundId) => {
-    const utr = utrInputs[refundId] || '';
+    const utr = (utrInputs[refundId] || '').trim();
+    if (!utr) {
+      alert('Bank UTR / Transaction Reference number is strictly required to mark this refund as settled.');
+      return;
+    }
     setActionLoading(refundId);
     try {
       const res = await axios.post(`${API_URL}/api/super-admin/refunds/${refundId}/settle`, { utr }, authConfig);
@@ -479,27 +483,35 @@ const SuperAdminRefunds = ({ token, socket }) => {
 
                     {/* Settle Action Bar */}
                     <div style={{ paddingTop: '1rem', borderTop: '1px solid var(--surface-border)' }}>
-                      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', marginBottom: '0.65rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontSize: '0.75rem', fontWeight: '800', color: utrInputs[refund._id]?.trim() ? '#10b981' : '#ef4444' }}>
+                            Bank UTR / Ref Number * {utrInputs[refund._id]?.trim() ? '✓' : '(Required)'}
+                          </span>
+                        </div>
                         <input
                           type="text"
-                          placeholder="Optional Bank UTR / Ref (or add later)"
+                          placeholder="Enter 12-digit Bank UTR / Ref (Mandatory)"
                           value={utrInputs[refund._id] || ''}
                           onChange={(e) => setUtrInputs({ ...utrInputs, [refund._id]: e.target.value })}
                           style={{
-                            flex: 1, height: '40px', padding: '0 0.75rem', borderRadius: '10px',
-                            border: '1px solid var(--surface-border)', fontSize: '0.8rem', outline: 'none'
+                            width: '100%', height: '40px', padding: '0 0.75rem', borderRadius: '10px',
+                            border: utrInputs[refund._id]?.trim() ? '1.5px solid #10b981' : '1.5px solid #f87171',
+                            background: utrInputs[refund._id]?.trim() ? '#f0fdf4' : '#fff5f5',
+                            fontSize: '0.825rem', outline: 'none', fontWeight: '600'
                           }}
                         />
                       </div>
                       <button
                         onClick={() => handleSettle(refund._id)}
-                        disabled={actionLoading === refund._id || !upiId}
+                        disabled={actionLoading === refund._id || !upiId || !utrInputs[refund._id]?.trim()}
                         style={{
                           width: '100%', height: '44px', borderRadius: '12px',
-                          background: upiId ? 'linear-gradient(135deg, #ef4444, #dc2626)' : '#d1d5db',
+                          background: (upiId && utrInputs[refund._id]?.trim()) ? 'linear-gradient(135deg, #10b981, #059669)' : '#d1d5db',
                           color: '#ffffff', border: 'none', fontWeight: '800', fontSize: '0.875rem',
-                          cursor: upiId ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center',
-                          justifyContent: 'center', gap: '0.5rem', boxShadow: upiId ? '0 4px 14px rgba(239, 68, 68, 0.3)' : 'none'
+                          cursor: (upiId && utrInputs[refund._id]?.trim()) ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center',
+                          justifyContent: 'center', gap: '0.5rem',
+                          boxShadow: (upiId && utrInputs[refund._id]?.trim()) ? '0 4px 14px rgba(16, 185, 129, 0.3)' : 'none'
                         }}
                       >
                         {actionLoading === refund._id ? (
@@ -687,16 +699,40 @@ const SuperAdminRefunds = ({ token, socket }) => {
               </div>
             </div>
 
+            <div style={{ marginBottom: '1.25rem', textAlign: 'left' }}>
+              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '800', color: utrInputs[qrModalData.refundId]?.trim() ? '#10b981' : '#ef4444', marginBottom: '0.35rem' }}>
+                Bank UTR / Ref Number * {utrInputs[qrModalData.refundId]?.trim() ? '✓' : '(Required)'}
+              </label>
+              <input
+                type="text"
+                placeholder="Enter 12-digit UTR from your UPI app"
+                value={utrInputs[qrModalData.refundId] || ''}
+                onChange={(e) => setUtrInputs({ ...utrInputs, [qrModalData.refundId]: e.target.value })}
+                style={{
+                  width: '100%', height: '42px', padding: '0 0.75rem', borderRadius: '10px',
+                  border: utrInputs[qrModalData.refundId]?.trim() ? '1.5px solid #10b981' : '1.5px solid #f87171',
+                  background: utrInputs[qrModalData.refundId]?.trim() ? '#f0fdf4' : '#fff5f5',
+                  fontSize: '0.85rem', outline: 'none', fontWeight: '600'
+                }}
+              />
+            </div>
+
             <button
               onClick={() => handleSettle(qrModalData.refundId)}
+              disabled={actionLoading === qrModalData.refundId || !utrInputs[qrModalData.refundId]?.trim()}
               style={{
                 width: '100%', height: '48px', borderRadius: '12px',
-                background: 'linear-gradient(135deg, #10b981, #059669)',
+                background: utrInputs[qrModalData.refundId]?.trim() ? 'linear-gradient(135deg, #10b981, #059669)' : '#d1d5db',
                 color: 'white', border: 'none', fontWeight: '800', fontSize: '0.95rem',
-                cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem'
+                cursor: utrInputs[qrModalData.refundId]?.trim() ? 'pointer' : 'not-allowed',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem'
               }}
             >
-              <Check size={18} /> Done! Mark Order as Refunded
+              {actionLoading === qrModalData.refundId ? 'Settling...' : (
+                <>
+                  <Check size={18} /> Done! Mark Order as Refunded
+                </>
+              )}
             </button>
           </div>
         </div>

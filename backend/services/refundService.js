@@ -103,26 +103,33 @@ const handleOrderCancellation = async ({
       }
     });
 
-    // 📱 Dispatch WhatsApp Cancellation Notice to Student
+    // 📱 Dispatch WhatsApp Cancellation Notice to Student via Journey Engine
     const studentPhone = order.customerPhone;
-    const storeName = order.store?.name || 'the kitchen';
-    const targetUpi = order.customerUpiId || order.payerUpiId;
+    const storeName = order.store?.name || 'Kitchen Counter';
+    const targetUpi = order.customerUpiId || order.payerUpiId || '';
 
-    const studentCancelMessage = 
-      `*UNIVERSE Order Update* ⚠️\n\n` +
-      `We're sorry, *${storeName}* could not accept your order *#${order.orderNumber}* (${reason}).\n\n` +
-      `💰 *Refund Amount:* ₹${order.totalAmount.toFixed(2)}\n` +
-      `⚡ *Status:* Queued for Instant Direct UPI Transfer\n\n` +
-      (targetUpi 
-        ? `We have your UPI ID: *${targetUpi}* on file.\n` 
-        : `Please confirm your UPI ID on the live order tracker so we can send your money.\n`) +
-      `🔗 *Live Refund Tracker:*\nhttps://www.universeorder.co.in/order-tracker/${order._id}\n\n` +
-      `_UniVerse Student Support_`;
+    if (journeyEngineService && studentPhone) {
+      const payload = {
+        userId: order.userId || studentPhone,
+        name: order.customerName || 'Student',
+        phone: studentPhone,
+        metadata: {
+          orderId: order._id.toString(),
+          orderNumber: order.orderNumber,
+          storeName,
+          amount: order.totalAmount,
+          customerUpi: targetUpi,
+          reason
+        }
+      };
 
-    if (studentPhone) {
-      whatsappMultiDeviceService.sendDirectMessage(studentPhone, studentCancelMessage).catch(err => {
-        console.error('[refundService] Student WhatsApp dispatch error:', err.message);
-      });
+      journeyEngineService.resumeOrderJourney(order._id, 'Order Rejected', payload)
+        .then(async (resumedCount) => {
+          if (!resumedCount) {
+            await journeyEngineService.triggerEvent('Order Cancelled', payload);
+          }
+        })
+        .catch(err => console.error('[refundService] Journey cancellation dispatch error:', err.message));
     }
 
     // 🚨 If student UPI is already known (e.g. from payer UPI), notify Super Admin Team immediately!
@@ -130,17 +137,6 @@ const handleOrderCancellation = async ({
       whatsappMultiDeviceService.sendRefundAlertToTeam({ order, refund: refundRecord }).catch(err => {
         console.error('[refundService] Team alert error:', err.message);
       });
-    }
-
-    // Trigger Journey Lifecycle event
-    if (journeyEngineService) {
-      journeyEngineService.triggerEvent('Order Cancelled', {
-        phone: studentPhone,
-        name: order.customerName || 'Student',
-        orderId: order.orderNumber,
-        storeName,
-        amount: order.totalAmount
-      }).catch(err => console.error('[refundService] Journey alert error:', err.message));
     }
 
     return {
@@ -276,7 +272,11 @@ const requestUpiRefund = async ({ orderId, upiId, io = null }) => {
  */
 const settleRefund = async ({ refundId, utr = '', settledBy = 'Super Admin', io = null }) => {
   try {
-    const refund = await Refund.findById(refundId).populate({
+    const mongoose = require('mongoose');
+    const isObjectId = mongoose.Types.ObjectId.isValid(refundId) && refundId.toString().length === 24;
+    const query = isObjectId ? { $or: [{ _id: refundId }, { refundId }] } : { refundId };
+
+    const refund = await Refund.findOne(query).populate({
       path: 'orderId',
       populate: { path: 'store' }
     });
@@ -326,23 +326,25 @@ const settleRefund = async ({ refundId, utr = '', settledBy = 'Super Admin', io 
       }
     });
 
-    // 📱 Dispatch WhatsApp Confirmation to Student
+    // 📱 Dispatch WhatsApp Confirmation to Student via Journey Engine
     const studentPhone = order.customerPhone;
-    const utrSection = cleanUtr ? `📌 *Bank Ref / UTR:* \`${cleanUtr}\`\n` : '';
-    const studentSuccessMessage =
-      `🎉 *REFUND CREDITED SUCCESSFULLY!* 💸\n\n` +
-      `📋 *Order:* #${order.orderNumber} (${order.store?.name || 'Kitchen'})\n` +
-      `💰 *Amount:* ₹${order.totalAmount.toFixed(2)}\n` +
-      `💳 *Transferred to UPI:* \`${refund.customerUpiId || order.customerUpiId || 'Your UPI'}\`\n` +
-      utrSection +
-      `\nThe refund has been transferred directly into your bank account.\n` +
-      `We sincerely apologize for the inconvenience and hope to serve you again soon! ❤️\n\n` +
-      `_UniVerse Campus Dining_`;
+    if (journeyEngineService && studentPhone) {
+      const payload = {
+        userId: order.userId || studentPhone,
+        name: order.customerName || 'Student',
+        phone: studentPhone,
+        metadata: {
+          orderId: order._id.toString(),
+          orderNumber: order.orderNumber,
+          storeName: order.store?.name || 'Kitchen',
+          amount: order.totalAmount,
+          customerUpi: refund.customerUpiId || order.customerUpiId || 'UPI',
+          utr: cleanUtr
+        }
+      };
 
-    if (studentPhone) {
-      whatsappMultiDeviceService.sendDirectMessage(studentPhone, studentSuccessMessage).catch(err => {
-        console.error('[refundService] Student confirmation error:', err.message);
-      });
+      journeyEngineService.triggerEvent('Refund Settled', payload)
+        .catch(err => console.error('[refundService] Journey refund settled dispatch error:', err.message));
     }
 
     // 📢 Post notice in WhatsApp Team Group so other admins know it is done

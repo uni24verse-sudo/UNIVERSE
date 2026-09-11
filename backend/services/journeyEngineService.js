@@ -103,16 +103,71 @@ class JourneyEngineService {
   }
 
   /**
-   * Fire an event trigger (e.g. 'Order Completed', 'User Registered')
+   * Fire an event trigger (e.g. 'Order Completed', 'Order Cancelled', 'Refund Settled')
    */
   async triggerEvent(triggerType, userDetails) {
     try {
       const activeJourneys = await Journey.find({ triggerType, status: 'Active' });
-      for (const journey of activeJourneys) {
-        await this.enrollUser(journey._id, userDetails);
+      if (activeJourneys.length > 0) {
+        for (const journey of activeJourneys) {
+          await this.enrollUser(journey._id, userDetails);
+        }
+        return;
       }
+
+      // 🛡️ FAILSAFE SYSTEM FALLBACK:
+      // If a critical order/refund event fires and NO active journey is found in the DB,
+      // deliver a brand-standard fallback alert so students are never left without notice.
+      await this.sendFailsafeFallback(triggerType, userDetails);
     } catch (err) {
       console.error(`[JourneyEngine] Error firing event "${triggerType}":`, err.message);
+    }
+  }
+
+  /**
+   * Failsafe System Brand Fallback for critical lifecycle events
+   */
+  async sendFailsafeFallback(triggerType, userDetails) {
+    const phone = userDetails?.phone;
+    if (!phone) return;
+
+    const meta = userDetails?.metadata || userDetails || {};
+    const orderNum = meta.orderNumber || meta.orderId || '';
+    const storeName = meta.storeName || 'Campus Food Counter';
+    const amountStr = meta.amount ? `₹${Number(meta.amount).toFixed(2)}` : '';
+    const targetUpi = meta.customerUpi || meta.customerUpiId || 'UPI on file';
+    const trackerUrl = `https://www.universeorder.co.in/order-tracker/${orderNum}`;
+    const utrStr = meta.utr ? `\n📌 *Bank Ref / UTR:* \`${meta.utr}\`` : '';
+
+    let fallbackMessage = null;
+
+    if (triggerType === 'Order Cancelled' || triggerType === 'Order Rejected') {
+      fallbackMessage =
+        `*UNIVERSE: REFUND QUEUED* ⚠️\n` +
+        `━━━━━━━━━━━━━━━━━━━━\n` +
+        `We're sorry, *${storeName}* was unable to accept Order *#${orderNum}*.\n\n` +
+        `💰 *Refund Amount:* ${amountStr || '₹0.00'}\n` +
+        `⚡ *Status:* Queued for Instant Direct UPI Transfer\n` +
+        `💳 *Target UPI:* \`${targetUpi}\`\n\n` +
+        `🔗 *Live Refund Tracker:*\n${trackerUrl}\n` +
+        `━━━━━━━━━━━━━━━━━━━━\n` +
+        `_UniVerse Student Support • 24/7 Campus Assistance_`;
+    } else if (triggerType === 'Refund Settled') {
+      fallbackMessage =
+        `*UNIVERSE: REFUND CREDITED* 🎉\n` +
+        `━━━━━━━━━━━━━━━━━━━━\n` +
+        `Your refund has been transferred directly into your bank account via UPI.\n\n` +
+        `📋 *Order:* #${orderNum} (${storeName})\n` +
+        `💰 *Amount Credited:* ${amountStr || '₹0.00'}\n` +
+        `💳 *Transferred to:* \`${targetUpi}\`${utrStr}\n\n` +
+        `Please check your UPI app (GPay / PhonePe / Paytm). ❤️\n` +
+        `━━━━━━━━━━━━━━━━━━━━\n` +
+        `_UniVerse Campus Dining • Thank you for your patience!_`;
+    }
+
+    if (fallbackMessage) {
+      console.log(`[JourneyEngine] Failsafe fallback sent for "${triggerType}" to ${phone}`);
+      await whatsappMultiDeviceService.sendDirectMessage(phone, fallbackMessage).catch(() => {});
     }
   }
 
@@ -163,6 +218,7 @@ class JourneyEngineService {
       }
 
       const activeStates = await UserJourneyState.find(query).populate('journeyId');
+      let resumedCount = 0;
 
       for (const state of activeStates) {
         const journey = state.journeyId;
@@ -214,13 +270,16 @@ class JourneyEngineService {
             state.status = 'Pending';
             state.scheduledExecutionTime = new Date();
             await state.save();
+            resumedCount++;
             // Execute immediately without delay
             await this.executeNode(state);
           }
         }
       }
+      return resumedCount;
     } catch (err) {
       console.error('[JourneyEngine] Error resuming order journey:', err.message);
+      return 0;
     }
   }
 
@@ -363,16 +422,29 @@ class JourneyEngineService {
 
     // Compile dynamic tags with fallback message
     const meta = state.metadata || {};
-    let rawBody = customBody || template?.body || '👋 Hi {{name}}, welcome to UniVerse! Order fresh food easily on campus at https://universeorder.co.in 🍔🍕';
+    let rawBody = customBody || template?.body || '👋 Hi {{name}}, welcome to UniVerse! Order fresh food easily on campus at https://www.universeorder.co.in 🍔🍕';
+
+    const orderNum = meta.orderNumber || meta.orderId || '';
+    const cleanAmount = meta.amount ? (typeof meta.amount === 'number' ? meta.amount.toFixed(2) : meta.amount.toString().replace(/₹/g, '')) : '';
+    const trackerUrl = `https://www.universeorder.co.in/order-tracker/${orderNum}`;
+    const customerUpi = meta.customerUpi || meta.customerUpiId || 'UPI on file';
+    const utrVal = meta.utr || 'Logged in Bank Records';
+    const reasonVal = meta.reason || 'Kitchen closed or item out of stock';
+    const storeVal = meta.storeName || 'Campus Food Counter';
 
     let body = rawBody
       .replace(/{{name}}/gi, state.name || 'Student')
       .replace(/{{phone}}/gi, state.phone || '')
       .replace(/{{email}}/gi, state.email || '')
-      .replace(/{{orderId}}/gi, meta.orderId || meta.orderNumber || '')
-      .replace(/{{orderNumber}}/gi, meta.orderNumber || meta.orderId || '')
-      .replace(/{{storeName}}/gi, meta.storeName || 'UniVerse Campus')
-      .replace(/{{amount}}/gi, meta.amount ? `₹${meta.amount}` : '');
+      .replace(/{{orderId}}/gi, orderNum)
+      .replace(/{{orderNumber}}/gi, orderNum)
+      .replace(/{{storeName}}/gi, storeVal)
+      .replace(/{{amount}}/gi, cleanAmount ? `₹${cleanAmount}` : '')
+      .replace(/{{customerUpi}}/gi, customerUpi)
+      .replace(/{{customerUpiId}}/gi, customerUpi)
+      .replace(/{{utr}}/gi, utrVal)
+      .replace(/{{reason}}/gi, reasonVal)
+      .replace(/{{trackerLink}}/gi, trackerUrl);
 
     if (activeChannel === 'whatsapp' && state.phone) {
       let slotIndex = 1;

@@ -244,8 +244,6 @@ router.put('/:id/status', auth, async (req, res) => {
       } else if (status === 'Cancelled') {
         journeyEngineService.resumeOrderJourney(updatedOrder._id, 'Order Rejected', orderPayload)
           .catch(e => console.error('[JourneyEngine] Order Rejected resume error:', e.message));
-        journeyEngineService.triggerEvent('Order Cancelled', orderPayload)
-          .catch(e => console.error('[JourneyEngine] Order Cancelled trigger error:', e.message));
       }
     }
 
@@ -519,24 +517,60 @@ router.get('/refund/claim-pay/:refundId', async (req, res) => {
 
     const order = refund.orderId || {};
 
-    // 1. Check if already settled
+    // 1. Check if already settled / link expired
     if (refund.status === 'PROCESSED' || order.refundStatus === 'Refunded') {
       return res.send(`
         <!DOCTYPE html>
         <html>
-        <head><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Refund Already Settled</title></head>
-        <body style="font-family: system-ui, -apple-system, sans-serif; text-align: center; padding: 2rem; background: #f8fafc; color: #1e293b;">
-          <div style="background: white; padding: 2rem; border-radius: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.06); max-width: 420px; margin: 2rem auto; border: 1px solid #e2e8f0;">
-            <div style="width: 60px; height: 60px; border-radius: 50%; background: #ecfdf5; color: #10b981; display: flex; align-items: center; justify-content: center; font-size: 2rem; margin: 0 auto 1rem;">✓</div>
-            <h2 style="color: #0f172a; margin: 0 0 0.5rem 0;">Already Settled!</h2>
-            <p style="color: #64748b; font-size: 0.95rem; line-height: 1.5; margin: 0 0 1.5rem 0;">
-              Refund for <strong>Order #${order.orderNumber}</strong> was already completed by <strong>${refund.settledBy || 'Super Admin'}</strong>.
-            </p>
-            <div style="background: #f1f5f9; padding: 1rem; border-radius: 14px; text-align: left; font-size: 0.85rem;">
-              <div style="display:flex;justify-content:space-between;margin-bottom:0.4rem;"><span>Amount:</span><strong>₹${(refund.amount || 0).toFixed(2)}</strong></div>
-              <div style="display:flex;justify-content:space-between;margin-bottom:0.4rem;"><span>To UPI:</span><strong>${refund.customerUpiId}</strong></div>
-              <div style="display:flex;justify-content:space-between;"><span>Bank UTR:</span><strong>${refund.utr || 'Logged in DB'}</strong></div>
+        <head>
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>UniVerse — Link Expired</title>
+        </head>
+        <body style="font-family: system-ui, -apple-system, sans-serif; text-align: center; padding: 2rem 1rem; background: #0f172a; color: #f8fafc;">
+          <div style="background: #1e293b; padding: 2.25rem 1.5rem; border-radius: 24px; box-shadow: 0 20px 50px rgba(0,0,0,0.5); max-width: 420px; margin: 1.5rem auto; border: 1.5px solid #334155;">
+            <div style="width: 64px; height: 64px; border-radius: 50%; background: rgba(239, 68, 68, 0.15); color: #f87171; display: flex; align-items: center; justify-content: center; font-size: 2.2rem; margin: 0 auto 1.25rem; border: 2px solid #ef4444;">
+              🔒
             </div>
+            <div style="display: inline-block; background: rgba(239, 68, 68, 0.2); color: #fca5a5; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.08em; padding: 4px 12px; border-radius: 999px; text-transform: uppercase; margin-bottom: 0.75rem;">
+              LINK EXPIRED • REFUND COMPLETED
+            </div>
+            <h2 style="color: #ffffff; font-size: 1.35rem; font-weight: 900; margin: 0 0 0.5rem 0;">
+              Launchpad Link Inactive
+            </h2>
+            <p style="color: #94a3b8; font-size: 0.88rem; line-height: 1.5; margin: 0 0 1.5rem 0;">
+              This 1-Tap claim link was invalidated because the refund for <strong>Order #${order.orderNumber || ''}</strong> has already been successfully paid and settled.
+            </p>
+
+            <div style="background: #0f172a; padding: 1rem 1.25rem; border-radius: 16px; text-align: left; font-size: 0.85rem; border: 1px solid #334155; margin-bottom: 1.5rem;">
+              <div style="display:flex; justify-content:space-between; margin-bottom:0.45rem;">
+                <span style="color: #94a3b8;">Order:</span>
+                <strong style="color: #f8fafc;">#${order.orderNumber || ''}</strong>
+              </div>
+              <div style="display:flex; justify-content:space-between; margin-bottom:0.45rem;">
+                <span style="color: #94a3b8;">Amount Settled:</span>
+                <strong style="color: #34d399; font-size: 1rem;">₹${(refund.amount || order.totalAmount || 0).toFixed(2)}</strong>
+              </div>
+              <div style="display:flex; justify-content:space-between; margin-bottom:0.45rem;">
+                <span style="color: #94a3b8;">Beneficiary UPI:</span>
+                <strong style="color: #60a5fa; word-break: break-all;">${refund.customerUpiId || order.customerUpiId || 'N/A'}</strong>
+              </div>
+              <div style="display:flex; justify-content:space-between; margin-bottom:0.45rem;">
+                <span style="color: #94a3b8;">Bank UTR / Ref:</span>
+                <strong style="color: #f8fafc; font-family: monospace;">${refund.utr || 'Logged in DB'}</strong>
+              </div>
+              <div style="display:flex; justify-content:space-between;">
+                <span style="color: #94a3b8;">Settled By:</span>
+                <strong style="color: #e2e8f0;">${refund.settledBy || 'Super Admin'}</strong>
+              </div>
+            </div>
+
+            <div style="background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 12px; padding: 0.75rem; font-size: 0.78rem; color: #fbbf24; line-height: 1.4; margin-bottom: 1.25rem;">
+              🛡️ <strong>Double-Payout Protection:</strong> All payment buttons and UPI intents have been permanently deactivated for this order.
+            </div>
+
+            <a href="https://www.universeorder.co.in/super-admin/panel?tab=refunds" style="display: block; background: #334155; color: white; text-decoration: none; padding: 0.85rem; border-radius: 12px; font-weight: 800; font-size: 0.85rem;">
+              Open Super Admin Panel
+            </a>
           </div>
         </body>
         </html>
@@ -690,7 +724,7 @@ router.get('/refund/claim-pay/:refundId', async (req, res) => {
           <div style="border-top: 1px solid #334155; margin-top: 1.25rem; padding-top: 1.25rem;">
             <p style="font-size: 0.75rem; color: #94a3b8; margin-bottom: 0.5rem; font-weight: 700; text-transform: uppercase;">Step 2: Mark Paid & Notify Student</p>
             <form method="POST" action="/api/orders/refund/mobile-settle/${refund._id}">
-              <input type="text" name="utr" placeholder="Bank UTR (Optional, e.g. 423891029831)" style="width: 100%; background: #0f172a; border: 1px solid #334155; color: white; padding: 0.75rem 1rem; border-radius: 12px; font-size: 0.85rem; outline: none; margin-bottom: 0.6rem;" />
+              <input type="text" name="utr" required placeholder="Bank UTR Number * (Mandatory)" style="width: 100%; background: #0f172a; border: 1.5px solid #f87171; color: white; padding: 0.75rem 1rem; border-radius: 12px; font-size: 0.85rem; outline: none; margin-bottom: 0.6rem;" />
               <button type="submit" class="btn btn-settle">
                 <span>✓ Confirm Paid & Close Refund</span>
               </button>
@@ -715,21 +749,52 @@ router.get('/refund/claim-pay/:refundId', async (req, res) => {
 });
 
 // ⚡ Mobile 1-Tap Settlement Endpoint (Called from Mobile Launchpad)
-router.post('/refund/mobile-settle/:refundId', async (req, res) => {
+router.all('/refund/mobile-settle/:refundId', async (req, res) => {
   try {
     const { refundId } = req.params;
-    const { utr } = req.body;
+    const utr = ((req.body && req.body.utr) || req.query.utr || '').trim();
+
+    if (!utr) {
+      return res.status(400).send(`
+        <!DOCTYPE html>
+        <html>
+        <head><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>UTR Required</title></head>
+        <body style="font-family: system-ui, sans-serif; text-align: center; padding: 2rem 1rem; background: #0f172a; color: white;">
+          <div style="background: #1e293b; padding: 2rem; border-radius: 24px; max-width: 420px; margin: 2rem auto; border: 1px solid #ef4444;">
+            <div style="width: 55px; height: 55px; border-radius: 50%; background: rgba(239, 68, 68, 0.15); color: #f87171; display: flex; align-items: center; justify-content: center; font-size: 2rem; margin: 0 auto 1rem;">⚠️</div>
+            <h2 style="color: #ef4444; margin: 0 0 0.5rem 0;">Bank UTR Required</h2>
+            <p style="color: #94a3b8; font-size: 0.9rem; margin-bottom: 1.5rem;">The 12-digit Bank UTR or Transaction Reference number is strictly required to close this refund.</p>
+            <button onclick="history.back()" style="padding: 0.8rem 1.5rem; background: #3b82f6; color: white; border: none; border-radius: 12px; font-weight: 700; font-size: 0.9rem; cursor: pointer;">Go Back & Enter UTR</button>
+          </div>
+        </body>
+        </html>
+      `);
+    }
+
     const refundService = require('../services/refundService');
 
     const result = await refundService.settleRefund({
       refundId,
-      utr: utr || 'MOBILE_SETTLED',
+      utr,
       settledBy: 'WhatsApp Admin',
       io: req.app.get('io')
     });
 
     if (!result.success) {
-      return res.status(400).send(`<h3>Error: ${result.message}</h3>`);
+      return res.status(400).send(`
+        <!DOCTYPE html>
+        <html>
+        <head><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Refund Notice</title></head>
+        <body style="font-family: system-ui, sans-serif; text-align: center; padding: 2rem 1rem; background: #0f172a; color: white;">
+          <div style="background: #1e293b; padding: 2rem; border-radius: 24px; max-width: 420px; margin: 2rem auto; border: 1px solid #334155;">
+            <div style="width: 55px; height: 55px; border-radius: 50%; background: #451a03; color: #f59e0b; display: flex; align-items: center; justify-content: center; font-size: 2rem; margin: 0 auto 1rem;">ℹ️</div>
+            <h2 style="margin: 0 0 0.5rem 0;">${result.message}</h2>
+            <p style="color: #94a3b8; font-size: 0.9rem; margin-top: 1rem;">This refund may have already been settled by another admin.</p>
+            <a href="https://www.universeorder.co.in/super-admin/panel?tab=refunds" style="display:inline-block; margin-top: 1.5rem; background: #334155; color: white; text-decoration: none; padding: 0.8rem 1.5rem; border-radius: 12px; font-weight: 700; font-size: 0.85rem;">Open Super Admin Portal</a>
+          </div>
+        </body>
+        </html>
+      `);
     }
 
     res.send(`
@@ -752,7 +817,12 @@ router.post('/refund/mobile-settle/:refundId', async (req, res) => {
     `);
   } catch (err) {
     console.error('[orders.refund.mobile-settle] Error:', err);
-    res.status(500).send('Failed to process settlement');
+    res.status(500).send(`
+      <div style="font-family: system-ui, sans-serif; text-align: center; padding: 2rem; color: #ef4444;">
+        <h3>⚠️ Settlement Error</h3>
+        <p>${err.message}</p>
+      </div>
+    `);
   }
 });
 

@@ -43,6 +43,7 @@ const JourneySchema = new mongoose.Schema({
       'First Lifetime Order',
       'Repeat Order Placed',
       'Order Cancelled',
+      'Refund Settled',
       'Inactive for 7 Days',
       'Manual Enrollment'
     ],
