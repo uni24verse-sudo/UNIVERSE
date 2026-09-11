@@ -169,6 +169,7 @@ const UnifiedStudentDock = () => {
   const isLegalPage = location.pathname.startsWith('/terms') || location.pathname.startsWith('/privacy');
   if (isLegalPage && !hasActiveOrder && !hasCart) return null;
 
+  const showDock = hasActiveOrder || hasCart || pastOrders.length > 0 || customerPhone;
   if (!showDock) return null;
 
   return (
