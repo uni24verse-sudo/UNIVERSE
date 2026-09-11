@@ -1,5 +1,5 @@
-// UniVerse PostgreSQL Schema (Prisma ORM)
-// Optimized for AWS RDS PostgreSQL with JSONB dynamic flexibility
+// UniVerse Production PostgreSQL Schema (Prisma ORM)
+// Fully optimized for AWS RDS PostgreSQL with JSONB dynamic flexibility
 
 generator client {
   provider = "prisma-client-js"
@@ -11,18 +11,18 @@ datasource db {
 }
 
 model Admin {
-  id              String       @id
-  name            String
-  email           String       @unique
-  password        String
-  role            String       @default("vendor") // "vendor" | "superadmin" | "staff"
-  telegramChatId  String?      @default("")
-  isBanned        Boolean      @default(false)
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
+  id             String       @id
+  name           String
+  email          String       @unique
+  password       String
+  role           String       @default("vendor") // "vendor" | "superadmin" | "staff"
+  telegramChatId String?      @default("")
+  isBanned       Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
 
-  stores          Store[]
-  settlements     Settlement[]
+  stores         Store[]
+  settlements    Settlement[]
 
   @@map("admins")
 }
@@ -80,33 +80,55 @@ model Store {
 }
 
 model Order {
-  id                 String   @id
-  storeId            String
-  orderNumber        String?  @default("")
-  userId             String?  @default("")
-  customerName       String
-  customerPhone      String
-  customerEmail      String?  @default("")
-  items              Json     @default("[]")
-  totalAmount        Float
-  status             String   @default("Pending") // "Pending" | "Confirmed" | "In Preparation" | "Ready for Pickup" | "Completed" | "Cancelled"
-  paymentMethod      String   @default("UPI")
-  paymentStatus      String   @default("Pending") // "Pending" | "Paid" | "Failed"
-  razorpayOrderId    String?  @default("")
-  razorpayPaymentId  String?  @default("")
-  transactionId      String?  @default("")
-  handoverToken      String?  @default("")
-  refundStatus       String?  @default("None") // "None" | "Processed" | "Failed"
-  refundId           String?  @default("")
-  refundAmount       Float?   @default(0)
-  cancellationReason String?  @default("")
-  cancelledBy        Json?    @default("{}")
-  isPreOrder         Boolean  @default(false)
-  scheduledTime      String?  @default("")
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  id                     String       @id
+  storeId                String
+  orderNumber            String?      @default("")
+  userId                 String?      @default("")
+  customerName           String       @default("UniVerse Student")
+  customerPhone          String
+  customerEmail          String?      @default("")
+  items                  Json         @default("[]")
+  totalAmount            Float
+  status                 String       @default("Pending") // "Payment Pending" | "Pending" | "Confirmed" | "Cooking" | "Ready" | "Completed" | "Cancelled"
+  paymentMethod          String       @default("UPI") // "Razorpay" | "UPI"
+  paymentStatus          String       @default("Pending") // "Pending" | "Confirmed" | "Failed"
+  orderType              String       @default("Dine In") // "Dine In" | "Take Away"
+  packagingChargeApplied Float        @default(0)
 
-  store              Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  // Payment Tracking
+  transactionId          String?      @default("")
+  paymentProvider        String       @default("Razorpay")
+  razorpayOrderId        String?      @default("")
+  razorpayPaymentId      String?      @default("")
+  handoverToken          String?      @default("")
+  pickupQrCode           String?      @default("")
+  timeEstimateMinutes    Int?         @default(15)
+
+  // Refund Tracking
+  refundId               String?      @default("")
+  refundAmount           Float?       @default(0)
+  refundStatus           String?      @default("None") // "None" | "Requested" | "Initiated" | "Processed" | "Refunded" | "Failed"
+  payerUpiId             String?      @default("")
+  customerUpiId          String?      @default("")
+  refundUtr              String?      @default("")
+  refundSettledAt        DateTime?
+  refundIdempotencyKey   String?      @default("")
+
+  // Cancellation Details
+  cancellationReason     String?      @default("")
+  cancelledBy            Json?        @default("{}")
+
+  // Settlement Link
+  settlementId           String?      @default("")
+  isSettled              Boolean      @default(false)
+  isPreOrder             Boolean      @default(false)
+  scheduledTime          String?      @default("")
+
+  createdAt              DateTime     @default(now())
+  updatedAt              DateTime     @updatedAt
+
+  store                  Store        @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  refunds                Refund[]
 
   @@map("orders")
 }
@@ -125,6 +147,7 @@ model Customer {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
+  @@index([phone])
   @@map("customers")
 }
 
@@ -132,11 +155,13 @@ model Payment {
   id         String   @id
   paymentId  String   @unique
   orderId    String
-  userId     String
+  userId     String?  @default("")
   amount     Float
   currency   String   @default("INR")
   status     String   @default("CAPTURED")
   method     String   @default("Razorpay")
+  fee        Float?   @default(0)
+  tax        Float?   @default(0)
   capturedAt DateTime @default(now())
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
@@ -145,21 +170,32 @@ model Payment {
 }
 
 model Refund {
-  id               String   @id
-  refundId         String   @unique
-  paymentId        String
+  id               String    @id
   orderId          String
-  userId           String
+  paymentId        String?   @default("")
+  refundId         String?   @default("")
+  userId           String?   @default("")
   amount           Float
-  idempotencyKey   String?  @default("")
-  reason           String
-  status           String   @default("PROCESSED")
-  mode             String   @default("RAZORPAY_AUTO")
-  processedAt      DateTime @default(now())
-  whatsappNotified Boolean  @default(true)
-  rawResponse      Json?    @default("{}")
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  customerUpiId    String?   @default("")
+  customerName     String?   @default("")
+  customerPhone    String?   @default("")
+  reason           String    @default("Order Cancelled")
+  mode             String    @default("DIRECT_UPI") // "DIRECT_UPI" | "RAZORPAY_AUTO" | "MANUAL_CASH"
+  status           String    @default("PENDING") // "PENDING" | "PROCESSED" | "FAILED"
+  utr              String?   @default("")
+  settledBy        String?   @default("")
+  settledAt        DateTime?
+  lockedBy         String?   @default("")
+  lockedAt         DateTime?
+  lockExpiresAt    DateTime?
+  idempotencyKey   String?   @default("")
+  whatsappNotified Boolean   @default(true)
+  rawResponse      Json?     @default("{}")
+  processedAt      DateTime? @default(now())
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  order            Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@map("refunds")
 }
@@ -195,35 +231,189 @@ model WebhookEvent {
 
 model Settlement {
   id                    String    @id
-  adminId               String
-  storeId               String
-  periodStart           DateTime
-  periodEnd             DateTime
+  storeId               String?
+  adminId               String?   @default("")
+  settlementType        String    @default("daily") // "daily" | "monthly"
+  month                 Int?      @default(1)
+  year                  Int?      @default(2026)
+  periodStart           DateTime?
+  periodEnd             DateTime?
   totalOrders           Int       @default(0)
+  totalRevenue          Float     @default(0)
   grossSales            Float     @default(0)
   gatewayFee            Float     @default(0)
   platformCommission    Float     @default(0)
   cancellationPenalties Float     @default(0)
+  feesBreakdown         Json?     @default("{}")
   netPayable            Float     @default(0)
-  status                String    @default("Pending") // "Pending" | "Settled"
+  status                String    @default("pending") // "pending" | "processing" | "completed" | "failed"
   utr                   String?   @default("")
+  utrNumber             String?   @default("")
+  paidAt                DateTime?
   processedAt           DateTime?
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 
-  admin                 Admin     @relation(fields: [adminId], references: [id])
-  store                 Store     @relation(fields: [storeId], references: [id])
+  store                 Store?    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  admin                 Admin?    @relation(fields: [adminId], references: [id])
 
   @@map("settlements")
 }
 
+model RefundConfig {
+  id           String   @id @default("singleton")
+  notifyGroup  Boolean  @default(true)
+  notifyPhones Boolean  @default(true)
+  phoneNumbers Json?    @default("[]")
+  groupJid     String?  @default("")
+  groupName    String?  @default("")
+  updatedBy    String?  @default("")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @default(now())
+
+  @@map("refundconfigs")
+}
+
+model MasterTemplate {
+  id                String              @id
+  name              String
+  channel           String              // "whatsapp" | "email" | "sms"
+  category          String              @default("General")
+  headerType        String?             @default("NONE")
+  headerMediaUrl    String?             @default("")
+  headerText        String?             @default("")
+  body              String
+  footer            String?             @default("UniVerse • Smart Campus Ordering")
+  subject           String?             @default("")
+  emailPreheader    String?             @default("")
+  variables         Json?               @default("[]")
+  buttons           Json?               @default("[]")
+  ctaText           String?             @default("")
+  ctaLink           String?             @default("")
+  emailCtaText      String?             @default("")
+  emailCtaUrl       String?             @default("")
+  emailHeroImageUrl String?             @default("")
+  status            String              @default("Active")
+  createdBy         String?             @default("SuperAdmin")
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  broadcasts        BroadcastCampaign[]
+
+  @@map("mastertemplates")
+}
+
+model ChannelAccount {
+  id           String              @id
+  name         String?             @default("")
+  channel      String?             @default("whatsapp")
+  type         String              @default("whatsapp")
+  slotIndex    Int?
+  nickname     String              @default("Channel Account")
+  phoneNumber  String?             @default("")
+  pushName     String?             @default("")
+  platform     String?             @default("WhatsApp Multi-Device")
+  sessionPath  String?             @default("")
+  status       String              @default("disconnected")
+  lastActive   DateTime?
+  emailConfig  Json?               @default("{}")
+  whatsappType String?             @default("MultiDevice_Baileys")
+  qrCode       String?             @default("")
+  phone        String?             @default("")
+  email        String?             @default("")
+  smtpConfig   Json?               @default("{}")
+  stats        Json?               @default("{}")
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  broadcasts   BroadcastCampaign[]
+
+  @@map("channelaccounts")
+}
+
+model Journey {
+  id             String             @id
+  name           String
+  description    String?            @default("")
+  triggerType    String
+  nodes          Json               @default("[]")
+  status         String             @default("Draft") // "Draft" | "Active" | "Paused" | "Archived"
+  totalEnrolled  Int                @default(0)
+  totalCompleted Int                @default(0)
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  userStates     UserJourneyState[]
+
+  @@map("journeys")
+}
+
+model UserJourneyState {
+  id                     String    @id
+  journeyId              String?
+  userId                 String?   @default("")
+  userType               String    @default("Student")
+  name                   String    @default("Student")
+  phone                  String    @default("")
+  email                  String?   @default("")
+  metadata               Json?     @default("{}")
+  currentNodeId          String
+  scheduledExecutionTime DateTime  @default(now())
+  status                 String    @default("Pending") // "Pending" | "Waiting_Event" | "Completed" | "Cancelled" | "Failed"
+  history                Json      @default("[]")
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+
+  journey                Journey?  @relation(fields: [journeyId], references: [id], onDelete: Cascade)
+
+  @@map("userjourneystates")
+}
+
+model BroadcastCampaign {
+  id               String          @id
+  name             String
+  title            String?         @default("")
+  channel          String          // "whatsapp" | "email" | "both"
+  channelAccountId String?
+  masterTemplateId String?
+  targetAudience   String          @default("All Students")
+  audienceSegment  String?         @default("all_students")
+  targetCampus     String?         @default("All")
+  customFilters    Json?           @default("{}")
+  stats            Json?           @default("{}")
+  customMessage    String?         @default("")
+  emailSubject     String?         @default("")
+  status           String          @default("Draft")
+  lastError        String?         @default("")
+  logs             Json?           @default("[]")
+  totalRecipients  Int             @default(0)
+  sentCount        Int             @default(0)
+  deliveredCount   Int             @default(0)
+  failedCount      Int             @default(0)
+  startedAt        DateTime?
+  completedAt      DateTime?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  channelAccount   ChannelAccount? @relation(fields: [channelAccountId], references: [id])
+  template         MasterTemplate? @relation(fields: [masterTemplateId], references: [id])
+
+  @@map("broadcastcampaigns")
+}
+
 model DeviceRegistry {
-  id         String   @id
-  token      String   @unique
-  platform   String   @default("android")
-  deviceInfo Json?    @default("{}")
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id         String    @id
+  userId     String?   @default("")
+  storeId    String?   @default("")
+  deviceId   String?   @default("")
+  pushToken  String?   @default("")
+  token      String    @unique
+  platform   String    @default("android")
+  active     Boolean   @default(true)
+  lastSeen   DateTime? @default(now())
+  deviceInfo Json?     @default("{}")
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
   @@map("deviceregistries")
 }
@@ -238,4 +428,3 @@ model VendorDevice {
 
   @@map("vendordevices")
 }
-

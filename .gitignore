@@ -9,4 +9,5 @@ backend/config/firebase-key.json
 *.key
 *.apk
 backend/sessions/
+backend/backup/
 scratch/
