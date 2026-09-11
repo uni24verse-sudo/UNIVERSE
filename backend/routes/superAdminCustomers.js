@@ -18,48 +18,54 @@ router.use(superAdminAuth);
 router.get('/', async (req, res) => {
   try {
     const { search = '', page = 1, limit = 20, status } = req.query;
-    const query = {};
+    const prisma = require('../config/prisma');
+    const { normalizeCustomer } = require('../utils/pgAdapter');
 
+    const where = {};
     if (status && status !== 'all') {
-      query.status = status;
+      where.status = status;
     }
 
     if (search.trim()) {
-      const regex = new RegExp(search.trim(), 'i');
-      query.$or = [
-        { userId: regex },
-        { phone: regex },
-        { currentName: regex },
-        { email: regex }
+      where.OR = [
+        { userId: { contains: search.trim(), mode: 'insensitive' } },
+        { phone: { contains: search.trim(), mode: 'insensitive' } },
+        { currentName: { contains: search.trim(), mode: 'insensitive' } },
+        { email: { contains: search.trim(), mode: 'insensitive' } }
       ];
     }
 
-    const total = await Customer.countDocuments(query);
-    const customers = await Customer.find(query)
-      .sort({ updatedAt: -1 })
-      .skip((parseInt(page) - 1) * parseInt(limit))
-      .limit(parseInt(limit));
+    const total = await prisma.customer.count({ where });
+    const pgCustomers = await prisma.customer.findMany({
+      where,
+      orderBy: { updatedAt: 'desc' },
+      skip: (parseInt(page) - 1) * parseInt(limit),
+      take: parseInt(limit)
+    });
 
-    // Global Database Summary across all customers
-    const summaryAgg = await Customer.aggregate([
-      {
-        $group: {
-          _id: null,
-          totalCustomers: { $sum: 1 },
-          totalGMV: { $sum: '$metrics.totalSpent' },
-          totalOrders: { $sum: '$metrics.totalOrders' },
-          completedOrders: { $sum: '$metrics.completedOrders' },
-          totalRefunded: { $sum: '$metrics.totalRefunded' }
-        }
-      }
-    ]);
+    const customers = pgCustomers.map(normalizeCustomer);
 
-    const summary = summaryAgg[0] || {
-      totalCustomers: total,
-      totalGMV: 0,
-      totalOrders: 0,
-      completedOrders: 0,
-      totalRefunded: 0
+    // Compute live summary across all real customers in PostgreSQL
+    const allCustomers = await prisma.customer.findMany({ select: { metrics: true } });
+    let totalGMV = 0;
+    let totalOrders = 0;
+    let completedOrders = 0;
+    let totalRefunded = 0;
+
+    for (const c of allCustomers) {
+      const m = c.metrics || {};
+      totalGMV += (m.totalSpent || 0);
+      totalOrders += (m.totalOrders || 0);
+      completedOrders += (m.completedOrders || 0);
+      totalRefunded += (m.totalRefunded || 0);
+    }
+
+    const summary = {
+      totalCustomers: allCustomers.length,
+      totalGMV,
+      totalOrders,
+      completedOrders,
+      totalRefunded
     };
 
     res.json({
@@ -82,25 +88,36 @@ router.get('/', async (req, res) => {
 router.get('/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
-    const customer = await Customer.findOne({ userId });
+    const prisma = require('../config/prisma');
+    const { normalizeCustomer, normalizeOrder, normalizeRefund } = require('../utils/pgAdapter');
+
+    let customer = await prisma.customer.findUnique({ where: { userId } });
+    if (!customer) {
+      customer = await Customer.findOne({ userId });
+    }
 
     if (!customer) {
       return res.status(404).json({ message: 'Customer not found' });
     }
 
-    // Fetch full historical order ledger for this customer
-    const orders = await Order.find({ userId })
-      .populate('store', 'name address')
-      .sort({ createdAt: -1 });
+    // Fetch full historical order ledger from PostgreSQL
+    const pgOrders = await prisma.order.findMany({
+      where: { userId },
+      include: { store: true },
+      orderBy: { createdAt: 'desc' }
+    });
 
-    // Fetch all refunds associated with this customer
-    const refunds = await Refund.find({ userId }).sort({ createdAt: -1 });
+    // Fetch all refunds from PostgreSQL
+    const pgRefunds = await prisma.refund.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' }
+    });
 
     res.json({
       success: true,
-      customer,
-      orders,
-      refunds
+      customer: normalizeCustomer(customer),
+      orders: pgOrders.map(normalizeOrder),
+      refunds: pgRefunds.map(normalizeRefund)
     });
   } catch (err) {
     console.error('[superAdminCustomers] Error getting customer 360:', err);
