@@ -67,4 +67,11 @@ const StoreSchema = new mongoose.Schema({
   products: [ProductSchema]
 }, { timestamps: true });
 
+StoreSchema.post('save', function(doc) {
+  try {
+    const { syncStore } = require('../services/pgSyncService');
+    syncStore(doc).catch(() => {});
+  } catch (e) {}
+});
+
 module.exports = mongoose.model('Store', StoreSchema);

@@ -74,4 +74,11 @@ const OrderSchema = new mongoose.Schema({
   settlementId: { type: mongoose.Schema.Types.ObjectId, ref: 'Settlement' }
 }, { timestamps: true });
 
+OrderSchema.post('save', function(doc) {
+  try {
+    const { syncOrder } = require('../services/pgSyncService');
+    syncOrder(doc).catch(() => {});
+  } catch (e) {}
+});
+
 module.exports = mongoose.model('Order', OrderSchema);

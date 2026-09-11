@@ -51,4 +51,11 @@ const PaymentSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
+PaymentSchema.post('save', function(doc) {
+  try {
+    const { syncPayment } = require('../services/pgSyncService');
+    syncPayment(doc).catch(() => {});
+  } catch (e) {}
+});
+
 module.exports = mongoose.model('Payment', PaymentSchema);

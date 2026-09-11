@@ -91,4 +91,11 @@ const RefundSchema = new mongoose.Schema({
 
 RefundSchema.index({ status: 1, createdAt: -1 });
 
+RefundSchema.post('save', function(doc) {
+  try {
+    const { syncRefund } = require('../services/pgSyncService');
+    syncRefund(doc).catch(() => {});
+  } catch (e) {}
+});
+
 module.exports = mongoose.model('Refund', RefundSchema);

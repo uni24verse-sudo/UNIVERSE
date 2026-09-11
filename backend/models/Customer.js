@@ -53,4 +53,11 @@ const CustomerSchema = new mongoose.Schema({
   lastActivityAt: { type: Date, default: Date.now }
 }, { timestamps: true });
 
+CustomerSchema.post('save', function(doc) {
+  try {
+    const { syncCustomer } = require('../services/pgSyncService');
+    syncCustomer(doc).catch(() => {});
+  } catch (e) {}
+});
+
 module.exports = mongoose.model('Customer', CustomerSchema);
