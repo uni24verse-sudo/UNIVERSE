@@ -18,4 +18,11 @@ const AdminSchema = new mongoose.Schema({
   seenFeatures: { type: [String], default: [] }
 }, { timestamps: true });
 
+AdminSchema.post('save', function(doc) {
+  try {
+    const { syncAdmin } = require('../services/pgSyncService');
+    syncAdmin(doc).catch(() => {});
+  } catch (e) {}
+});
+
 module.exports = mongoose.model('Admin', AdminSchema);

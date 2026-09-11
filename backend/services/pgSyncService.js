@@ -287,10 +287,130 @@ async function syncCustomer(customer) {
   }
 }
 
+async function syncAdmin(admin) {
+  if (!admin || (!admin._id && !admin.id)) return;
+  try {
+    const id = String(admin._id || admin.id);
+    await prisma.admin.upsert({
+      where: { id },
+      update: {
+        name: admin.name,
+        email: admin.email ? admin.email.toLowerCase().trim() : '',
+        password: admin.password,
+        role: admin.role || 'vendor',
+        status: admin.status || 'ACTIVE',
+        permissions: Array.isArray(admin.permissions) ? admin.permissions : [],
+        isBanned: Boolean(admin.isBanned),
+        whatsappNumber: admin.whatsappNumber || '',
+        whatsappApiKey: admin.whatsappApiKey || '',
+        telegramChatId: admin.telegramChatId || '',
+        fcmToken: admin.fcmToken || '',
+        seenFeatures: Array.isArray(admin.seenFeatures) ? admin.seenFeatures : [],
+        lastLoginAt: admin.lastLoginAt ? new Date(admin.lastLoginAt) : null,
+        updatedAt: new Date()
+      },
+      create: {
+        id,
+        name: admin.name,
+        email: admin.email ? admin.email.toLowerCase().trim() : '',
+        password: admin.password,
+        role: admin.role || 'vendor',
+        status: admin.status || 'ACTIVE',
+        permissions: Array.isArray(admin.permissions) ? admin.permissions : [],
+        isBanned: Boolean(admin.isBanned),
+        whatsappNumber: admin.whatsappNumber || '',
+        whatsappApiKey: admin.whatsappApiKey || '',
+        telegramChatId: admin.telegramChatId || '',
+        fcmToken: admin.fcmToken || '',
+        seenFeatures: Array.isArray(admin.seenFeatures) ? admin.seenFeatures : [],
+        lastLoginAt: admin.lastLoginAt ? new Date(admin.lastLoginAt) : null
+      }
+    });
+  } catch (err) {
+    console.error('[pgSyncService.syncAdmin] Error:', err.message);
+  }
+}
+
+async function syncOrderEvent(event) {
+  if (!event || (!event._id && !event.id)) return;
+  try {
+    const id = String(event._id || event.id);
+    const eventId = event.eventId || `evt_${id}`;
+    await prisma.orderEvent.upsert({
+      where: { eventId },
+      update: {
+        orderId: String(event.orderId),
+        orderNumber: event.orderNumber || '',
+        userId: event.userId || '',
+        actorType: event.actorType || 'SYSTEM',
+        actorId: event.actorId || 'SYSTEM',
+        eventType: event.eventType || 'STATUS_UPDATE',
+        oldStatus: event.oldStatus || '',
+        newStatus: event.newStatus || '',
+        metadata: event.metadata || {}
+      },
+      create: {
+        id,
+        eventId,
+        orderId: String(event.orderId),
+        orderNumber: event.orderNumber || '',
+        userId: event.userId || '',
+        actorType: event.actorType || 'SYSTEM',
+        actorId: event.actorId || 'SYSTEM',
+        eventType: event.eventType || 'STATUS_UPDATE',
+        oldStatus: event.oldStatus || '',
+        newStatus: event.newStatus || '',
+        metadata: event.metadata || {},
+        createdAt: event.createdAt ? new Date(event.createdAt) : new Date()
+      }
+    });
+  } catch (err) {
+    console.error('[pgSyncService.syncOrderEvent] Error:', err.message);
+  }
+}
+
+async function syncDeviceRegistry(device) {
+  if (!device || (!device._id && !device.id)) return;
+  try {
+    const id = String(device._id || device.id);
+    const token = device.pushToken || device.token || id;
+    await prisma.deviceRegistry.upsert({
+      where: { token },
+      update: {
+        userId: device.userId ? String(device.userId) : '',
+        storeId: device.storeId ? String(device.storeId) : '',
+        deviceId: device.deviceId || '',
+        pushToken: device.pushToken || token,
+        platform: device.platform || 'android',
+        active: device.active !== undefined ? Boolean(device.active) : true,
+        lastSeen: device.lastSeen ? new Date(device.lastSeen) : new Date(),
+        updatedAt: new Date()
+      },
+      create: {
+        id,
+        userId: device.userId ? String(device.userId) : '',
+        storeId: device.storeId ? String(device.storeId) : '',
+        deviceId: device.deviceId || '',
+        pushToken: device.pushToken || token,
+        token,
+        platform: device.platform || 'android',
+        active: device.active !== undefined ? Boolean(device.active) : true,
+        lastSeen: device.lastSeen ? new Date(device.lastSeen) : new Date()
+      }
+    });
+  } catch (err) {
+    console.error('[pgSyncService.syncDeviceRegistry] Error:', err.message);
+  }
+}
+
 module.exports = {
   syncStore,
   syncOrder,
   syncPayment,
   syncRefund,
-  syncCustomer
+  syncCustomer,
+  syncAdmin,
+  syncOrderEvent,
+  syncDeviceRegistry
 };
+

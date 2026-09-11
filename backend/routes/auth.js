@@ -32,9 +32,20 @@ router.post('/register', async (req, res) => {
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
+    if (!email) return res.status(400).json({ message: 'Email is required' });
 
-    // Check email
-    const admin = await Admin.findOne({ email });
+    let admin = null;
+    try {
+      const adminRepository = require('../repositories/adminRepository');
+      admin = await adminRepository.findByEmail(email);
+    } catch (pgErr) {
+      console.warn('[auth.login] PG lookup error:', pgErr.message);
+    }
+
+    // Fallback to Mongoose if not in PG
+    if (!admin) {
+      admin = await Admin.findOne({ email });
+    }
     if (!admin) return res.status(400).json({ message: 'Invalid email or password' });
 
     // Check if banned
@@ -51,12 +62,14 @@ router.post('/login', async (req, res) => {
     const validPassword = await bcrypt.compare(password, admin.password);
     if (!validPassword) return res.status(400).json({ message: 'Invalid email or password' });
 
+    const adminId = admin._id || admin.id;
+
     // Create and assign token with role
-    const token = jwt.sign({ _id: admin._id, name: admin.name, role: admin.role }, process.env.JWT_SECRET, { expiresIn: '7d' });
+    const token = jwt.sign({ _id: adminId, name: admin.name, role: admin.role }, process.env.JWT_SECRET, { expiresIn: '7d' });
     res.header('Authorization', token).json({ 
       token, 
       admin: { 
-        id: admin._id, 
+        id: adminId, 
         name: admin.name, 
         email: admin.email, 
         telegramChatId: admin.telegramChatId,
@@ -73,9 +86,19 @@ router.post('/login', async (req, res) => {
 router.post('/mobile-login', async (req, res) => {
   try {
     const { email, password } = req.body;
+    if (!email) return res.status(400).json({ message: 'Email is required' });
 
-    // Check email
-    const admin = await Admin.findOne({ email });
+    let admin = null;
+    try {
+      const adminRepository = require('../repositories/adminRepository');
+      admin = await adminRepository.findByEmail(email);
+    } catch (pgErr) {
+      console.warn('[auth.mobile-login] PG lookup error:', pgErr.message);
+    }
+
+    if (!admin) {
+      admin = await Admin.findOne({ email });
+    }
     if (!admin) return res.status(400).json({ message: 'Invalid email or password' });
 
     // Check if banned or inactive
@@ -87,15 +110,22 @@ router.post('/mobile-login', async (req, res) => {
     const validPassword = await bcrypt.compare(password, admin.password);
     if (!validPassword) return res.status(400).json({ message: 'Invalid email or password' });
 
-    // Update last login
-    admin.lastLoginAt = new Date();
-    await admin.save();
+    const adminId = admin._id || admin.id;
+
+    // Update last login in PG
+    try {
+      const prisma = require('../config/prisma');
+      await prisma.admin.update({
+        where: { id: adminId },
+        data: { lastLoginAt: new Date() }
+      }).catch(() => {});
+    } catch (e) {}
 
     // Retrieve actual storeId dynamically if not set
-    let actualStoreId = admin.storeId;
+    let actualStoreId = admin.storeId || admin.stores?.[0]?.id || admin.stores?.[0]?._id;
     if (!actualStoreId && admin.role === 'vendor') {
       const Store = require('../models/Store');
-      const vendorStore = await Store.findOne({ admin: admin._id });
+      const vendorStore = await Store.findOne({ admin: adminId });
       if (vendorStore) {
         actualStoreId = vendorStore._id;
       }
@@ -104,7 +134,7 @@ router.post('/mobile-login', async (req, res) => {
     // Create and assign token
     // For mobile, include role, storeId, and vendorId in token payload
     const tokenPayload = { 
-      _id: admin._id, 
+      _id: adminId, 
       name: admin.name,
       role: admin.role,
       storeId: actualStoreId,
@@ -117,7 +147,7 @@ router.post('/mobile-login', async (req, res) => {
     res.header('Authorization', token).json({ 
       token, 
       admin: { 
-        id: admin._id, 
+        id: adminId, 
         name: admin.name, 
         email: admin.email,
         role: admin.role,

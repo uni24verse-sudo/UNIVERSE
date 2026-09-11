@@ -19,7 +19,14 @@ router.get('/my-settlements/:storeId', async (req, res) => {
             return res.status(403).json({ message: 'Unauthorized access to this store\'s finances' });
         }
 
-        const settlements = await Settlement.find({ store: storeId }).sort({ createdAt: -1 });
+        let settlements = [];
+        try {
+            const settlementRepository = require('../repositories/settlementRepository');
+            settlements = await settlementRepository.getStoreSettlements(storeId);
+        } catch (pgErr) {
+            console.warn('[finance.my-settlements] PG fallback to Mongo:', pgErr.message);
+            settlements = await Settlement.find({ store: storeId }).sort({ createdAt: -1 });
+        }
         
         const now = new Date();
         const trialEnd = store.trialEndDate ? new Date(store.trialEndDate) : null;

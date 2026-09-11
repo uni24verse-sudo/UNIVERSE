@@ -59,6 +59,11 @@ const journeyEngineService = require('./services/journeyEngineService');
 whatsappMultiDeviceService.setIO(io);
 
 // Database Connection with Auto-reconnect & Post-connection service initialization
+const prisma = require('./config/prisma');
+prisma.$connect()
+  .then(() => console.log('Connected to AWS RDS PostgreSQL via Prisma'))
+  .catch(err => console.warn('PostgreSQL connection warning:', err.message));
+
 mongoose.connect(process.env.MONGODB_URI, {
   serverSelectionTimeoutMS: 5000,
   socketTimeoutMS: 45000

@@ -66,4 +66,11 @@ const OrderEventSchema = new mongoose.Schema({
   }
 }, { timestamps: false });
 
+OrderEventSchema.post('save', function(doc) {
+  try {
+    const { syncOrderEvent } = require('../services/pgSyncService');
+    syncOrderEvent(doc).catch(() => {});
+  } catch (e) {}
+});
+
 module.exports = mongoose.model('OrderEvent', OrderEventSchema);

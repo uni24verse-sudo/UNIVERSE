@@ -71,11 +71,18 @@ router.get('/:storeId/vendor-orders', auth, async (req, res) => {
       return res.status(403).json({ message: 'Unauthorized access to store orders' });
     }
 
-    const orders = await Order.find({ 
-      store: store._id,
-      status: { $ne: 'Payment Pending' }
-    }).sort({ createdAt: -1 });
-    res.json(orders);
+    try {
+      const orderRepository = require('../repositories/orderRepository');
+      const orders = await orderRepository.getVendorOrders(store._id.toString());
+      return res.json(orders);
+    } catch (pgErr) {
+      console.warn('[orders.vendor-orders] PG fallback to Mongo:', pgErr.message);
+      const orders = await Order.find({ 
+        store: store._id,
+        status: { $ne: 'Payment Pending' }
+      }).sort({ createdAt: -1 });
+      return res.json(orders);
+    }
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -279,11 +286,39 @@ router.delete('/:id', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const param = req.params.id;
+
+    // 1. Try fetching from RDS PostgreSQL first
+    try {
+      const orderRepository = require('../repositories/orderRepository');
+      let order = null;
+      if (param.length === 24) {
+        order = await orderRepository.getOrderById(param);
+      }
+      if (!order) {
+        const prisma = require('../config/prisma');
+        const { normalizeOrder } = require('../utils/pgAdapter');
+        const pgOrder = await prisma.order.findFirst({
+          where: { orderNumber: param },
+          include: {
+            store: {
+              include: {
+                admin: { select: { id: true, name: true, email: true } }
+              }
+            },
+            refunds: true
+          }
+        });
+        if (pgOrder) order = normalizeOrder(pgOrder);
+      }
+      if (order) return res.json(order);
+    } catch (pgErr) {
+      console.warn('[orders.getById] PG lookup error:', pgErr.message);
+    }
+
+    // 2. Fallback to MongoDB
     const isObjectId = mongoose.Types.ObjectId.isValid(param) && param.length === 24;
     const query = isObjectId ? { $or: [{ _id: param }, { orderNumber: param }] } : { orderNumber: param };
 
-    // We explicitly select +handoverToken here so the tracking page can generate the QR code
-    // The tracking page ONLY displays the QR code if status === 'Ready'
     const order = await Order.findOne(query).select('+handoverToken').populate({
       path: 'store',
       populate: { path: 'admin', select: 'name' }
@@ -405,6 +440,22 @@ router.get('/customer/lookup', async (req, res) => {
     const { phone } = req.query;
     if (!phone) return res.json({ exists: false });
 
+    // 1. Try RDS PostgreSQL first
+    try {
+      const customerRepository = require('../repositories/customerRepository');
+      const customer = await customerRepository.findByPhone(phone);
+      if (customer) {
+        return res.json({
+          exists: true,
+          currentName: customer.currentName,
+          email: customer.email || ''
+        });
+      }
+    } catch (pgErr) {
+      console.warn('[orders.customer.lookup] PG lookup error:', pgErr.message);
+    }
+
+    // 2. Fallback to MongoDB
     const cleanPhone = phone.toString().replace(/\D/g, '');
     const Customer = require('../models/Customer');
     const customer = await Customer.findOne({ 
@@ -461,6 +512,18 @@ router.get('/customer/history', async (req, res) => {
       return res.json({ orders: [], activeOrders: [] });
     }
 
+    // 1. Try RDS PostgreSQL first
+    try {
+      const customerRepository = require('../repositories/customerRepository');
+      const history = await customerRepository.getCustomerOrderHistory(cleanPhone);
+      if (history && (history.orders.length > 0 || history.activeOrders.length > 0 || history.customer)) {
+        return res.json(history);
+      }
+    } catch (pgErr) {
+      console.warn('[orders.customer.history] PG fallback to Mongo:', pgErr.message);
+    }
+
+    // 2. Fallback to MongoDB
     const Customer = require('../models/Customer');
     const customer = await Customer.findOne({ phone: { $regex: cleanPhone } });
 

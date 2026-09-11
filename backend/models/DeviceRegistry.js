@@ -13,4 +13,11 @@ const DeviceRegistrySchema = new mongoose.Schema({
 // Ensure a device only has one active registration
 DeviceRegistrySchema.index({ deviceId: 1 }, { unique: true });
 
+DeviceRegistrySchema.post('save', function(doc) {
+  try {
+    const { syncDeviceRegistry } = require('../services/pgSyncService');
+    syncDeviceRegistry(doc).catch(() => {});
+  } catch (e) {}
+});
+
 module.exports = mongoose.model('DeviceRegistry', DeviceRegistrySchema);
