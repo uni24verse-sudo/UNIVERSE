@@ -465,7 +465,8 @@ router.put('/:storeId/toggle-status', auth, async (req, res) => {
     // Broadcast status change globally
     const io = req.app.get('io');
     if (io) {
-      io.emit('store_status_update', { storeId: store._id, isOpen: store.isOpen });
+      io.emit('store_status_update', { storeId: store._id || store.id, isOpen: store.isOpen });
+      io.to('superadmin_room').emit('superadmin:store_update', store);
     }
 
     res.json({ message: `Store is now ${store.isOpen ? 'Open' : 'Closed'}`, isOpen: store.isOpen, isAutomated: store.isAutomated });

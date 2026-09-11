@@ -325,12 +325,21 @@ const Dashboard = () => {
         });
       };
 
+      const handleStoreStatus = ({ storeId, isOpen }) => {
+        if (storeId === store._id || storeId === store.id) {
+          setStore(prev => ({ ...prev, isOpen }));
+          setStores(prev => prev.map(s => (s._id === storeId || s.id === storeId) ? { ...s, isOpen } : s));
+        }
+      };
+
       socket.on('new_order', handleNewOrder);
       socket.on('order_status_update', handleNewOrder);
+      socket.on('store_status_update', handleStoreStatus);
       
       return () => {
         socket.off('new_order', handleNewOrder);
         socket.off('order_status_update', handleNewOrder);
+        socket.off('store_status_update', handleStoreStatus);
       };
     }
   }, [store, socket, connected]);
@@ -452,15 +461,24 @@ const Dashboard = () => {
 
   const toggleStoreStatus = async () => {
     if (!store) return;
+    const targetId = store._id || store.id;
+    const nextStatus = !store.isOpen;
+    // Instant optimistic update
+    setStore(prev => ({ ...prev, isOpen: nextStatus }));
+    setStores(prev => prev.map(s => (s._id === targetId || s.id === targetId) ? { ...s, isOpen: nextStatus } : s));
+
     try {
-      const res = await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/store/${store._id}/toggle-status`, {}, {
+      const res = await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/store/${targetId}/toggle-status`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setStore(prev => ({ ...prev, isOpen: res.data.isOpen }));
-      // Also update the store in the stores array so it persists on switch
-      setStores(prev => prev.map(s => s._id === store._id ? { ...s, isOpen: res.data.isOpen } : s));
+      if (res.data && res.data.isOpen !== undefined) {
+        setStore(prev => ({ ...prev, isOpen: res.data.isOpen }));
+        setStores(prev => prev.map(s => (s._id === targetId || s.id === targetId) ? { ...s, isOpen: res.data.isOpen } : s));
+      }
     } catch (err) {
       alert('Failed to toggle status');
+      setStore(prev => ({ ...prev, isOpen: !nextStatus }));
+      setStores(prev => prev.map(s => (s._id === targetId || s.id === targetId) ? { ...s, isOpen: !nextStatus } : s));
     }
   };
 

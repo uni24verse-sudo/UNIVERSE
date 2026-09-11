@@ -503,10 +503,15 @@ const SuperAdminPanel = () => {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                       <button 
                          onClick={async () => {
+                           const targetId = store._id || store.id;
+                           const nextHidden = !store.isHidden;
+                           setStores(prev => prev.map(s => (s._id === targetId || s.id === targetId) ? { ...s, isHidden: nextHidden } : s));
                            try {
-                             await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/super-admin/store/${store._id}/toggle-hidden`, {}, { headers: { Authorization: `Bearer ${token}` } });
+                             await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/super-admin/store/${targetId}/toggle-hidden`, {}, { headers: { Authorization: `Bearer ${token}` } });
+                           } catch(err) {
+                             alert('Action failed');
                              fetchDashboardData(true);
-                           } catch(err) { alert('Action failed'); }
+                           }
                          }}
                          style={{ padding: '0.25rem 0.5rem', fontSize: '0.7rem', textTransform: 'uppercase', fontWeight: '800', background: 'rgba(255,255,255,0.05)', color: store.isHidden ? '#10b981' : '#f59e0b', border: `1px solid ${store.isHidden ? 'rgba(16, 185, 129, 0.3)' : 'rgba(245, 158, 11, 0.3)'}`, borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
                       >
@@ -514,10 +519,15 @@ const SuperAdminPanel = () => {
                       </button>
                       <button 
                          onClick={async () => {
+                           const targetId = store._id || store.id;
+                           const nextOpen = !store.isOpen;
+                           setStores(prev => prev.map(s => (s._id === targetId || s.id === targetId) ? { ...s, isOpen: nextOpen } : s));
                            try {
-                             await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/super-admin/store/${store._id}/toggle-status`, {}, { headers: { Authorization: `Bearer ${token}` } });
+                             await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/super-admin/store/${targetId}/toggle-status`, {}, { headers: { Authorization: `Bearer ${token}` } });
+                           } catch(err) {
+                             alert('Action failed');
                              fetchDashboardData(true);
-                           } catch(err) { alert('Action failed'); }
+                           }
                          }}
                          style={{ padding: '0.25rem 0.5rem', fontSize: '0.7rem', textTransform: 'uppercase', fontWeight: '800', background: 'rgba(255,255,255,0.05)', color: store.isOpen ? '#ef4444' : '#10b981', border: `1px solid ${store.isOpen ? 'rgba(239, 68, 68, 0.3)' : 'rgba(16, 185, 129, 0.3)'}`, borderRadius: '6px', cursor: 'pointer' }}
                       >

@@ -325,6 +325,120 @@ class StoreRepository {
     });
     return normalizeStore(updated);
   }
+
+  async toggleStatus(storeId, adminId) {
+    const where = { id: storeId };
+    if (adminId) {
+      const admin = await prisma.admin.findUnique({ where: { id: adminId } });
+      if (admin && admin.role !== 'superadmin') {
+        where.adminId = adminId;
+      }
+    }
+
+    const store = await prisma.store.findFirst({ where });
+    if (!store) return null;
+
+    const newIsOpen = !store.isOpen;
+
+    const updated = await prisma.store.update({
+      where: { id: storeId },
+      data: {
+        isOpen: newIsOpen,
+        isAutomated: false
+      },
+      include: {
+        admin: true,
+        location: true
+      }
+    });
+
+    try {
+      const mongoose = require('mongoose');
+      if (mongoose.connection && mongoose.connection.readyState === 1) {
+        const Store = require('../models/Store');
+        Store.findByIdAndUpdate(storeId, {
+          isOpen: newIsOpen,
+          isAutomated: false
+        }).catch(() => {});
+      }
+    } catch (e) {}
+
+    return normalizeStore(updated);
+  }
+
+  async toggleHidden(storeId) {
+    const store = await prisma.store.findUnique({ where: { id: storeId } });
+    if (!store) return null;
+
+    const newIsHidden = !store.isHidden;
+
+    const updated = await prisma.store.update({
+      where: { id: storeId },
+      data: { isHidden: newIsHidden },
+      include: { admin: true, location: true }
+    });
+
+    try {
+      const mongoose = require('mongoose');
+      if (mongoose.connection && mongoose.connection.readyState === 1) {
+        const Store = require('../models/Store');
+        Store.findByIdAndUpdate(storeId, { isHidden: newIsHidden }).catch(() => {});
+      }
+    } catch (e) {}
+
+    return normalizeStore(updated);
+  }
+
+  async updateStoreDetails(storeId, adminId, details) {
+    const where = { id: storeId };
+    if (adminId) {
+      const admin = await prisma.admin.findUnique({ where: { id: adminId } });
+      if (admin && admin.role !== 'superadmin') {
+        where.adminId = adminId;
+      }
+    }
+
+    const store = await prisma.store.findFirst({ where });
+    if (!store) return null;
+
+    const updateData = {};
+    if (details.name !== undefined) updateData.name = details.name;
+    if (details.category !== undefined) updateData.category = details.category;
+    if (details.market !== undefined) updateData.market = details.market;
+    if (details.locationId !== undefined) updateData.locationId = details.locationId || null;
+    if (details.openingTime !== undefined) updateData.openingTime = details.openingTime;
+    if (details.closingTime !== undefined) updateData.closingTime = details.closingTime;
+    if (details.isAutomated !== undefined) updateData.isAutomated = Boolean(details.isAutomated);
+    if (details.isOpen !== undefined) updateData.isOpen = Boolean(details.isOpen);
+    if (details.isHidden !== undefined) updateData.isHidden = Boolean(details.isHidden);
+    if (details.packagingCharge !== undefined) updateData.packagingCharge = Number(details.packagingCharge) || 0;
+    if (details.priority !== undefined) updateData.priority = Number(details.priority) || 0;
+    if (details.commissionRate !== undefined) updateData.commissionRate = Number(details.commissionRate) || 5;
+    if (details.upiId !== undefined) updateData.upiId = details.upiId;
+    if (details.telegramChatId !== undefined) updateData.telegramChatId = details.telegramChatId;
+    if (details.telegramBotToken !== undefined) updateData.telegramBotToken = details.telegramBotToken;
+    if (details.accentColor !== undefined) updateData.accentColor = details.accentColor;
+    if (details.storeType !== undefined) updateData.storeType = details.storeType;
+
+    const updated = await prisma.store.update({
+      where: { id: storeId },
+      data: updateData,
+      include: {
+        admin: true,
+        location: true
+      }
+    });
+
+    try {
+      const mongoose = require('mongoose');
+      if (mongoose.connection && mongoose.connection.readyState === 1) {
+        const Store = require('../models/Store');
+        Store.findByIdAndUpdate(storeId, updateData).catch(() => {});
+      }
+    } catch (e) {}
+
+    return normalizeStore(updated);
+  }
 }
 
 module.exports = new StoreRepository();

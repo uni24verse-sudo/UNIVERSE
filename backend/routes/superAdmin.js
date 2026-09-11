@@ -545,16 +545,19 @@ router.get('/stores', async (req, res) => {
 // 5b. Force Toggle Store Status
 router.put('/store/:id/toggle-status', async (req, res) => {
     try {
-        const store = await Store.findById(req.params.id);
+        const storeRepository = require('../repositories/storeRepository');
+        const store = await storeRepository.toggleStatus(req.params.id);
         if (!store) return res.status(404).json({ message: 'Store not found' });
 
-        store.isOpen = !store.isOpen;
-        // Force toggle disabling automation prevents flip-flopping
-        store.isAutomated = false;
-        await store.save();
-
         // Notify via Telegram
-        await telegramService.sendStatusAlert(store, store.isOpen);
+        telegramService.sendStatusAlert(store, store.isOpen).catch(() => {});
+
+        // Broadcast status change globally via Socket.IO for INSTANT real-time updates!
+        const io = req.app.get('io');
+        if (io) {
+            io.emit('store_status_update', { storeId: store._id || store.id, isOpen: store.isOpen });
+            io.to('superadmin_room').emit('superadmin:store_update', store);
+        }
 
         res.json({ message: `Store forcefully ${store.isOpen ? 'opened' : 'closed'}`, isOpen: store.isOpen, isAutomated: store.isAutomated });
     } catch (err) {
@@ -565,11 +568,16 @@ router.put('/store/:id/toggle-status', async (req, res) => {
 // 5c. Force Toggle Store Hidden Status
 router.put('/store/:id/toggle-hidden', async (req, res) => {
     try {
-        const store = await Store.findById(req.params.id);
+        const storeRepository = require('../repositories/storeRepository');
+        const store = await storeRepository.toggleHidden(req.params.id);
         if (!store) return res.status(404).json({ message: 'Store not found' });
 
-        store.isHidden = !store.isHidden;
-        await store.save();
+        // Broadcast hidden change globally via Socket.IO
+        const io = req.app.get('io');
+        if (io) {
+            io.emit('store_hidden_update', { storeId: store._id || store.id, isHidden: store.isHidden });
+            io.to('superadmin_room').emit('superadmin:store_update', store);
+        }
 
         res.json({ message: `Store forcefully ${store.isHidden ? 'hidden' : 'unhidden'}`, isHidden: store.isHidden });
     } catch (err) {

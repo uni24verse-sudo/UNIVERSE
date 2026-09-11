@@ -235,14 +235,24 @@ const ManageStore = () => {
   };
 
   const toggleStoreStatus = async () => {
+    if (!store) return;
+    const targetId = store._id || store.id;
+    const nextStatus = !store.isOpen;
+    setStore(prev => ({ ...prev, isOpen: nextStatus }));
+    setStores(prev => prev.map(s => (s._id === targetId || s.id === targetId) ? { ...s, isOpen: nextStatus } : s));
+
     try {
-      const res = await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/store/${store._id}/toggle-status`, {}, {
+      const res = await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/store/${targetId}/toggle-status`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setStore(prev => ({ ...prev, isOpen: res.data.isOpen }));
-      setStores(prev => prev.map(s => s._id === store._id ? { ...s, isOpen: res.data.isOpen } : s));
+      if (res.data && res.data.isOpen !== undefined) {
+        setStore(prev => ({ ...prev, isOpen: res.data.isOpen }));
+        setStores(prev => prev.map(s => (s._id === targetId || s.id === targetId) ? { ...s, isOpen: res.data.isOpen } : s));
+      }
     } catch (err) {
       alert('Failed to toggle status');
+      setStore(prev => ({ ...prev, isOpen: !nextStatus }));
+      setStores(prev => prev.map(s => (s._id === targetId || s.id === targetId) ? { ...s, isOpen: !nextStatus } : s));
     }
   };
 

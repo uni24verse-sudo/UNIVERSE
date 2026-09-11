@@ -110,7 +110,7 @@ const Home = () => {
   useEffect(() => {
     if (socket && connected) {
       const handleStoreStatus = ({ storeId, isOpen }) => {
-        setStores(prev => prev.map(s => s._id === storeId ? { ...s, isOpen } : s));
+        setStores(prev => prev.map(s => (s._id === storeId || s.id === storeId) ? { ...s, isOpen } : s));
       };
       socket.on('store_status_update', handleStoreStatus);
       return () => socket.off('store_status_update', handleStoreStatus);
