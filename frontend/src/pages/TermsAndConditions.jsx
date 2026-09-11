@@ -84,7 +84,7 @@ const TermsAndConditions = () => {
               This document is published in accordance with the provisions of Rule 3 (1) of the Information Technology (Intermediaries guidelines) Rules, 2011 that require publishing the rules and regulations, privacy policy and Terms of Use for access or usage of domain name <span style={{ color: 'var(--primary)' }}>https://www.universeorder.co.in</span> ('Website'), including the related mobile site and mobile application (hereinafter referred to as 'Platform').
             </p>
             <p>
-              The Platform is owned by **Universe**, a company incorporated under the Companies Act, 1956 with its registered office at Lovely Professional University, Phagwara, Punjab, India (hereinafter referred to as ‘Platform Owner’, 'we', 'us', 'our').
+              The Platform is owned by <b>UNIVERSE</b>, a company incorporated under the Companies Act, 1956 with its registered office at Lovely Professional University, Phagwara, Punjab, India (hereinafter referred to as ‘Platform Owner’, 'we', 'us', 'our').
             </p>
           </section>
 
@@ -135,30 +135,7 @@ const TermsAndConditions = () => {
             </ol>
           </div>
 
-          <h2 style={{ color: 'var(--text-primary)', fontSize: '1.5rem', fontWeight: '800', marginBottom: '1.25rem' }}>7. Vendor Commission & Fee Structure</h2>
-          <div style={{ marginBottom: '2rem' }}>
-            <p style={{ marginBottom: '1rem' }}>
-              The following fee structure applies to all Vendors operating on the UniVerse Platform:
-            </p>
-            <div style={{ background: '#f8fafc', padding: '1.5rem', borderRadius: '16px', border: '1px solid var(--surface-border)', marginBottom: '1rem' }}>
-              <h4 style={{ color: 'var(--text-primary)', marginBottom: '1rem', fontSize: '1rem', fontWeight: '800' }}>Standard Fees</h4>
-              <ul style={{ paddingLeft: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                <li><strong style={{ color: 'var(--text-primary)' }}>Payment Gateway Fee:</strong> 2% of total order value is deducted as payment gateway processing charges on all completed orders.</li>
-                <li><strong style={{ color: 'var(--text-primary)' }}>Platform Commission:</strong> 3% of total order value is charged as platform service fee on all completed orders (waived during the free trial period).</li>
-                <li><strong style={{ color: 'var(--text-primary)' }}>Free Trial Period:</strong> New vendors receive a 30-day free trial during which the platform commission (3%) is waived. Only the 2% payment gateway fee applies during this period.</li>
-              </ul>
-            </div>
-            <div style={{ background: 'rgba(239, 68, 68, 0.05)', padding: '1.5rem', borderRadius: '16px', border: '1px solid rgba(239, 68, 68, 0.15)' }}>
-              <h4 style={{ color: '#ef4444', marginBottom: '1rem', fontSize: '1rem', fontWeight: '800' }}>⚠️ Cancellation Penalty</h4>
-              <ul style={{ paddingLeft: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                <li><strong style={{ color: 'var(--text-primary)' }}>Vendor & Auto-Cancelled Orders:</strong> When a vendor manually cancels an order, or when an order is automatically cancelled because the vendor failed to accept it within the 5-minute deadline, a total deduction of <strong style={{ color: '#ef4444' }}>4% of the cancelled order value</strong> will be applied to the vendor's monthly gross settlement.</li>
-                <li><strong style={{ color: 'var(--text-primary)' }}>Breakdown:</strong> 2% Payment Gateway Charge (non-recoverable processing fee) + 2% Cancellation Penalty Fee (platform penalty for order disruption).</li>
-                <li><strong style={{ color: 'var(--text-primary)' }}>Settlement Deduction:</strong> The cancellation penalty is deducted from the vendor's monthly gross revenue at the time of settlement.</li>
-              </ul>
-            </div>
-          </div>
-
-          <h2 style={{ color: 'var(--text-primary)', fontSize: '1.5rem', fontWeight: '800', marginBottom: '1.25rem' }}>8. Platform Scope & Order Types</h2>
+          <h2 style={{ color: 'var(--text-primary)', fontSize: '1.5rem', fontWeight: '800', marginBottom: '1.25rem' }}>7. Platform Scope & Order Types</h2>
           <div style={{ marginBottom: '2rem' }}>
             <p style={{ marginBottom: '1rem' }}>
               The Platform supports digital ordering workflows for both campus locations and external independent establishments:
@@ -170,7 +147,7 @@ const TermsAndConditions = () => {
             </ul>
           </div>
 
-          <h2 style={{ color: 'var(--text-primary)', fontSize: '1.5rem', fontWeight: '800', marginBottom: '1.25rem' }}>9. Store Availability</h2>
+          <h2 style={{ color: 'var(--text-primary)', fontSize: '1.5rem', fontWeight: '800', marginBottom: '1.25rem' }}>8. Store Availability</h2>
           <div style={{ marginBottom: '2rem' }}>
             <p style={{ marginBottom: '1rem' }}>
               Vendors may toggle their store between "Online" and "Offline" status at any time. When a store is offline:
@@ -182,23 +159,23 @@ const TermsAndConditions = () => {
             </ul>
           </div>
 
-          <h2 style={{ color: 'var(--text-primary)', fontSize: '1.5rem', fontWeight: '800', marginBottom: '1.25rem' }}>10. Store Performance & Ranking</h2>
+          <h2 style={{ color: 'var(--text-primary)', fontSize: '1.5rem', fontWeight: '800', marginBottom: '1.25rem' }}>9. Store Performance & Fulfillment Standards</h2>
           <div style={{ marginBottom: '2rem' }}>
             <p style={{ marginBottom: '1rem' }}>
-              Vendors operating on the Platform are dynamically ranked and assigned consumer-facing performance metrics:
+              Vendors operating on the Platform are evaluated by fulfillment reliability to ensure consistent customer experience:
             </p>
             <ul style={{ paddingLeft: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              <li><strong style={{ color: 'var(--text-primary)' }}>Platform Ranking:</strong> Search visibility and list prominence are governed by absolute order success volume. Vendors with higher volumes of successfully completed transactions are prioritized.</li>
-              <li><strong style={{ color: 'var(--text-primary)' }}>Fulfillment Metrics:</strong> A dynamic score between 1.0 and 5.0 is computed using the ratio of completed versus cancelled orders. High cancellation rates significantly degrade storefront position.</li>
+              <li><strong style={{ color: 'var(--text-primary)' }}>Platform Ranking:</strong> Search visibility and list prominence prioritize vendors with proven order completion rates and quick preparation times.</li>
+              <li><strong style={{ color: 'var(--text-primary)' }}>Fulfillment Quality:</strong> Storefronts maintaining consistent kitchen acceptance and prompt customer handover are highlighted for campus diners.</li>
             </ul>
           </div>
 
-          <h2 style={{ color: 'var(--text-primary)', fontSize: '1.5rem', fontWeight: '800', marginBottom: '1.25rem' }}>11. Governing Law & Jurisdiction</h2>
+          <h2 style={{ color: 'var(--text-primary)', fontSize: '1.5rem', fontWeight: '800', marginBottom: '1.25rem' }}>10. Governing Law & Jurisdiction</h2>
           <p style={{ marginBottom: '2rem' }}>
             These Terms and any dispute or claim relating to it, or its enforceability, shall be governed by and construed in accordance with the laws of India. All disputes arising out of or in connection with these Terms shall be subject to the exclusive jurisdiction of the courts in Punjab, India.
           </p>
 
-          <h2 style={{ color: 'var(--text-primary)', fontSize: '1.5rem', fontWeight: '800', marginBottom: '1.25rem' }}>12. Contact Information</h2>
+          <h2 style={{ color: 'var(--text-primary)', fontSize: '1.5rem', fontWeight: '800', marginBottom: '1.25rem' }}>11. Contact Information</h2>
           <div style={{ 
             background: 'linear-gradient(135deg, rgba(239, 65, 35, 0.05) 0%, rgba(252, 175, 23, 0.05) 100%)', 
             padding: '2.5rem', 

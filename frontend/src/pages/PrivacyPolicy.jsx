@@ -78,7 +78,7 @@ const PrivacyPolicy = () => {
         }}>
           <section style={{ marginBottom: '2.5rem' }}>
             <p style={{ marginBottom: '1.5rem' }}>
-              This Privacy Policy describes how **Universe** and its affiliates (collectively "Universe, we, our, us") collect, use, share, protect or otherwise process your information/ personal data through our website <span style={{ color: 'var(--primary)' }}>https://www.universeorder.co.in</span> (hereinafter referred to as Platform).
+              This Privacy Policy describes how <b>UNIVERSE</b> and its affiliates (collectively "Universe, we, our, us") collect, use, share, protect or otherwise process your information/ personal data through our website <span style={{ color: 'var(--primary)' }}>https://www.universeorder.co.in</span> (hereinafter referred to as Platform).
             </p>
             <p style={{ marginBottom: '1.5rem' }}>
               By visiting this Platform, providing your information or availing any product/service offered on the Platform, you expressly agree to be bound by the terms and conditions of this Privacy Policy and the Terms of Use. If you do not agree please do not use or access our Platform.
@@ -154,20 +154,21 @@ const PrivacyPolicy = () => {
               <li>Cancellation reason and initiator (vendor or customer).</li>
               <li>Refund amount and processing status.</li>
               <li>Communication records between customer and support team for refund processing.</li>
-              <li>Vendor penalty records for vendor-initiated cancellations (4% deduction on cancelled order value).</li>
+              <li>Transaction reference and audit logs for payment reconciliation and dispute resolution.</li>
             </ul>
             <p style={{ marginTop: '1rem' }}>
               This data is retained for a minimum of 180 days for accounting and dispute resolution purposes.
             </p>
           </div>
 
+          <h2 style={{ color: 'var(--text-primary)', fontSize: '1.5rem', fontWeight: '800', marginBottom: '1.25rem' }}>8. Merchant Partner Records</h2>
           <p style={{ marginBottom: '2.5rem' }}>
-            For vendors operating on the Platform, we collect and process additional financial data including UPI IDs for settlement, monthly revenue figures, commission calculations, gateway fees, cancellation penalties, and settlement history. This data is shared with our payment partners solely for the purpose of processing vendor payouts and is not disclosed to any third party.
+            For verified merchant partners operating on the Platform, business details required for order fulfillment and verified bank payout processing are securely maintained in accordance with applicable tax and financial regulations.
           </p>
           
-          <h2 style={{ color: 'var(--text-primary)', fontSize: '1.5rem', fontWeight: '800', marginBottom: '1.25rem' }}>9. Vendor Data Isolation</h2>
+          <h2 style={{ color: 'var(--text-primary)', fontSize: '1.5rem', fontWeight: '800', marginBottom: '1.25rem' }}>9. Merchant Data Isolation</h2>
           <p style={{ marginBottom: '2.5rem' }}>
-            Universe enforces strict data isolation between customers and vendors. To protect your privacy, we ensure that vendors only receive essential order data (items, order number, and amount) required for fulfillment. Personal identifiers including customer names and phone numbers are strictly withheld from vendor dashboards, Telegram alerts, and all other vendor-facing communication channels.
+            <b>UNIVERSE</b> enforces strict data isolation between customers and vendors. To protect your privacy, we ensure that vendors only receive essential order data (items, order number, and order type) required for kitchen preparation. Personal identifiers including customer names, phone numbers, and payment details are strictly withheld from vendor dashboards, alerts, and merchant communications.
           </p>
 
           <div style={{ 

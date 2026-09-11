@@ -165,7 +165,9 @@ const UnifiedStudentDock = () => {
   const primaryActiveOrder = activeOrders[0];
   const hasActiveOrder = activeOrders.length > 0;
   const hasCart = totalCartItems > 0 && !isCartPage;
-  const showDock = hasActiveOrder || hasCart || pastOrders.length > 0 || customerPhone;
+  // If on legal pages with no active order or cart, don't show dock
+  const isLegalPage = location.pathname.startsWith('/terms') || location.pathname.startsWith('/privacy');
+  if (isLegalPage && !hasActiveOrder && !hasCart) return null;
 
   if (!showDock) return null;
 
@@ -178,8 +180,8 @@ const UnifiedStudentDock = () => {
           bottom: '22px',
           left: '50%',
           transform: 'translateX(-50%)',
-          width: 'calc(100% - 32px)',
-          maxWidth: '620px',
+          width: 'max-content',
+          maxWidth: 'calc(100vw - 32px)',
           zIndex: 1000,
           display: 'flex',
           justifyContent: 'center',
@@ -192,13 +194,14 @@ const UnifiedStudentDock = () => {
             background: 'rgba(255, 255, 255, 0.98)',
             backdropFilter: 'blur(24px)',
             WebkitBackdropFilter: 'blur(24px)',
-            padding: '6px 8px',
+            padding: (hasActiveOrder || hasCart) ? '6px 8px' : '4px 6px',
             borderRadius: '26px',
             boxShadow: '0 20px 45px rgba(15, 23, 42, 0.14), 0 6px 18px rgba(239, 65, 35, 0.1), 0 0 0 1px rgba(0,0,0,0.06)',
             display: 'flex',
             alignItems: 'center',
+            justifyContent: 'center',
             gap: '6px',
-            width: '100%',
+            width: (hasActiveOrder || hasCart) ? 'min(620px, calc(100vw - 32px))' : 'auto',
             transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
           }}
         >
@@ -345,14 +348,14 @@ const UnifiedStudentDock = () => {
             style={{
               background: isOpen ? '#0f172a' : '#ffffff',
               color: isOpen ? '#ffffff' : '#0f172a',
-              border: '1.5px solid rgba(0,0,0,0.08)',
-              padding: '8px 14px',
+              border: (hasActiveOrder || hasCart) ? '1.5px solid rgba(0,0,0,0.08)' : 'none',
+              padding: (hasActiveOrder || hasCart) ? '8px 14px' : '8px 16px',
               borderRadius: '20px',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
-              gap: '6px',
-              boxShadow: isOpen ? '0 4px 12px rgba(0,0,0,0.2)' : '0 2px 8px rgba(0,0,0,0.04)',
+              gap: '8px',
+              boxShadow: isOpen ? '0 4px 12px rgba(0,0,0,0.2)' : ((hasActiveOrder || hasCart) ? '0 2px 8px rgba(0,0,0,0.04)' : 'none'),
               transition: 'all 0.2s ease',
               flexShrink: 0
             }}

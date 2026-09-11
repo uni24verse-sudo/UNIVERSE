@@ -168,7 +168,7 @@ const AppLayout = () => {
           </Routes>
         </React.Suspense>
       </div>
-      <Footer />
+      {!isAdminPath && <Footer />}
     </div>
   );
 };
