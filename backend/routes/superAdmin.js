@@ -649,7 +649,7 @@ router.post('/store/:id/start-trial', async (req, res) => {
 });
 
 // 9. Finance: Get All Stores Pending & Completed Settlements
-router.get('/finance/summary', async (req, res) => {
+router.get(['/finance', '/finance/summary'], async (req, res) => {
     try {
         const Settlement = require('../models/Settlement');
         
