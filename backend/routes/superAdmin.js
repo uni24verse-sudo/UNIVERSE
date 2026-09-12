@@ -93,13 +93,37 @@ router.get('/realtime-analytics', async (req, res) => {
 
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
 
-    // Fetch core collections in parallel
-    const [allOrders, allStores, allLocations, allVendors] = await Promise.all([
-      Order.find().populate({ path: 'store', select: 'name market locationId isOpen isTrialStarted trialEndDate', strictPopulate: false }).sort({ createdAt: -1 }),
-      Store.find().lean(),
-      Location.find().lean(),
-      Admin.find({ role: 'vendor' }).lean()
-    ]);
+    // Fetch core collections from AWS RDS PostgreSQL (with Mongoose fallback)
+    const prisma = require('../config/prisma');
+    let allOrders, allStores, allLocations, allVendors;
+    try {
+      const [pgOrders, pgStores, pgLocations, pgVendors] = await Promise.all([
+        prisma.order.findMany({
+          include: { store: true },
+          orderBy: { createdAt: 'desc' }
+        }),
+        prisma.store.findMany(),
+        prisma.location.findMany(),
+        prisma.admin.findMany({ where: { role: 'vendor' } })
+      ]);
+      const { normalizeOrder, normalizeStore } = require('../utils/pgAdapter');
+      allOrders = pgOrders.map(normalizeOrder);
+      allStores = pgStores.map(normalizeStore);
+      allLocations = pgLocations.map(l => ({ ...l, _id: l.id }));
+      allVendors = pgVendors.map(v => ({ ...v, _id: v.id }));
+    } catch (pgErr) {
+      console.warn('[superAdmin] Prisma query failed, using Mongoose fallback:', pgErr.message);
+      const [mOrders, mStores, mLocations, mVendors] = await Promise.all([
+        Order.find().populate({ path: 'store', select: 'name market locationId isOpen isTrialStarted trialEndDate', strictPopulate: false }).sort({ createdAt: -1 }),
+        Store.find().lean(),
+        Location.find().lean(),
+        Admin.find({ role: 'vendor' }).lean()
+      ]);
+      allOrders = mOrders;
+      allStores = mStores;
+      allLocations = mLocations;
+      allVendors = mVendors;
+    }
 
     const completedOrders = allOrders.filter(o => o.status === 'Completed');
     const todayOrders = allOrders.filter(o => new Date(o.createdAt) >= todayStart);
@@ -438,11 +462,23 @@ router.get('/vendors', async (req, res) => {
 // 3. Get All Orders (Recent first)
 router.get('/orders', async (req, res) => {
     try {
-        const orders = await Order.find()
-            .sort({ createdAt: -1 })
-            .populate({ path: 'store', select: 'name market' })
-            .limit(100); // Limit to 100 recent for performance
-        res.json(orders);
+        const prisma = require('../config/prisma');
+        const { normalizeOrder } = require('../utils/pgAdapter');
+        try {
+            const pgOrders = await prisma.order.findMany({
+                include: { store: true },
+                orderBy: { createdAt: 'desc' },
+                take: 100
+            });
+            return res.json(pgOrders.map(normalizeOrder));
+        } catch (pgErr) {
+            console.warn('[superAdmin.orders] Prisma error, using MongoDB fallback:', pgErr.message);
+            const orders = await Order.find()
+                .sort({ createdAt: -1 })
+                .populate({ path: 'store', select: 'name market' })
+                .limit(100);
+            return res.json(orders);
+        }
     } catch (err) {
         res.status(500).json({ message: err.message });
     }
