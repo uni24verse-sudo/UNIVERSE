@@ -202,9 +202,35 @@ router.get('/realtime-analytics', async (req, res) => {
       return {
         date: dateStr,
         day: dayName,
+        timeLabel: dateStr,
         orders: dayOrders.length,
         completedOrders: dayOrders.filter(o => o.status === 'Completed').length,
         revenue: dayRevenue
+      };
+    });
+
+    // Real Last 30 Days Breakdown
+    const monthlyVelocity30Days = Array.from({ length: 6 }, (_, i) => {
+      const dEnd = new Date(chartAnchorDate);
+      dEnd.setDate(dEnd.getDate() - (5 - i) * 5);
+      const dStart = new Date(dEnd);
+      dStart.setDate(dStart.getDate() - 5);
+      dStart.setHours(0, 0, 0, 0);
+
+      const bucketOrders = allOrders.filter(o => {
+        const oDate = new Date(o.createdAt);
+        return oDate >= dStart && oDate <= dEnd;
+      });
+
+      const bucketCompleted = bucketOrders.filter(o => o.status === 'Completed');
+      const bucketRevenue = bucketCompleted.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+      const label = `${dStart.getDate()} ${dStart.toLocaleDateString('en-US', { month: 'short' })} - ${dEnd.getDate()} ${dEnd.toLocaleDateString('en-US', { month: 'short' })}`;
+
+      return {
+        timeLabel: label,
+        revenue: bucketRevenue,
+        orders: bucketOrders.length,
+        completedOrders: bucketCompleted.length
       };
     });
 
@@ -264,6 +290,120 @@ router.get('/realtime-analytics', async (req, res) => {
       .sort((a, b) => b.revenue - a.revenue)
       .slice(0, 5);
 
+    // Campus / Location Traffic & Revenue Breakdown
+    const locationMap = new Map();
+    allLocations.forEach(loc => {
+      locationMap.set(loc._id.toString(), {
+        locationId: loc._id,
+        name: loc.name,
+        type: loc.type || 'College',
+        city: loc.city || 'Campus',
+        storeCount: 0,
+        totalRevenue: 0,
+        todayRevenue: 0,
+        totalOrders: 0,
+        todayOrders: 0,
+        activeOrders: 0
+      });
+    });
+
+    const unassignedLoc = {
+      locationId: 'unassigned',
+      name: 'General Campus / Unassigned',
+      type: 'Campus',
+      city: 'Campus',
+      storeCount: 0,
+      totalRevenue: 0,
+      todayRevenue: 0,
+      totalOrders: 0,
+      todayOrders: 0,
+      activeOrders: 0
+    };
+
+    const storeLocationLookup = new Map();
+    allStores.forEach(s => {
+      const locId = s.locationId ? s.locationId.toString() : null;
+      if (locId && locationMap.has(locId)) {
+        storeLocationLookup.set(s._id.toString(), locId);
+        locationMap.get(locId).storeCount += 1;
+      } else {
+        storeLocationLookup.set(s._id.toString(), 'unassigned');
+        unassignedLoc.storeCount += 1;
+      }
+    });
+
+    allOrders.forEach(o => {
+      if (!o.store) return;
+      const storeId = o.store._id ? o.store._id.toString() : (o.store.id ? o.store.id.toString() : o.store.toString());
+      const locId = storeLocationLookup.get(storeId) || 'unassigned';
+      const bucket = locId === 'unassigned' ? unassignedLoc : locationMap.get(locId);
+
+      if (bucket) {
+        bucket.totalOrders += 1;
+        if (o.status === 'Completed') bucket.totalRevenue += (o.totalAmount || 0);
+        if (new Date(o.createdAt) >= todayStart) {
+          bucket.todayOrders += 1;
+          if (o.status === 'Completed') bucket.todayRevenue += (o.totalAmount || 0);
+        }
+        if (['Pending', 'Confirmed', 'Cooking', 'Ready'].includes(o.status)) {
+          bucket.activeOrders += 1;
+        }
+      }
+    });
+
+    const zoneTraffic = Array.from(locationMap.values());
+    if (unassignedLoc.totalOrders > 0 || unassignedLoc.storeCount > 0) {
+      zoneTraffic.push(unassignedLoc);
+    }
+
+    // Top Stores Leaderboard
+    const storeStats = allStores.map(store => {
+      const sId = store._id.toString();
+      const storeOrders = allOrders.filter(o => o.store && (o.store._id?.toString() === sId || o.store.id?.toString() === sId || o.store.toString() === sId));
+      const sCompleted = storeOrders.filter(o => o.status === 'Completed');
+      const sToday = storeOrders.filter(o => new Date(o.createdAt) >= todayStart);
+      const sTodayCompleted = sToday.filter(o => o.status === 'Completed');
+      
+      const sTotalRevenue = sCompleted.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+      const sTodayRevenue = sTodayCompleted.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+      const activeQueue = storeOrders.filter(o => ['Pending', 'Confirmed', 'Cooking'].includes(o.status)).length;
+
+      return {
+        storeId: sId,
+        name: store.name,
+        market: store.market || 'Campus',
+        isOpen: store.isOpen,
+        totalRevenue: sTotalRevenue,
+        todayRevenue: sTodayRevenue,
+        totalOrders: storeOrders.length,
+        todayOrders: sToday.length,
+        activeQueue,
+        productCount: Array.isArray(store.products) ? store.products.length : 0,
+        isTrialStarted: store.isTrialStarted,
+        isTrialOver: !!(store.isTrialStarted && store.trialEndDate && now > new Date(store.trialEndDate))
+      };
+    }).sort((a, b) => b.totalRevenue - a.totalRevenue);
+
+    // Financial Flow Breakdown (100% Balanced Ledger)
+    const pgGatewayFee = Math.round(totalRevenue * 0.02);
+    const platformCommission = Math.round(totalPlatformProfit);
+    const vendorShare = Math.max(0, totalRevenue - pgGatewayFee - platformCommission);
+    const netPlatformMargin = Math.max(0, platformCommission);
+
+    // Live Recent Activity Feed
+    const liveFeed = allOrders.slice(0, 20).map(o => ({
+      id: o._id,
+      orderNumber: o.orderNumber,
+      storeName: o.store?.name || 'Unknown Store',
+      market: o.store?.market || 'Campus',
+      totalAmount: o.totalAmount,
+      status: o.status,
+      paymentStatus: o.paymentStatus,
+      paymentMethod: o.paymentMethod || 'Online',
+      itemsCount: Array.isArray(o.items) ? o.items.reduce((s, i) => s + (i.quantity || 1), 0) : 1,
+      createdAt: o.createdAt
+    }));
+
     // Status Funnel Aggregations
     const orderStatusFunnel = [
       { status: 'Pending', count: allOrders.filter(o => o.status === 'Pending').length, color: '#f59e0b' },
@@ -274,29 +414,52 @@ router.get('/realtime-analytics', async (req, res) => {
       { status: 'Cancelled', count: cancelledOrdersCount, color: '#ef4444' }
     ];
 
+    const metrics = {
+      totalRevenue,
+      todayRevenue,
+      totalOrders: totalOrdersCount,
+      todayOrders: todayOrdersCount,
+      activeOrders: activeOrdersCount,
+      readyOrders: readyOrdersCount,
+      completedOrders: completedOrders.length,
+      cancelledOrders: cancelledOrdersCount,
+      avgOrderValue,
+      todayAvgOrderValue,
+      ordersVelocityPerHour,
+      totalProfit: Math.round(totalPlatformProfit),
+      vendorCount: allVendors.length,
+      storeCount: allStores.length,
+      openStoresCount: allStores.filter(s => s.isOpen).length,
+      locationsCount: allLocations.length
+    };
+
     // Response packet
     res.json({
       timestamp: new Date().toISOString(),
-      kpis: {
+      metrics,
+      hourlyVelocity,
+      dailyVelocity7Days,
+      monthlyVelocity30Days,
+      zoneTraffic,
+      storeStats: storeStats.slice(0, 15),
+      financeDistribution: {
         totalRevenue,
-        todayRevenue,
-        totalOrdersCount,
-        todayOrdersCount,
-        activeOrdersCount,
-        readyOrdersCount,
-        cancelledOrdersCount,
-        avgOrderValue,
-        todayAvgOrderValue,
-        ordersVelocityPerHour,
+        vendorShare,
+        platformCommission,
+        pgGatewayFee,
+        netPlatformMargin
+      },
+      liveFeed,
+      kpis: {
+        ...metrics,
         totalPlatformProfit: Math.round(totalPlatformProfit),
         totalVendors: allVendors.length,
-        totalStores: allStores.length,
-        openStoresCount: allStores.filter(s => s.isOpen).length,
-        locationsCount: allLocations.length
+        totalStores: allStores.length
       },
       charts: {
         hourlyVelocity,
         dailyVelocity7Days,
+        monthlyVelocity30Days,
         orderStatusFunnel
       },
       spatial: {

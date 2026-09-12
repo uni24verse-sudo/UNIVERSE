@@ -123,25 +123,34 @@ const SuperAdmin3DAnalytics = ({ token }) => {
     );
   }
 
-  const { metrics, hourlyVelocity, zoneTraffic, storeStats, financeDistribution, liveFeed } = analyticsData;
+  const {
+    metrics = {},
+    hourlyVelocity = [],
+    dailyVelocity7Days = [],
+    monthlyVelocity30Days = [],
+    zoneTraffic = [],
+    storeStats = [],
+    financeDistribution = {},
+    liveFeed = []
+  } = analyticsData || {};
 
   // 100% Real database time-series data
   const chartHourlyData = (hourlyVelocity || []).map(h => ({
     timeLabel: h.hour,
-    revenue: h.revenue,
-    orders: h.orders
+    revenue: h.revenue || 0,
+    orders: h.orders || 0
   }));
 
-  const chartWeeklyData = (analyticsData.dailyVelocity7Days || []).map(d => ({
-    timeLabel: d.timeLabel,
-    revenue: d.revenue,
-    orders: d.orders
+  const chartWeeklyData = (dailyVelocity7Days || analyticsData?.dailyVelocity7Days || []).map(d => ({
+    timeLabel: d.timeLabel || d.date || d.day || '',
+    revenue: d.revenue || 0,
+    orders: d.orders || 0
   }));
 
-  const chartMonthlyData = (analyticsData.monthlyVelocity30Days || []).map(m => ({
-    timeLabel: m.timeLabel,
-    revenue: m.revenue,
-    orders: m.orders
+  const chartMonthlyData = (monthlyVelocity30Days || analyticsData?.monthlyVelocity30Days || []).map(m => ({
+    timeLabel: m.timeLabel || '',
+    revenue: m.revenue || 0,
+    orders: m.orders || 0
   }));
 
   const activeChartData = timeframe === 'today' 
@@ -149,9 +158,9 @@ const SuperAdmin3DAnalytics = ({ token }) => {
     : (timeframe === 'monthly' ? chartMonthlyData : chartWeeklyData);
 
   const pieFinancialData = [
-    { name: 'Vendor Payouts (97%)', value: financeDistribution.vendorShare || 0, color: '#10b981' },
-    { name: 'UniVerse Take (3%)', value: financeDistribution.platformCommission || 0, color: '#ef4123' },
-    { name: 'Payment Gateway (~2%)', value: financeDistribution.pgGatewayFee || 0, color: '#3b82f6' }
+    { name: 'Vendor Payouts (97%)', value: financeDistribution?.vendorShare || 0, color: '#10b981' },
+    { name: 'UniVerse Take (3%)', value: financeDistribution?.platformCommission || 0, color: '#ef4123' },
+    { name: 'Payment Gateway (~2%)', value: financeDistribution?.pgGatewayFee || 0, color: '#3b82f6' }
   ];
 
   // Multi-campus simulator calculations (Conservative ₹120 / order baseline)
@@ -256,10 +265,10 @@ const SuperAdmin3DAnalytics = ({ token }) => {
             <DollarSign size={18} color="#10b981" />
           </div>
           <h2 style={{ fontSize: '2.2rem', fontWeight: '900', margin: '0.25rem 0', color: 'var(--text-primary)' }}>
-            ₹{metrics.totalRevenue.toLocaleString()}
+            ₹{(metrics?.totalRevenue || 0).toLocaleString()}
           </h2>
           <span style={{ fontSize: '0.85rem', color: '#10b981', fontWeight: '700' }}>
-            +₹{metrics.todayRevenue.toLocaleString()} today
+            +₹{(metrics?.todayRevenue || 0).toLocaleString()} today
           </span>
         </div>
 
@@ -272,10 +281,10 @@ const SuperAdmin3DAnalytics = ({ token }) => {
             <ShoppingBag size={18} color="#3b82f6" />
           </div>
           <h2 style={{ fontSize: '2.2rem', fontWeight: '900', margin: '0.25rem 0', color: 'var(--text-primary)' }}>
-            {metrics.totalOrders}
+            {metrics?.totalOrders || 0}
           </h2>
           <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: '600' }}>
-            {metrics.todayOrders} orders today • {metrics.activeOrders} active
+            {metrics?.todayOrders || 0} orders today • {metrics?.activeOrders || 0} active
           </span>
         </div>
 
@@ -288,10 +297,10 @@ const SuperAdmin3DAnalytics = ({ token }) => {
             <Store size={18} color="#f59e0b" />
           </div>
           <h2 style={{ fontSize: '2.2rem', fontWeight: '900', margin: '0.25rem 0', color: 'var(--text-primary)' }}>
-            {metrics.storeCount}
+            {metrics?.storeCount || 0}
           </h2>
           <span style={{ fontSize: '0.85rem', color: '#0284c7', fontWeight: '700' }}>
-            {metrics.openStoresCount} currently open & operational
+            {metrics?.openStoresCount || 0} currently open & operational
           </span>
         </div>
 
@@ -304,7 +313,7 @@ const SuperAdmin3DAnalytics = ({ token }) => {
             <TrendingUp size={18} color="#ef4123" />
           </div>
           <h2 style={{ fontSize: '2.2rem', fontWeight: '900', margin: '0.25rem 0', color: '#ef4123' }}>
-            ₹{metrics.totalProfit.toLocaleString()}
+            ₹{(metrics?.totalProfit || 0).toLocaleString()}
           </h2>
           <span style={{ fontSize: '0.85rem', color: '#10b981', fontWeight: '700' }}>
             3% Take Rate + 4% Protection
@@ -500,13 +509,13 @@ const SuperAdmin3DAnalytics = ({ token }) => {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <div style={{ padding: '1.25rem', background: 'var(--background)', borderRadius: '12px', border: '1px solid var(--surface-border)' }}>
                 <span style={{ fontSize: '0.75rem', color: '#10b981', fontWeight: '800', textTransform: 'uppercase' }}>Vendor Payout Share (97%)</span>
-                <h4 style={{ margin: '0.2rem 0', fontSize: '1.3rem', fontWeight: '900' }}>₹{financeDistribution.vendorShare.toLocaleString()}</h4>
+                <h4 style={{ margin: '0.2rem 0', fontSize: '1.3rem', fontWeight: '900' }}>₹{(financeDistribution?.vendorShare || 0).toLocaleString()}</h4>
                 <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Disbursed automatically to onboarded vendors on regular payout cycles.</p>
               </div>
 
               <div style={{ padding: '1.25rem', background: 'rgba(239, 65, 35, 0.05)', borderRadius: '12px', border: '1px solid rgba(239, 65, 35, 0.2)' }}>
                 <span style={{ fontSize: '0.75rem', color: '#ef4123', fontWeight: '800', textTransform: 'uppercase' }}>UniVerse Platform Revenue (3%)</span>
-                <h4 style={{ margin: '0.2rem 0', fontSize: '1.3rem', fontWeight: '900', color: '#ef4123' }}>₹{financeDistribution.platformCommission.toLocaleString()}</h4>
+                <h4 style={{ margin: '0.2rem 0', fontSize: '1.3rem', fontWeight: '900', color: '#ef4123' }}>₹{(financeDistribution?.platformCommission || 0).toLocaleString()}</h4>
                 <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Pure software take rate with near-zero marginal server cost (₹0.07/order).</p>
               </div>
             </div>
@@ -516,7 +525,7 @@ const SuperAdmin3DAnalytics = ({ token }) => {
         {/* TAB 3: Campus Zones */}
         {activeTab === 'zones' && (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.25rem' }}>
-            {zoneTraffic.map(zone => (
+            {(zoneTraffic || []).map(zone => (
               <div key={zone.locationId} style={{ padding: '1.5rem', background: 'var(--background)', borderRadius: '16px', border: '1px solid var(--surface-border)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
                   <h4 style={{ margin: 0, fontSize: '1.05rem', fontWeight: '800' }}>{zone.name}</h4>
@@ -531,7 +540,7 @@ const SuperAdmin3DAnalytics = ({ token }) => {
                   </div>
                   <div>
                     <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Total GMV</span>
-                    <p style={{ margin: 0, fontSize: '1.1rem', fontWeight: '800', color: '#10b981' }}>₹{zone.totalRevenue.toLocaleString()}</p>
+                    <p style={{ margin: 0, fontSize: '1.1rem', fontWeight: '800', color: '#10b981' }}>₹{(zone?.totalRevenue || 0).toLocaleString()}</p>
                   </div>
                 </div>
               </div>
@@ -549,12 +558,12 @@ const SuperAdmin3DAnalytics = ({ token }) => {
             <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Live ranking of merchant sales volume</p>
           </div>
           <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: '600' }}>
-            {metrics.openStoresCount} of {metrics.storeCount} Stores Open
+            {metrics?.openStoresCount || 0} of {metrics?.storeCount || 0} Stores Open
           </span>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-          {storeStats.slice(0, 8).map((s, idx) => (
+          {(storeStats || []).slice(0, 8).map((s, idx) => (
             <div
               key={s.storeId}
               style={{
@@ -591,13 +600,13 @@ const SuperAdmin3DAnalytics = ({ token }) => {
               <div style={{ display: 'flex', alignItems: 'center', gap: '2rem', textAlign: 'right' }}>
                 <div>
                   <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Orders</span>
-                  <p style={{ margin: 0, fontSize: '0.95rem', fontWeight: '800' }}>{s.totalOrders}</p>
+                  <p style={{ margin: 0, fontSize: '0.95rem', fontWeight: '800' }}>{s.totalOrders || 0}</p>
                 </div>
 
                 <div>
                   <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Total Revenue</span>
                   <p style={{ margin: 0, fontSize: '1rem', fontWeight: '900', color: '#10b981' }}>
-                    ₹{s.totalRevenue.toLocaleString()}
+                    ₹{(s?.totalRevenue || 0).toLocaleString()}
                   </p>
                 </div>
 

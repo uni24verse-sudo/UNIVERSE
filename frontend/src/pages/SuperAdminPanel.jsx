@@ -438,11 +438,11 @@ const SuperAdminPanel = () => {
                         )}
                       </td>
                       <td style={{ padding: '1.25rem' }}>
-                        <div style={{ fontWeight: '800', color: 'var(--secondary)' }}>₹{v.stats.revenue} generated</div>
-                        <div style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: '0.25rem' }}>Across {v.stats.orderCount} total orders</div>
+                        <div style={{ fontWeight: '800', color: 'var(--secondary)' }}>₹{v.stats?.revenue || 0} generated</div>
+                        <div style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: '0.25rem' }}>Across {v.stats?.orderCount || 0} total orders</div>
                       </td>
                       <td style={{ padding: '1.25rem' }}>
-                        <div style={{ fontWeight: '900', color: 'var(--primary)', fontSize: '1.1rem' }}>₹{v.stats.profitGenerated || 0}</div>
+                        <div style={{ fontWeight: '900', color: 'var(--primary)', fontSize: '1.1rem' }}>₹{v.stats?.profitGenerated || 0}</div>
                         <div style={{ color: 'var(--text-secondary)', fontSize: '0.7rem', marginTop: '0.25rem', fontWeight: '600' }}>
                           {v.store && v.store.isTrialStarted ? (
                              new Date(v.store.trialEndDate) > new Date() ? 'Currently in Trial (0%)' : 'Post-Trial (3%)'
