@@ -1,14 +1,15 @@
 const express = require('express');
 const router = express.Router();
-const mongoose = require('mongoose');
+const crypto = require('crypto');
 const auth = require('../middleware/auth');
-const Order = require('../models/Order');
-const Store = require('../models/Store');
-const Admin = require('../models/Admin');
+const prisma = require('../config/prisma');
+const { normalizeOrder, normalizeRefund } = require('../utils/pgAdapter');
 const notificationService = require('../services/notificationService');
 const journeyEngineService = require('../services/journeyEngineService');
-
-const crypto = require('crypto');
+const orderRepository = require('../repositories/orderRepository');
+const customerRepository = require('../repositories/customerRepository');
+const auditService = require('../services/auditService');
+const refundService = require('../services/refundService');
 
 // Helper to generate a unique 4-digit order number
 const generateOrderNumber = () => Math.floor(1000 + Math.random() * 9000).toString();
@@ -17,43 +18,45 @@ const generateOrderNumber = () => Math.floor(1000 + Math.random() * 9000).toStri
 const generateSecureToken = () => crypto.randomBytes(16).toString('hex');
 
 // Create a new Order (Public Customer endpoint)
-// NOTE: For Razorpay checkouts, use the /api/payments/razorpay/verify endpoint
-// which creates the order ONLY after successful payment to avoid DB clutter.
+// NOTE: For Razorpay checkouts, use /api/payments/razorpay/verify
 router.post('/create', async (req, res) => {
   try {
     const { storeId, items, totalAmount, paymentMethod, customerPhone, customerName, orderType, packagingChargeApplied, isPreOrder, scheduledTime, isQRScan } = req.body;
 
-    const store = await Store.findById(storeId).populate('admin');
+    const store = await prisma.store.findUnique({
+      where: { id: String(storeId) },
+      include: { admin: true }
+    });
     if (!store) return res.status(404).json({ message: 'Store not found' });
 
-    // Consistent logic: QR Scans have no timer (null deadline)
-    // Pre-orders have 15 mins. Direct ASAP orders have 5 mins.
     let deadlineMinutes = isPreOrder ? 15 : (isQRScan ? null : 5);
-    
     let acceptDeadline = deadlineMinutes ? new Date(Date.now() + deadlineMinutes * 60 * 1000) : null;
 
-    const newOrder = new Order({
-      store: storeId,
-      orderNumber: generateOrderNumber(),
-      items,
-      totalAmount,
-      paymentMethod,
-      customerPhone,
-      customerName,
-      orderType,
-      packagingChargeApplied,
-      status: 'Payment Pending',
-      paymentStatus: 'Pending',
-      acceptDeadline,
-      isPreOrder: isPreOrder || false,
-      scheduledTime: scheduledTime || null
+    const orderId = crypto.randomUUID();
+    const orderNumber = generateOrderNumber();
+
+    const createdOrder = await prisma.order.create({
+      data: {
+        id: orderId,
+        storeId: String(storeId),
+        orderNumber,
+        items: Array.isArray(items) ? items : [],
+        totalAmount: Number(totalAmount) || 0,
+        paymentMethod: paymentMethod || 'UPI',
+        customerPhone: String(customerPhone || ''),
+        customerName: customerName || 'UniVerse Student',
+        orderType: orderType || 'Dine In',
+        packagingChargeApplied: Number(packagingChargeApplied) || 0,
+        status: 'Payment Pending',
+        paymentStatus: 'Pending',
+        isPreOrder: Boolean(isPreOrder),
+        scheduledTime: scheduledTime || ''
+      },
+      include: { store: true }
     });
 
-    const savedOrder = await newOrder.save();
-
-    // Don't notify vendor yet - wait for payment confirmation via Razorpay verify endpoint
-    console.log(`Order #${savedOrder.orderNumber} created, awaiting payment...`);
-
+    const savedOrder = normalizeOrder(createdOrder);
+    console.log(`[orders.create] Order #${savedOrder.orderNumber} created, awaiting payment...`);
     res.status(201).json(savedOrder);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -63,26 +66,20 @@ router.post('/create', async (req, res) => {
 // Get Vendor's Orders (Protected, Store Specific)
 router.get('/:storeId/vendor-orders', auth, async (req, res) => {
   try {
-    const store = await Store.findById(req.params.storeId);
+    const storeId = req.params.storeId;
+    const adminId = req.admin.id || req.admin._id;
+
+    const store = await prisma.store.findUnique({
+      where: { id: storeId }
+    });
     if (!store) return res.status(404).json({ message: 'Store not found' });
 
-    // Ensure user is either the store owner or an employee of this store
-    if (store.admin.toString() !== req.admin._id && req.admin.storeId !== req.params.storeId) {
+    if (store.adminId !== String(adminId) && req.admin.storeId !== storeId && req.admin.role !== 'superadmin') {
       return res.status(403).json({ message: 'Unauthorized access to store orders' });
     }
 
-    try {
-      const orderRepository = require('../repositories/orderRepository');
-      const orders = await orderRepository.getVendorOrders(store._id.toString());
-      return res.json(orders);
-    } catch (pgErr) {
-      console.warn('[orders.vendor-orders] PG fallback to Mongo:', pgErr.message);
-      const orders = await Order.find({ 
-        store: store._id,
-        status: { $ne: 'Payment Pending' }
-      }).sort({ createdAt: -1 });
-      return res.json(orders);
-    }
+    const orders = await orderRepository.getVendorOrders(storeId);
+    return res.json(orders);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -105,7 +102,6 @@ router.put('/:id/status', auth, async (req, res) => {
     }
 
     // 2. Strict State Machine Rules
-    // Maps the Target Status to the Required Current Status(es)
     const validTransitions = {
       'Confirmed': ['Pending'],
       'Cooking': ['Confirmed'],
@@ -118,19 +114,35 @@ router.put('/:id/status', auth, async (req, res) => {
     }
 
     if (!validTransitions[status]) {
-       return res.status(400).json({ message: 'Invalid or unsupported status transition requested.' });
+      return res.status(400).json({ message: 'Invalid or unsupported status transition requested.' });
     }
 
     const expectedCurrentStatuses = validTransitions[status];
-    const authorizedStoreId = req.admin.storeId || req.admin._id;
+    const authorizedStoreId = req.admin.storeId || req.admin.id || req.admin._id;
+
+    const existingOrder = await prisma.order.findUnique({
+      where: { id: req.params.id },
+      include: { store: true }
+    });
+    if (!existingOrder) return res.status(404).json({ message: 'Order not found' });
+
+    if (req.admin.role !== 'superadmin') {
+      if (existingOrder.storeId !== authorizedStoreId && existingOrder.store?.adminId !== String(authorizedStoreId)) {
+        return res.status(403).json({ message: 'Unauthorized: Order belongs to another store.' });
+      }
+    }
+
+    if (!expectedCurrentStatuses.includes(existingOrder.status)) {
+      return res.status(409).json({ 
+        message: `Order has already moved to ${existingOrder.status}. Transition to ${status} is invalid.`,
+        currentStatus: existingOrder.status 
+      });
+    }
 
     // PRE-ORDER STRICT TIME LOCK
-    const existingOrderCheck = await Order.findById(req.params.id);
-    if (!existingOrderCheck) return res.status(404).json({ message: 'Order not found' });
-    
-    if (existingOrderCheck.isPreOrder && existingOrderCheck.scheduledTime) {
+    if (existingOrder.isPreOrder && existingOrder.scheduledTime) {
       if (status === 'Cooking' || status === 'Ready') {
-        const [hours, minutes] = existingOrderCheck.scheduledTime.split(':').map(Number);
+        const [hours, minutes] = existingOrder.scheduledTime.split(':').map(Number);
         const now = new Date();
         const scheduledDate = new Date();
         scheduledDate.setHours(hours, minutes, 0, 0);
@@ -144,64 +156,36 @@ router.put('/:id/status', auth, async (req, res) => {
       }
     }
 
-    // 3. Atomic Conditional Update & Token Generation
-    const updatePayload = { $set: { status: status } };
-    
-    // Generate handover token when transitioning to Ready.
-    // Since strict validTransitions ensure we are ONLY coming from 'Cooking', we know it doesn't have a token yet.
+    const updateData = { status };
     if (status === 'Ready') {
-      updatePayload.$set.handoverToken = generateSecureToken();
-      // Set expiry to 24 hours from generation
-      updatePayload.$set.handoverTokenExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+      updateData.handoverToken = generateSecureToken();
     }
 
-    // This entirely prevents Race Conditions if two cooks tap "Confirm" simultaneously
-    const updatedOrder = await Order.findOneAndUpdate(
-      { 
-        _id: req.params.id, 
-        store: authorizedStoreId, // Ensures order belongs to this store
-        status: { $in: expectedCurrentStatuses } // Must currently be in expected state
-      },
-      updatePayload,
-      { returnDocument: 'after' }
-    ).populate('store').select('+handoverToken');
+    const updatedPgOrder = await prisma.order.update({
+      where: { id: req.params.id },
+      data: updateData,
+      include: { store: true }
+    });
 
-    if (!updatedOrder) {
-      // If update failed, determine exactly why (Race condition vs Not Found vs Unauthorized)
-      const existingOrder = await Order.findById(req.params.id);
-      if (!existingOrder) return res.status(404).json({ message: 'Order not found' });
-      
-      if (existingOrder.store.toString() !== authorizedStoreId.toString()) {
-         return res.status(403).json({ message: 'Unauthorized: Order belongs to another store.' });
-      }
-
-      return res.status(409).json({ 
-        message: `Order has already been processed or moved to ${existingOrder.status}. Transition to ${status} is invalid.`,
-        currentStatus: existingOrder.status 
-      });
-    }
-
-    const auditService = require('../services/auditService');
-    const refundService = require('../services/refundService');
+    const updatedOrder = normalizeOrder(updatedPgOrder);
 
     // If order was cancelled / rejected by vendor, trigger direct UPI refund queue and team alert
     if (status === 'Cancelled') {
       const reason = req.body.reason || 'Kitchen closed or item out of stock';
       refundService.handleOrderCancellation({
-        orderId: updatedOrder._id,
+        orderId: updatedOrder.id,
         reason,
         actorType: 'VENDOR_STAFF',
         actorId: req.admin?.name || 'VENDOR_STAFF',
         io: req.app.get('io')
       }).catch(err => console.error('[OrderUpdate] Cancellation refund error:', err.message));
     } else {
-      // Log event in immutable audit trail
       let eventType = 'ORDER_ACCEPTED';
       if (status === 'Cooking') eventType = 'ORDER_COOKING';
       else if (status === 'Ready') eventType = 'ORDER_READY';
 
       auditService.logEvent({
-        orderId: updatedOrder._id,
+        orderId: updatedOrder.id,
         orderNumber: updatedOrder.orderNumber,
         userId: updatedOrder.userId,
         actorType: 'VENDOR_STAFF',
@@ -217,12 +201,13 @@ router.put('/:id/status', auth, async (req, res) => {
     }
 
     const io = req.app.get('io');
-    // Notify customer
-    io.to(updatedOrder._id.toString()).emit('order_status_update', updatedOrder);
-    // Notify store room
-    io.to(updatedOrder.store._id.toString()).emit('order_status_update', updatedOrder);
-    // Notify superadmin room for real-time 3D graphs
-    io.to('superadmin_room').emit('superadmin:order_update', updatedOrder);
+    if (io) {
+      io.to(updatedOrder.id).emit('order_status_update', updatedOrder);
+      if (updatedOrder.storeId) {
+        io.to(updatedOrder.storeId).emit('order_status_update', updatedOrder);
+      }
+      io.to('superadmin_room').emit('superadmin:order_update', updatedOrder);
+    }
 
     // Trigger / Resume Lifecycle Journey Automation across all order status transitions
     if (updatedOrder.customerPhone) {
@@ -231,7 +216,7 @@ router.put('/:id/status', auth, async (req, res) => {
         name: updatedOrder.customerName || 'Student',
         phone: updatedOrder.customerPhone,
         metadata: {
-          orderId: updatedOrder.orderNumber || updatedOrder._id.toString(),
+          orderId: updatedOrder.orderNumber || updatedOrder.id,
           orderNumber: updatedOrder.orderNumber || '',
           storeName: updatedOrder.store?.name || 'Campus Food Court',
           amount: updatedOrder.totalAmount
@@ -239,17 +224,17 @@ router.put('/:id/status', auth, async (req, res) => {
       };
 
       if (status === 'Cooking' || status === 'Confirmed') {
-        journeyEngineService.resumeOrderJourney(updatedOrder._id, 'Order Accepted', orderPayload)
+        journeyEngineService.resumeOrderJourney(updatedOrder.id, 'Order Accepted', orderPayload)
           .catch(e => console.error('[JourneyEngine] Order Accepted resume error:', e.message));
         journeyEngineService.triggerEvent('Order Accepted', orderPayload)
           .catch(e => console.error('[JourneyEngine] Order Accepted trigger error:', e.message));
       } else if (status === 'Ready') {
-        journeyEngineService.resumeOrderJourney(updatedOrder._id, 'Order Ready', orderPayload)
+        journeyEngineService.resumeOrderJourney(updatedOrder.id, 'Order Ready', orderPayload)
           .catch(e => console.error('[JourneyEngine] Order Ready resume error:', e.message));
         journeyEngineService.triggerEvent('Order Ready', orderPayload)
           .catch(e => console.error('[JourneyEngine] Order Ready trigger error:', e.message));
       } else if (status === 'Cancelled') {
-        journeyEngineService.resumeOrderJourney(updatedOrder._id, 'Order Rejected', orderPayload)
+        journeyEngineService.resumeOrderJourney(updatedOrder.id, 'Order Rejected', orderPayload)
           .catch(e => console.error('[JourneyEngine] Order Rejected resume error:', e.message));
       }
     }
@@ -263,18 +248,23 @@ router.put('/:id/status', auth, async (req, res) => {
 // Cancel Order (Customer - only if Payment Pending)
 router.delete('/:id', async (req, res) => {
   try {
-    const order = await Order.findById(req.params.id);
+    const order = await prisma.order.findUnique({
+      where: { id: req.params.id }
+    });
     if (!order) return res.status(404).json({ message: 'Order not found' });
     
     if (order.status !== 'Payment Pending') {
       return res.status(400).json({ message: 'Order cannot be cancelled at this stage' });
     }
     
-    await Order.findByIdAndDelete(req.params.id);
+    await prisma.order.delete({ where: { id: req.params.id } });
     
     const io = req.app.get('io');
-    io.to(order.store.toString()).emit('order_cancelled', order);
-    io.to('superadmin_room').emit('superadmin:order_cancelled', order);
+    if (io) {
+      const normalized = normalizeOrder(order);
+      io.to(order.storeId).emit('order_cancelled', normalized);
+      io.to('superadmin_room').emit('superadmin:order_cancelled', normalized);
+    }
     
     res.json({ message: 'Order cancelled successfully' });
   } catch (err) {
@@ -287,44 +277,25 @@ router.get('/:id', async (req, res) => {
   try {
     const param = req.params.id;
 
-    // 1. Try fetching from RDS PostgreSQL first
-    try {
-      const orderRepository = require('../repositories/orderRepository');
-      let order = null;
-      if (param.length === 24) {
-        order = await orderRepository.getOrderById(param);
-      }
-      if (!order) {
-        const prisma = require('../config/prisma');
-        const { normalizeOrder } = require('../utils/pgAdapter');
-        const pgOrder = await prisma.order.findFirst({
-          where: { orderNumber: param },
+    const pgOrder = await prisma.order.findFirst({
+      where: {
+        OR: [
+          { id: param },
+          { orderNumber: param }
+        ]
+      },
+      include: {
+        store: {
           include: {
-            store: {
-              include: {
-                admin: { select: { id: true, name: true, email: true } }
-              }
-            },
-            refunds: true
+            admin: { select: { id: true, name: true, email: true } }
           }
-        });
-        if (pgOrder) order = normalizeOrder(pgOrder);
+        },
+        refunds: true
       }
-      if (order) return res.json(order);
-    } catch (pgErr) {
-      console.warn('[orders.getById] PG lookup error:', pgErr.message);
-    }
-
-    // 2. Fallback to MongoDB
-    const isObjectId = mongoose.Types.ObjectId.isValid(param) && param.length === 24;
-    const query = isObjectId ? { $or: [{ _id: param }, { orderNumber: param }] } : { orderNumber: param };
-
-    const order = await Order.findOne(query).select('+handoverToken').populate({
-      path: 'store',
-      populate: { path: 'admin', select: 'name' }
     });
-    if (!order) return res.status(404).json({ message: 'Order not found' });
-    res.json(order);
+
+    if (!pgOrder) return res.status(404).json({ message: 'Order not found' });
+    res.json(normalizeOrder(pgOrder));
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -339,62 +310,53 @@ router.put('/verify-handover', auth, async (req, res) => {
       return res.status(400).json({ message: 'Order ID and Handover Token are required' });
     }
 
-    const authorizedStoreId = req.admin.storeId || req.admin._id;
+    const authorizedStoreId = req.admin.storeId || req.admin.id || req.admin._id;
 
-    // ATOMIC VERIFICATION AND CONSUMPTION
-    // Query requires the order to be exactly in the Ready state with an unused, matching token
-    const updatedOrder = await Order.findOneAndUpdate(
-      {
-        _id: orderId,
-        store: authorizedStoreId,         // Verify store ownership
-        status: 'Ready',                  // Must be currently READY
-        handoverToken: handoverToken,     // Must precisely match the cryptographically secure token
-        handoverTokenUsedAt: null,        // Must be entirely unused
-        $or: [
-          { handoverTokenExpiresAt: { $gt: new Date() } },
-          { handoverTokenExpiresAt: null }
-        ]
+    const existingOrder = await prisma.order.findFirst({
+      where: {
+        OR: [{ id: orderId }, { orderNumber: orderId }]
       },
-      {
-        $set: {
-          status: 'Completed',
-          handoverTokenUsedAt: new Date()
-        }
-      },
-      { returnDocument: 'after' }
-    ).populate('store');
+      include: { store: true }
+    });
 
-    if (!updatedOrder) {
-      // Differentiate why it failed for better UX
-      const existingOrder = await Order.findById(orderId).select('+handoverTokenUsedAt');
-      if (!existingOrder) return res.status(404).json({ message: 'Order not found' });
-      
-      if (existingOrder.store.toString() !== authorizedStoreId.toString()) {
+    if (!existingOrder) return res.status(404).json({ message: 'Order not found' });
+
+    if (req.admin.role !== 'superadmin') {
+      if (existingOrder.storeId !== authorizedStoreId && existingOrder.store?.adminId !== String(authorizedStoreId)) {
         return res.status(403).json({ message: 'Unauthorized: Order belongs to another store' });
       }
+    }
 
-      if (existingOrder.status === 'Completed' || existingOrder.handoverTokenUsedAt) {
-        return res.status(409).json({ message: 'Order already handed over and completed.' });
-      }
+    if (existingOrder.status === 'Completed') {
+      return res.status(409).json({ message: 'Order already handed over and completed.' });
+    }
 
-      if (existingOrder.status !== 'Ready') {
-        return res.status(409).json({ message: `Cannot handover. Order is currently in ${existingOrder.status} state.` });
-      }
+    if (existingOrder.status !== 'Ready') {
+      return res.status(409).json({ message: `Cannot handover. Order is currently in ${existingOrder.status} state.` });
+    }
 
+    if (existingOrder.handoverToken !== handoverToken) {
       return res.status(400).json({ message: 'Invalid or expired handover token.' });
     }
 
-    // Notify customer about status update
-    const io = req.app.get('io');
-    io.to(updatedOrder._id.toString()).emit('order_status_update', updatedOrder);
-    
-    // Also notify vendors in the store room so dashboards update
-    io.to(updatedOrder.store._id.toString()).emit('order_status_update', updatedOrder);
+    const updated = await prisma.order.update({
+      where: { id: existingOrder.id },
+      data: { status: 'Completed' },
+      include: { store: true }
+    });
 
-    // Log ORDER_COMPLETED event in immutable audit trail
-    const auditService = require('../services/auditService');
+    const updatedOrder = normalizeOrder(updated);
+
+    const io = req.app.get('io');
+    if (io) {
+      io.to(updatedOrder.id).emit('order_status_update', updatedOrder);
+      if (updatedOrder.storeId) {
+        io.to(updatedOrder.storeId).emit('order_status_update', updatedOrder);
+      }
+    }
+
     auditService.logEvent({
-      orderId: updatedOrder._id,
+      orderId: updatedOrder.id,
       orderNumber: updatedOrder.orderNumber,
       userId: updatedOrder.userId,
       actorType: 'VENDOR_STAFF',
@@ -408,21 +370,20 @@ router.put('/verify-handover', auth, async (req, res) => {
       }
     }).catch(err => console.error('[AuditService] Handover log error:', err.message));
 
-    // Trigger / Resume Lifecycle Journey Automation for verified QR handover
     if (updatedOrder.customerPhone) {
       const orderPayload = {
         userId: updatedOrder.userId || updatedOrder.customerPhone,
         name: updatedOrder.customerName || 'Student',
         phone: updatedOrder.customerPhone,
         metadata: {
-          orderId: updatedOrder.orderNumber || updatedOrder._id.toString(),
+          orderId: updatedOrder.orderNumber || updatedOrder.id,
           orderNumber: updatedOrder.orderNumber || '',
           storeName: updatedOrder.store?.name || 'Campus Food Court',
           amount: updatedOrder.totalAmount
         }
       };
 
-      journeyEngineService.resumeOrderJourney(updatedOrder._id, 'Order Completed', orderPayload)
+      journeyEngineService.resumeOrderJourney(updatedOrder.id, 'Order Completed', orderPayload)
         .catch(e => console.error('[JourneyEngine] Handover resume error:', e.message));
       journeyEngineService.triggerEvent('Order Completed', orderPayload)
         .catch(e => console.error('[JourneyEngine] Handover trigger error:', e.message));
@@ -440,37 +401,16 @@ router.get('/customer/lookup', async (req, res) => {
     const { phone } = req.query;
     if (!phone) return res.json({ exists: false });
 
-    // 1. Try RDS PostgreSQL first
-    try {
-      const customerRepository = require('../repositories/customerRepository');
-      const customer = await customerRepository.findByPhone(phone);
-      if (customer) {
-        return res.json({
-          exists: true,
-          currentName: customer.currentName,
-          email: customer.email || ''
-        });
-      }
-    } catch (pgErr) {
-      console.warn('[orders.customer.lookup] PG lookup error:', pgErr.message);
+    const customer = await customerRepository.findByPhone(phone);
+    if (customer) {
+      return res.json({
+        exists: true,
+        currentName: customer.currentName,
+        email: customer.email || ''
+      });
     }
 
-    // 2. Fallback to MongoDB
-    const cleanPhone = phone.toString().replace(/\D/g, '');
-    const Customer = require('../models/Customer');
-    const customer = await Customer.findOne({ 
-      phone: { $regex: cleanPhone.slice(-10) } 
-    }).select('currentName email campus -_id');
-
-    if (!customer) {
-      return res.json({ exists: false });
-    }
-
-    res.json({
-      exists: true,
-      currentName: customer.currentName,
-      email: customer.email || ''
-    });
+    res.json({ exists: false });
   } catch (err) {
     console.error('[orders.customer.lookup] Error:', err);
     res.status(500).json({ exists: false });
@@ -483,7 +423,6 @@ router.post('/:id/request-upi-refund', async (req, res) => {
     const { id } = req.params;
     const { upiId } = req.body;
 
-    const refundService = require('../services/refundService');
     const result = await refundService.requestUpiRefund({
       orderId: id,
       upiId,
@@ -512,44 +451,8 @@ router.get('/customer/history', async (req, res) => {
       return res.json({ orders: [], activeOrders: [] });
     }
 
-    // 1. Try RDS PostgreSQL first
-    try {
-      const customerRepository = require('../repositories/customerRepository');
-      const history = await customerRepository.getCustomerOrderHistory(cleanPhone);
-      if (history && (history.orders.length > 0 || history.activeOrders.length > 0 || history.customer)) {
-        return res.json(history);
-      }
-    } catch (pgErr) {
-      console.warn('[orders.customer.history] PG fallback to Mongo:', pgErr.message);
-    }
-
-    // 2. Fallback to MongoDB
-    const Customer = require('../models/Customer');
-    const customer = await Customer.findOne({ phone: { $regex: cleanPhone } });
-
-    const orders = await Order.find({
-      $or: [
-        { customerPhone: { $regex: cleanPhone } },
-        ...(customer?.userId ? [{ userId: customer.userId }] : [])
-      ]
-    })
-    .populate('store', 'name market image isOpen')
-    .sort({ createdAt: -1 })
-    .limit(30);
-
-    const activeOrders = orders.filter(o => ['Payment Pending', 'Pending', 'Confirmed', 'Cooking', 'Ready'].includes(o.status));
-    const pastOrders = orders.filter(o => ['Completed', 'Cancelled'].includes(o.status));
-
-    res.json({
-      orders: pastOrders,
-      activeOrders,
-      customer: customer ? {
-        name: customer.currentName,
-        phone: customer.phone,
-        totalOrders: customer.totalOrders,
-        favoriteItems: customer.favoriteItems || []
-      } : null
-    });
+    const history = await customerRepository.getCustomerOrderHistory(cleanPhone);
+    res.json(history || { orders: [], activeOrders: [], customer: null });
   } catch (err) {
     console.error('[orders.customer.history] Error:', err);
     res.status(500).json({ message: err.message });
@@ -560,13 +463,16 @@ router.get('/customer/history', async (req, res) => {
 router.get('/refund/claim-pay/:refundId', async (req, res) => {
   try {
     const { refundId } = req.params;
-    const Refund = require('../models/Refund');
-    const whatsappMultiDeviceService = require('../services/whatsappMultiDeviceService');
-    const RefundConfig = require('../models/RefundConfig');
 
-    const refund = await Refund.findById(refundId).populate({
-      path: 'orderId',
-      populate: { path: 'store', select: 'name market' }
+    const refund = await prisma.refund.findFirst({
+      where: {
+        OR: [{ id: refundId }, { refundId: refundId }]
+      },
+      include: {
+        order: {
+          include: { store: { select: { name: true, market: true } } }
+        }
+      }
     });
 
     if (!refund) {
@@ -578,9 +484,8 @@ router.get('/refund/claim-pay/:refundId', async (req, res) => {
       `);
     }
 
-    const order = refund.orderId || {};
+    const order = refund.order || {};
 
-    // 1. Check if already settled / link expired
     if (refund.status === 'PROCESSED' || order.refundStatus === 'Refunded') {
       return res.send(`
         <!DOCTYPE html>
@@ -627,10 +532,6 @@ router.get('/refund/claim-pay/:refundId', async (req, res) => {
               </div>
             </div>
 
-            <div style="background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 12px; padding: 0.75rem; font-size: 0.78rem; color: #fbbf24; line-height: 1.4; margin-bottom: 1.25rem;">
-              🛡️ <strong>Double-Payout Protection:</strong> All payment buttons and UPI intents have been permanently deactivated for this order.
-            </div>
-
             <a href="https://www.universeorder.co.in/super-admin/panel?tab=refunds" style="display: block; background: #334155; color: white; text-decoration: none; padding: 0.85rem; border-radius: 12px; font-weight: 800; font-size: 0.85rem;">
               Open Super Admin Panel
             </a>
@@ -640,7 +541,6 @@ router.get('/refund/claim-pay/:refundId', async (req, res) => {
       `);
     }
 
-    // 2. Check if currently locked by another admin
     const now = new Date();
     if (refund.lockExpiresAt && refund.lockExpiresAt > now && refund.lockedBy) {
       const remainingSeconds = Math.round((refund.lockExpiresAt - now) / 1000);
@@ -648,159 +548,73 @@ router.get('/refund/claim-pay/:refundId', async (req, res) => {
         <!DOCTYPE html>
         <html>
         <head><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Refund In Progress</title></head>
-        <body style="font-family: system-ui, -apple-system, sans-serif; text-align: center; padding: 2rem; background: #fffbeb; color: #78350f;">
-          <div style="background: white; padding: 2rem; border-radius: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.06); max-width: 420px; margin: 2rem auto; border: 1.5px solid #fde68a;">
-            <div style="width: 60px; height: 60px; border-radius: 50%; background: #fef3c7; color: #d97706; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; margin: 0 auto 1rem;">🔒</div>
-            <h2 style="color: #92400e; margin: 0 0 0.5rem 0;">Already Claimed!</h2>
-            <p style="color: #78350f; font-size: 0.95rem; line-height: 1.5; margin: 0 0 1.5rem 0;">
-              <strong>${refund.lockedBy}</strong> is currently processing the refund for <strong>Order #${order.orderNumber}</strong>.
-            </p>
-            <div style="background: #fef3c7; padding: 0.85rem; border-radius: 12px; font-size: 0.85rem; font-weight: 700; color: #b45309;">
-              ⚠️ Please DO NOT pay to avoid duplicate transfer.<br>
-              <span style="font-size:0.75rem;font-weight:normal;opacity:0.85;">Lock releases in ${remainingSeconds}s if unpaid.</span>
-            </div>
+        <body style="font-family:system-ui;text-align:center;padding:2rem 1rem;background:#0f172a;color:white;">
+          <div style="background:#1e293b;padding:2rem;border-radius:24px;max-width:420px;margin:2rem auto;border:1px solid #f59e0b;">
+            <div style="font-size:2.5rem;margin-bottom:1rem;">⏳</div>
+            <h2 style="color:#f59e0b;margin:0 0 0.5rem 0;">Payment Claim In Progress</h2>
+            <p style="color:#94a3b8;font-size:0.9rem;">Admin <strong>${refund.lockedBy}</strong> is currently processing this refund.</p>
+            <p style="color:#64748b;font-size:0.8rem;">Lock automatically releases in ${remainingSeconds}s.</p>
           </div>
         </body>
         </html>
       `);
     }
 
-    // 3. Atomically Lock for 3 minutes
-    const adminTag = req.query.admin || 'Team Member';
-    refund.lockedBy = adminTag;
-    refund.lockedAt = now;
-    refund.lockExpiresAt = new Date(Date.now() + 3 * 60 * 1000); // 3 mins lock
-    await refund.save();
-
-    // 4. Notify WhatsApp Group of Lock
-    try {
-      const config = await RefundConfig.findOne();
-      if (config?.notifyGroup && config?.groupJid) {
-        whatsappMultiDeviceService.sendDirectMessage(
-          config.groupJid,
-          `🔒 *Refund Claimed:* ${adminTag} is processing ₹${refund.amount} for Order #${order.orderNumber}.`
-        ).catch(() => {});
+    // Lock for 3 minutes
+    const lockExpiresAt = new Date(Date.now() + 3 * 60 * 1000);
+    await prisma.refund.update({
+      where: { id: refund.id },
+      data: {
+        lockedBy: 'WhatsApp Admin',
+        lockExpiresAt
       }
-    } catch (_) {}
+    });
 
-    // 5. Build clean native UPI Intent URLs (No underscores to comply with SBI/NPCI rules)
-    const studentName = (refund.customerName || order.customerName || 'UniVerse Student').replace(/[^a-zA-Z0-9 ]/g, '');
     const amount = Number(refund.amount || order.totalAmount || 0).toFixed(2);
-    const upiId = (refund.customerUpiId || order.customerUpiId || '').trim();
+    const studentName = order.customerName || refund.customerName || 'Student';
+    const upiId = refund.customerUpiId || order.customerUpiId || order.payerUpiId || '';
     const cleanNote = `UniVerse${order.orderNumber || ''}`;
-    
-    const standardUpiLink = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(studentName)}&am=${amount}&tn=${cleanNote}&cu=INR`;
-    const gpayLink = `tez://upi/pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(studentName)}&am=${amount}&tn=${cleanNote}&cu=INR`;
-    const phonepeLink = `phonepe://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(studentName)}&am=${amount}&tn=${cleanNote}&cu=INR`;
-    const paytmLink = `paytmmp://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(studentName)}&am=${amount}&tn=${cleanNote}&cu=INR`;
-    const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(standardUpiLink)}`;
+    const upiPayLink = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(studentName.replace(/[^a-zA-Z0-9 ]/g, ''))}&am=${amount}&tn=${cleanNote}&cu=INR`;
+    const gpayIntent = `gpay://upi/pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(studentName)}&am=${amount}&tn=${cleanNote}&cu=INR`;
+    const phonepeIntent = `phonepe://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(studentName)}&am=${amount}&tn=${cleanNote}&cu=INR`;
+    const paytmIntent = `paytmmp://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(studentName)}&am=${amount}&tn=${cleanNote}&cu=INR`;
 
-    // 6. Serve Resilient 1-Tap Mobile Launchpad (Clean theme, multi-app buttons, copy fallback & QR)
     res.send(`
       <!DOCTYPE html>
       <html>
       <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-        <title>UniVerse Instant Refund Launchpad</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>UniVerse 1-Tap Refund Launchpad</title>
         <style>
-          * { box-sizing: border-box; margin: 0; padding: 0; }
-          body { font-family: system-ui, -apple-system, sans-serif; background: #0f172a; color: #f8fafc; padding: 1.25rem 1rem; }
-          .card { background: #1e293b; border-radius: 24px; padding: 1.5rem; max-width: 440px; margin: 0 auto; border: 1px solid #334155; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
-          .badge { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 8px; font-size: 0.75rem; font-weight: 800; }
-          .btn { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 0.85rem; border-radius: 14px; text-decoration: none; font-weight: 800; font-size: 0.95rem; border: none; cursor: pointer; transition: transform 0.15s ease; margin-bottom: 0.6rem; }
-          .btn:active { transform: scale(0.98); }
-          .btn-primary { background: linear-gradient(135deg, #ef4123, #f97316); color: white; box-shadow: 0 4px 15px rgba(239, 65, 35, 0.35); }
-          .btn-secondary { background: #334155; color: white; }
-          .btn-phonepe { background: #5f259f; color: white; }
-          .btn-gpay { background: #1a73e8; color: white; }
-          .btn-paytm { background: #00b9f5; color: #002e6e; }
-          .btn-settle { background: linear-gradient(135deg, #10b981, #059669); color: white; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.35); }
-          .info-box { background: #0f172a; border-radius: 16px; padding: 1rem; margin: 1rem 0; border: 1px solid #334155; }
-          .info-row { display: flex; justify-content: space-between; margin-bottom: 0.45rem; font-size: 0.88rem; }
-          .copy-chip { background: #334155; padding: 6px 12px; border-radius: 10px; font-size: 0.8rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: space-between; border: 1px solid #475569; margin-top: 0.5rem; }
-          .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #10b981; color: white; padding: 8px 16px; border-radius: 20px; font-size: 0.85rem; font-weight: 800; display: none; z-index: 1000; box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+          * { box-sizing: border-box; }
+          body { font-family: system-ui, -apple-system, sans-serif; background: #0f172a; color: #f8fafc; margin: 0; padding: 1.5rem 1rem; }
+          .card { background: #1e293b; border-radius: 24px; padding: 1.75rem 1.25rem; max-width: 440px; margin: 0 auto; border: 1px solid #334155; }
+          .btn-upi { display: block; width: 100%; padding: 1rem; margin: 0.6rem 0; border-radius: 14px; font-weight: 800; font-size: 1rem; text-decoration: none; color: white; text-align: center; }
+          .gpay { background: linear-gradient(135deg, #4285F4, #34A853); }
+          .phonepe { background: linear-gradient(135deg, #5f259f, #8b5cf6); }
+          .paytm { background: linear-gradient(135deg, #00b9f5, #002e6e); }
+          .generic { background: #334155; }
         </style>
-        <script>
-          function copyText(text, label) {
-            navigator.clipboard.writeText(text);
-            var toast = document.getElementById('toast');
-            toast.innerText = '✓ Copied ' + label + ' (' + text + ')';
-            toast.style.display = 'block';
-            setTimeout(function() { toast.style.display = 'none'; }, 2500);
-          }
-          function toggleQR() {
-            var qr = document.getElementById('qrContainer');
-            qr.style.display = qr.style.display === 'none' ? 'block' : 'none';
-          }
-        </script>
       </head>
       <body>
-        <div id="toast" class="toast">✓ Copied to clipboard!</div>
         <div class="card">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <div style="width: 38px; height: 38px; border-radius: 10px; background: #ef4123; color: white; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; font-weight: 900;">⚡</div>
-              <div>
-                <h3 style="font-size: 1.05rem; font-weight: 900; margin: 0;">UniVerse Refund</h3>
-                <span style="font-size: 0.72rem; color: #94a3b8;">Order #${order.orderNumber}</span>
-              </div>
-            </div>
-            <span class="badge" style="background: rgba(245, 158, 11, 0.2); color: #fbbf24;">🔒 Claimed</span>
+          <div style="text-align:center;margin-bottom:1.5rem;">
+            <div style="font-size:0.75rem;font-weight:800;color:#f59e0b;letter-spacing:0.05em;text-transform:uppercase;">UniVerse Instant Refund Launchpad</div>
+            <h1 style="font-size:1.8rem;margin:0.25rem 0 0.5rem;color:#ffffff;">₹${amount}</h1>
+            <div style="color:#94a3b8;font-size:0.85rem;">Order #${order.orderNumber} • ${studentName}</div>
+            <div style="background:#0f172a;border-radius:10px;padding:0.4rem;margin-top:0.6rem;font-size:0.85rem;font-family:monospace;color:#60a5fa;">${upiId || 'No UPI Provided'}</div>
           </div>
 
-          <div class="info-box">
-            <div class="info-row"><span style="color: #94a3b8;">Student:</span><strong>${studentName}</strong></div>
-            <div class="info-row"><span style="color: #94a3b8;">Refund Amount:</span><strong style="color: #34d399; font-size: 1.15rem;">₹${amount}</strong></div>
-            <div class="info-row" style="margin-bottom: 0;"><span style="color: #94a3b8;">Target UPI:</span><strong style="color: #60a5fa; font-size: 0.88rem; word-break: break-all;">${upiId}</strong></div>
-            
-            <div class="copy-chip" onclick="copyText('${upiId}', 'UPI ID')">
-              <span>📋 Copy Target UPI ID</span>
-              <span style="color: #38bdf8; font-size: 0.75rem;">TAP TO COPY</span>
-            </div>
-          </div>
+          <a href="${gpayIntent}" class="btn-upi gpay">🚀 Pay via Google Pay</a>
+          <a href="${phonepeIntent}" class="btn-upi phonepe">💜 Pay via PhonePe</a>
+          <a href="${paytmIntent}" class="btn-upi paytm">💙 Pay via Paytm</a>
+          <a href="${upiPayLink}" class="btn-upi generic">⚡ Open Default UPI App</a>
 
-          <!-- 🚀 1-TAP APP LAUNCHERS -->
-          <p style="font-size: 0.75rem; color: #94a3b8; margin: 0 0 0.5rem 0; font-weight: 700; text-transform: uppercase;">1-Tap Instant Payment:</p>
-          <a href="${gpayLink}" class="btn btn-gpay">
-            <span>🚀 Pay with Google Pay (₹${amount})</span>
-          </a>
-          <a href="${phonepeLink}" class="btn btn-phonepe">
-            <span>🟣 Pay with PhonePe (₹${amount})</span>
-          </a>
-          <a href="${paytmLink}" class="btn btn-paytm">
-            <span>🔵 Pay with Paytm (₹${amount})</span>
-          </a>
-          <a href="${standardUpiLink}" class="btn btn-secondary" style="font-size: 0.85rem;">
-            <span>⚡ Open Any Other UPI App</span>
-          </a>
-
-          <!-- 📱 QR CODE TOGGLE -->
-          <button onclick="toggleQR()" class="btn btn-secondary" style="margin-top: 0.4rem; font-size: 0.82rem; background: #0f172a; border: 1px solid #334155;">
-            📷 Show QR Code to Scan / Screenshot
-          </button>
-          <div id="qrContainer" style="display: none; text-align: center; padding: 1rem 0; background: white; border-radius: 16px; margin: 0.8rem 0;">
-            <img src="${qrImageUrl}" alt="Scan QR" style="width: 200px; height: 200px; display: inline-block;" />
-            <p style="color: #0f172a; font-size: 0.75rem; font-weight: 800; margin-top: 0.4rem;">Scan or Screenshot in GPay/Paytm</p>
-          </div>
-
-          <!-- ✅ MOBILE SETTLEMENT FORM -->
-          <div style="border-top: 1px solid #334155; margin-top: 1.25rem; padding-top: 1.25rem;">
-            <p style="font-size: 0.75rem; color: #94a3b8; margin-bottom: 0.5rem; font-weight: 700; text-transform: uppercase;">Step 2: Mark Paid & Notify Student</p>
-            <form method="POST" action="/api/orders/refund/mobile-settle/${refund._id}">
-              <input type="text" name="utr" required placeholder="Bank UTR Number * (Mandatory)" style="width: 100%; background: #0f172a; border: 1.5px solid #f87171; color: white; padding: 0.75rem 1rem; border-radius: 12px; font-size: 0.85rem; outline: none; margin-bottom: 0.6rem;" />
-              <button type="submit" class="btn btn-settle">
-                <span>✓ Confirm Paid & Close Refund</span>
-              </button>
-            </form>
-            
-            <a href="https://www.universeorder.co.in/super-admin/panel?tab=refunds" class="btn btn-secondary" style="font-size: 0.8rem; margin-top: 0.75rem; text-decoration: none; display: flex; align-items: center; justify-content: center; background: #0f172a; border: 1px solid #334155; color: #94a3b8;">
-              🖥️ Open Super Admin Portal
-            </a>
-          </div>
-
-          <p style="color: #64748b; font-size: 0.72rem; text-align: center; margin-top: 0.8rem;">
-            🔒 3-Minute Lock Active. Duplicate protection enforced.
-          </p>
+          <form action="/api/orders/refund/mobile-settle/${refund.id}" method="POST" style="margin-top:1.5rem;background:#0f172a;padding:1rem;border-radius:16px;">
+            <label style="display:block;font-size:0.8rem;color:#94a3b8;margin-bottom:0.4rem;">Bank UTR / Transaction ID (Required):</label>
+            <input type="text" name="utr" required placeholder="e.g. 523489123456" style="width:100%;padding:0.75rem;border-radius:10px;background:#1e293b;border:1px solid #475569;color:white;font-size:0.95rem;margin-bottom:0.75rem;" />
+            <button type="submit" style="width:100%;padding:0.85rem;border-radius:10px;background:#10b981;border:none;color:white;font-weight:800;cursor:pointer;font-size:0.95rem;">Mark Refund Settled & Close</button>
+          </form>
         </div>
       </body>
       </html>
@@ -833,8 +647,6 @@ router.all('/refund/mobile-settle/:refundId', async (req, res) => {
         </html>
       `);
     }
-
-    const refundService = require('../services/refundService');
 
     const result = await refundService.settleRefund({
       refundId,

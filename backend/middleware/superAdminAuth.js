@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const Admin = require('../models/Admin');
+const prisma = require('../config/prisma');
 
 module.exports = async function (req, res, next) {
   const authHeader = req.header('Authorization');
@@ -22,8 +22,16 @@ module.exports = async function (req, res, next) {
       return next();
     }
 
-    // Fallback: Verify admin user from DB
-    const adminUser = await Admin.findById(verified._id);
+    const adminId = verified._id || verified.id;
+    if (!adminId) {
+      return res.status(401).json({ message: 'Access Denied. Invalid token claims.' });
+    }
+
+    // Fallback: Verify admin user from PostgreSQL DB
+    const adminUser = await prisma.admin.findUnique({
+      where: { id: String(adminId) }
+    });
+
     if (!adminUser) {
       return res.status(401).json({ message: 'Access Denied. User not found.' });
     }
@@ -32,11 +40,10 @@ module.exports = async function (req, res, next) {
       return res.status(403).json({ message: 'Forbidden. Super Admin access required.' });
     }
 
-    req.admin = { ...verified, role: adminUser.role };
+    req.admin = { ...verified, role: adminUser.role, id: adminUser.id, _id: adminUser.id };
     next();
   } catch (err) {
-    // If database connection timed out but token is validly signed with user ID
-    if (verified && verified._id) {
+    if (verified && (verified._id || verified.id)) {
       req.admin = verified;
       return next();
     }

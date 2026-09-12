@@ -1,6 +1,5 @@
-const Order = require('../models/Order');
-const Store = require('../models/Store');
-const Settlement = require('../models/Settlement');
+const crypto = require('crypto');
+const prisma = require('../config/prisma');
 
 /**
  * Calculates and creates settlements for the previous day.
@@ -37,36 +36,41 @@ const generateSettlements = async (date = null, specificStoreId = null) => {
             endOfYesterday = new Date(startOfYesterday.getTime() + 24 * 60 * 60 * 1000);
         }
 
-        console.log(`Generating settlements for date range: ${startOfYesterday.toISOString()} to ${endOfYesterday.toISOString()}`);
+        console.log(`[settlementService] Generating settlements for range: ${startOfYesterday.toISOString()} to ${endOfYesterday.toISOString()}`);
 
         // Find stores
-        const storeQuery = specificStoreId ? { _id: specificStoreId } : {};
-        const stores = await Store.find(storeQuery);
+        const stores = await prisma.store.findMany(
+            specificStoreId ? { where: { id: specificStoreId } } : {}
+        );
 
         for (const store of stores) {
             // Find all completed and cancelled (paid) orders for this store on the target date
             // CRITICAL: Only pick up orders that haven't been settled yet
-            const completedOrders = await Order.find({
-                store: store._id,
-                status: 'Completed',
-                isSettled: { $ne: true },
-                createdAt: { $lt: endOfYesterday }
+            const completedOrders = await prisma.order.findMany({
+                where: {
+                    storeId: store.id,
+                    status: 'Completed',
+                    isSettled: false,
+                    createdAt: { lt: endOfYesterday }
+                }
             });
 
-            const cancelledOrders = await Order.find({
-                store: store._id,
-                status: 'Cancelled',
-                paymentStatus: 'Confirmed', // Only penalize if payment was captured
-                isSettled: { $ne: true },
-                createdAt: { $lt: endOfYesterday }
+            const cancelledOrders = await prisma.order.findMany({
+                where: {
+                    storeId: store.id,
+                    status: 'Cancelled',
+                    paymentStatus: 'Confirmed',
+                    isSettled: false,
+                    createdAt: { lt: endOfYesterday }
+                }
             });
 
             if (completedOrders.length === 0 && cancelledOrders.length === 0) {
                 continue; // No activity, skip settlement creation for this date
             }
 
-            const dailyRevenue = completedOrders.reduce((sum, order) => sum + order.totalAmount, 0);
-            const dailyCancelledVolume = cancelledOrders.reduce((sum, order) => sum + order.totalAmount, 0);
+            const dailyRevenue = completedOrders.reduce((sum, order) => sum + (order.totalAmount || 0), 0);
+            const dailyCancelledVolume = cancelledOrders.reduce((sum, order) => sum + (order.totalAmount || 0), 0);
 
             // Calculate fees
             const gatewayRate = 0.02; // Always 2%
@@ -93,12 +97,14 @@ const generateSettlements = async (date = null, specificStoreId = null) => {
 
             if (isTrialActive) {
                 // TRIAL MODE: Accrue to Monthly Settlement
-                let settlement = await Settlement.findOne({
-                    store: store._id,
-                    settlementType: 'monthly',
-                    month,
-                    year,
-                    status: 'pending'
+                let settlement = await prisma.settlement.findFirst({
+                    where: {
+                        storeId: store.id,
+                        settlementType: 'monthly',
+                        month,
+                        year,
+                        status: 'pending'
+                    }
                 });
 
                 if (!settlement) {
@@ -106,84 +112,93 @@ const generateSettlements = async (date = null, specificStoreId = null) => {
                     const startOfMonth = new Date(year, month - 1, 1);
                     const endOfMonth = new Date(year, month, 0, 23, 59, 59);
                     
-                    settlement = new Settlement({
-                        store: store._id,
-                        settlementType: 'monthly',
-                        month,
-                        year,
-                        periodStart: startOfMonth,
-                        periodEnd: endOfMonth,
-                        totalRevenue: 0,
-                        feesBreakdown: { gatewayFee: 0, platformProfit: 0, cancellationPenalty: 0 },
-                        netPayable: 0,
-                        status: 'pending'
+                    settlement = await prisma.settlement.create({
+                        data: {
+                            id: crypto.randomUUID(),
+                            storeId: store.id,
+                            settlementType: 'monthly',
+                            month,
+                            year,
+                            periodStart: startOfMonth,
+                            periodEnd: endOfMonth,
+                            totalRevenue: 0,
+                            feesBreakdown: { gatewayFee: 0, platformProfit: 0, cancellationPenalty: 0 },
+                            netPayable: 0,
+                            status: 'pending'
+                        }
                     });
                 }
 
                 // Add daily amounts to the monthly accrual
-                settlement.totalRevenue += dailyRevenue;
-                settlement.feesBreakdown.gatewayFee += gatewayFee;
-                settlement.feesBreakdown.platformProfit += platformProfit;
-                settlement.feesBreakdown.cancellationPenalty += cancellationPenalty;
-                settlement.netPayable += netPayable;
-                
-                // If it was previously completed, and we are adding more revenue, 
-                // we MUST flip it back to pending so the Super Admin is prompted
-                // to pay the newly accumulated difference.
-                if (settlement.status === 'completed') {
-                    settlement.status = 'pending';
-                    console.log(`Re-opened Monthly Accrual for Store ${store.name} due to new orders.`);
-                }
-                
-                await settlement.save();
-                finalSettlementId = settlement._id;
-                console.log(`Updated Monthly Accrual for Store ${store.name}`);
+                const currentFees = settlement.feesBreakdown && typeof settlement.feesBreakdown === 'object' ? settlement.feesBreakdown : {};
+                const updatedFees = {
+                    gatewayFee: Number(((currentFees.gatewayFee || 0) + gatewayFee).toFixed(2)),
+                    platformProfit: Number(((currentFees.platformProfit || 0) + platformProfit).toFixed(2)),
+                    cancellationPenalty: Number(((currentFees.cancellationPenalty || 0) + cancellationPenalty).toFixed(2))
+                };
+                const updatedRevenue = Number((settlement.totalRevenue + dailyRevenue).toFixed(2));
+                const updatedNet = Number((settlement.netPayable + netPayable).toFixed(2));
+
+                await prisma.settlement.update({
+                    where: { id: settlement.id },
+                    data: {
+                        totalRevenue: updatedRevenue,
+                        feesBreakdown: updatedFees,
+                        netPayable: updatedNet,
+                        status: 'pending'
+                    }
+                });
+
+                finalSettlementId = settlement.id;
+                console.log(`[settlementService] Updated Monthly Accrual for Store ${store.name || store.id}`);
 
             } else {
                 // POST-TRIAL MODE: Create Next-Day (Daily) Settlement
-                const dailySettlement = new Settlement({
-                    store: store._id,
-                    settlementType: 'daily',
-                    month,
-                    year,
-                    periodStart: startOfYesterday,
-                    periodEnd: endOfYesterday, // Period is 1 full day
-                    totalRevenue: dailyRevenue,
-                    feesBreakdown: {
-                        gatewayFee,
-                        platformProfit,
-                        cancellationPenalty
-                    },
-                    netPayable,
-                    status: 'pending'
+                const dailySettlement = await prisma.settlement.create({
+                    data: {
+                        id: crypto.randomUUID(),
+                        storeId: store.id,
+                        settlementType: 'daily',
+                        month,
+                        year,
+                        periodStart: startOfYesterday,
+                        periodEnd: endOfYesterday,
+                        totalRevenue: Number(dailyRevenue.toFixed(2)),
+                        feesBreakdown: {
+                            gatewayFee: Number(gatewayFee.toFixed(2)),
+                            platformProfit: Number(platformProfit.toFixed(2)),
+                            cancellationPenalty: Number(cancellationPenalty.toFixed(2))
+                        },
+                        netPayable: Number(netPayable.toFixed(2)),
+                        status: 'pending'
+                    }
                 });
 
-                await dailySettlement.save();
-                finalSettlementId = dailySettlement._id;
-                console.log(`Created Daily Settlement for Store ${store.name}`);
+                finalSettlementId = dailySettlement.id;
+                console.log(`[settlementService] Created Daily Settlement for Store ${store.name || store.id}`);
             }
 
             // MARK ORDERS AS SETTLED
             const allOrderIds = [
-                ...completedOrders.map(o => o._id),
-                ...cancelledOrders.map(o => o._id)
+                ...completedOrders.map(o => o.id),
+                ...cancelledOrders.map(o => o.id)
             ];
 
-            await Order.updateMany(
-                { _id: { $in: allOrderIds } },
-                { 
-                    $set: { 
+            if (allOrderIds.length > 0) {
+                await prisma.order.updateMany({
+                    where: { id: { in: allOrderIds } },
+                    data: { 
                         isSettled: true, 
                         settlementId: finalSettlementId 
-                    } 
-                }
-            );
-            console.log(`Linked ${allOrderIds.length} orders to settlement ${finalSettlementId}`);
+                    }
+                });
+                console.log(`[settlementService] Linked ${allOrderIds.length} orders to settlement ${finalSettlementId}`);
+            }
         }
-        console.log('Settlement generation process completed.');
+        console.log('[settlementService] Settlement generation process completed.');
         return true;
     } catch (err) {
-        console.error('Error generating settlements:', err);
+        console.error('[settlementService] Error generating settlements:', err);
         throw err;
     }
 };

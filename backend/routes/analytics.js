@@ -1,39 +1,50 @@
 const express = require('express');
 const router = express.Router();
-const Order = require('../models/Order');
-const Store = require('../models/Store');
-const mongoose = require('mongoose');
+const prisma = require('../config/prisma');
 
 // GET Smart Pairings for a Store
 router.get('/store/:storeId/pairings', async (req, res) => {
   try {
     const { storeId } = req.params;
     const { currentItemIds } = req.query; // Comma separated IDs
-    const cartItemIds = currentItemIds ? currentItemIds.split(',').filter(id => id && id !== 'undefined') : [];
+    const cartItemIds = currentItemIds ? currentItemIds.split(',').filter(id => id && id !== 'undefined').map(String) : [];
 
     // 1. Fetch Store to get all available products
-    const store = await Store.findById(storeId);
+    const store = await prisma.store.findUnique({
+      where: { id: String(storeId) }
+    });
     if (!store) return res.status(404).json({ message: 'Store not found' });
 
+    const products = Array.isArray(store.products) ? store.products : [];
     let recommendedProductIds = new Set();
 
     // 2. Data Driven Analysis (Learning from past orders)
     if (cartItemIds.length > 0) {
-      const pastOrders = await Order.find({ 
-        store: storeId, 
-        status: 'Completed',
-        'items.productId': { $in: cartItemIds.map(id => new mongoose.Types.ObjectId(id)) }
-      }).limit(500); // Analyze last 500 orders
+      const pastOrders = await prisma.order.findMany({
+        where: {
+          storeId: String(storeId),
+          status: 'Completed'
+        },
+        take: 500,
+        orderBy: { createdAt: 'desc' }
+      });
 
       const frequencyMap = {};
       
       pastOrders.forEach(order => {
-        order.items.forEach(item => {
-          if (item.productId && !cartItemIds.includes(item.productId.toString())) {
-            const pId = item.productId.toString();
-            frequencyMap[pId] = (frequencyMap[pId] || 0) + 1;
-          }
-        });
+        const items = Array.isArray(order.items) ? order.items : [];
+        const orderProductIds = items.map(i => String(i.productId || i.id || ''));
+
+        // Check if any cart item is in this order
+        const hasCartItem = cartItemIds.some(cId => orderProductIds.includes(cId));
+        if (hasCartItem) {
+          items.forEach(item => {
+            const pId = String(item.productId || item.id || '');
+            if (pId && !cartItemIds.includes(pId)) {
+              frequencyMap[pId] = (frequencyMap[pId] || 0) + 1;
+            }
+          });
+        }
       });
 
       // Sort by frequency
@@ -48,10 +59,12 @@ router.get('/store/:storeId/pairings', async (req, res) => {
     // If not enough data-driven recommendations, fill with Beverages, Shakes, Desserts, or Top Items
     if (recommendedProductIds.size < 4) {
       const priorityCategories = ['Beverages', 'Drinks', 'Shakes', 'Desserts', 'Snacks', 'Sides'];
-      const fallbackItems = store.products
-        .filter(p => p.isAvailable && !cartItemIds.includes(p._id.toString()) && !recommendedProductIds.has(p._id.toString()))
+      const fallbackItems = products
+        .filter(p => {
+          const pId = String(p._id || p.id);
+          return p.isAvailable && !cartItemIds.includes(pId) && !recommendedProductIds.has(pId);
+        })
         .sort((a, b) => {
-          // Prioritize by category
           const aIndex = priorityCategories.findIndex(cat => a.category?.toLowerCase().includes(cat.toLowerCase()));
           const bIndex = priorityCategories.findIndex(cat => b.category?.toLowerCase().includes(cat.toLowerCase()));
           
@@ -61,15 +74,20 @@ router.get('/store/:storeId/pairings', async (req, res) => {
           return 0;
         });
 
-      fallbackItems.slice(0, 4 - recommendedProductIds.size).forEach(p => recommendedProductIds.add(p._id.toString()));
+      fallbackItems.slice(0, 4 - recommendedProductIds.size).forEach(p => {
+        recommendedProductIds.add(String(p._id || p.id));
+      });
     }
 
     // 4. Return the full product objects
-    const recommendedProducts = store.products.filter(p => recommendedProductIds.has(p._id.toString()) && p.isAvailable);
+    const recommendedProducts = products.filter(p => {
+      const pId = String(p._id || p.id);
+      return recommendedProductIds.has(pId) && p.isAvailable;
+    });
 
     res.json(recommendedProducts);
   } catch (err) {
-    console.error('Smart Pairing Error:', err);
+    console.error('[analytics] Smart Pairing Error:', err);
     res.status(500).json({ message: err.message });
   }
 });

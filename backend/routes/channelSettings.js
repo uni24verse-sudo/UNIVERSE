@@ -1,7 +1,8 @@
 const express = require('express');
 const router = express.Router();
+const crypto = require('crypto');
 const superAdminAuth = require('../middleware/superAdminAuth');
-const ChannelAccount = require('../models/ChannelAccount');
+const prisma = require('../config/prisma');
 const whatsappMultiDeviceService = require('../services/whatsappMultiDeviceService');
 const emailMultiAccountService = require('../services/emailMultiAccountService');
 
@@ -14,7 +15,10 @@ router.use(superAdminAuth);
 router.get('/summary', async (req, res) => {
   try {
     const whatsappSlots = await whatsappMultiDeviceService.getAllSlotsSummary();
-    const emailAccounts = await ChannelAccount.find({ type: 'email' }).sort({ createdAt: -1 });
+    const emailAccounts = await prisma.channelAccount.findMany({
+      where: { type: 'email' },
+      orderBy: { createdAt: 'desc' }
+    });
 
     res.json({
       success: true,
@@ -24,7 +28,7 @@ router.get('/summary', async (req, res) => {
         connectedCount: whatsappSlots.filter(s => s.status === 'connected').length
       },
       email: {
-        accounts: emailAccounts
+        accounts: emailAccounts.map(a => ({ ...a, _id: a.id }))
       }
     });
   } catch (err) {
@@ -65,13 +69,28 @@ router.post('/whatsapp/update-nickname/:slotIndex', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Nickname is required.' });
     }
 
-    const updated = await ChannelAccount.findOneAndUpdate(
-      { type: 'whatsapp', slotIndex },
-      { nickname: nickname.trim() },
-      { new: true }
-    );
+    const account = await prisma.channelAccount.findFirst({
+      where: { type: 'whatsapp', slotIndex }
+    });
 
-    res.json({ success: true, account: updated });
+    let updated;
+    if (account) {
+      updated = await prisma.channelAccount.update({
+        where: { id: account.id },
+        data: { nickname: nickname.trim() }
+      });
+    } else {
+      updated = await prisma.channelAccount.create({
+        data: {
+          id: `wa_slot_${slotIndex}`,
+          type: 'whatsapp',
+          slotIndex,
+          nickname: nickname.trim()
+        }
+      });
+    }
+
+    res.json({ success: true, account: { ...updated, _id: updated.id } });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -122,16 +141,18 @@ router.post('/email/create', async (req, res) => {
 
     emailConfig.isVerified = true;
 
-    const newAccount = new ChannelAccount({
-      type: 'email',
-      nickname: nickname || senderLabel || fromEmail,
-      emailConfig,
-      status: 'connected',
-      lastActive: new Date()
+    const newAccount = await prisma.channelAccount.create({
+      data: {
+        id: crypto.randomUUID(),
+        type: 'email',
+        nickname: nickname || senderLabel || fromEmail,
+        emailConfig,
+        status: 'connected',
+        lastActive: new Date()
+      }
     });
 
-    await newAccount.save();
-    res.json({ success: true, account: newAccount });
+    res.json({ success: true, account: { ...newAccount, _id: newAccount.id } });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -159,7 +180,9 @@ router.post('/email/test/:accountId', async (req, res) => {
  */
 router.delete('/email/:accountId', async (req, res) => {
   try {
-    await ChannelAccount.findByIdAndDelete(req.params.accountId);
+    await prisma.channelAccount.delete({
+      where: { id: req.params.accountId }
+    });
     res.json({ success: true, message: 'Email account removed.' });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });

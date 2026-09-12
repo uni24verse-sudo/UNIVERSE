@@ -1,14 +1,21 @@
 const express = require('express');
 const router = express.Router();
-const auth = require('../middleware/auth');
-const Admin = require('../models/Admin');
-const Store = require('../models/Store');
+const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
+const auth = require('../middleware/auth');
+const prisma = require('../config/prisma');
 
 // Middleware to verify vendor owns the store
 const verifyVendorStore = async (req, res, next) => {
   try {
-    const store = await Store.findOne({ _id: req.params.storeId, admin: req.admin._id });
+    const adminId = req.admin.id || req.admin._id;
+    const store = await prisma.store.findFirst({
+      where: {
+        id: req.params.storeId,
+        ...(req.admin.role !== 'superadmin' && { adminId: String(adminId) })
+      }
+    });
+
     if (!store) {
       return res.status(403).json({ message: 'Unauthorized: Store not found or does not belong to you.' });
     }
@@ -22,13 +29,28 @@ const verifyVendorStore = async (req, res, next) => {
 // GET all employees for a store
 router.get('/:storeId', auth, verifyVendorStore, async (req, res) => {
   try {
-    const employees = await Admin.find({ 
-      vendorId: req.admin._id, 
-      storeId: req.params.storeId, 
-      role: 'staff' 
-    }).select('-password'); // Exclude password from response
+    const adminId = req.admin.id || req.admin._id;
+    const employees = await prisma.admin.findMany({
+      where: { 
+        vendorId: String(adminId), 
+        storeId: req.params.storeId, 
+        role: 'staff' 
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        storeId: true,
+        vendorId: true,
+        status: true,
+        isBanned: true,
+        createdAt: true,
+        updatedAt: true
+      }
+    });
     
-    res.json(employees);
+    res.json(employees.map(e => ({ ...e, _id: e.id })));
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -43,29 +65,32 @@ router.post('/:storeId', auth, verifyVendorStore, async (req, res) => {
       return res.status(400).json({ message: 'Name, email/phone, and password are required.' });
     }
 
-    // Check if email/phone already in use across the entire Admin model
-    const existingAdmin = await Admin.findOne({ email });
+    const cleanEmail = email.toLowerCase().trim();
+    const existingAdmin = await prisma.admin.findUnique({
+      where: { email: cleanEmail }
+    });
     if (existingAdmin) {
       return res.status(400).json({ message: 'This email/phone is already in use.' });
     }
 
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
+    const adminId = req.admin.id || req.admin._id;
 
-    const newEmployee = new Admin({
-      name,
-      email,
-      password: hashedPassword,
-      role: 'staff',
-      storeId: req.params.storeId,
-      vendorId: req.admin._id,
-      status: 'ACTIVE'
+    const savedEmployee = await prisma.admin.create({
+      data: {
+        id: crypto.randomUUID(),
+        name,
+        email: cleanEmail,
+        password: hashedPassword,
+        role: 'staff',
+        storeId: req.params.storeId,
+        vendorId: String(adminId),
+        status: 'ACTIVE'
+      }
     });
-
-    const savedEmployee = await newEmployee.save();
     
-    // Return without password
-    const empObj = savedEmployee.toObject();
+    const empObj = { ...savedEmployee, _id: savedEmployee.id };
     delete empObj.password;
 
     res.status(201).json(empObj);
@@ -78,34 +103,42 @@ router.post('/:storeId', auth, verifyVendorStore, async (req, res) => {
 router.put('/:storeId/:employeeId', auth, verifyVendorStore, async (req, res) => {
   try {
     const { name, email, password } = req.body;
+    const adminId = req.admin.id || req.admin._id;
     
-    const employee = await Admin.findOne({ 
-      _id: req.params.employeeId, 
-      vendorId: req.admin._id, 
-      storeId: req.params.storeId,
-      role: 'staff'
+    const employee = await prisma.admin.findFirst({
+      where: { 
+        id: req.params.employeeId, 
+        vendorId: String(adminId), 
+        storeId: req.params.storeId,
+        role: 'staff'
+      }
     });
 
     if (!employee) {
       return res.status(404).json({ message: 'Employee not found.' });
     }
 
-    if (name) employee.name = name;
+    const updateData = {};
+    if (name) updateData.name = name;
     if (email) {
-      // Check if new email is taken
-      if (email !== employee.email) {
-        const existing = await Admin.findOne({ email });
+      const cleanEmail = email.toLowerCase().trim();
+      if (cleanEmail !== employee.email) {
+        const existing = await prisma.admin.findUnique({ where: { email: cleanEmail } });
         if (existing) return res.status(400).json({ message: 'This email/phone is already in use.' });
-        employee.email = email;
+        updateData.email = cleanEmail;
       }
     }
     if (password) {
       const salt = await bcrypt.genSalt(10);
-      employee.password = await bcrypt.hash(password, salt);
+      updateData.password = await bcrypt.hash(password, salt);
     }
 
-    const updatedEmployee = await employee.save();
-    const empObj = updatedEmployee.toObject();
+    const updatedEmployee = await prisma.admin.update({
+      where: { id: req.params.employeeId },
+      data: updateData
+    });
+
+    const empObj = { ...updatedEmployee, _id: updatedEmployee.id };
     delete empObj.password;
 
     res.json(empObj);
@@ -122,21 +155,26 @@ router.patch('/:storeId/:employeeId/status', auth, verifyVendorStore, async (req
       return res.status(400).json({ message: 'Invalid status.' });
     }
 
-    const employee = await Admin.findOne({ 
-      _id: req.params.employeeId, 
-      vendorId: req.admin._id, 
-      storeId: req.params.storeId,
-      role: 'staff'
+    const adminId = req.admin.id || req.admin._id;
+    const employee = await prisma.admin.findFirst({
+      where: { 
+        id: req.params.employeeId, 
+        vendorId: String(adminId), 
+        storeId: req.params.storeId,
+        role: 'staff'
+      }
     });
 
     if (!employee) {
       return res.status(404).json({ message: 'Employee not found.' });
     }
 
-    employee.status = status;
-    const updatedEmployee = await employee.save();
+    const updatedEmployee = await prisma.admin.update({
+      where: { id: req.params.employeeId },
+      data: { status }
+    });
     
-    const empObj = updatedEmployee.toObject();
+    const empObj = { ...updatedEmployee, _id: updatedEmployee.id };
     delete empObj.password;
 
     res.json(empObj);
@@ -148,18 +186,23 @@ router.patch('/:storeId/:employeeId/status', auth, verifyVendorStore, async (req
 // DELETE revoke employee access
 router.delete('/:storeId/:employeeId', auth, verifyVendorStore, async (req, res) => {
   try {
-    const employee = await Admin.findOne({ 
-      _id: req.params.employeeId, 
-      vendorId: req.admin._id, 
-      storeId: req.params.storeId,
-      role: 'staff'
+    const adminId = req.admin.id || req.admin._id;
+    const employee = await prisma.admin.findFirst({
+      where: { 
+        id: req.params.employeeId, 
+        vendorId: String(adminId), 
+        storeId: req.params.storeId,
+        role: 'staff'
+      }
     });
 
     if (!employee) {
       return res.status(404).json({ message: 'Employee not found.' });
     }
 
-    await Admin.findByIdAndDelete(employee._id);
+    await prisma.admin.delete({
+      where: { id: employee.id }
+    });
 
     res.json({ message: 'Employee deleted successfully.' });
   } catch (err) {

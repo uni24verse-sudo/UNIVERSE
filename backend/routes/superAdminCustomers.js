@@ -1,11 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const superAdminAuth = require('../middleware/superAdminAuth');
-const Customer = require('../models/Customer');
-const Order = require('../models/Order');
-const Payment = require('../models/Payment');
-const Refund = require('../models/Refund');
-const OrderEvent = require('../models/OrderEvent');
+const prisma = require('../config/prisma');
+const { normalizeCustomer, normalizeOrder, normalizeRefund } = require('../utils/pgAdapter');
 const auditService = require('../services/auditService');
 const refundService = require('../services/refundService');
 
@@ -18,8 +15,6 @@ router.use(superAdminAuth);
 router.get('/', async (req, res) => {
   try {
     const { search = '', page = 1, limit = 20, status } = req.query;
-    const prisma = require('../config/prisma');
-    const { normalizeCustomer } = require('../utils/pgAdapter');
 
     const where = {};
     if (status && status !== 'all') {
@@ -88,13 +83,8 @@ router.get('/', async (req, res) => {
 router.get('/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
-    const prisma = require('../config/prisma');
-    const { normalizeCustomer, normalizeOrder, normalizeRefund } = require('../utils/pgAdapter');
 
-    let customer = await prisma.customer.findUnique({ where: { userId } });
-    if (!customer) {
-      customer = await Customer.findOne({ userId });
-    }
+    const customer = await prisma.customer.findUnique({ where: { userId } });
 
     if (!customer) {
       return res.status(404).json({ message: 'Customer not found' });
@@ -154,7 +144,7 @@ router.post('/orders/:orderId/refund', async (req, res) => {
       orderId,
       reason,
       actorType: 'SUPER_ADMIN',
-      actorId: req.superAdmin?.email || 'SUPER_ADMIN',
+      actorId: req.admin?.email || 'SUPER_ADMIN',
       io: req.app.get('io')
     });
 

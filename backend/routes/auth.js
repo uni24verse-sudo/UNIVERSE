@@ -1,17 +1,24 @@
 const express = require('express');
 const router = express.Router();
-const Admin = require('../models/Admin');
+const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const auth = require('../middleware/auth');
+const prisma = require('../config/prisma');
 
 // Register
 router.post('/register', async (req, res) => {
   try {
     const { name, email, password, telegramChatId } = req.body;
 
+    if (!name || !email || !password) {
+      return res.status(400).json({ message: 'Name, email, and password are required' });
+    }
+
+    const cleanEmail = email.toLowerCase().trim();
+
     // Check if admin exists
-    const existingAdmin = await Admin.findOne({ email });
+    const existingAdmin = await prisma.admin.findUnique({ where: { email: cleanEmail } });
     if (existingAdmin) return res.status(400).json({ message: 'Email already exists' });
 
     // Hash password
@@ -19,8 +26,17 @@ router.post('/register', async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, salt);
 
     // Create new admin
-    const newAdmin = new Admin({ name, email, password: hashedPassword, telegramChatId });
-    await newAdmin.save();
+    const id = crypto.randomUUID();
+    await prisma.admin.create({
+      data: {
+        id,
+        name,
+        email: cleanEmail,
+        password: hashedPassword,
+        telegramChatId: telegramChatId || '',
+        role: 'vendor'
+      }
+    });
 
     res.status(201).json({ message: 'Vendor registered successfully' });
   } catch (err) {
@@ -34,18 +50,9 @@ router.post('/login', async (req, res) => {
     const { email, password } = req.body;
     if (!email) return res.status(400).json({ message: 'Email is required' });
 
-    let admin = null;
-    try {
-      const adminRepository = require('../repositories/adminRepository');
-      admin = await adminRepository.findByEmail(email);
-    } catch (pgErr) {
-      console.warn('[auth.login] PG lookup error:', pgErr.message);
-    }
+    const cleanEmail = email.toLowerCase().trim();
+    const admin = await prisma.admin.findUnique({ where: { email: cleanEmail } });
 
-    // Fallback to Mongoose if not in PG
-    if (!admin) {
-      admin = await Admin.findOne({ email });
-    }
     if (!admin) return res.status(400).json({ message: 'Invalid email or password' });
 
     // Check if banned
@@ -62,19 +69,24 @@ router.post('/login', async (req, res) => {
     const validPassword = await bcrypt.compare(password, admin.password);
     if (!validPassword) return res.status(400).json({ message: 'Invalid email or password' });
 
-    const adminId = admin._id || admin.id;
+    const adminId = admin.id;
 
     // Create and assign token with role
-    const token = jwt.sign({ _id: adminId, name: admin.name, role: admin.role }, process.env.JWT_SECRET, { expiresIn: '7d' });
+    const token = jwt.sign(
+      { _id: adminId, id: adminId, name: admin.name, role: admin.role },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
     res.header('Authorization', token).json({ 
       token, 
       admin: { 
         id: adminId, 
+        _id: adminId,
         name: admin.name, 
         email: admin.email, 
         telegramChatId: admin.telegramChatId,
-        role: admin.role,
-        seenFeatures: admin.seenFeatures || []
+        role: admin.role
       } 
     });
   } catch (err) {
@@ -88,17 +100,12 @@ router.post('/mobile-login', async (req, res) => {
     const { email, password } = req.body;
     if (!email) return res.status(400).json({ message: 'Email is required' });
 
-    let admin = null;
-    try {
-      const adminRepository = require('../repositories/adminRepository');
-      admin = await adminRepository.findByEmail(email);
-    } catch (pgErr) {
-      console.warn('[auth.mobile-login] PG lookup error:', pgErr.message);
-    }
+    const cleanEmail = email.toLowerCase().trim();
+    const admin = await prisma.admin.findUnique({
+      where: { email: cleanEmail },
+      include: { stores: true }
+    });
 
-    if (!admin) {
-      admin = await Admin.findOne({ email });
-    }
     if (!admin) return res.status(400).json({ message: 'Invalid email or password' });
 
     // Check if banned or inactive
@@ -110,50 +117,39 @@ router.post('/mobile-login', async (req, res) => {
     const validPassword = await bcrypt.compare(password, admin.password);
     if (!validPassword) return res.status(400).json({ message: 'Invalid email or password' });
 
-    const adminId = admin._id || admin.id;
+    const adminId = admin.id;
 
-    // Update last login in PG
-    try {
-      const prisma = require('../config/prisma');
-      await prisma.admin.update({
-        where: { id: adminId },
-        data: { lastLoginAt: new Date() }
-      }).catch(() => {});
-    } catch (e) {}
-
-    // Retrieve actual storeId dynamically if not set
-    let actualStoreId = admin.storeId || admin.stores?.[0]?.id || admin.stores?.[0]?._id;
+    // Retrieve actual storeId dynamically
+    let actualStoreId = admin.storeId || admin.stores?.[0]?.id;
     if (!actualStoreId && admin.role === 'vendor') {
-      const Store = require('../models/Store');
-      const vendorStore = await Store.findOne({ admin: adminId });
+      const vendorStore = await prisma.store.findFirst({ where: { adminId } });
       if (vendorStore) {
-        actualStoreId = vendorStore._id;
+        actualStoreId = vendorStore.id;
       }
     }
 
     // Create and assign token
-    // For mobile, include role, storeId, and vendorId in token payload
     const tokenPayload = { 
       _id: adminId, 
+      id: adminId,
       name: admin.name,
       role: admin.role,
       storeId: actualStoreId,
-      vendorId: admin.vendorId,
-      permissions: admin.permissions || []
+      vendorId: admin.vendorId
     };
     
-    const token = jwt.sign(tokenPayload, process.env.JWT_SECRET, { expiresIn: '30d' }); // Longer expiry for mobile apps
+    const token = jwt.sign(tokenPayload, process.env.JWT_SECRET, { expiresIn: '30d' });
     
     res.header('Authorization', token).json({ 
       token, 
       admin: { 
         id: adminId, 
+        _id: adminId,
         name: admin.name, 
         email: admin.email,
         role: admin.role,
         storeId: actualStoreId,
-        vendorId: admin.vendorId,
-        permissions: admin.permissions || []
+        vendorId: admin.vendorId
       } 
     });
   } catch (err) {
@@ -165,19 +161,22 @@ router.post('/mobile-login', async (req, res) => {
 router.put('/update-profile', auth, async (req, res) => {
   try {
     const { name, telegramChatId } = req.body;
-    
-    const admin = await Admin.findById(req.admin._id);
-    if (!admin) return res.status(404).json({ message: 'Vendor not found' });
+    const adminId = req.admin.id || req.admin._id;
 
-    if (name) admin.name = name;
-    if (telegramChatId !== undefined) admin.telegramChatId = telegramChatId;
-    
-    await admin.save();
+    const updateData = {};
+    if (name) updateData.name = name;
+    if (telegramChatId !== undefined) updateData.telegramChatId = telegramChatId;
+
+    const admin = await prisma.admin.update({
+      where: { id: String(adminId) },
+      data: updateData
+    });
     
     res.json({ 
       message: 'Profile updated successfully', 
       admin: { 
-        id: admin._id, 
+        id: admin.id, 
+        _id: admin.id,
         name: admin.name, 
         email: admin.email, 
         telegramChatId: admin.telegramChatId
@@ -188,43 +187,6 @@ router.put('/update-profile', auth, async (req, res) => {
   }
 });
 
-
-
-/*
-// Test OneSignal Notification
-router.post('/test-fcm', auth, async (req, res) => {
-  // ... code ...
-});
-*/
-
-// Mark Feature as Seen
-router.post('/mark-feature-seen', auth, async (req, res) => {
-  try {
-    const { featureKey } = req.body;
-    if (!featureKey) return res.status(400).json({ message: 'Feature key is required' });
-
-    const admin = await Admin.findByIdAndUpdate(
-      req.admin._id,
-      { $addToSet: { seenFeatures: featureKey } },
-      { returnDocument: 'after' }
-    );
-
-    res.json({ 
-      message: 'Feature marked as seen', 
-      admin: { 
-        id: admin._id, 
-        name: admin.name, 
-        email: admin.email, 
-        seenFeatures: admin.seenFeatures
-      } 
-    });
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-});
-
-const DeviceRegistry = require('../models/DeviceRegistry');
-
 // Register Device for Push Notifications
 router.post('/register-device', auth, async (req, res) => {
   try {
@@ -234,31 +196,40 @@ router.post('/register-device', auth, async (req, res) => {
       return res.status(400).json({ message: 'Missing required device information' });
     }
 
+    const adminId = req.admin.id || req.admin._id;
     let authorizedStoreId = req.admin.storeId;
     if (!authorizedStoreId && req.admin.role === 'vendor') {
-      const Store = require('../models/Store');
-      const vendorStore = await Store.findOne({ admin: req.admin._id });
+      const vendorStore = await prisma.store.findFirst({ where: { adminId: String(adminId) } });
       if (vendorStore) {
-        authorizedStoreId = vendorStore._id;
+        authorizedStoreId = vendorStore.id;
       }
     }
     
-    // Fallback to admin _id if still not found
-    authorizedStoreId = authorizedStoreId || req.admin._id;
+    authorizedStoreId = authorizedStoreId || adminId;
 
-    // Use findOneAndUpdate with upsert to either update an existing device or create a new one
-    await DeviceRegistry.findOneAndUpdate(
-      { deviceId },
-      {
-        userId: req.admin._id,
-        storeId: authorizedStoreId,
-        pushToken,
-        platform,
+    await prisma.deviceRegistry.upsert({
+      where: { token: String(pushToken) },
+      update: {
+        userId: String(adminId),
+        storeId: String(authorizedStoreId),
+        deviceId: String(deviceId),
+        pushToken: String(pushToken),
+        platform: platform || 'android',
         active: true,
         lastSeen: new Date()
       },
-      { upsert: true, returnDocument: 'after' }
-    );
+      create: {
+        id: crypto.randomUUID(),
+        userId: String(adminId),
+        storeId: String(authorizedStoreId),
+        deviceId: String(deviceId),
+        pushToken: String(pushToken),
+        token: String(pushToken),
+        platform: platform || 'android',
+        active: true,
+        lastSeen: new Date()
+      }
+    });
 
     res.json({ success: true, message: 'Device registered successfully' });
   } catch (err) {
@@ -272,11 +243,10 @@ router.post('/deregister-device', auth, async (req, res) => {
     const { deviceId } = req.body;
     if (!deviceId) return res.status(400).json({ message: 'Device ID required' });
 
-    // Mark as inactive instead of deleting to keep a record, or just delete it.
-    await DeviceRegistry.findOneAndUpdate(
-      { deviceId, userId: req.admin._id },
-      { active: false }
-    );
+    await prisma.deviceRegistry.updateMany({
+      where: { deviceId: String(deviceId) },
+      data: { active: false }
+    });
 
     res.json({ success: true, message: 'Device deregistered' });
   } catch (err) {

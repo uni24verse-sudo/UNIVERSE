@@ -1,7 +1,8 @@
 const express = require('express');
 const router = express.Router();
+const crypto = require('crypto');
 const superAdminAuth = require('../middleware/superAdminAuth');
-const MasterTemplate = require('../models/MasterTemplate');
+const prisma = require('../config/prisma');
 
 router.use(superAdminAuth);
 
@@ -11,20 +12,26 @@ router.use(superAdminAuth);
 router.get('/', async (req, res) => {
   try {
     const { channel, category, search } = req.query;
-    const query = { status: { $ne: 'Archived' } };
 
-    if (channel && channel !== 'all') query.channel = channel;
-    if (category && category !== 'all') query.category = category;
-    if (search) {
-      query.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { body: { $regex: search, $options: 'i' } }
+    const where = {
+      status: { not: 'Archived' }
+    };
+
+    if (channel && channel !== 'all') where.channel = channel;
+    if (category && category !== 'all') where.category = category;
+    if (search && search.trim()) {
+      where.OR = [
+        { name: { contains: search.trim(), mode: 'insensitive' } },
+        { body: { contains: search.trim(), mode: 'insensitive' } }
       ];
     }
 
-    const templates = await MasterTemplate.find(query).sort({ updatedAt: -1 });
+    const templates = await prisma.masterTemplate.findMany({
+      where,
+      orderBy: { updatedAt: 'desc' }
+    });
 
-    res.json(templates);
+    res.json(templates.map(t => ({ ...t, _id: t.id })));
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -35,9 +42,11 @@ router.get('/', async (req, res) => {
  */
 router.get('/:id', async (req, res) => {
   try {
-    const template = await MasterTemplate.findById(req.params.id);
+    const template = await prisma.masterTemplate.findUnique({
+      where: { id: req.params.id }
+    });
     if (!template) return res.status(404).json({ message: 'Template not found' });
-    res.json(template);
+    res.json({ ...template, _id: template.id });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -73,27 +82,29 @@ router.post('/', async (req, res) => {
     const varMatches = (body + ' ' + (subject || '')).match(/\{\{([a-zA-Z0-9_]+)\}\}/g) || [];
     const variables = [...new Set(varMatches.map(v => v.replace(/[{}]/g, '')))];
 
-    const newTemplate = new MasterTemplate({
-      name,
-      channel,
-      category: category || 'Marketing & Offers',
-      headerType: headerType || 'NONE',
-      headerMediaUrl: headerMediaUrl || '',
-      headerText: headerText || '',
-      body,
-      footer: footer || 'UniVerse • Smart Campus Ordering',
-      buttons: buttons || [],
-      subject: subject || '',
-      emailPreheader: emailPreheader || '',
-      emailHeroImageUrl: emailHeroImageUrl || '',
-      emailCtaText: emailCtaText || 'Open UniVerse',
-      emailCtaUrl: emailCtaUrl || 'https://www.universeorder.co.in',
-      variables,
-      status: 'Active'
+    const saved = await prisma.masterTemplate.create({
+      data: {
+        id: crypto.randomUUID(),
+        name,
+        channel,
+        category: category || 'Marketing & Offers',
+        headerType: headerType || 'NONE',
+        headerMediaUrl: headerMediaUrl || '',
+        headerText: headerText || '',
+        body,
+        footer: footer || 'UniVerse • Smart Campus Ordering',
+        buttons: buttons || [],
+        subject: subject || '',
+        emailPreheader: emailPreheader || '',
+        emailHeroImageUrl: emailHeroImageUrl || '',
+        emailCtaText: emailCtaText || 'Open UniVerse',
+        emailCtaUrl: emailCtaUrl || 'https://www.universeorder.co.in',
+        variables,
+        status: 'Active'
+      }
     });
 
-    const saved = await newTemplate.save();
-    res.status(201).json(saved);
+    res.status(201).json({ ...saved, _id: saved.id });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -104,26 +115,55 @@ router.post('/', async (req, res) => {
  */
 router.put('/:id', async (req, res) => {
   try {
-    const { body, subject } = req.body;
-    let variables = undefined;
+    const { 
+      name, 
+      channel, 
+      category, 
+      headerType, 
+      headerMediaUrl, 
+      headerText, 
+      body, 
+      footer, 
+      buttons, 
+      subject, 
+      emailPreheader, 
+      emailHeroImageUrl, 
+      emailCtaText, 
+      emailCtaUrl,
+      status
+    } = req.body;
 
-    if (body || subject) {
+    let variables = undefined;
+    if (body !== undefined || subject !== undefined) {
       const combined = (body || '') + ' ' + (subject || '');
       const varMatches = combined.match(/\{\{([a-zA-Z0-9_]+)\}\}/g) || [];
       variables = [...new Set(varMatches.map(v => v.replace(/[{}]/g, '')))];
     }
 
-    const updated = await MasterTemplate.findByIdAndUpdate(
-      req.params.id,
-      {
-        ...req.body,
-        ...(variables ? { variables } : {}),
-        updatedAt: new Date()
-      },
-      { new: true }
-    );
+    const updateData = {};
+    if (name !== undefined) updateData.name = name;
+    if (channel !== undefined) updateData.channel = channel;
+    if (category !== undefined) updateData.category = category;
+    if (headerType !== undefined) updateData.headerType = headerType;
+    if (headerMediaUrl !== undefined) updateData.headerMediaUrl = headerMediaUrl;
+    if (headerText !== undefined) updateData.headerText = headerText;
+    if (body !== undefined) updateData.body = body;
+    if (footer !== undefined) updateData.footer = footer;
+    if (buttons !== undefined) updateData.buttons = buttons;
+    if (subject !== undefined) updateData.subject = subject;
+    if (emailPreheader !== undefined) updateData.emailPreheader = emailPreheader;
+    if (emailHeroImageUrl !== undefined) updateData.emailHeroImageUrl = emailHeroImageUrl;
+    if (emailCtaText !== undefined) updateData.emailCtaText = emailCtaText;
+    if (emailCtaUrl !== undefined) updateData.emailCtaUrl = emailCtaUrl;
+    if (variables !== undefined) updateData.variables = variables;
+    if (status !== undefined) updateData.status = status;
 
-    res.json(updated);
+    const updated = await prisma.masterTemplate.update({
+      where: { id: req.params.id },
+      data: updateData
+    });
+
+    res.json({ ...updated, _id: updated.id });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -134,7 +174,10 @@ router.put('/:id', async (req, res) => {
  */
 router.delete('/:id', async (req, res) => {
   try {
-    await MasterTemplate.findByIdAndUpdate(req.params.id, { status: 'Archived' });
+    await prisma.masterTemplate.update({
+      where: { id: req.params.id },
+      data: { status: 'Archived' }
+    });
     res.json({ success: true, message: 'Template archived successfully' });
   } catch (err) {
     res.status(500).json({ message: err.message });

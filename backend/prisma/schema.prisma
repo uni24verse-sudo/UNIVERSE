@@ -16,6 +16,9 @@ model Admin {
   email          String       @unique
   password       String
   role           String       @default("vendor") // "vendor" | "superadmin" | "staff"
+  storeId        String?      @default("")
+  vendorId       String?      @default("")
+  status         String?      @default("ACTIVE")
   telegramChatId String?      @default("")
   isBanned       Boolean      @default(false)
   createdAt      DateTime     @default(now())

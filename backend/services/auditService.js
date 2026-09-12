@@ -1,10 +1,8 @@
 const crypto = require('crypto');
-const OrderEvent = require('../models/OrderEvent');
-const Customer = require('../models/Customer');
-const Order = require('../models/Order');
+const prisma = require('../config/prisma');
 
 /**
- * Log an immutable order event in the audit trail
+ * Log an immutable order event in the audit trail (PostgreSQL)
  */
 const logEvent = async ({
   orderId,
@@ -19,18 +17,21 @@ const logEvent = async ({
 }) => {
   try {
     const eventId = `evt_${Date.now()}_${crypto.randomBytes(3).toString('hex')}`;
-    const event = await OrderEvent.create({
-      eventId,
-      orderId,
-      orderNumber,
-      userId,
-      actorType,
-      actorId,
-      eventType,
-      oldStatus,
-      newStatus,
-      metadata,
-      createdAt: new Date()
+    const event = await prisma.orderEvent.create({
+      data: {
+        id: eventId,
+        eventId,
+        orderId,
+        orderNumber: orderNumber || '',
+        userId: userId || '',
+        actorType,
+        actorId,
+        eventType,
+        oldStatus,
+        newStatus,
+        metadata: metadata || {},
+        createdAt: new Date()
+      }
     });
 
     // Asynchronously update customer aggregated metrics if userId exists
@@ -48,33 +49,50 @@ const logEvent = async ({
 };
 
 /**
- * Get or create stable Customer record by phone
+ * Get or create stable Customer record by phone (PostgreSQL)
  */
 const getOrCreateCustomer = async ({ phone, name = '', email = '', campus = 'Campus Food Court' }) => {
   if (!phone) return null;
   const cleanPhone = phone.trim();
 
   try {
-    let customer = await Customer.findOne({ phone: cleanPhone });
+    let customer = await prisma.customer.findFirst({
+      where: { phone: cleanPhone }
+    });
 
     if (!customer) {
       const generatedUserId = `USR-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
-      customer = await Customer.create({
-        userId: generatedUserId,
-        phone: cleanPhone,
-        currentName: name || 'UniVerse Student',
-        email: email ? email.trim().toLowerCase() : '',
-        campus: campus || 'Campus Food Court',
-        lastActivityAt: new Date()
+      customer = await prisma.customer.create({
+        data: {
+          id: generatedUserId,
+          userId: generatedUserId,
+          phone: cleanPhone,
+          currentName: name || 'UniVerse Student',
+          email: email ? email.trim().toLowerCase() : '',
+          campus: campus || 'Campus Food Court',
+          lastActivityAt: new Date(),
+          metrics: {
+            totalOrders: 0,
+            completedOrders: 0,
+            cancelledOrders: 0,
+            vendorRejectedOrders: 0,
+            totalSpent: 0,
+            totalRefunded: 0,
+            refundRate: 0
+          },
+          riskSignals: []
+        }
       });
     } else {
-      // Update last active timestamp
-      customer.lastActivityAt = new Date();
-      // If email was provided and was previously empty, attach it
+      // Update last active timestamp and email if previously empty
+      const updateData = { lastActivityAt: new Date() };
       if (email && !customer.email) {
-        customer.email = email.trim().toLowerCase();
+        updateData.email = email.trim().toLowerCase();
       }
-      await customer.save();
+      customer = await prisma.customer.update({
+        where: { id: customer.id },
+        data: updateData
+      });
     }
 
     return customer;
@@ -85,13 +103,15 @@ const getOrCreateCustomer = async ({ phone, name = '', email = '', campus = 'Cam
 };
 
 /**
- * Recalculate customer aggregated stats from historical orders
+ * Recalculate customer aggregated stats from historical orders (PostgreSQL)
  */
 const recalculateCustomerMetrics = async (userId) => {
   if (!userId) return;
 
   try {
-    const orders = await Order.find({ userId });
+    const orders = await prisma.order.findMany({
+      where: { userId }
+    });
     
     let totalOrders = orders.length;
     let completedOrders = 0;
@@ -126,38 +146,44 @@ const recalculateCustomerMetrics = async (userId) => {
       });
     }
 
-    await Customer.updateOne(
-      { userId },
-      {
-        $set: {
-          'metrics.totalOrders': totalOrders,
-          'metrics.completedOrders': completedOrders,
-          'metrics.cancelledOrders': cancelledOrders,
-          'metrics.vendorRejectedOrders': vendorRejectedOrders,
-          'metrics.totalSpent': totalSpent,
-          'metrics.totalRefunded': totalRefunded,
-          'metrics.refundRate': refundRate,
-          riskSignals
-        }
+    await prisma.customer.updateMany({
+      where: { userId },
+      data: {
+        metrics: {
+          totalOrders,
+          completedOrders,
+          cancelledOrders,
+          vendorRejectedOrders,
+          totalSpent,
+          totalRefunded,
+          refundRate
+        },
+        riskSignals
       }
-    );
+    });
   } catch (err) {
     console.error('[auditService.recalculateCustomerMetrics] Error:', err.message);
   }
 };
 
 /**
- * Fetch chronological order timeline
+ * Fetch chronological order timeline (PostgreSQL)
  */
 const getOrderTimeline = async (orderId) => {
   try {
-    const events = await OrderEvent.find({ orderId }).sort({ createdAt: 1 });
+    const events = await prisma.orderEvent.findMany({
+      where: { orderId },
+      orderBy: { createdAt: 'asc' }
+    });
     if (events && events.length > 0) {
       return events;
     }
 
     // Baseline Synthesis for historical records
-    const order = await Order.findById(orderId).populate('store');
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      include: { store: true }
+    });
     if (!order) return [];
 
     const synthesized = [];
@@ -165,8 +191,9 @@ const getOrderTimeline = async (orderId) => {
 
     // 1. Order Placement Event
     synthesized.push({
-      eventId: `evt_init_${order._id}`,
-      orderId: order._id,
+      id: `evt_init_${order.id}`,
+      eventId: `evt_init_${order.id}`,
+      orderId: order.id,
       orderNumber: order.orderNumber,
       userId: order.userId,
       actorType: 'CUSTOMER',
@@ -184,8 +211,9 @@ const getOrderTimeline = async (orderId) => {
     // 2. Payment Captured Event
     if (order.paymentStatus === 'Confirmed' || order.transactionId) {
       synthesized.push({
-        eventId: `evt_pay_${order._id}`,
-        orderId: order._id,
+        id: `evt_pay_${order.id}`,
+        eventId: `evt_pay_${order.id}`,
+        orderId: order.id,
         orderNumber: order.orderNumber,
         userId: order.userId,
         actorType: 'RAZORPAY_GATEWAY',
@@ -204,8 +232,9 @@ const getOrderTimeline = async (orderId) => {
     // 3. Final Lifecycle State
     if (order.status === 'Completed') {
       synthesized.push({
-        eventId: `evt_done_${order._id}`,
-        orderId: order._id,
+        id: `evt_done_${order.id}`,
+        eventId: `evt_done_${order.id}`,
+        orderId: order.id,
         orderNumber: order.orderNumber,
         userId: order.userId,
         actorType: 'VENDOR_STAFF',
@@ -220,8 +249,9 @@ const getOrderTimeline = async (orderId) => {
       });
     } else if (order.status === 'Cancelled') {
       synthesized.push({
-        eventId: `evt_cancel_${order._id}`,
-        orderId: order._id,
+        id: `evt_cancel_${order.id}`,
+        eventId: `evt_cancel_${order.id}`,
+        orderId: order.id,
         orderNumber: order.orderNumber,
         userId: order.userId,
         actorType: 'SYSTEM',
@@ -230,7 +260,7 @@ const getOrderTimeline = async (orderId) => {
         newStatus: 'Cancelled',
         createdAt: new Date(order.updatedAt || baseTime.getTime() + 180000),
         metadata: {
-          refundId: order.refundId || `rfnd_auto_${order.transactionId || order._id}`,
+          refundId: order.refundId || `rfnd_auto_${order.transactionId || order.id}`,
           amount: order.refundAmount || order.totalAmount,
           reason: order.cancellationReason || 'Kitchen unavailable / rejected'
         }

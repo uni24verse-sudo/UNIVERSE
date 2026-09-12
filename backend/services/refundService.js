@@ -1,13 +1,12 @@
 const crypto = require('crypto');
-const Order = require('../models/Order');
-const Store = require('../models/Store');
-const Refund = require('../models/Refund');
+const prisma = require('../config/prisma');
 const auditService = require('./auditService');
 const journeyEngineService = require('./journeyEngineService');
 const whatsappMultiDeviceService = require('./whatsappMultiDeviceService');
+const { normalizeOrder, normalizeRefund } = require('../utils/pgAdapter');
 
 /**
- * ⚡ STREAMLINED DIRECT UPI INSTANT REFUND SERVICE
+ * ⚡ STREAMLINED DIRECT UPI INSTANT REFUND SERVICE (PostgreSQL Native)
  * Bypasses Razorpay 2-3 hour bank clearing delays completely.
  * Direct P2P/P2M transfers to students with instant 1-tap deep links & WhatsApp group alerts.
  */
@@ -23,67 +22,88 @@ const handleOrderCancellation = async ({
   io = null
 }) => {
   try {
-    const order = await Order.findById(orderId).populate('store');
-    if (!order) {
+    const rawOrder = await prisma.order.findFirst({
+      where: {
+        OR: [{ id: orderId }, { orderNumber: orderId }]
+      },
+      include: { store: true }
+    });
+
+    if (!rawOrder) {
       return { success: false, message: 'Order not found' };
     }
 
     // If already refunded, avoid duplicate processing
-    if (order.refundStatus === 'Refunded' || order.refundStatus === 'Processed') {
+    if (rawOrder.refundStatus === 'Refunded' || rawOrder.refundStatus === 'Processed') {
       return { 
         success: true, 
         message: 'Order was already refunded', 
-        refundId: order.refundId 
+        refundId: rawOrder.refundId 
       };
     }
 
-    const idempotencyKey = `rfnd_${order._id}_${Date.now()}`;
+    const idempotencyKey = `rfnd_${rawOrder.id}_${Date.now()}`;
     const refundTrackingId = `rfnd_upi_${crypto.randomBytes(4).toString('hex')}`;
-    const oldStatus = order.status;
+    const oldStatus = rawOrder.status;
+
+    const targetUpi = rawOrder.customerUpiId || rawOrder.payerUpiId || '';
 
     // Update Order State to Cancelled and Refund Requested
-    order.status = 'Cancelled';
-    order.refundStatus = 'Requested';
-    order.refundAmount = order.totalAmount;
-    order.refundId = refundTrackingId;
-    order.refundIdempotencyKey = idempotencyKey;
-    order.cancellationReason = reason;
-    order.cancelledBy = { actorType, actorId };
-
-    // Default student UPI if payer VPA was captured during checkout
-    if (!order.customerUpiId && order.payerUpiId) {
-      order.customerUpiId = order.payerUpiId;
-    }
-    await order.save();
-
-    // Create or update Refund Ledger record
-    let refundRecord = await Refund.findOne({ orderId: order._id });
-    if (!refundRecord) {
-      refundRecord = await Refund.create({
+    const updatedRawOrder = await prisma.order.update({
+      where: { id: rawOrder.id },
+      data: {
+        status: 'Cancelled',
+        refundStatus: 'Requested',
+        refundAmount: rawOrder.totalAmount,
         refundId: refundTrackingId,
-        paymentId: order.transactionId || 'OFFLINE_PAYMENT',
-        orderId: order._id,
-        userId: order.userId || 'GUEST',
-        customerName: order.customerName || 'Student',
-        customerPhone: order.customerPhone || '',
-        customerUpiId: order.customerUpiId || order.payerUpiId || '',
-        amount: order.totalAmount,
-        idempotencyKey,
-        reason,
-        status: 'REQUESTED',
-        mode: 'DIRECT_UPI',
-        whatsappNotified: true
+        refundIdempotencyKey: idempotencyKey,
+        cancellationReason: reason,
+        cancelledBy: { actorType, actorId },
+        customerUpiId: targetUpi || null
+      },
+      include: { store: true }
+    });
+
+    // Create or update Refund record
+    let rawRefund = await prisma.refund.findFirst({
+      where: { orderId: rawOrder.id }
+    });
+
+    if (!rawRefund) {
+      rawRefund = await prisma.refund.create({
+        data: {
+          id: rawOrder.id,
+          refundId: refundTrackingId,
+          paymentId: rawOrder.transactionId || 'OFFLINE_PAYMENT',
+          orderId: rawOrder.id,
+          userId: rawOrder.userId || 'GUEST',
+          customerName: rawOrder.customerName || 'Student',
+          customerPhone: rawOrder.customerPhone || '',
+          customerUpiId: targetUpi,
+          amount: rawOrder.totalAmount,
+          idempotencyKey,
+          reason,
+          status: 'REQUESTED',
+          mode: 'DIRECT_UPI',
+          whatsappNotified: true,
+          createdAt: new Date()
+        }
       });
     } else {
-      refundRecord.status = 'REQUESTED';
-      refundRecord.mode = 'DIRECT_UPI';
-      refundRecord.amount = order.totalAmount;
-      refundRecord.reason = reason;
-      if (!refundRecord.customerUpiId && order.customerUpiId) {
-        refundRecord.customerUpiId = order.customerUpiId;
-      }
-      await refundRecord.save();
+      rawRefund = await prisma.refund.update({
+        where: { id: rawRefund.id },
+        data: {
+          status: 'REQUESTED',
+          mode: 'DIRECT_UPI',
+          amount: rawOrder.totalAmount,
+          reason,
+          customerUpiId: targetUpi || rawRefund.customerUpiId
+        }
+      });
     }
+
+    const order = normalizeOrder(updatedRawOrder);
+    const refund = normalizeRefund(rawRefund);
 
     // Log immutable audit event
     await auditService.logEvent({
@@ -106,7 +126,6 @@ const handleOrderCancellation = async ({
     // 📱 Dispatch WhatsApp Cancellation Notice to Student via Journey Engine
     const studentPhone = order.customerPhone;
     const storeName = order.store?.name || 'Kitchen Counter';
-    const targetUpi = order.customerUpiId || order.payerUpiId || '';
 
     if (journeyEngineService && studentPhone) {
       const payload = {
@@ -132,9 +151,9 @@ const handleOrderCancellation = async ({
         .catch(err => console.error('[refundService] Journey cancellation dispatch error:', err.message));
     }
 
-    // 🚨 If student UPI is already known (e.g. from payer UPI), notify Super Admin Team immediately!
+    // 🚨 If student UPI is already known, notify Super Admin Team immediately
     if (targetUpi) {
-      whatsappMultiDeviceService.sendRefundAlertToTeam({ order, refund: refundRecord }).catch(err => {
+      whatsappMultiDeviceService.sendRefundAlertToTeam({ order, refund }).catch(err => {
         console.error('[refundService] Team alert error:', err.message);
       });
     }
@@ -167,51 +186,72 @@ const requestUpiRefund = async ({ orderId, upiId, io = null }) => {
       return { success: false, message: 'Invalid UPI ID format. Example: name@okhdfcbank or 9876543210@paytm' };
     }
 
-    const mongoose = require('mongoose');
-    const isObjectId = mongoose.Types.ObjectId.isValid(orderId) && orderId.toString().length === 24;
-    const query = isObjectId ? { $or: [{ _id: orderId }, { orderNumber: orderId }] } : { orderNumber: orderId };
+    const rawOrder = await prisma.order.findFirst({
+      where: {
+        OR: [{ id: orderId }, { orderNumber: orderId }]
+      },
+      include: { store: true }
+    });
 
-    const order = await Order.findOne(query).populate('store');
-    if (!order) {
+    if (!rawOrder) {
       return { success: false, message: 'Order not found.' };
     }
 
-    if (order.status !== 'Cancelled') {
+    if (rawOrder.status !== 'Cancelled') {
       return { success: false, message: 'Refund can only be requested for cancelled orders.' };
     }
 
-    if (order.refundStatus === 'Refunded' || order.refundStatus === 'Processed') {
+    if (rawOrder.refundStatus === 'Refunded' || rawOrder.refundStatus === 'Processed') {
       return { success: false, message: 'This order has already been refunded.' };
     }
 
     // Update order with UPI ID
-    order.customerUpiId = cleanUpi;
-    order.refundStatus = 'Requested';
-    await order.save();
+    const updatedRawOrder = await prisma.order.update({
+      where: { id: rawOrder.id },
+      data: {
+        customerUpiId: cleanUpi,
+        refundStatus: 'Requested'
+      },
+      include: { store: true }
+    });
 
     // Update or create Refund record
-    let refund = await Refund.findOne({ orderId: order._id });
-    if (!refund) {
-      refund = await Refund.create({
-        refundId: `rfnd_upi_${crypto.randomBytes(4).toString('hex')}`,
-        paymentId: order.transactionId || 'OFFLINE_PAYMENT',
-        orderId: order._id,
-        userId: order.userId || 'GUEST',
-        customerName: order.customerName || 'Student',
-        customerPhone: order.customerPhone || '',
-        customerUpiId: cleanUpi,
-        amount: order.totalAmount,
-        reason: order.cancellationReason || 'Student requested refund',
-        status: 'REQUESTED',
-        mode: 'DIRECT_UPI',
-        whatsappNotified: true
+    let rawRefund = await prisma.refund.findFirst({
+      where: { orderId: rawOrder.id }
+    });
+
+    if (!rawRefund) {
+      rawRefund = await prisma.refund.create({
+        data: {
+          id: rawOrder.id,
+          refundId: `rfnd_upi_${crypto.randomBytes(4).toString('hex')}`,
+          paymentId: rawOrder.transactionId || 'OFFLINE_PAYMENT',
+          orderId: rawOrder.id,
+          userId: rawOrder.userId || 'GUEST',
+          customerName: rawOrder.customerName || 'Student',
+          customerPhone: rawOrder.customerPhone || '',
+          customerUpiId: cleanUpi,
+          amount: rawOrder.totalAmount,
+          reason: rawOrder.cancellationReason || 'Student requested refund',
+          status: 'REQUESTED',
+          mode: 'DIRECT_UPI',
+          whatsappNotified: true,
+          createdAt: new Date()
+        }
       });
     } else {
-      refund.customerUpiId = cleanUpi;
-      refund.status = 'REQUESTED';
-      refund.mode = 'DIRECT_UPI';
-      await refund.save();
+      rawRefund = await prisma.refund.update({
+        where: { id: rawRefund.id },
+        data: {
+          customerUpiId: cleanUpi,
+          status: 'REQUESTED',
+          mode: 'DIRECT_UPI'
+        }
+      });
     }
+
+    const order = normalizeOrder(updatedRawOrder);
+    const refund = normalizeRefund(rawRefund);
 
     // 📱 Student WhatsApp Acknowledgment
     const ackMessage = 
@@ -236,12 +276,10 @@ const requestUpiRefund = async ({ orderId, upiId, io = null }) => {
 
     // 🌐 Real-time Socket Broadcasts
     if (io) {
-      // Notify student's tracker room
       io.to(order._id.toString()).emit('order_status_update', order);
       if (order.orderNumber) {
         io.to(order.orderNumber.toString()).emit('order_status_update', order);
       }
-      // Notify SuperAdmin command center
       io.to('superadmin_room').emit('new_refund_request', {
         refundId: refund._id,
         orderId: order._id,
@@ -272,21 +310,23 @@ const requestUpiRefund = async ({ orderId, upiId, io = null }) => {
  */
 const settleRefund = async ({ refundId, utr = '', settledBy = 'Super Admin', io = null }) => {
   try {
-    const mongoose = require('mongoose');
-    const isObjectId = mongoose.Types.ObjectId.isValid(refundId) && refundId.toString().length === 24;
-    const query = isObjectId ? { $or: [{ _id: refundId }, { refundId }] } : { refundId };
-
-    const refund = await Refund.findOne(query).populate({
-      path: 'orderId',
-      populate: { path: 'store' }
+    const rawRefund = await prisma.refund.findFirst({
+      where: {
+        OR: [{ id: refundId }, { refundId: refundId }]
+      },
+      include: {
+        order: {
+          include: { store: true }
+        }
+      }
     });
 
-    if (!refund) {
+    if (!rawRefund) {
       return { success: false, message: 'Refund record not found.' };
     }
 
-    const order = refund.orderId;
-    if (!order) {
+    const rawOrder = rawRefund.order;
+    if (!rawOrder) {
       return { success: false, message: 'Associated order not found.' };
     }
 
@@ -294,18 +334,30 @@ const settleRefund = async ({ refundId, utr = '', settledBy = 'Super Admin', io 
     const now = new Date();
 
     // Mark Refund as PROCESSED
-    refund.status = 'PROCESSED';
-    refund.utr = cleanUtr;
-    refund.settledBy = settledBy;
-    refund.settledAt = now;
-    refund.processedAt = now;
-    await refund.save();
+    const updatedRawRefund = await prisma.refund.update({
+      where: { id: rawRefund.id },
+      data: {
+        status: 'PROCESSED',
+        utr: cleanUtr,
+        settledBy,
+        settledAt: now,
+        processedAt: now
+      }
+    });
 
     // Update Order state
-    order.refundStatus = 'Refunded';
-    order.refundUtr = cleanUtr;
-    order.refundSettledAt = now;
-    await order.save();
+    const updatedRawOrder = await prisma.order.update({
+      where: { id: rawOrder.id },
+      data: {
+        refundStatus: 'Refunded',
+        refundUtr: cleanUtr,
+        refundSettledAt: now
+      },
+      include: { store: true }
+    });
+
+    const refund = normalizeRefund(updatedRawRefund);
+    const order = normalizeOrder(updatedRawOrder);
 
     // Log Immutable Audit Event
     await auditService.logEvent({
@@ -385,16 +437,23 @@ const settleRefund = async ({ refundId, utr = '', settledBy = 'Super Admin', io 
 const updateRefundUtr = async ({ refundId, utr, updatedBy = 'Super Admin' }) => {
   try {
     const cleanUtr = (utr || '').trim();
-    const refund = await Refund.findById(refundId);
+    const refund = await prisma.refund.findFirst({
+      where: {
+        OR: [{ id: refundId }, { refundId: refundId }]
+      }
+    });
     if (!refund) return { success: false, message: 'Refund not found.' };
 
-    refund.utr = cleanUtr;
-    await refund.save();
+    await prisma.refund.update({
+      where: { id: refund.id },
+      data: { utr: cleanUtr }
+    });
 
-    const order = await Order.findById(refund.orderId);
-    if (order) {
-      order.refundUtr = cleanUtr;
-      await order.save();
+    if (refund.orderId) {
+      await prisma.order.update({
+        where: { id: refund.orderId },
+        data: { refundUtr: cleanUtr }
+      });
     }
 
     return { success: true, message: 'UTR updated successfully.', utr: cleanUtr };
@@ -404,7 +463,7 @@ const updateRefundUtr = async ({ refundId, utr, updatedBy = 'Super Admin' }) => 
   }
 };
 
-// Backward-compatibility alias so any existing caller functions smoothly
+// Backward-compatibility alias
 const processAutomatedRefund = handleOrderCancellation;
 
 module.exports = {

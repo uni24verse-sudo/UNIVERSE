@@ -1,29 +1,41 @@
-const DeviceRegistry = require('../models/DeviceRegistry');
+const prisma = require('../config/prisma');
 const axios = require('axios');
 
 /**
  * Sends a push notification to all active devices for a given store
- * and automatically prunes invalid tokens.
+ * and automatically prunes invalid tokens using PostgreSQL / Prisma.
  */
 const sendStoreNotification = async (storeId, title, body, data = {}, categoryId = null, badgeCount = undefined, channelId = 'default') => {
   try {
+    if (!storeId) return;
+
     // 1. Find all active devices for this store
-    const devices = await DeviceRegistry.find({ storeId, active: true });
+    const devices = await prisma.deviceRegistry.findMany({
+      where: {
+        storeId: String(storeId),
+        active: true
+      }
+    });
+
     console.log(`[PushService] Found ${devices?.length || 0} active devices for store ${storeId}`);
     if (!devices || devices.length === 0) return;
 
     let messages = [];
     for (let device of devices) {
+      const token = device.pushToken || device.token;
       // Basic validation
-      if (!device.pushToken || !device.pushToken.startsWith('ExponentPushToken')) {
-        console.error(`Push token ${device.pushToken} is not a valid Expo push token`);
-        await DeviceRegistry.findByIdAndUpdate(device._id, { active: false });
+      if (!token || !token.startsWith('ExponentPushToken')) {
+        console.error(`[PushService] Token ${token} is not a valid Expo push token`);
+        await prisma.deviceRegistry.update({
+          where: { id: device.id },
+          data: { active: false }
+        }).catch(() => {});
         continue;
       }
 
       // Construct the message exactly as Expo expects via REST API
       let pushMessage = {
-        to: device.pushToken,
+        to: token,
         sound: 'default', // Ignored on Android when channelId is provided
         title: title,
         body: body,
@@ -53,7 +65,7 @@ const sendStoreNotification = async (storeId, title, body, data = {}, categoryId
     console.log(`[PushService] Expo Response:`, response.data);
 
     // 3. Handle errors/receipts (Prune invalid tokens)
-    const tickets = response.data.data;
+    const tickets = response.data?.data;
     let invalidTokens = [];
     
     if (Array.isArray(tickets)) {
@@ -66,14 +78,19 @@ const sendStoreNotification = async (storeId, title, body, data = {}, categoryId
     }
 
     if (invalidTokens.length > 0) {
-      console.log(`Deactivating ${invalidTokens.length} invalid push tokens`);
-      await DeviceRegistry.updateMany(
-        { pushToken: { $in: invalidTokens } },
-        { active: false }
-      );
+      console.log(`[PushService] Deactivating ${invalidTokens.length} invalid push tokens`);
+      await prisma.deviceRegistry.updateMany({
+        where: {
+          OR: [
+            { pushToken: { in: invalidTokens } },
+            { token: { in: invalidTokens } }
+          ]
+        },
+        data: { active: false }
+      }).catch(() => {});
     }
   } catch (error) {
-    console.error('Push Service Error:', error.response?.data || error.message);
+    console.error('[PushService] Push Service Error:', error.response?.data || error.message);
   }
 };
 

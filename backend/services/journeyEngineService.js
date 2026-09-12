@@ -1,10 +1,7 @@
-const Journey = require('../models/Journey');
-const UserJourneyState = require('../models/UserJourneyState');
-const MasterTemplate = require('../models/MasterTemplate');
-const ChannelAccount = require('../models/ChannelAccount');
+const crypto = require('crypto');
+const prisma = require('../config/prisma');
 const whatsappMultiDeviceService = require('./whatsappMultiDeviceService');
 const emailMultiAccountService = require('./emailMultiAccountService');
-const Order = require('../models/Order');
 
 class JourneyEngineService {
   constructor() {
@@ -29,15 +26,19 @@ class JourneyEngineService {
    */
   async enrollUser(journeyId, { userId, userType = 'Student', name = 'Student', phone = '', email = '', metadata = {}, isTest = false }) {
     try {
-      const journey = await Journey.findById(journeyId);
+      const journey = await prisma.journey.findUnique({
+        where: { id: String(journeyId) }
+      });
       if (!journey) return null;
       if (!isTest && journey.status !== 'Active') return null;
 
+      const nodes = Array.isArray(journey.nodes) ? journey.nodes : [];
+
       // Find initial trigger node
-      const triggerNode = journey.nodes.find(n => n.type === 'trigger');
+      const triggerNode = nodes.find(n => n.type === 'trigger');
       if (!triggerNode || !triggerNode.nextNodeId) return null;
 
-      const firstActiveNode = journey.nodes.find(n => n.id === triggerNode.nextNodeId);
+      const firstActiveNode = nodes.find(n => n.id === triggerNode.nextNodeId);
       if (!firstActiveNode) return null;
 
       let scheduledTime = new Date();
@@ -49,46 +50,57 @@ class JourneyEngineService {
       // Prevent duplicate enrollment for the same order in the same journey
       const orderIdentifier = metadata?.orderId || metadata?.orderNumber;
       if (orderIdentifier) {
-        const existingState = await UserJourneyState.findOne({
-          journeyId: journey._id,
-          status: { $in: ['Pending', 'Waiting_Event'] },
-          $or: [
-            { 'metadata.orderId': orderIdentifier.toString() },
-            { 'metadata.orderNumber': orderIdentifier.toString() }
-          ]
+        const activeStates = await prisma.userJourneyState.findMany({
+          where: {
+            journeyId: journey.id,
+            status: { in: ['Pending', 'Waiting_Event'] }
+          }
         });
+        const existingState = activeStates.find(s => {
+          const m = s.metadata || {};
+          return String(m.orderId) === String(orderIdentifier) || String(m.orderNumber) === String(orderIdentifier);
+        });
+
         if (existingState) {
           console.log(`[JourneyEngine] Order ${orderIdentifier} already active in "${journey.name}" - skipping duplicate enrollment.`);
           return existingState;
         }
       }
 
-      const state = new UserJourneyState({
-        journeyId: journey._id,
-        userId: userId || null,
-        userType,
-        name: name || 'Student',
-        phone: phone || '',
-        email: email || '',
-        metadata: metadata || {},
-        currentNodeId: firstActiveNode.id,
-        scheduledExecutionTime: scheduledTime,
-        status: 'Pending',
-        history: [{
-          nodeId: triggerNode.id,
-          action: 'trigger_fired',
-          status: 'Simulated',
-          renderedBody: `Trigger event "${journey.triggerType || 'Order Placed'}" fired.`,
-          executedAt: new Date()
-        }]
+      const stateId = crypto.randomUUID();
+      const initialHistory = [{
+        nodeId: triggerNode.id,
+        action: 'trigger_fired',
+        status: 'Simulated',
+        renderedBody: `Trigger event "${journey.triggerType || 'Order Placed'}" fired.`,
+        executedAt: new Date()
+      }];
+
+      const state = await prisma.userJourneyState.create({
+        data: {
+          id: stateId,
+          journeyId: journey.id,
+          userId: userId ? String(userId) : '',
+          userType,
+          name: name || 'Student',
+          phone: phone || '',
+          email: email || '',
+          metadata: metadata || {},
+          currentNodeId: firstActiveNode.id,
+          scheduledExecutionTime: scheduledTime,
+          status: 'Pending',
+          history: initialHistory
+        }
       });
 
-      await state.save();
-      await Journey.findByIdAndUpdate(journey._id, { $inc: { totalEnrolled: 1 } });
+      await prisma.journey.update({
+        where: { id: journey.id },
+        data: { totalEnrolled: { increment: 1 } }
+      });
       console.log(`[JourneyEngine] Enrolled user ${name} (${phone}) into "${journey.name}" at node ${firstActiveNode.id}`);
 
-      // Attach populated journey so executeNode can access journey.nodes directly
-      state.journeyId = journey;
+      // Attach journey model for immediate in-memory node execution
+      state.journey = journey;
 
       // If first node is an immediate action/condition, execute it right away
       if (firstActiveNode.type !== 'delay' && firstActiveNode.type !== 'wait_event') {
@@ -107,10 +119,13 @@ class JourneyEngineService {
    */
   async triggerEvent(triggerType, userDetails) {
     try {
-      const activeJourneys = await Journey.find({ triggerType, status: 'Active' });
+      const activeJourneys = await prisma.journey.findMany({
+        where: { triggerType, status: 'Active' }
+      });
+
       if (activeJourneys.length > 0) {
         for (const journey of activeJourneys) {
-          await this.enrollUser(journey._id, userDetails);
+          await this.enrollUser(journey.id, userDetails);
         }
         return;
       }
@@ -180,10 +195,14 @@ class JourneyEngineService {
 
     try {
       const now = new Date();
-      const dueStates = await UserJourneyState.find({
-        status: 'Pending',
-        scheduledExecutionTime: { $lte: now }
-      }).limit(50).populate('journeyId');
+      const dueStates = await prisma.userJourneyState.findMany({
+        where: {
+          status: 'Pending',
+          scheduledExecutionTime: { lte: now }
+        },
+        take: 50,
+        include: { journey: true }
+      });
 
       for (const state of dueStates) {
         await this.executeNode(state);
@@ -202,34 +221,39 @@ class JourneyEngineService {
     try {
       if (!orderId) return;
       const orderIdStr = orderId.toString();
-
       const orderNumStr = (orderDetails?.metadata?.orderNumber || orderDetails?.metadata?.orderId || '').toString();
 
-      const query = {
-        status: { $in: ['Pending', 'Waiting_Event'] },
-        $or: [
-          { 'metadata.orderId': orderIdStr },
-          { 'metadata.orderNumber': orderIdStr }
-        ]
-      };
-      if (orderNumStr) {
-        query.$or.push({ 'metadata.orderId': orderNumStr });
-        query.$or.push({ 'metadata.orderNumber': orderNumStr });
-      }
+      const candidateStates = await prisma.userJourneyState.findMany({
+        where: {
+          status: { in: ['Pending', 'Waiting_Event'] }
+        },
+        include: { journey: true }
+      });
 
-      const activeStates = await UserJourneyState.find(query).populate('journeyId');
+      const activeStates = candidateStates.filter(s => {
+        const m = s.metadata || {};
+        const sOrderId = String(m.orderId || '');
+        const sOrderNum = String(m.orderNumber || '');
+        return (
+          (orderIdStr && (sOrderId === orderIdStr || sOrderNum === orderIdStr)) ||
+          (orderNumStr && (sOrderId === orderNumStr || sOrderNum === orderNumStr))
+        );
+      });
+
       let resumedCount = 0;
 
       for (const state of activeStates) {
-        const journey = state.journeyId;
+        const journey = state.journey;
         if (!journey || journey.status !== 'Active') continue;
 
-        const node = journey.nodes.find(n => n.id === state.currentNodeId);
+        const nodes = Array.isArray(journey.nodes) ? journey.nodes : [];
+        const node = nodes.find(n => n.id === state.currentNodeId);
         if (!node) continue;
 
         // Merge updated metadata
+        let updatedMetadata = state.metadata || {};
         if (orderDetails?.metadata) {
-          state.metadata = { ...(state.metadata || {}), ...orderDetails.metadata };
+          updatedMetadata = { ...updatedMetadata, ...orderDetails.metadata };
         }
 
         let nextNodeId = null;
@@ -264,15 +288,21 @@ class JourneyEngineService {
 
         if (nextNodeId) {
           console.log(`[JourneyEngine] Order ${orderIdStr} event "${eventType}" triggered advancement from [${node.label}] to node ${nextNodeId}`);
-          const nextNode = journey.nodes.find(n => n.id === nextNodeId);
+          const nextNode = nodes.find(n => n.id === nextNodeId);
           if (nextNode) {
-            state.currentNodeId = nextNode.id;
-            state.status = 'Pending';
-            state.scheduledExecutionTime = new Date();
-            await state.save();
+            const updatedState = await prisma.userJourneyState.update({
+              where: { id: state.id },
+              data: {
+                currentNodeId: nextNode.id,
+                status: 'Pending',
+                scheduledExecutionTime: new Date(),
+                metadata: updatedMetadata
+              },
+              include: { journey: true }
+            });
             resumedCount++;
             // Execute immediately without delay
-            await this.executeNode(state);
+            await this.executeNode(updatedState);
           }
         }
       }
@@ -288,24 +318,32 @@ class JourneyEngineService {
    */
   async executeNode(state) {
     try {
-      // Ensure journey is fully populated (not just an ObjectId reference)
-      let journey = state.journeyId;
-      if (!journey || !journey.nodes) {
-        // journeyId is an ObjectId ref - need to populate it
-        await state.populate('journeyId');
-        journey = state.journeyId;
+      let journey = state.journey;
+      if (!journey) {
+        journey = await prisma.journey.findUnique({
+          where: { id: String(state.journeyId) }
+        });
       }
+
       if (!journey || journey.status !== 'Active') {
-        state.status = 'Cancelled';
-        await state.save();
+        await prisma.userJourneyState.update({
+          where: { id: state.id },
+          data: { status: 'Cancelled' }
+        });
         return;
       }
 
-      const node = journey.nodes.find(n => n.id === state.currentNodeId);
+      const nodes = Array.isArray(journey.nodes) ? journey.nodes : [];
+      const node = nodes.find(n => n.id === state.currentNodeId);
       if (!node) {
-        state.status = 'Completed';
-        await state.save();
-        await Journey.findByIdAndUpdate(journey._id, { $inc: { totalCompleted: 1 } });
+        await prisma.userJourneyState.update({
+          where: { id: state.id },
+          data: { status: 'Completed' }
+        });
+        await prisma.journey.update({
+          where: { id: journey.id },
+          data: { totalCompleted: { increment: 1 } }
+        });
         return;
       }
 
@@ -325,72 +363,93 @@ class JourneyEngineService {
         nextNodeId = node.nextNodeId;
       } else if (node.type === 'wait_event') {
         // Pause here and wait for real-time order event trigger
-        state.status = 'Waiting_Event';
-        await state.save();
+        await prisma.userJourneyState.update({
+          where: { id: state.id },
+          data: { status: 'Waiting_Event' }
+        });
         console.log(`[JourneyEngine] User ${state.phone} paused at [${node.label}], waiting for event: ${node.config?.eventType || 'order_event'}`);
         return;
       } else if (node.type === 'tag') {
-        // Customer profile tag
         console.log(`[JourneyEngine] Tagged user ${state.phone} with tag "${node.config?.tagName || 'VIP'}"`);
         nextNodeId = node.nextNodeId;
       }
 
       // Check if journey is finished
       if (!nextNodeId) {
-        state.status = 'Completed';
-        await state.save();
-        await Journey.findByIdAndUpdate(journey._id, { $inc: { totalCompleted: 1 } });
+        await prisma.userJourneyState.update({
+          where: { id: state.id },
+          data: { status: 'Completed' }
+        });
+        await prisma.journey.update({
+          where: { id: journey.id },
+          data: { totalCompleted: { increment: 1 } }
+        });
         console.log(`[JourneyEngine] User ${state.phone} completed journey "${journey.name}"`);
         return;
       }
 
       // Advance to next node
-      const nextNode = journey.nodes.find(n => n.id === nextNodeId);
+      const nextNode = nodes.find(n => n.id === nextNodeId);
       if (!nextNode) {
-        state.status = 'Completed';
-        await state.save();
-        await Journey.findByIdAndUpdate(journey._id, { $inc: { totalCompleted: 1 } });
+        await prisma.userJourneyState.update({
+          where: { id: state.id },
+          data: { status: 'Completed' }
+        });
+        await prisma.journey.update({
+          where: { id: journey.id },
+          data: { totalCompleted: { increment: 1 } }
+        });
         return;
       }
 
-      state.currentNodeId = nextNode.id;
+      const history = Array.isArray(state.history) ? [...state.history] : [];
+      let nextStatus = 'Pending';
+      let scheduledTime = new Date();
 
       if (nextNode.type === 'delay') {
         const delayMs = ((nextNode.config?.delayDays || 0) * 86400 + (nextNode.config?.delayHours || 0) * 3600 + (nextNode.config?.delayMinutes || 0) * 60) * 1000;
-        state.scheduledExecutionTime = new Date(Date.now() + Math.max(delayMs, 1000));
-        state.status = 'Pending';
-        state.history.push({
+        scheduledTime = new Date(Date.now() + Math.max(delayMs, 1000));
+        nextStatus = 'Pending';
+        history.push({
           nodeId: nextNode.id,
           action: 'delay_scheduled',
           status: 'Scheduled',
-          renderedBody: `Scheduled wait: ${nextNode.label || 'Timer delay'} (executes at ${state.scheduledExecutionTime.toLocaleTimeString()})`,
+          renderedBody: `Scheduled wait: ${nextNode.label || 'Timer delay'} (executes at ${scheduledTime.toLocaleTimeString()})`,
           executedAt: new Date()
         });
       } else if (nextNode.type === 'wait_event') {
-        state.status = 'Waiting_Event';
-        state.history.push({
+        nextStatus = 'Waiting_Event';
+        history.push({
           nodeId: nextNode.id,
           action: 'waiting_order_event',
           status: 'Listening 24/7',
           renderedBody: `Workflow standing by at [${nextNode.label}]. Awaiting real-time event "${nextNode.config?.eventType || 'Order Event'}" to advance.`,
           executedAt: new Date()
         });
-      } else {
-        state.scheduledExecutionTime = new Date(); // Execute immediately
-        state.status = 'Pending';
       }
 
-      await state.save();
+      const updatedState = await prisma.userJourneyState.update({
+        where: { id: state.id },
+        data: {
+          currentNodeId: nextNode.id,
+          status: nextStatus,
+          scheduledExecutionTime: scheduledTime,
+          history
+        },
+        include: { journey: true }
+      });
 
       // If next node is immediate action or condition, execute immediately
       if (nextNode.type === 'action' || nextNode.type === 'condition' || nextNode.type === 'tag') {
-        await this.executeNode(state);
+        await this.executeNode(updatedState);
       }
 
     } catch (err) {
       console.error(`[JourneyEngine] Error executing node ${state.currentNodeId}:`, err.message);
-      state.status = 'Failed';
-      await state.save();
+      await prisma.userJourneyState.update({
+        where: { id: state.id },
+        data: { status: 'Failed' }
+      }).catch(() => {});
     }
   }
 
@@ -406,21 +465,21 @@ class JourneyEngineService {
       subject: customSubject, 
       btn1Text, 
       btn2Text, 
-      btn3Text,
+      btn3Text, 
       ctaText: customCtaText, 
       ctaLink: customCtaLink,
       headerMediaUrl: customHeaderMediaUrl 
     } = node.config || {};
 
-    // Determine active channel (default to WhatsApp)
     const activeChannel = channel || 'whatsapp';
 
     let template = null;
     if (masterTemplateId) {
-      template = await MasterTemplate.findById(masterTemplateId).catch(() => null);
+      template = await prisma.masterTemplate.findUnique({
+        where: { id: String(masterTemplateId) }
+      }).catch(() => null);
     }
 
-    // Compile dynamic tags with fallback message
     const meta = state.metadata || {};
     let rawBody = customBody || template?.body || '👋 Hi {{name}}, welcome to UniVerse! Order fresh food easily on campus at https://www.universeorder.co.in 🍔🍕';
 
@@ -446,15 +505,18 @@ class JourneyEngineService {
       .replace(/{{reason}}/gi, reasonVal)
       .replace(/{{trackerLink}}/gi, trackerUrl);
 
+    const history = Array.isArray(state.history) ? [...state.history] : [];
+
     if (activeChannel === 'whatsapp' && state.phone) {
       let slotIndex = 1;
       if (channelAccountId) {
-        const channelAccount = await ChannelAccount.findById(channelAccountId).catch(() => null);
+        const channelAccount = await prisma.channelAccount.findUnique({
+          where: { id: String(channelAccountId) }
+        }).catch(() => null);
         if (channelAccount?.slotIndex) slotIndex = channelAccount.slotIndex;
       }
 
-      // Construct dynamic buttons if customized
-      let buttons = template?.buttons || [];
+      let buttons = Array.isArray(template?.buttons) ? template.buttons : [];
       if (btn1Text || btn2Text || btn3Text) {
         buttons = [];
         if (btn1Text) buttons.push({ buttonId: 'btn_1', text: btn1Text, buttonText: { displayText: btn1Text }, type: 1 });
@@ -472,7 +534,7 @@ class JourneyEngineService {
 
       await whatsappMultiDeviceService.sendMessage(slotIndex, state.phone, payload);
 
-      state.history.push({
+      history.push({
         nodeId: node.id,
         action: 'whatsapp_sent',
         channelAccountId,
@@ -482,6 +544,12 @@ class JourneyEngineService {
         slotIndex,
         executedAt: new Date()
       });
+
+      await prisma.userJourneyState.update({
+        where: { id: state.id },
+        data: { history }
+      }).catch(() => {});
+
     } else if (channel === 'email' && state.email) {
       const finalSubject = (customSubject || template?.subject || template?.name || 'UniVerse Campus Update')
         .replace(/{{name}}/gi, state.name || 'Student')
@@ -508,7 +576,7 @@ class JourneyEngineService {
         text: body
       });
 
-      state.history.push({
+      history.push({
         nodeId: node.id,
         action: 'email_sent',
         channelAccountId,
@@ -517,6 +585,11 @@ class JourneyEngineService {
         renderedBody: body,
         executedAt: new Date()
       });
+
+      await prisma.userJourneyState.update({
+        where: { id: state.id },
+        data: { history }
+      }).catch(() => {});
     }
   }
 
@@ -534,18 +607,22 @@ class JourneyEngineService {
 
     if (conditionType === 'has_ordered_in_last_24h' && state.phone) {
       const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-      const count = await Order.countDocuments({
-        customerPhone: state.phone,
-        createdAt: { $gte: oneDayAgo },
-        status: { $in: ['Completed', 'Confirmed', 'Cooking', 'Ready'] }
+      const count = await prisma.order.count({
+        where: {
+          customerPhone: state.phone,
+          createdAt: { gte: oneDayAgo },
+          status: { in: ['Completed', 'Confirmed', 'Cooking', 'Ready'] }
+        }
       });
       return count > 0;
     }
 
     if (conditionType === 'has_completed_orders' && state.phone) {
-      const count = await Order.countDocuments({
-        customerPhone: state.phone,
-        status: 'Completed'
+      const count = await prisma.order.count({
+        where: {
+          customerPhone: state.phone,
+          status: 'Completed'
+        }
       });
       return count > 0;
     }

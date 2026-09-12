@@ -1,13 +1,8 @@
 const express = require('express');
 const router = express.Router();
+const crypto = require('crypto');
 const superAdminAuth = require('../middleware/superAdminAuth');
-const BroadcastCampaign = require('../models/BroadcastCampaign');
-const MasterTemplate = require('../models/MasterTemplate');
-const ChannelAccount = require('../models/ChannelAccount');
-const Journey = require('../models/Journey');
-const UserJourneyState = require('../models/UserJourneyState');
-const Order = require('../models/Order');
-const Admin = require('../models/Admin');
+const prisma = require('../config/prisma');
 const whatsappMultiDeviceService = require('../services/whatsappMultiDeviceService');
 const emailMultiAccountService = require('../services/emailMultiAccountService');
 const journeyEngineService = require('../services/journeyEngineService');
@@ -19,11 +14,26 @@ router.use(superAdminAuth);
  */
 router.get('/campaigns', async (req, res) => {
   try {
-    const campaigns = await BroadcastCampaign.find()
-      .populate('channelAccountId', 'nickname phoneNumber emailConfig slotIndex')
-      .populate('masterTemplateId', 'name channel category body')
-      .sort({ createdAt: -1 });
-    res.json(campaigns);
+    const campaigns = await prisma.broadcastCampaign.findMany({
+      include: {
+        channelAccount: {
+          select: { id: true, nickname: true, phoneNumber: true, emailConfig: true, slotIndex: true }
+        },
+        template: {
+          select: { id: true, name: true, channel: true, category: true, body: true }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    const mapped = campaigns.map(c => ({
+      ...c,
+      _id: c.id,
+      channelAccountId: c.channelAccount ? { ...c.channelAccount, _id: c.channelAccount.id } : null,
+      masterTemplateId: c.template ? { ...c.template, _id: c.template.id } : null
+    }));
+
+    res.json(mapped);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -48,10 +58,14 @@ router.post('/dispatch', async (req, res) => {
       return res.status(400).json({ message: 'Campaign name, channel, sender account, and template are required.' });
     }
 
-    const template = await MasterTemplate.findById(masterTemplateId);
+    const template = await prisma.masterTemplate.findUnique({
+      where: { id: String(masterTemplateId) }
+    });
     if (!template) return res.status(404).json({ message: 'Template not found' });
 
-    const channelAccount = await ChannelAccount.findById(channelAccountId);
+    const channelAccount = await prisma.channelAccount.findUnique({
+      where: { id: String(channelAccountId) }
+    });
     if (!channelAccount) return res.status(404).json({ message: 'Channel sender account not found' });
 
     // Build recipient list based on audience
@@ -64,14 +78,17 @@ router.post('/dispatch', async (req, res) => {
         email: ''
       }));
     } else if (targetAudience === 'All Vendors') {
-      const vendors = await Admin.find({ role: 'vendor' });
+      const vendors = await prisma.admin.findMany({ where: { role: 'vendor' } });
       recipients = vendors.map(v => ({
-        phone: v.whatsappNumber || v.phone || '',
+        phone: v.telegramChatId || '', // fallback
         name: v.name || '',
         email: v.email || ''
       })).filter(r => r.phone || r.email);
     } else if (targetAudience === 'All Students' || targetAudience === 'Campus Zone Users') {
-      const orders = await Order.find({ customerPhone: { $exists: true, $ne: '' } }).sort({ createdAt: -1 });
+      const orders = await prisma.order.findMany({
+        where: { customerPhone: { not: '' } },
+        orderBy: { createdAt: 'desc' }
+      });
       const phoneMap = new Map();
       orders.forEach(o => {
         if (o.customerPhone && !phoneMap.has(o.customerPhone)) {
@@ -89,34 +106,39 @@ router.post('/dispatch', async (req, res) => {
       return res.status(400).json({ message: 'No valid recipients found for this target audience.' });
     }
 
-    // Create campaign record
-    const campaign = new BroadcastCampaign({
-      name,
-      channel,
-      channelAccountId,
-      masterTemplateId,
-      targetAudience,
-      customFilters: { customNumbers, customEmails },
-      stats: {
-        totalRecipients: recipients.length,
-        sentCount: 0,
-        deliveredCount: 0,
-        failedCount: 0
-      },
-      status: 'In-Progress',
-      startedAt: new Date()
-    });
+    const campaignId = crypto.randomUUID();
+    const statsObj = {
+      totalRecipients: recipients.length,
+      sentCount: 0,
+      deliveredCount: 0,
+      failedCount: 0
+    };
 
-    await campaign.save();
+    const campaign = await prisma.broadcastCampaign.create({
+      data: {
+        id: campaignId,
+        name,
+        channel,
+        channelAccountId: channelAccount.id,
+        masterTemplateId: template.id,
+        targetAudience: targetAudience || 'All Students',
+        customFilters: { customNumbers, customEmails },
+        stats: statsObj,
+        totalRecipients: recipients.length,
+        status: 'In-Progress',
+        startedAt: new Date()
+      }
+    });
 
     // Async execution of broadcast queue
     const io = req.app.get('io');
-    executeBroadcastAsync(campaign._id, channelAccount, template, recipients, io);
+    executeBroadcastAsync(campaign.id, channelAccount, template, recipients, io);
 
     res.json({
       success: true,
       message: `Broadcast "${name}" initiated for ${recipients.length} recipients.`,
-      campaignId: campaign._id,
+      campaignId: campaign.id,
+      _id: campaign.id,
       totalRecipients: recipients.length
     });
 
@@ -162,7 +184,7 @@ async function executeBroadcastAsync(campaignId, channelAccount, template, recip
           headerMediaUrl: template.headerMediaUrl,
           body,
           footer: template.footer,
-          buttons: template.buttons
+          buttons: Array.isArray(template.buttons) ? template.buttons : []
         };
 
         try {
@@ -193,7 +215,7 @@ async function executeBroadcastAsync(campaignId, channelAccount, template, recip
             ${template.emailCtaText ? `<div style="margin: 2rem 0; text-align: center;"><a href="${template.emailCtaUrl}" style="background: #ef4123; color: white; padding: 0.8rem 2rem; border-radius: 100px; text-decoration: none; font-weight: bold;">${template.emailCtaText}</a></div>` : ''}
           </div>
         `;
-        await emailMultiAccountService.sendEmail(channelAccount._id, {
+        await emailMultiAccountService.sendEmail(channelAccount.id, {
           to: recipient.email,
           subject: template.subject || template.name,
           html,
@@ -204,7 +226,7 @@ async function executeBroadcastAsync(campaignId, channelAccount, template, recip
       }
       sentCount++;
     } catch (err) {
-      console.error(`Broadcast error for recipient ${recipient.phone || recipient.email}:`, err.message);
+      console.error(`[Broadcast] Error for recipient ${recipient.phone || recipient.email}:`, err.message);
       lastErrorMsg = err.message;
       failedCount++;
       logs.push({ recipient: recipient.phone || recipient.email, status: 'Failed', error: err.message });
@@ -228,15 +250,24 @@ async function executeBroadcastAsync(campaignId, channelAccount, template, recip
 
   // Finalize campaign stats
   const finalStatus = failedCount === recipients.length ? 'Failed' : (failedCount > 0 ? 'Partial' : 'Completed');
-  await BroadcastCampaign.findByIdAndUpdate(campaignId, {
-    status: finalStatus,
-    lastError: lastErrorMsg,
-    logs: logs.slice(0, 100),
-    'stats.sentCount': sentCount,
-    'stats.deliveredCount': deliveredCount,
-    'stats.failedCount': failedCount,
-    completedAt: new Date()
-  });
+  await prisma.broadcastCampaign.update({
+    where: { id: campaignId },
+    data: {
+      status: finalStatus,
+      lastError: lastErrorMsg,
+      logs: logs.slice(0, 100),
+      sentCount,
+      deliveredCount,
+      failedCount,
+      stats: {
+        totalRecipients: recipients.length,
+        sentCount,
+        deliveredCount,
+        failedCount
+      },
+      completedAt: new Date()
+    }
+  }).catch(() => {});
 
   if (io) {
     const finalData = {
@@ -259,17 +290,27 @@ async function executeBroadcastAsync(campaignId, channelAccount, template, recip
  */
 router.get('/campaigns/:id/status', async (req, res) => {
   try {
-    const campaign = await BroadcastCampaign.findById(req.params.id);
+    const campaign = await prisma.broadcastCampaign.findUnique({
+      where: { id: req.params.id }
+    });
     if (!campaign) return res.status(404).json({ message: 'Campaign not found' });
     
-    const total = campaign.stats?.totalRecipients || 1;
-    const sent = (campaign.stats?.sentCount || 0) + (campaign.stats?.failedCount || 0);
+    const stats = campaign.stats && typeof campaign.stats === 'object' ? campaign.stats : {};
+    const total = stats.totalRecipients || campaign.totalRecipients || 1;
+    const sent = (stats.sentCount || campaign.sentCount || 0) + (stats.failedCount || campaign.failedCount || 0);
     const progressPercent = Math.min(100, Math.round((sent / total) * 100));
 
     res.json({
-      campaignId: campaign._id,
+      campaignId: campaign.id,
+      _id: campaign.id,
       status: campaign.status,
-      stats: campaign.stats,
+      stats: {
+        totalRecipients: campaign.totalRecipients,
+        sentCount: campaign.sentCount,
+        deliveredCount: campaign.deliveredCount,
+        failedCount: campaign.failedCount,
+        ...stats
+      },
       progressPercent: campaign.status === 'Completed' ? 100 : progressPercent
     });
   } catch (err) {
@@ -282,8 +323,10 @@ router.get('/campaigns/:id/status', async (req, res) => {
  */
 router.get('/journeys', async (req, res) => {
   try {
-    const journeys = await Journey.find().sort({ updatedAt: -1 });
-    res.json(journeys);
+    const journeys = await prisma.journey.findMany({
+      orderBy: { updatedAt: 'desc' }
+    });
+    res.json(journeys.map(j => ({ ...j, _id: j.id })));
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -299,16 +342,18 @@ router.post('/journeys', async (req, res) => {
       return res.status(400).json({ message: 'Name and triggerType are required.' });
     }
 
-    const journey = new Journey({
-      name,
-      description: description || '',
-      triggerType,
-      nodes: nodes || [],
-      status: status || 'Draft'
+    const journey = await prisma.journey.create({
+      data: {
+        id: crypto.randomUUID(),
+        name,
+        description: description || '',
+        triggerType,
+        nodes: nodes || [],
+        status: status || 'Draft'
+      }
     });
 
-    await journey.save();
-    res.status(201).json(journey);
+    res.status(201).json({ ...journey, _id: journey.id });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -319,12 +364,19 @@ router.post('/journeys', async (req, res) => {
  */
 router.put('/journeys/:id', async (req, res) => {
   try {
-    const updated = await Journey.findByIdAndUpdate(
-      req.params.id,
-      { ...req.body, updatedAt: new Date() },
-      { new: true }
-    );
-    res.json(updated);
+    const { name, description, triggerType, nodes, status } = req.body;
+    const updateData = {};
+    if (name !== undefined) updateData.name = name;
+    if (description !== undefined) updateData.description = description;
+    if (triggerType !== undefined) updateData.triggerType = triggerType;
+    if (nodes !== undefined) updateData.nodes = nodes;
+    if (status !== undefined) updateData.status = status;
+
+    const updated = await prisma.journey.update({
+      where: { id: req.params.id },
+      data: updateData
+    });
+    res.json({ ...updated, _id: updated.id });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -335,7 +387,9 @@ router.put('/journeys/:id', async (req, res) => {
  */
 router.delete('/journeys/:id', async (req, res) => {
   try {
-    await Journey.findByIdAndDelete(req.params.id);
+    await prisma.journey.delete({
+      where: { id: req.params.id }
+    });
     res.json({ success: true, message: 'Journey deleted.' });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -352,7 +406,9 @@ router.post('/journeys/:id/enroll-test', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Phone number or email is required for test enrollment.' });
     }
 
-    const journey = await Journey.findById(req.params.id);
+    const journey = await prisma.journey.findUnique({
+      where: { id: req.params.id }
+    });
     if (!journey) {
       return res.status(404).json({ success: false, message: 'Journey not found in AWS RDS.' });
     }
@@ -377,7 +433,9 @@ router.post('/journeys/:id/enroll-test', async (req, res) => {
     }
 
     // Fetch refreshed state with execution history
-    const finalState = await UserJourneyState.findById(enrolledState._id);
+    const finalState = await prisma.userJourneyState.findUnique({
+      where: { id: enrolledState.id }
+    });
 
     // Map trace with journey node labels for rich visual timeline
     const nodeMap = {};
@@ -401,7 +459,7 @@ router.post('/journeys/:id/enroll-test', async (req, res) => {
     res.json({
       success: true,
       message: `Trigger Simulated: Executed live workflow for ${name || phone}!`,
-      state: finalState,
+      state: { ...finalState, _id: finalState?.id },
       executionTrace
     });
   } catch (err) {

@@ -1,14 +1,13 @@
 const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
-const Store = require('../models/Store');
-const Admin = require('../models/Admin');
+const prisma = require('../config/prisma');
 const storeRepository = require('../repositories/storeRepository');
+const { normalizeStore } = require('../utils/pgAdapter');
 const telegramService = require('../services/telegramService');
 const multer = require('multer');
 const cloudinary = require('cloudinary').v2;
 const { Readable } = require('stream');
-const Order = require('../models/Order');
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -33,8 +32,7 @@ router.post('/create', auth, async (req, res) => {
     let finalMarket = market || 'BH1 Market';
 
     if (locationId) {
-      const Location = require('../models/Location');
-      const loc = await Location.findById(locationId).catch(() => null);
+      const loc = await prisma.location.findUnique({ where: { id: String(locationId) } }).catch(() => null);
       if (loc && loc.type === 'External') {
         finalMarket = loc.name;
       }
@@ -50,19 +48,6 @@ router.post('/create', auth, async (req, res) => {
       upiId: upiId || '',
       telegramChatId: telegramChatId || ''
     });
-
-    // Dual-write fallback to MongoDB in background
-    new Store({
-      _id: savedStore._id,
-      admin: adminId,
-      name,
-      category: category || 'General',
-      market: finalMarket,
-      locationId: locationId || null,
-      upiId: upiId || '',
-      telegramChatId: telegramChatId || '',
-      products: []
-    }).save().catch(() => {});
 
     res.status(201).json(savedStore);
   } catch (err) {
@@ -85,83 +70,95 @@ router.get('/my-stores', auth, async (req, res) => {
 router.get('/trending', async (req, res) => {
   try {
     const { locationId } = req.query;
-    let trendingItems = [];
 
-    const pipeline = [
-      { $match: { status: 'Completed' } },
-      { $unwind: '$items' },
-      { $group: { _id: '$items.productId', count: { $sum: '$items.quantity' } } },
-      { $sort: { count: -1 } },
-      { $limit: 15 }
-    ];
-
-    const topProductIds = await Order.aggregate(pipeline);
-
-    // 2. Fetch the actual product details for these top product IDs in PARALLEL
-    const storePromises = topProductIds.map(async (item) => {
-      if (!item._id) return null;
-      
-      const store = await Store.findOne({
-        'products._id': item._id,
-        isHidden: false,
-        name: { $ne: 'Hhh' },
-        ...(locationId ? { locationId: locationId } : {})
-      }, { 'products.$': 1, name: 1, market: 1, _id: 1, isOpen: 1 });
-
-      if (store && store.products && store.products.length > 0) {
-        const product = store.products[0];
-        return {
-          storeId: store._id,
-          storeName: store.name,
-          market: store.market,
-          isOpen: store.isOpen,
-          productId: product._id,
-          name: product.name,
-          price: product.price,
-          image: product.image,
-          category: product.category,
-          isAvailable: product.isAvailable !== false, // default true
-          orderCount: item.count
-        };
-      }
-      return null;
+    const completedOrders = await prisma.order.findMany({
+      where: { status: 'Completed' },
+      take: 500,
+      orderBy: { createdAt: 'desc' },
+      select: { items: true, storeId: true }
     });
 
-    const resolvedStores = await Promise.all(storePromises);
-    trendingItems = resolvedStores.filter(item => item !== null);
+    const frequencyMap = {};
+    completedOrders.forEach(order => {
+      const items = Array.isArray(order.items) ? order.items : [];
+      items.forEach(item => {
+        const pId = String(item.productId || item.id || '');
+        if (pId) {
+          frequencyMap[pId] = (frequencyMap[pId] || 0) + (Number(item.quantity) || 1);
+        }
+      });
+    });
 
-    // 3. Fallback: If not enough real trending data, fill it up with items that have images
-    if (trendingItems.length < 8) {
-      const fallbackStores = await Store.aggregate([
-        { $match: { isHidden: false, name: { $ne: 'Hhh' }, ...(locationId ? { locationId: mongoose.Types.ObjectId(locationId) } : {}) } },
-        { $unwind: '$products' },
-        { $match: { 'products.image': { $exists: true, $ne: '' } } },
-        { $sample: { size: 10 } }
-      ]);
-      
-      fallbackStores.forEach(fs => {
-        // Only add if not already in trendingItems
-        if (!trendingItems.some(ti => ti.productId.toString() === fs.products._id.toString())) {
+    const storeFilter = {
+      isHidden: false,
+      name: { not: 'Hhh' }
+    };
+    if (locationId) {
+      storeFilter.locationId = String(locationId);
+    }
+
+    const activeStores = await prisma.store.findMany({
+      where: storeFilter
+    });
+
+    const trendingItems = [];
+    for (const store of activeStores) {
+      const products = Array.isArray(store.products) ? store.products : [];
+      products.forEach(p => {
+        const pId = String(p._id || p.id);
+        const count = frequencyMap[pId] || 0;
+        if (count > 0) {
           trendingItems.push({
-            storeId: fs._id,
-            storeName: fs.name,
-            market: fs.market,
-            isOpen: fs.isOpen !== false,
-            productId: fs.products._id,
-            name: fs.products.name,
-            price: fs.products.price,
-            image: fs.products.image,
-            category: fs.products.category,
-            isAvailable: fs.products.isAvailable !== false,
-            orderCount: Math.floor(Math.random() * 20) + 5 // fake count for visual consistency
+            storeId: store.id,
+            _id: pId,
+            storeName: store.name,
+            market: store.market,
+            isOpen: store.isOpen,
+            productId: pId,
+            name: p.name,
+            price: p.price,
+            image: p.image,
+            category: p.category,
+            isAvailable: p.isAvailable !== false,
+            orderCount: count
           });
         }
       });
     }
 
-    res.json(trendingItems);
+    trendingItems.sort((a, b) => b.orderCount - a.orderCount);
+
+    // If not enough trending items, fallback to items with images
+    if (trendingItems.length < 8) {
+      for (const store of activeStores) {
+        const products = Array.isArray(store.products) ? store.products : [];
+        for (const p of products) {
+          const pId = String(p._id || p.id);
+          if (p.image && !trendingItems.some(ti => ti.productId === pId)) {
+            trendingItems.push({
+              storeId: store.id,
+              _id: pId,
+              storeName: store.name,
+              market: store.market,
+              isOpen: store.isOpen,
+              productId: pId,
+              name: p.name,
+              price: p.price,
+              image: p.image,
+              category: p.category,
+              isAvailable: p.isAvailable !== false,
+              orderCount: 5
+            });
+            if (trendingItems.length >= 15) break;
+          }
+        }
+        if (trendingItems.length >= 15) break;
+      }
+    }
+
+    res.json(trendingItems.slice(0, 15));
   } catch (err) {
-    console.error('Trending items error:', err);
+    console.error('[store.trending] Error:', err);
     res.status(500).json({ message: err.message });
   }
 });
@@ -170,45 +167,63 @@ router.get('/trending', async (req, res) => {
 router.get('/global/search', async (req, res) => {
   try {
     const { q, locationId } = req.query;
-    if (!q) return res.json({ stores: [], dishes: [] });
+    if (!q || !q.trim()) return res.json({ stores: [], dishes: [] });
 
-    // Escape special regex characters
-    const escapedQuery = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const regex = new RegExp(escapedQuery, 'i');
+    const queryLower = q.trim().toLowerCase();
 
-    const filter = { isHidden: { $ne: true } };
+    const where = { isHidden: false };
     if (locationId) {
-      filter.locationId = locationId;
+      where.locationId = String(locationId);
     }
 
-    const stores = await Store.find(filter, 'name category products _id isOpen image market priority')
-      .populate('admin', 'name')
-      .sort({ priority: 1, createdAt: -1 });
+    const stores = await prisma.store.findMany({
+      where,
+      include: { admin: { select: { name: true } } },
+      orderBy: [{ priority: 'asc' }, { createdAt: 'desc' }]
+    });
+
     const matchedStores = [];
     const matchedDishes = [];
 
     stores.forEach(store => {
-       if (regex.test(store.name) || regex.test(store.category)) {
-           matchedStores.push({
-               _id: store._id,
-               name: store.name,
-               category: store.category,
-               image: store.image,
-               isOpen: store.isOpen,
-               market: store.market,
-               adminName: store.admin?.name
-           });
-       }
-       
-       const matchingProducts = store.products.filter(p => regex.test(p.name) || regex.test(p.category) || (p.description && regex.test(p.description)));
-       if (matchingProducts.length > 0) {
-           matchedDishes.push({
-               _id: store._id,
-               name: store.name,
-               market: store.market,
-               matchedProducts: matchingProducts.map(p => ({ name: p.name, price: p.price, _id: p._id }))
-           });
-       }
+      const storeName = (store.name || '').toLowerCase();
+      const storeCat = (store.category || '').toLowerCase();
+
+      if (storeName.includes(queryLower) || storeCat.includes(queryLower)) {
+        matchedStores.push({
+          _id: store.id,
+          id: store.id,
+          name: store.name,
+          category: store.category,
+          image: store.image,
+          isOpen: store.isOpen,
+          market: store.market,
+          adminName: store.admin?.name
+        });
+      }
+      
+      const products = Array.isArray(store.products) ? store.products : [];
+      const matchingProducts = products.filter(p => {
+        const pName = (p.name || '').toLowerCase();
+        const pCat = (p.category || '').toLowerCase();
+        const pDesc = (p.description || '').toLowerCase();
+        return pName.includes(queryLower) || pCat.includes(queryLower) || pDesc.includes(queryLower);
+      });
+
+      if (matchingProducts.length > 0) {
+        matchedDishes.push({
+          _id: store.id,
+          id: store.id,
+          name: store.name,
+          market: store.market,
+          matchedProducts: matchingProducts.map(p => ({
+            _id: p._id || p.id,
+            id: p._id || p.id,
+            name: p.name,
+            price: p.price
+          }))
+        });
+      }
     });
 
     res.json({ stores: matchedStores, dishes: matchedDishes });
@@ -242,7 +257,13 @@ router.get('/:id', async (req, res) => {
 // Update Store Image (Protected)
 router.put('/:storeId/update-image', auth, upload.single('imageFile'), async (req, res) => {
   try {
-    const store = await Store.findOne({ _id: req.params.storeId, admin: req.admin._id });
+    const adminId = req.admin.id || req.admin._id;
+    const store = await prisma.store.findFirst({
+      where: {
+        id: req.params.storeId,
+        ...(req.admin.role !== 'superadmin' && { adminId: String(adminId) })
+      }
+    });
     if (!store) return res.status(404).json({ message: 'Store not found or unauthorized' });
 
     if (req.file) {
@@ -256,9 +277,12 @@ router.put('/:storeId/update-image', auth, upload.single('imageFile'), async (re
         );
         bufferToStream(req.file.buffer).pipe(stream);
       });
-      store.image = uploadResult.secure_url;
-      await store.save();
-      res.json(store);
+
+      const updated = await prisma.store.update({
+        where: { id: store.id },
+        data: { image: uploadResult.secure_url }
+      });
+      res.json(normalizeStore(updated));
     } else {
       res.status(400).json({ message: 'No image file provided' });
     }
@@ -267,14 +291,22 @@ router.put('/:storeId/update-image', auth, upload.single('imageFile'), async (re
   }
 });
 
-// Update Store Image (Protected)
+// Update Store Category Image (Protected)
 router.put('/:storeId/category-image', auth, upload.single('imageFile'), async (req, res) => {
   try {
     const { categoryName } = req.body;
     if (!categoryName) return res.status(400).json({ message: 'Category name is required' });
 
-    const store = await Store.findOne({ _id: req.params.storeId, admin: req.admin._id });
+    const adminId = req.admin.id || req.admin._id;
+    const store = await prisma.store.findFirst({
+      where: {
+        id: req.params.storeId,
+        ...(req.admin.role !== 'superadmin' && { adminId: String(adminId) })
+      }
+    });
     if (!store) return res.status(404).json({ message: 'Store not found or unauthorized' });
+
+    let newImageUrl = req.body.imageUrl;
 
     if (req.file) {
       const uploadResult = await new Promise((resolve, reject) => {
@@ -287,29 +319,27 @@ router.put('/:storeId/category-image', auth, upload.single('imageFile'), async (
         );
         bufferToStream(req.file.buffer).pipe(stream);
       });
-      
-      const existingIdx = store.categoryImages.findIndex(c => c.categoryName === categoryName);
-      if (existingIdx !== -1) {
-        store.categoryImages[existingIdx].image = uploadResult.secure_url;
-      } else {
-        store.categoryImages.push({ categoryName, image: uploadResult.secure_url });
-      }
-      
-      await store.save();
-      res.json(store);
-    } else if (req.body.imageUrl) {
-      const existingIdx = store.categoryImages.findIndex(c => c.categoryName === categoryName);
-      if (existingIdx !== -1) {
-        store.categoryImages[existingIdx].image = req.body.imageUrl;
-      } else {
-        store.categoryImages.push({ categoryName, image: req.body.imageUrl });
-      }
-      
-      await store.save();
-      res.json(store);
-    } else {
-      res.status(400).json({ message: 'No image file or URL provided' });
+      newImageUrl = uploadResult.secure_url;
     }
+
+    if (!newImageUrl) {
+      return res.status(400).json({ message: 'No image file or URL provided' });
+    }
+
+    const categoryImages = Array.isArray(store.categoryImages) ? [...store.categoryImages] : [];
+    const existingIdx = categoryImages.findIndex(c => c.categoryName === categoryName);
+    if (existingIdx !== -1) {
+      categoryImages[existingIdx].image = newImageUrl;
+    } else {
+      categoryImages.push({ categoryName, image: newImageUrl });
+    }
+
+    const updated = await prisma.store.update({
+      where: { id: store.id },
+      data: { categoryImages }
+    });
+
+    res.json(normalizeStore(updated));
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -388,7 +418,6 @@ router.put('/:storeId/product/:productId/toggle', auth, async (req, res) => {
     const result = await storeRepository.toggleProduct(req.params.storeId, adminId, req.params.productId);
     if (!result) return res.status(404).json({ message: 'Product or store not found' });
 
-    // Broadcast availability change globally (frontend filters by storeId)
     const io = req.app.get('io');
     if (io) {
       io.emit('product_availability_update', {
@@ -459,10 +488,8 @@ router.put('/:storeId/toggle-status', auth, async (req, res) => {
     const store = await storeRepository.toggleStatus(req.params.storeId, adminId);
     if (!store) return res.status(404).json({ message: 'Store not found' });
 
-    // Notify via Telegram
     telegramService.sendStatusAlert(store, store.isOpen).catch(() => {});
 
-    // Broadcast status change globally
     const io = req.app.get('io');
     if (io) {
       io.emit('store_status_update', { storeId: store._id || store.id, isOpen: store.isOpen });

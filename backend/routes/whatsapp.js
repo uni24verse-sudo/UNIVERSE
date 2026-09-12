@@ -1,7 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const telegramService = require('../services/telegramService');
-const Admin = require('../models/Admin');
+const prisma = require('../config/prisma');
 const auth = require('../middleware/auth');
 const axios = require('axios');
 
@@ -9,14 +8,21 @@ const axios = require('axios');
 router.post('/test-telegram', auth, async (req, res) => {
   try {
     const { storeId } = req.body;
-    const admin = await Admin.findById(req.admin._id);
+    const adminId = req.admin.id || req.admin._id;
+    const admin = await prisma.admin.findUnique({ where: { id: String(adminId) } });
+
     let token = process.env.TELEGRAM_BOT_TOKEN;
-    let chatId = admin.telegramChatId;
+    let chatId = admin?.telegramChatId;
     let storeName = 'Admin Level';
   
     if (storeId) {
-      const Store = require('../models/Store');
-      const store = await Store.findOne({ _id: storeId, admin: req.admin._id });
+      const store = await prisma.store.findFirst({
+        where: {
+          id: String(storeId),
+          ...(req.admin.role !== 'superadmin' && { adminId: String(adminId) })
+        }
+      });
+
       if (store) {
         if (store.telegramChatId) {
           chatId = store.telegramChatId;
@@ -36,7 +42,7 @@ router.post('/test-telegram', auth, async (req, res) => {
       storeTested: storeName
     };
  
-    if (!token) return res.status(500).json({ message: 'TELEGRAM_BOT_TOKEN is not set on Render!', diagnostics });
+    if (!token) return res.status(500).json({ message: 'TELEGRAM_BOT_TOKEN is not set!', diagnostics });
     if (!chatId) return res.status(400).json({ message: 'No Telegram Chat ID found for this selection.', diagnostics });
  
     try {

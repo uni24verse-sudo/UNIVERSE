@@ -5,10 +5,18 @@ if (dns.setDefaultResultOrder) {
 
 require('dotenv').config();
 const express = require('express');
-const mongoose = require('mongoose');
 const cors = require('cors');
 const http = require('http');
 const { Server } = require('socket.io');
+const jwt = require('jsonwebtoken');
+const path = require('path');
+
+const prisma = require('./config/prisma');
+const { normalizeOrder } = require('./utils/pgAdapter');
+const telegramService = require('./services/telegramService');
+const refundService = require('./services/refundService');
+const whatsappMultiDeviceService = require('./services/whatsappMultiDeviceService');
+const journeyEngineService = require('./services/journeyEngineService');
 
 const app = express();
 const server = http.createServer(app);
@@ -19,31 +27,15 @@ const io = new Server(server, {
   }
 });
 
-const jwt = require('jsonwebtoken');
-
-// Removed global io.use middleware to allow unauthenticated customers to track orders via socket.io
-
 // Make io accessible to our router
 app.set('io', io);
-
-const path = require('path');
 
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-const allowedOrigins = [
-  'http://localhost:5173',
-  'http://localhost:3000',
-  'http://localhost:8081',
-  'https://universe-sepia.vercel.app',
-  'https://www.universeorder.co.in',
-  'https://universeorder.co.in'
-];
-
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow all origins to prevent React Native WebSocket blocking
     callback(null, true);
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -54,30 +46,23 @@ app.use(cors({
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Initialize WhatsApp Multi-Device & Journey Engine services
-const whatsappMultiDeviceService = require('./services/whatsappMultiDeviceService');
-const journeyEngineService = require('./services/journeyEngineService');
 whatsappMultiDeviceService.setIO(io);
 
-// Database Connection with Auto-reconnect & Post-connection service initialization
-const prisma = require('./config/prisma');
+// ⚡ AWS RDS PostgreSQL Connection & Background Services Boot
 prisma.$connect()
-  .then(() => console.log('Connected to AWS RDS PostgreSQL via Prisma'))
-  .catch(err => console.warn('PostgreSQL connection warning:', err.message));
-
-mongoose.connect(process.env.MONGODB_URI, {
-  serverSelectionTimeoutMS: 5000,
-  socketTimeoutMS: 45000
-})
   .then(() => {
-    console.log('Connected to MongoDB');
-    whatsappMultiDeviceService.init().catch(err => console.error('WhatsApp Engine Init Error:', err.message));
+    console.log('✅ [UniVerse] Connected to AWS RDS PostgreSQL via Prisma ORM (100% Native)');
+    whatsappMultiDeviceService.init().catch(err => console.error('[WhatsApp] Engine Init Error:', err.message));
     journeyEngineService.start();
   })
-  .catch(err => console.log('Failed to connect to MongoDB', err));
+  .catch(err => {
+    console.error('❌ [UniVerse] PostgreSQL connection error:', err.message);
+  });
 
-// Routes
+// Health check endpoint
 app.get('/ping', (req, res) => res.status(200).send('pong'));
 
+// Route Registrations
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/store', require('./routes/store'));
 app.use('/api/orders', require('./routes/orders'));
@@ -99,9 +84,7 @@ io.on('connection', (socket) => {
 
   // Join Store Room with Server-Side Authorization
   socket.on('join_store_room', (data) => {
-    // data can be an object with token and storeId, or just storeId
     const token = socket.handshake.auth.token;
-    
     if (!token) {
       console.log(`WARN: Socket ${socket.id} attempted to join store room without token`);
       return;
@@ -111,12 +94,12 @@ io.on('connection', (socket) => {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       socket.user = decoded;
       
-      const authorizedStoreId = socket.user.storeId || socket.user._id;
+      const authorizedStoreId = socket.user.storeId || socket.user._id || socket.user.id;
       const requestedStoreId = data.storeId || data;
 
       if (!authorizedStoreId || requestedStoreId.toString() !== authorizedStoreId.toString()) {
         console.log(`WARN: Socket ${socket.id} attempted to join unauthorized room ${requestedStoreId}`);
-        return; // Reject unauthorized join attempt
+        return;
       }
 
       socket.join(authorizedStoreId.toString());
@@ -138,9 +121,10 @@ io.on('connection', (socket) => {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       let isSuperAdmin = decoded.role === 'superadmin';
 
-      if (!isSuperAdmin && decoded._id) {
-        const Admin = require('./models/Admin');
-        const adminUser = await Admin.findById(decoded._id);
+      if (!isSuperAdmin && (decoded._id || decoded.id)) {
+        const adminUser = await prisma.admin.findUnique({
+          where: { id: String(decoded._id || decoded.id) }
+        });
         if (adminUser && adminUser.role === 'superadmin') {
           isSuperAdmin = true;
         }
@@ -168,118 +152,71 @@ io.on('connection', (socket) => {
   });
 });
 
-const Order = require('./models/Order');
-const Store = require('./models/Store');
-const telegramService = require('./services/telegramService');
-
-
-// Background job to handle timeouts and pre-order reminders
+// Background job to handle timeouts and automated store schedules
 setInterval(async () => {
   try {
-    // Standardize to Indian Standard Time (IST)
-    const nowIST = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Kolkata"}));
+    const now = new Date();
+    const nowIST = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
     
     // 1. Cancel expired orders (ASAP and Pre-orders) and trigger direct UPI refund queue
-    const refundService = require('./services/refundService');
-    const expiredOrders = await Order.find({ status: 'Pending', acceptDeadline: { $lt: new Date() } });
+    // ASAP timeout: 5 mins; Pre-order timeout: 15 mins
+    const fiveMinsAgo = new Date(now.getTime() - 5 * 60 * 1000);
+    const fifteenMinsAgo = new Date(now.getTime() - 15 * 60 * 1000);
+
+    const expiredOrders = await prisma.order.findMany({
+      where: {
+        status: 'Pending',
+        OR: [
+          { isPreOrder: false, createdAt: { lt: fiveMinsAgo } },
+          { isPreOrder: true, createdAt: { lt: fifteenMinsAgo } }
+        ]
+      },
+      include: { store: true }
+    });
+
     for (const order of expiredOrders) {
       await refundService.handleOrderCancellation({
-        orderId: order._id,
+        orderId: order.id,
         reason: order.isPreOrder ? 'Pre-order acceptance timed out (15 mins)' : 'Vendor acceptance timed out (5 mins)',
         actorType: 'SYSTEM',
         actorId: 'AUTO_TIMEOUT',
         io
       }).catch(err => console.error(`[AutoTimeout] Cancellation error for order #${order.orderNumber}:`, err.message));
 
-      io.to(order.store.toString()).emit('order_status_update', order);
-      io.to(order._id.toString()).emit('order_status_update', order);
+      const normalized = normalizeOrder(order);
+      io.to(order.storeId).emit('order_status_update', normalized);
+      io.to(order.id).emit('order_status_update', normalized);
       console.log(`Auto-cancelled order #${order.orderNumber} due to timeout.`);
     }
 
-    // 2. Pre-Order Telegram Reminders (15 mins and 10 mins before)
-    // Process 15-min reminders
-    const preOrder15 = await Order.find({
-      isPreOrder: true,
-      status: 'Confirmed',
-      reminder15Sent: false,
-      scheduledTime: { $ne: null }
-    }).populate('store');
-
-    for (const order of preOrder15) {
-      const [hours, minutes] = order.scheduledTime.split(':').map(Number);
-      const scheduledDate = new Date(nowIST);
-      scheduledDate.setHours(hours, minutes, 0, 0);
-
-      const diffMs = scheduledDate.getTime() - nowIST.getTime();
-      const diffMins = diffMs / (1000 * 60);
-
-      // Trigger if pickup is in 10-15 minutes
-      if (diffMins > 0 && diffMins <= 15) {
-        const store = order.store;
-        if (store) {
-          await telegramService.sendPreOrder15MinReminder(store, order);
-          order.reminder15Sent = true;
-          await order.save();
-          console.log(`Sent 15-min preparation reminder for Pre-Order #${order.orderNumber}`);
-        }
-      }
-    }
-
-    // Process 10-min reminders
-    const imminentPreOrders = await Order.find({
-      isPreOrder: true,
-      status: 'Confirmed',
-      reminder10Sent: false,
-      scheduledTime: { $ne: null }
-    }).populate('store');
-
-    for (const order of imminentPreOrders) {
-      const [hours, minutes] = order.scheduledTime.split(':').map(Number);
-      const scheduledDate = new Date(nowIST);
-      scheduledDate.setHours(hours, minutes, 0, 0);
-
-      const diffMs = scheduledDate.getTime() - nowIST.getTime();
-      const diffMins = diffMs / (1000 * 60);
-
-      // Trigger if pickup is in 0-10 minutes (with a small buffer for missed jobs)
-      if (diffMins > -5 && diffMins <= 10) {
-        const store = order.store;
-        if (store) {
-          await telegramService.sendPreOrderFinalAlert(store, order);
-          order.reminder10Sent = true;
-          await order.save();
-          console.log(`Sent 10-min FINAL reminder for Pre-Order #${order.orderNumber}`);
-        }
-      }
-    }
-
-    // 3. Automated Store Opening/Closing (IST Based)
-    const automatedStores = await Store.find({ isAutomated: { $ne: false } });
+    // 2. Automated Store Opening/Closing (IST Based)
+    const automatedStores = await prisma.store.findMany({
+      where: { isAutomated: true }
+    });
     
-    // Robust HH:mm calculation for IST
     const currentHHMM = new Intl.DateTimeFormat('en-GB', {
       timeZone: 'Asia/Kolkata',
       hour: '2-digit',
       minute: '2-digit',
       hour12: false
-    }).format(new Date());
+    }).format(now);
 
     for (const store of automatedStores) {
       try {
-        // Comparison works because we use HH:mm in IST
         const shouldBeOpen = currentHHMM >= store.openingTime && currentHHMM < store.closingTime;
         if (store.isOpen !== shouldBeOpen) {
-          store.isOpen = shouldBeOpen;
-          await store.save();
-          io.emit('store_status_update', { storeId: store._id, isOpen: shouldBeOpen });
-          
-          // Notify via Telegram
-          await telegramService.sendStatusAlert(store, shouldBeOpen);
+          await prisma.store.update({
+            where: { id: store.id },
+            data: { isOpen: shouldBeOpen }
+          });
+
+          io.emit('store_status_update', { storeId: store.id, isOpen: shouldBeOpen });
+          await telegramService.sendStatusAlert(store, shouldBeOpen).catch(() => {});
           
           console.log(`Automated (IST ${currentHHMM}): Store ${store.name} is now ${shouldBeOpen ? 'OPEN' : 'CLOSED'}`);
         }
       } catch (storeErr) {
-        console.error(`Automation error for store ${store.name} (${store._id}):`, storeErr.message);
+        console.error(`Automation error for store ${store.name} (${store.id}):`, storeErr.message);
       }
     }
 

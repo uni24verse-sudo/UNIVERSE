@@ -2,7 +2,7 @@ const prisma = require('../config/prisma');
 const { normalizeStore } = require('../utils/pgAdapter');
 const crypto = require('crypto');
 
-// Generate MongoDB-compatible 24-hex ObjectId for new records
+// Generate standard 24-hex unique string ID for new records
 function generateId() {
   return crypto.randomBytes(12).toString('hex');
 }
@@ -352,17 +352,6 @@ class StoreRepository {
       }
     });
 
-    try {
-      const mongoose = require('mongoose');
-      if (mongoose.connection && mongoose.connection.readyState === 1) {
-        const Store = require('../models/Store');
-        Store.findByIdAndUpdate(storeId, {
-          isOpen: newIsOpen,
-          isAutomated: false
-        }).catch(() => {});
-      }
-    } catch (e) {}
-
     return normalizeStore(updated);
   }
 
@@ -377,14 +366,6 @@ class StoreRepository {
       data: { isHidden: newIsHidden },
       include: { admin: true, location: true }
     });
-
-    try {
-      const mongoose = require('mongoose');
-      if (mongoose.connection && mongoose.connection.readyState === 1) {
-        const Store = require('../models/Store');
-        Store.findByIdAndUpdate(storeId, { isHidden: newIsHidden }).catch(() => {});
-      }
-    } catch (e) {}
 
     return normalizeStore(updated);
   }
@@ -428,14 +409,6 @@ class StoreRepository {
         location: true
       }
     });
-
-    try {
-      const mongoose = require('mongoose');
-      if (mongoose.connection && mongoose.connection.readyState === 1) {
-        const Store = require('../models/Store');
-        Store.findByIdAndUpdate(storeId, updateData).catch(() => {});
-      }
-    } catch (e) {}
 
     return normalizeStore(updated);
   }

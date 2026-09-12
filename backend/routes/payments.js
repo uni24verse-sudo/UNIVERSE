@@ -2,11 +2,13 @@ const express = require('express');
 const router = express.Router();
 const Razorpay = require('razorpay');
 const crypto = require('crypto');
-const Order = require('../models/Order');
-const Store = require('../models/Store');
+const prisma = require('../config/prisma');
+const { normalizeOrder } = require('../utils/pgAdapter');
 const paymentConfig = require('../config/payments.js');
 const telegramService = require('../services/telegramService');
 const journeyEngineService = require('../services/journeyEngineService');
+const auditService = require('../services/auditService');
+const pushService = require('../services/pushService');
 
 // Helper to obtain active Razorpay instance
 const getRazorpay = () => new Razorpay({
@@ -29,7 +31,9 @@ router.post('/razorpay/create-order', async (req, res) => {
       return res.status(400).json({ message: 'Amount and storeId are required' });
     }
 
-    const store = await Store.findById(storeId);
+    const store = await prisma.store.findUnique({
+      where: { id: String(storeId) }
+    });
     if (!store) return res.status(404).json({ message: 'Store not found' });
 
     const razorpay = getRazorpay();
@@ -51,7 +55,7 @@ router.post('/razorpay/create-order', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Razorpay Order Creation Error:', error);
+    console.error('[Payments] Razorpay Order Creation Error:', error);
     const errorMsg = error?.error?.description || error?.message || 'Failed to create Razorpay order';
     res.status(500).json({ message: errorMsg });
   }
@@ -78,28 +82,20 @@ router.post('/razorpay/verify', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Payment verification failed' });
     }
 
-    // Payment verified - NOW Create the Order in DB
+    // Payment verified - NOW Create the Order in PostgreSQL
     const { storeId, items, totalAmount, paymentMethod, customerPhone, customerName, orderType, packagingChargeApplied, isPreOrder, scheduledTime, isQRScan } = orderData;
 
-    const store = await Store.findById(storeId).populate('admin').populate('locationId');
+    const store = await prisma.store.findUnique({
+      where: { id: String(storeId) },
+      include: { admin: true, location: true }
+    });
     if (!store) return res.status(404).json({ message: 'Store not found' });
 
-    // Set acceptance deadline: 
-    // 15 mins for pre-orders
-    // For QR Scans (Physical Presence), we disable the timer (null)
-    // Otherwise, 5 mins for ASAP orders
     let deadlineMinutes = isPreOrder ? 15 : (isQRScan ? null : 5);
-    
-    // For Restaurants, we follow user request: simple flow, usually no timer if QR scan
-    // If not a QR scan, they get the standard 5 min deadline to prevent spam
     const acceptDeadline = deadlineMinutes ? new Date(Date.now() + deadlineMinutes * 60 * 1000) : null;
 
-    // Customer Identity: Get or Create Stable Customer Profile
-    const auditService = require('../services/auditService');
-    const Payment = require('../models/Payment');
-
-    const campusName = store.locationId?.name 
-      ? `${store.locationId.name}${store.market ? ' • ' + store.market : ''}` 
+    const campusName = store.location?.name 
+      ? `${store.location.name}${store.market ? ' • ' + store.market : ''}` 
       : (store.market ? `Lovely Professional University • ${store.market}` : 'Lovely Professional University');
 
     const customer = await auditService.getOrCreateCustomer({
@@ -110,7 +106,7 @@ router.post('/razorpay/verify', async (req, res) => {
     });
 
     // Capture payer UPI ID / VPA if payment was made via UPI
-    let payerUpiId = null;
+    let payerUpiId = '';
     try {
       const razorpay = getRazorpay();
       const rzpPayment = await razorpay.payments.fetch(razorpay_payment_id);
@@ -121,48 +117,60 @@ router.post('/razorpay/verify', async (req, res) => {
       console.warn('[Payments] Could not fetch Razorpay payment VPA details:', fetchErr.message);
     }
 
-    const newOrder = new Order({
-      store: storeId,
-      orderNumber: generateOrderNumber(),
-      items,
-      totalAmount,
-      paymentMethod: paymentMethod || 'Razorpay',
-      userId: customer ? customer.userId : null,
-      customerPhone,
-      customerName,
-      customerEmail: orderData.customerEmail || (customer?.email || ''),
-      orderType,
-      packagingChargeApplied,
-      paymentStatus: 'Confirmed',
-      status: 'Pending',
-      transactionId: razorpay_payment_id,
-      paymentProvider: 'Razorpay',
-      payerUpiId,
-      customerUpiId: payerUpiId || null,
-      acceptDeadline,
-      handoverToken: generateHandoverToken(),
-      isPreOrder: isPreOrder || false,
-      scheduledTime: scheduledTime || null
+    const orderId = crypto.randomUUID();
+    const orderNumber = generateOrderNumber();
+    const handoverToken = generateHandoverToken();
+
+    const createdOrder = await prisma.order.create({
+      data: {
+        id: orderId,
+        storeId: String(storeId),
+        orderNumber,
+        items: Array.isArray(items) ? items : [],
+        totalAmount: Number(totalAmount) || 0,
+        paymentMethod: paymentMethod || 'Razorpay',
+        userId: customer ? customer.userId : '',
+        customerPhone: String(customerPhone || ''),
+        customerName: customerName || 'UniVerse Student',
+        customerEmail: orderData.customerEmail || (customer?.email || ''),
+        orderType: orderType || 'Dine In',
+        packagingChargeApplied: Number(packagingChargeApplied) || 0,
+        paymentStatus: 'Confirmed',
+        status: 'Pending',
+        transactionId: razorpay_payment_id,
+        paymentProvider: 'Razorpay',
+        razorpayOrderId: razorpay_order_id,
+        razorpayPaymentId: razorpay_payment_id,
+        payerUpiId: payerUpiId || '',
+        customerUpiId: payerUpiId || '',
+        handoverToken,
+        isPreOrder: Boolean(isPreOrder),
+        scheduledTime: scheduledTime || ''
+      },
+      include: { store: true }
     });
 
-    const savedOrder = await newOrder.save();
+    const savedOrder = normalizeOrder(createdOrder);
 
     // Financial Ledger: Record Captured Payment
-    await Payment.create({
-      paymentId: razorpay_payment_id,
-      orderId: savedOrder._id,
-      userId: customer ? customer.userId : 'GUEST',
-      amount: totalAmount,
-      currency: 'INR',
-      status: 'CAPTURED',
-      method: 'Razorpay',
-      capturedAt: new Date(),
-      rawResponse: { razorpay_order_id, razorpay_payment_id }
+    await prisma.payment.create({
+      data: {
+        id: crypto.randomUUID(),
+        paymentId: razorpay_payment_id,
+        orderId: savedOrder.id,
+        userId: customer ? customer.userId : 'GUEST',
+        amount: Number(totalAmount) || 0,
+        currency: 'INR',
+        status: 'CAPTURED',
+        method: 'Razorpay',
+        capturedAt: new Date(),
+        rawResponse: { razorpay_order_id, razorpay_payment_id }
+      }
     }).catch(err => console.error('[PaymentLedger] Error saving payment:', err.message));
 
     // Audit Trail: Log Immutable Event
     await auditService.logEvent({
-      orderId: savedOrder._id,
+      orderId: savedOrder.id,
       orderNumber: savedOrder.orderNumber,
       userId: customer ? customer.userId : 'GUEST',
       actorType: 'CUSTOMER',
@@ -184,7 +192,7 @@ router.post('/razorpay/verify', async (req, res) => {
         name: savedOrder.customerName || 'Student',
         phone: savedOrder.customerPhone,
         metadata: {
-          orderId: savedOrder.orderNumber || savedOrder._id.toString(),
+          orderId: savedOrder.orderNumber || savedOrder.id,
           orderNumber: savedOrder.orderNumber || '',
           storeName: store?.name || 'Campus Food Court',
           amount: savedOrder.totalAmount
@@ -196,27 +204,30 @@ router.post('/razorpay/verify', async (req, res) => {
         .catch(e => console.error('[JourneyEngine] Order Placed trigger error:', e.message));
 
       // 2. Trigger First Order or Repeat Order Journey
-      Order.countDocuments({ customerPhone: savedOrder.customerPhone }).then(orderCount => {
+      prisma.order.count({ where: { customerPhone: savedOrder.customerPhone } }).then(orderCount => {
         const triggerEvent = orderCount === 1 ? 'First Lifetime Order' : 'Repeat Order Placed';
         return journeyEngineService.triggerEvent(triggerEvent, userPayload);
       }).catch(e => console.error('[JourneyEngine] Payment order trigger error:', e.message));
     }
 
-const pushService = require('../services/pushService');
-
     // Notify vendor via Socket.io (Foreground Sync)
     const io = req.app.get('io');
-    io.to(storeId.toString()).emit('new_order', savedOrder);
-    io.to('superadmin_room').emit('superadmin:new_order', savedOrder);
+    if (io) {
+      io.to(storeId.toString()).emit('new_order', savedOrder);
+      io.to('superadmin_room').emit('superadmin:new_order', savedOrder);
+    }
 
     // Compute active badge count
-    const activeOrdersCount = await Order.countDocuments({
-      store: storeId,
-      status: { $in: ['Pending', 'Confirmed', 'Cooking'] }
+    const activeOrdersCount = await prisma.order.count({
+      where: {
+        storeId: String(storeId),
+        status: { in: ['Pending', 'Confirmed', 'Cooking'] }
+      }
     });
 
     // Format rich push notification with full itemized details
-    const itemsSummary = savedOrder.items.map(item => {
+    const orderItems = Array.isArray(savedOrder.items) ? savedOrder.items : [];
+    const itemsSummary = orderItems.map(item => {
       let itemStr = `• ${item.quantity}x ${item.name}`;
       if (item.variant) {
         itemStr += ` (${item.variant})`;
@@ -251,7 +262,7 @@ const pushService = require('../services/pushService');
       notifTitle,
       notifBody,
       { 
-        orderId: savedOrder._id, 
+        orderId: savedOrder.id, 
         orderNumber: savedOrder.orderNumber,
         totalAmount: savedOrder.totalAmount,
         itemsSummary,
@@ -261,7 +272,7 @@ const pushService = require('../services/pushService');
       },
       'order_pending',
       activeOrdersCount,
-      'orders_alarm' // Use explicit alarm channel created by Android app
+      'orders_alarm'
     );
 
     // Notify vendor via Telegram

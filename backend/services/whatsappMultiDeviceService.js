@@ -10,7 +10,7 @@ const pino = require('pino');
 const QRCode = require('qrcode');
 const path = require('path');
 const fs = require('fs');
-const ChannelAccount = require('../models/ChannelAccount');
+const prisma = require('../config/prisma');
 
 class WhatsAppMultiDeviceService {
   constructor() {
@@ -20,6 +20,7 @@ class WhatsAppMultiDeviceService {
     this.status = new Map();  // Map<slotIndex, string>
     this.io = null;           // Socket.io instance for live QR & status streaming
     this.sessionsBaseDir = path.join(__dirname, '..', 'sessions');
+    this.isSandbox = process.env.WHATSAPP_SANDBOX_MODE === 'true';
     
     // Ensure base sessions directory exists
     if (!fs.existsSync(this.sessionsBaseDir)) {
@@ -33,22 +34,33 @@ class WhatsAppMultiDeviceService {
 
   /**
    * Initialize all default 5 slots in database if not present,
-   * and auto-reconnect any previously connected WhatsApp sessions.
+   * and auto-reconnect any previously connected WhatsApp sessions (unless in sandbox mode).
    */
   async init() {
-    console.log('--- Initializing WhatsApp Multi-Device (Max 5 Slots) Engine ---');
+    console.log(`--- Initializing WhatsApp Multi-Device (Max 5 Slots) Engine [Sandbox: ${this.isSandbox}] ---`);
     try {
       for (let i = 1; i <= this.MAX_SLOTS; i++) {
-        let account = await ChannelAccount.findOne({ type: 'whatsapp', slotIndex: i });
+        let account = await prisma.channelAccount.findFirst({
+          where: { type: 'whatsapp', slotIndex: i }
+        });
+
         if (!account) {
-          account = new ChannelAccount({
-            type: 'whatsapp',
-            slotIndex: i,
-            nickname: `WhatsApp Slot ${i}`,
-            sessionPath: `sessions/whatsapp_slot_${i}`,
-            status: 'empty'
+          account = await prisma.channelAccount.create({
+            data: {
+              id: `wa_slot_${i}`,
+              type: 'whatsapp',
+              slotIndex: i,
+              nickname: `WhatsApp Slot ${i}`,
+              sessionPath: `sessions/whatsapp_slot_${i}`,
+              status: this.isSandbox ? 'connected' : 'empty'
+            }
           });
-          await account.save();
+        }
+
+        if (this.isSandbox) {
+          this.status.set(i, 'connected');
+          console.log(`[WhatsApp Slot ${i}] Running in SAFE SANDBOX mode (Baileys socket skipped).`);
+          continue;
         }
 
         const slotSessionDir = path.join(this.sessionsBaseDir, `whatsapp_slot_${i}`);
@@ -63,7 +75,7 @@ class WhatsAppMultiDeviceService {
         }
       }
     } catch (err) {
-      console.error('Error during WhatsApp Multi-Device init:', err);
+      console.error('[WhatsApp] Error during WhatsApp Multi-Device init:', err);
     }
   }
 
@@ -71,6 +83,12 @@ class WhatsAppMultiDeviceService {
    * Start or restart Baileys socket for a specific slot (1 to 5)
    */
   async startSocket(slotIndex) {
+    if (this.isSandbox) {
+      console.log(`[WhatsApp Slot ${slotIndex}] Sandbox mode active: socket start simulated.`);
+      this.status.set(slotIndex, 'connected');
+      return null;
+    }
+
     if (slotIndex < 1 || slotIndex > this.MAX_SLOTS) {
       throw new Error(`Invalid slot index ${slotIndex}. Only slots 1 to 5 are supported.`);
     }
@@ -118,10 +136,15 @@ class WhatsAppMultiDeviceService {
           });
           this.status.set(slotIndex, 'pairing');
 
-          await ChannelAccount.findOneAndUpdate(
-            { type: 'whatsapp', slotIndex },
-            { status: 'pairing' }
-          );
+          const account = await prisma.channelAccount.findFirst({
+            where: { type: 'whatsapp', slotIndex }
+          });
+          if (account) {
+            await prisma.channelAccount.update({
+              where: { id: account.id },
+              data: { status: 'pairing' }
+            });
+          }
 
           if (this.io) {
             this.io.to('superadmin_room').emit('superadmin:whatsapp_qr', {
@@ -143,15 +166,20 @@ class WhatsAppMultiDeviceService {
         const phoneNumber = userJid.split(':')[0] || userJid.split('@')[0] || '';
         const pushName = socket.user?.name || socket.user?.notify || 'UniVerse WhatsApp';
 
-        await ChannelAccount.findOneAndUpdate(
-          { type: 'whatsapp', slotIndex },
-          {
-            status: 'connected',
-            phoneNumber,
-            pushName,
-            lastActive: new Date()
-          }
-        );
+        const account = await prisma.channelAccount.findFirst({
+          where: { type: 'whatsapp', slotIndex }
+        });
+        if (account) {
+          await prisma.channelAccount.update({
+            where: { id: account.id },
+            data: {
+              status: 'connected',
+              phoneNumber,
+              pushName,
+              lastActive: new Date()
+            }
+          });
+        }
 
         if (this.io) {
           this.io.to('superadmin_room').emit('superadmin:whatsapp_status', {
@@ -172,13 +200,19 @@ class WhatsAppMultiDeviceService {
 
         this.qrCodes.delete(slotIndex);
 
+        const account = await prisma.channelAccount.findFirst({
+          where: { type: 'whatsapp', slotIndex }
+        });
+
         if (!isLoggedOut) {
           // Normal handshake transition, timeout, or restart required
           this.status.set(slotIndex, 'disconnected');
-          await ChannelAccount.findOneAndUpdate(
-            { type: 'whatsapp', slotIndex },
-            { status: 'disconnected' }
-          );
+          if (account) {
+            await prisma.channelAccount.update({
+              where: { id: account.id },
+              data: { status: 'disconnected' }
+            });
+          }
 
           console.log(`[WhatsApp Slot ${slotIndex}] Reconnecting socket in 1.5s...`);
           setTimeout(() => {
@@ -190,10 +224,12 @@ class WhatsAppMultiDeviceService {
           // Explicit logout (401)
           console.log(`[WhatsApp Slot ${slotIndex}] Logged out. Clearing credentials.`);
           this.status.set(slotIndex, 'empty');
-          await ChannelAccount.findOneAndUpdate(
-            { type: 'whatsapp', slotIndex },
-            { status: 'empty', phoneNumber: '', pushName: '', lastActive: null }
-          );
+          if (account) {
+            await prisma.channelAccount.update({
+              where: { id: account.id },
+              data: { status: 'empty', phoneNumber: '', pushName: '', lastActive: null }
+            });
+          }
           this.cleanupSessionFiles(slotIndex);
         }
 
@@ -213,6 +249,14 @@ class WhatsAppMultiDeviceService {
    * Request pairing QR code for a specific slot
    */
   async requestQR(slotIndex) {
+    if (this.isSandbox) {
+      return { 
+        status: 'already_connected', 
+        qrBase64: null, 
+        message: 'WhatsApp running in SAFE SANDBOX mode (Console simulation).' 
+      };
+    }
+
     if (slotIndex < 1 || slotIndex > this.MAX_SLOTS) {
       throw new Error(`Slot must be between 1 and ${this.MAX_SLOTS}`);
     }
@@ -269,10 +313,15 @@ class WhatsAppMultiDeviceService {
     this.status.set(slotIndex, 'empty');
     this.cleanupSessionFiles(slotIndex);
 
-    await ChannelAccount.findOneAndUpdate(
-      { type: 'whatsapp', slotIndex },
-      { status: 'empty', phoneNumber: '', pushName: '', lastActive: null }
-    );
+    const account = await prisma.channelAccount.findFirst({
+      where: { type: 'whatsapp', slotIndex }
+    });
+    if (account) {
+      await prisma.channelAccount.update({
+        where: { id: account.id },
+        data: { status: 'empty', phoneNumber: '', pushName: '', lastActive: null }
+      });
+    }
 
     if (this.io) {
       this.io.to('superadmin_room').emit('superadmin:whatsapp_status', {
@@ -300,16 +349,22 @@ class WhatsAppMultiDeviceService {
    * Get all 5 slots summary
    */
   async getAllSlotsSummary() {
-    const accounts = await ChannelAccount.find({ type: 'whatsapp' }).sort({ slotIndex: 1 });
+    const accounts = await prisma.channelAccount.findMany({
+      where: { type: 'whatsapp' },
+      orderBy: { slotIndex: 'asc' }
+    });
+
     return accounts.map(acc => ({
-      _id: acc._id,
+      _id: acc.id,
+      id: acc.id,
       slotIndex: acc.slotIndex,
       nickname: acc.nickname,
       phoneNumber: acc.phoneNumber,
       pushName: acc.pushName,
       platform: acc.platform,
-      status: this.status.get(acc.slotIndex) || acc.status || 'empty',
-      lastActive: acc.lastActive
+      status: this.isSandbox ? 'connected' : (this.status.get(acc.slotIndex) || acc.status || 'empty'),
+      lastActive: acc.lastActive,
+      isSandbox: this.isSandbox
     }));
   }
 
@@ -317,18 +372,9 @@ class WhatsAppMultiDeviceService {
    * Send WhatsApp message from a specific connected slot with anti-ban rate pacing
    */
   async sendMessage(slotIndex, destinationNumber, messagePayload) {
-    if (slotIndex < 1 || slotIndex > this.MAX_SLOTS) {
-      throw new Error(`Invalid slot index ${slotIndex}`);
-    }
-
-    const socket = this.sockets.get(slotIndex);
-    if (!socket || this.status.get(slotIndex) !== 'connected') {
-      throw new Error(`WhatsApp Slot ${slotIndex} is not connected.`);
-    }
-
     // Sanitize destination (support both individual phone numbers and WhatsApp Group JIDs)
     let recipientJid;
-    const destStr = destinationNumber.toString().trim();
+    const destStr = (destinationNumber || '').toString().trim();
     if (destStr.endsWith('@g.us') || destStr.endsWith('@s.whatsapp.net')) {
       recipientJid = destStr;
     } else {
@@ -337,6 +383,27 @@ class WhatsAppMultiDeviceService {
         cleanNumber = '91' + cleanNumber; // Default to India 91 prefix
       }
       recipientJid = `${cleanNumber}@s.whatsapp.net`;
+    }
+
+    // Safe Sandbox Mode Check
+    if (this.isSandbox) {
+      console.log(`[WhatsApp Sandbox] Simulated send to ${recipientJid}:`, messagePayload.body || messagePayload.text || messagePayload);
+      if (this.io) {
+        this.io.to('superadmin_room').emit('superadmin:whatsapp_simulated', {
+          recipient: recipientJid,
+          payload: messagePayload
+        });
+      }
+      return { success: true, messageId: `sandbox_${Date.now()}`, recipient: recipientJid, sandbox: true };
+    }
+
+    if (slotIndex < 1 || slotIndex > this.MAX_SLOTS) {
+      throw new Error(`Invalid slot index ${slotIndex}`);
+    }
+
+    const socket = this.sockets.get(slotIndex);
+    if (!socket || this.status.get(slotIndex) !== 'connected') {
+      throw new Error(`WhatsApp Slot ${slotIndex} is not connected.`);
     }
 
     // Construct Baileys message content
@@ -353,7 +420,6 @@ class WhatsAppMultiDeviceService {
       };
     }
 
-    // Omit fake text-bullet pseudo-buttons (👉 [ ... ]) as they are unclickable and look odd.
     // Only include actual URL links if explicitly provided with a web destination.
     if (messagePayload.buttons && messagePayload.buttons.length > 0) {
       const linkLines = messagePayload.buttons
@@ -396,6 +462,11 @@ class WhatsAppMultiDeviceService {
   async sendDirectMessage(destinationNumber, textMessage, options = {}) {
     if (!destinationNumber || (!textMessage && !options.headerMediaUrl)) return false;
 
+    if (this.isSandbox) {
+      console.log(`[WhatsApp Sandbox Direct] Message to ${destinationNumber}: ${textMessage}`);
+      return true;
+    }
+
     // Find any slot with 'connected' status
     for (let slot = 1; slot <= this.MAX_SLOTS; slot++) {
       if (this.status.get(slot) === 'connected') {
@@ -420,6 +491,19 @@ class WhatsAppMultiDeviceService {
    * Fetch all participating WhatsApp groups from connected WhatsApp instance
    */
   async fetchParticipatingGroups(slotIndex = null) {
+    if (this.isSandbox) {
+      return [
+        {
+          id: 'sandbox-group@g.us',
+          subject: 'UniVerse UAT Sandbox Group',
+          creation: Math.floor(Date.now() / 1000),
+          owner: 'admin',
+          desc: 'Simulated WhatsApp Group for UAT Sandbox',
+          participantsCount: 5
+        }
+      ];
+    }
+
     let targetSocket = null;
     if (slotIndex && this.sockets.has(slotIndex) && this.status.get(slotIndex) === 'connected') {
       targetSocket = this.sockets.get(slotIndex);
@@ -458,8 +542,7 @@ class WhatsAppMultiDeviceService {
    */
   async sendRefundAlertToTeam({ order, refund }) {
     try {
-      const RefundConfig = require('../models/RefundConfig');
-      let config = await RefundConfig.findOne();
+      let config = await prisma.refundConfig.findFirst();
       if (!config) {
         config = {
           groupJid: process.env.REFUND_ALERT_WHATSAPP_GROUP_JID || '',
@@ -469,7 +552,7 @@ class WhatsAppMultiDeviceService {
         };
       }
 
-      const amount = (order.totalAmount || refund.amount || 0).toFixed(2);
+      const amount = Number((order.totalAmount || refund.amount || 0)).toFixed(2);
       const studentName = order.customerName || refund.customerName || 'Student';
       const studentPhone = order.customerPhone || refund.customerPhone || 'N/A';
       const upiId = refund.customerUpiId || order.customerUpiId || order.payerUpiId || 'Pending student input';
@@ -480,7 +563,8 @@ class WhatsAppMultiDeviceService {
       const upiPayLink = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(studentName.replace(/[^a-zA-Z0-9 ]/g, ''))}&am=${amount}&tn=${cleanNote}&cu=INR`;
       const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=350x350&data=${encodeURIComponent(upiPayLink)}`;
 
-      const claimPayUrl = `https://api.universeorder.co.in/api/orders/refund/claim-pay/${refund._id}`;
+      const refundIdentifier = refund.id || refund._id;
+      const claimPayUrl = `https://api.universeorder.co.in/api/orders/refund/claim-pay/${refundIdentifier}`;
       const adminDeskUrl = `https://www.universeorder.co.in/super-admin/panel?tab=refunds`;
 
       const alertMessage = 
@@ -500,19 +584,19 @@ class WhatsAppMultiDeviceService {
         `_UniVerse Automated Refund Dispatch_`;
 
       const destinations = [];
+      const phoneList = Array.isArray(config.phoneNumbers) ? config.phoneNumbers : [];
+
       if (config.notifyGroup && config.groupJid) {
         destinations.push(config.groupJid);
-      } else if (config.notifyPhones && config.phoneNumbers && config.phoneNumbers.length > 0) {
-        destinations.push(...config.phoneNumbers);
+      } else if (config.notifyPhones && phoneList.length > 0) {
+        destinations.push(...phoneList);
       } else if (process.env.REFUND_ALERT_WHATSAPP_GROUP_JID) {
         destinations.push(process.env.REFUND_ALERT_WHATSAPP_GROUP_JID);
       } else {
-        // Fallback to primary admin only if no group exists
         destinations.push('7985397373');
       }
 
       for (const dest of destinations) {
-        // Send with attached QR Code image directly in WhatsApp!
         this.sendDirectMessage(dest, alertMessage, {
           headerType: 'IMAGE',
           headerMediaUrl: qrImageUrl
@@ -530,8 +614,7 @@ class WhatsAppMultiDeviceService {
    */
   async sendRefundSettlementNoticeToTeam({ order, refund, settledBy }) {
     try {
-      const RefundConfig = require('../models/RefundConfig');
-      const config = await RefundConfig.findOne();
+      const config = await prisma.refundConfig.findFirst();
       const destinations = [];
       if (config?.notifyGroup && config?.groupJid) {
         destinations.push(config.groupJid);
@@ -541,7 +624,7 @@ class WhatsAppMultiDeviceService {
 
       if (destinations.length === 0) return;
 
-      const amount = (order.totalAmount || refund.amount || 0).toFixed(2);
+      const amount = Number((order.totalAmount || refund.amount || 0)).toFixed(2);
       const studentName = order.customerName || refund.customerName || 'Student';
       const upiId = refund.customerUpiId || order.customerUpiId || 'UPI';
       const utrText = refund.utr ? `\n📌 *Bank Ref / UTR:* ${refund.utr}` : '';

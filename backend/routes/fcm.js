@@ -1,8 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const Store = require('../models/Store');
+const crypto = require('crypto');
+const prisma = require('../config/prisma');
 
-// Save FCM token for a vendor
+// Save FCM token for a vendor / store
 router.post('/save-fcm-token', async (req, res) => {
   try {
     const { token, userId, userType } = req.body;
@@ -14,39 +15,36 @@ router.post('/save-fcm-token', async (req, res) => {
       });
     }
 
-    // For now, we assume userType is 'vendor' and userId is the store owner's ID
-    // Find the store by owner ID and update FCM tokens
-    const store = await Store.findOne({ owner: userId });
+    const store = await prisma.store.findFirst({
+      where: {
+        OR: [
+          { adminId: String(userId) },
+          { id: String(userId) }
+        ]
+      }
+    });
 
-    if (!store) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Store not found' 
-      });
-    }
+    const storeId = store ? store.id : '';
 
-    // Initialize fcmTokens array if it doesn't exist
-    if (!store.fcmTokens) {
-      store.fcmTokens = [];
-    }
-
-    // Check if token already exists
-    const tokenIndex = store.fcmTokens.indexOf(token);
-    
-    if (tokenIndex === -1) {
-      // Add new token
-      store.fcmTokens.push(token);
-      console.log(`Added new FCM token for store ${store._id}`);
-    } else {
-      console.log(`FCM token already exists for store ${store._id}`);
-    }
-
-    // Limit the number of tokens per store to prevent bloat
-    if (store.fcmTokens.length > 5) {
-      store.fcmTokens = store.fcmTokens.slice(-5); // Keep only the 5 most recent tokens
-    }
-
-    await store.save();
+    await prisma.deviceRegistry.upsert({
+      where: { token: String(token) },
+      update: {
+        userId: String(userId),
+        storeId,
+        pushToken: String(token),
+        active: true,
+        lastSeen: new Date()
+      },
+      create: {
+        id: crypto.randomUUID(),
+        userId: String(userId),
+        storeId,
+        token: String(token),
+        pushToken: String(token),
+        active: true,
+        lastSeen: new Date()
+      }
+    });
 
     res.json({ 
       success: true, 
@@ -54,7 +52,7 @@ router.post('/save-fcm-token', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error saving FCM token:', error);
+    console.error('[FCM] Error saving FCM token:', error);
     res.status(500).json({ 
       success: false, 
       message: 'Internal server error' 
@@ -67,27 +65,17 @@ router.post('/remove-fcm-token', async (req, res) => {
   try {
     const { token, userId } = req.body;
 
-    if (!token || !userId) {
+    if (!token) {
       return res.status(400).json({ 
         success: false, 
-        message: 'Token and userId are required' 
+        message: 'Token is required' 
       });
     }
 
-    const store = await Store.findOne({ owner: userId });
-
-    if (!store) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Store not found' 
-      });
-    }
-
-    if (store.fcmTokens) {
-      store.fcmTokens = store.fcmTokens.filter(t => t !== token);
-      await store.save();
-      console.log(`Removed FCM token for store ${store._id}`);
-    }
+    await prisma.deviceRegistry.updateMany({
+      where: { token: String(token) },
+      data: { active: false }
+    });
 
     res.json({ 
       success: true, 
@@ -95,7 +83,7 @@ router.post('/remove-fcm-token', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error removing FCM token:', error);
+    console.error('[FCM] Error removing FCM token:', error);
     res.status(500).json({ 
       success: false, 
       message: 'Internal server error' 
@@ -107,22 +95,17 @@ router.post('/remove-fcm-token', async (req, res) => {
 router.get('/store-tokens/:storeId', async (req, res) => {
   try {
     const { storeId } = req.params;
-    const store = await Store.findById(storeId);
-
-    if (!store) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Store not found' 
-      });
-    }
+    const devices = await prisma.deviceRegistry.findMany({
+      where: { storeId: String(storeId), active: true }
+    });
 
     res.json({ 
       success: true, 
-      tokens: store.fcmTokens || [] 
+      tokens: devices.map(d => d.pushToken || d.token).filter(Boolean)
     });
 
   } catch (error) {
-    console.error('Error getting FCM tokens:', error);
+    console.error('[FCM] Error getting FCM tokens:', error);
     res.status(500).json({ 
       success: false, 
       message: 'Internal server error' 
