@@ -155,11 +155,7 @@ router.get('/realtime-analytics', async (req, res) => {
       totalPlatformProfit += storeCancelled.reduce((sum, o) => sum + (o.totalAmount || 0), 0) * 0.04;
     }
 
-    // Dynamic Chart Anchor: If no orders today, anchor to active operating window so chart is never flat
-    const activeOrderDates = allOrders.map(o => new Date(o.createdAt)).sort((a, b) => b - a);
-    const chartAnchorDate = activeOrderDates.length > 0 && todayOrders.length === 0 ? activeOrderDates[0] : new Date();
-
-    // Hourly Distribution for 24 hours of today
+    // Hourly Distribution for 24 hours of today (Real-Time Current Date)
     const hourlyVelocity = Array.from({ length: 24 }, (_, h) => {
       const hourStr = `${h.toString().padStart(2, '0')}:00`;
       const ordersInHour = todayOrders.filter(o => {
@@ -179,9 +175,9 @@ router.get('/realtime-analytics', async (req, res) => {
       };
     });
 
-    // Real Last 7 Days Daily Breakdown
+    // Real Last 7 Days Daily Breakdown strictly ending on TODAY
     const dailyVelocity7Days = Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(chartAnchorDate);
+      const d = new Date();
       d.setDate(d.getDate() - (6 - i));
       d.setHours(0, 0, 0, 0);
       const nextD = new Date(d);
@@ -209,9 +205,9 @@ router.get('/realtime-analytics', async (req, res) => {
       };
     });
 
-    // Real Last 30 Days Breakdown
+    // Real Last 30 Days Breakdown strictly ending on TODAY
     const monthlyVelocity30Days = Array.from({ length: 6 }, (_, i) => {
-      const dEnd = new Date(chartAnchorDate);
+      const dEnd = new Date();
       dEnd.setDate(dEnd.getDate() - (5 - i) * 5);
       const dStart = new Date(dEnd);
       dStart.setDate(dStart.getDate() - 5);
@@ -233,6 +229,23 @@ router.get('/realtime-analytics', async (req, res) => {
         completedOrders: bucketCompleted.length
       };
     });
+
+    // All-Time Historical Days with Real Orders
+    const orderDaysMap = new Map();
+    allOrders.forEach(o => {
+      const oDate = new Date(o.createdAt);
+      const dateKey = oDate.toISOString().split('T')[0];
+      const dateStr = oDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      if (!orderDaysMap.has(dateKey)) {
+        orderDaysMap.set(dateKey, { timeLabel: dateStr, revenue: 0, orders: 0, sortDate: oDate });
+      }
+      const item = orderDaysMap.get(dateKey);
+      item.orders += 1;
+      if (o.status === 'Completed') {
+        item.revenue += (o.totalAmount || 0);
+      }
+    });
+    const allTimeVelocity = Array.from(orderDaysMap.values()).sort((a, b) => a.sortDate - b.sortDate);
 
     // Market Spatial Performance
     const marketMap = {};
@@ -440,6 +453,7 @@ router.get('/realtime-analytics', async (req, res) => {
       hourlyVelocity,
       dailyVelocity7Days,
       monthlyVelocity30Days,
+      allTimeVelocity,
       zoneTraffic,
       storeStats: storeStats.slice(0, 15),
       financeDistribution: {
@@ -460,6 +474,7 @@ router.get('/realtime-analytics', async (req, res) => {
         hourlyVelocity,
         dailyVelocity7Days,
         monthlyVelocity30Days,
+        allTimeVelocity,
         orderStatusFunnel
       },
       spatial: {

@@ -128,6 +128,7 @@ const SuperAdmin3DAnalytics = ({ token }) => {
     hourlyVelocity = [],
     dailyVelocity7Days = [],
     monthlyVelocity30Days = [],
+    allTimeVelocity = [],
     zoneTraffic = [],
     storeStats = [],
     financeDistribution = {},
@@ -153,9 +154,15 @@ const SuperAdmin3DAnalytics = ({ token }) => {
     orders: m.orders || 0
   }));
 
+  const chartAllTimeData = (allTimeVelocity || analyticsData?.allTimeVelocity || []).map(a => ({
+    timeLabel: a.timeLabel || '',
+    revenue: a.revenue || 0,
+    orders: a.orders || 0
+  }));
+
   const activeChartData = timeframe === 'today' 
     ? chartHourlyData 
-    : (timeframe === 'monthly' ? chartMonthlyData : chartWeeklyData);
+    : (timeframe === 'monthly' ? chartMonthlyData : (timeframe === 'all' ? chartAllTimeData : chartWeeklyData));
 
   const pieFinancialData = [
     { name: 'Vendor Payouts (97%)', value: financeDistribution?.vendorShare || 0, color: '#10b981' },
@@ -408,7 +415,8 @@ const SuperAdmin3DAnalytics = ({ token }) => {
               {[
                 { id: 'today', label: 'Today (Hourly)' },
                 { id: 'weekly', label: 'Last 7 Days' },
-                { id: 'monthly', label: 'Last 30 Days' }
+                { id: 'monthly', label: 'Last 30 Days' },
+                { id: 'all', label: 'All Time' }
               ].map(t => (
                 <button
                   key={t.id}
@@ -439,7 +447,11 @@ const SuperAdmin3DAnalytics = ({ token }) => {
               <div>
                 <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: '800' }}>Platform Sales Volume & GMV Run-Rate</h3>
                 <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                  {timeframe === 'today' ? 'Hourly distribution of order transactions across campus dining periods.' : 'Daily consolidated revenue curve over the past week.'}
+                  {timeframe === 'today' 
+                    ? 'Hourly distribution of order transactions across campus dining periods today.' 
+                    : (timeframe === 'weekly' 
+                        ? 'Daily consolidated revenue curve over the past 7 days ending today.' 
+                        : (timeframe === 'monthly' ? 'Consolidated revenue velocity over the last 30 days.' : 'Complete historical revenue curve across all active operational days.'))}
                 </p>
               </div>
 
@@ -467,7 +479,7 @@ const SuperAdmin3DAnalytics = ({ token }) => {
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis dataKey="timeLabel" stroke="#94a3b8" fontSize={12} tickLine={false} />
+                  <XAxis dataKey="timeLabel" stroke="#94a3b8" fontSize={12} tickLine={false} interval={0} />
                   <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} tickFormatter={(v) => `₹${v}`} />
                   <Tooltip
                     contentStyle={{ background: '#1e293b', border: 'none', borderRadius: '10px', color: '#ffffff', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
