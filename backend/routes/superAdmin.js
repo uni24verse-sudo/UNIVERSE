@@ -143,18 +143,22 @@ router.get('/realtime-analytics', async (req, res) => {
     const todayAvgOrderValue = todayCompleted.length > 0 ? Math.round(todayRevenue / todayCompleted.length) : 0;
     const ordersVelocityPerHour = lastHourOrders.length;
 
-    // Platform Profit Calculation
+    // Platform Profit Calculation: 1-Month Free Trial Rule
+    // During 30-day trial: 0% platform fee from vendors, 2% PG, 4% cancellation protection
+    // Post-trial (5% rule): 3% platform commission + 2% PG + 4% cancellation protection
     let totalPlatformProfit = 0;
     for (const store of allStores) {
       const storeCompleted = completedOrders.filter(o => o.store && (o.store._id?.toString() === store._id.toString() || o.store.toString() === store._id.toString()));
       const trialEnd = store.trialEndDate ? new Date(store.trialEndDate) : null;
       const isTrialOver = store.isTrialStarted && trialEnd && now > trialEnd;
 
-      if (isTrialOver) {
+      if (isTrialOver && trialEnd) {
+        // Only charge 3% platform commission on orders placed AFTER the 30-day free trial ended
         const postTrial = storeCompleted.filter(o => new Date(o.createdAt) > trialEnd);
         totalPlatformProfit += postTrial.reduce((sum, o) => sum + (o.totalAmount || 0), 0) * 0.03;
       }
 
+      // 4% cancellation penalty on cancelled confirmed orders
       const storeCancelled = allOrders.filter(o => 
         o.store && 
         (o.store._id?.toString() === store._id.toString() || o.store.toString() === store._id.toString()) && 
@@ -163,6 +167,10 @@ router.get('/realtime-analytics', async (req, res) => {
       );
       totalPlatformProfit += storeCancelled.reduce((sum, o) => sum + (o.totalAmount || 0), 0) * 0.04;
     }
+
+    // Dynamic Chart Anchor: If no orders today, anchor to active operating window so chart is never flat
+    const activeOrderDates = allOrders.map(o => new Date(o.createdAt)).sort((a, b) => b - a);
+    const chartAnchorDate = activeOrderDates.length > 0 && todayOrders.length === 0 ? activeOrderDates[0] : new Date();
 
     // Hourly Distribution for 24 hours of today
     const hourlyVelocity = Array.from({ length: 24 }, (_, h) => {
@@ -184,9 +192,9 @@ router.get('/realtime-analytics', async (req, res) => {
       };
     });
 
-    // Real Last 7 Days Daily Breakdown from actual database timestamps
+    // Real Last 7 Days Daily Breakdown
     const dailyVelocity7Days = Array.from({ length: 7 }, (_, i) => {
-      const d = new Date();
+      const d = new Date(chartAnchorDate);
       d.setDate(d.getDate() - (6 - i));
       d.setHours(0, 0, 0, 0);
       const nextD = new Date(d);
@@ -331,10 +339,10 @@ router.get('/realtime-analytics', async (req, res) => {
       };
     }).sort((a, b) => b.totalRevenue - a.totalRevenue);
 
-    // Financial Flow Breakdown
-    const vendorShare = Math.round(totalRevenue * 0.97);
+    // Financial Flow Breakdown (100% Balanced Ledger)
+    const pgGatewayFee = Math.round(totalRevenue * 0.02); // 2% Razorpay PG standard pass-through
     const platformCommission = Math.round(totalPlatformProfit);
-    const pgGatewayFee = Math.round(totalRevenue * 0.02); // ~2% PG standard pass-through
+    const vendorShare = Math.max(0, totalRevenue - pgGatewayFee - platformCommission);
     const netPlatformMargin = Math.max(0, platformCommission);
 
     // Live Recent Activity Feed

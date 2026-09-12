@@ -75,17 +75,26 @@ const SuperAdminCustomerIntelligence = ({ token, socket }) => {
         headers,
         params: { limit: 1000 }
       });
-      if (res.data.success && res.data.customers) {
-        const allCust = res.data.customers;
-        const gmv = allCust.reduce((acc, c) => acc + (c.metrics?.totalSpent || 0), 0);
-        const orders = allCust.reduce((acc, c) => acc + (c.metrics?.totalOrders || 0), 0);
-        const refunded = allCust.reduce((acc, c) => acc + (c.metrics?.totalRefunded || 0), 0);
-        setStatsSummary({
-          totalCustomers: res.data.total || allCust.length,
-          totalGMV: gmv,
-          totalOrders: orders,
-          totalRefunded: refunded
-        });
+      if (res.data.success) {
+        if (res.data.summary) {
+          setStatsSummary({
+            totalCustomers: res.data.summary.totalCustomers || res.data.total,
+            totalGMV: res.data.summary.totalGMV || 0,
+            totalOrders: res.data.summary.totalOrders || 0,
+            totalRefunded: res.data.summary.totalRefunded || 0
+          });
+        } else if (res.data.customers) {
+          const allCust = res.data.customers;
+          const gmv = allCust.reduce((acc, c) => acc + (c.metrics?.totalSpent || 0), 0);
+          const orders = allCust.reduce((acc, c) => acc + (c.metrics?.totalOrders || 0), 0);
+          const refunded = allCust.reduce((acc, c) => acc + (c.metrics?.totalRefunded || 0), 0);
+          setStatsSummary({
+            totalCustomers: res.data.total || allCust.length,
+            totalGMV: gmv,
+            totalOrders: orders,
+            totalRefunded: refunded
+          });
+        }
       }
     } catch (e) {
       console.warn('Could not fetch global summary:', e.message);
