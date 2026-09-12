@@ -66,7 +66,7 @@ const AppLayout = () => {
   const location = useLocation();
   const [selectedLocationId, setSelectedLocationId] = React.useState(localStorage.getItem('universe_location_id'));
   const [isSessionStarted, setIsSessionStarted] = React.useState(false);
-  const isAdminPath = location.pathname.startsWith('/vendor') || location.pathname.startsWith('/super-admin');
+  const isAdminPath = location.pathname.startsWith('/vendor') || location.pathname.startsWith('/super-admin') || location.pathname.startsWith('/superadmin');
 
   React.useEffect(() => {
     const handleClearLocation = () => {
@@ -157,6 +157,10 @@ const AppLayout = () => {
             <Route path="/vendor/store/manage" element={<ManageStore />} />
             <Route path="/super-admin/login" element={<SuperAdminLogin />} />
             <Route path="/super-admin/panel" element={<SuperAdminPanel />} />
+            <Route path="/super-admin" element={<Navigate to="/super-admin/login" replace />} />
+            <Route path="/superadmin" element={<Navigate to="/super-admin/login" replace />} />
+            <Route path="/superadmin/login" element={<Navigate to="/super-admin/login" replace />} />
+            <Route path="/superadmin/panel" element={<Navigate to="/super-admin/panel" replace />} />
             <Route path="/store/:id" element={<StoreMenu />} />
             <Route path="/cart" element={<Cart />} />
             <Route path="/order-tracker/:id" element={<OrderTracker />} />
