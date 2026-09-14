@@ -11,3 +11,10 @@ backend/config/firebase-key.json
 backend/sessions/
 backend/backup/
 scratch/
+.agents/
+
+# Ignore Documentation PDFs, Git Handbooks, and Bundles
+*.pdf
+/universe_developer_git_handbook.html
+/universe_developer_git_handbook.pdf
+*.bundle
