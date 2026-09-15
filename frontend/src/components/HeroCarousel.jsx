@@ -37,7 +37,7 @@ const HeroCarousel = ({ onSearch, hubType = 'College' }) => {
       id: 1,
       title: 'Your City\'s Best Bites',
       subtitle: 'Discover top-rated street food and local stalls around you.',
-      image: 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&w=1200&q=80', // Street food
+      image: 'https://images.unsplash.com/photo-1601050690597-df0568f70950?auto=format&fit=crop&w=1200&q=80', // Indian samosa street food
       color: 'var(--primary)',
       tag: 'Explore Local'
     },

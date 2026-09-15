@@ -12,7 +12,18 @@ import { useStoreTheme } from '../hooks/useStoreTheme';
 
 
 const Cart = () => {
-  const { cart, storeId, updateQuantity, removeFromCart, total, clearCart } = useContext(CartContext);
+  const { 
+    cart, 
+    storeId, 
+    updateQuantity, 
+    removeFromCart, 
+    total, 
+    clearCart,
+    hasOutOfStockItems,
+    outOfStockItems,
+    removeOutOfStockItems,
+    isStoreClosed
+  } = useContext(CartContext);
   const navigate = useNavigate();
   const [store, setStore] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -148,6 +159,14 @@ const Cart = () => {
 
 
   const handleCheckout = async () => {
+    if (hasOutOfStockItems) {
+      setValidationError('Please remove out-of-stock items from your cart before proceeding.');
+      return;
+    }
+    if (store?.isOpen === false || isStoreClosed) {
+      setValidationError('This stall is currently closed and not accepting orders.');
+      return;
+    }
     if (!customerName.trim()) {
       setValidationError('Please enter your name to proceed');
       return;
@@ -346,57 +365,135 @@ const Cart = () => {
           {/* Left: Items List */}
           <div>
             <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '24px' }}>
+              {hasOutOfStockItems && (
+                <div style={{
+                  marginBottom: '1.5rem',
+                  padding: '1rem 1.25rem',
+                  background: '#fef2f2',
+                  border: '1.5px solid #fca5a5',
+                  borderRadius: '16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '1rem',
+                  flexWrap: 'wrap'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1, minWidth: '220px' }}>
+                    <AlertCircle size={22} color="#ef4444" />
+                    <div>
+                      <p style={{ margin: 0, fontWeight: '800', color: '#991b1b', fontSize: '0.9rem' }}>
+                        Item(s) in your cart just went out of stock!
+                      </p>
+                      <p style={{ margin: '0.2rem 0 0 0', color: '#b91c1c', fontSize: '0.8rem' }}>
+                        The vendor marked dish(es) as sold out. Please remove them to proceed.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={removeOutOfStockItems}
+                    style={{
+                      background: '#ef4444',
+                      color: 'white',
+                      border: 'none',
+                      padding: '0.5rem 1rem',
+                      borderRadius: '10px',
+                      fontWeight: '800',
+                      fontSize: '0.8rem',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Remove Sold Out Items
+                  </button>
+                </div>
+              )}
+
               <h3 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
                 <ShoppingBag size={20} color="var(--primary)" /> Items in Cart
               </h3>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                {cart.map(item => (
-                  <div key={item.cartItemId || item._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '1.5rem', borderBottom: '1px solid var(--surface-border)' }}>
-                    <div style={{ flex: 1 }}>
-                      <h4 style={{ margin: '0 0 0.25rem 0', fontSize: '1.125rem', display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                        {item.name}
-                        {item.variant && <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', fontWeight: '600' }}>({item.variant})</span>}
-                        {item.isCombo && <span style={{ fontSize: '0.65rem', padding: '0.15rem 0.5rem', background: 'rgba(239, 68, 68, 0.1)', color: 'var(--error)', borderRadius: '6px', fontWeight: '800' }}>COMBO</span>}
-                      </h4>
-                      <p style={{ fontSize: '0.95rem', fontWeight: '700', color: 'var(--secondary)', marginBottom: item.isCombo ? '0.5rem' : '0' }}>₹{item.price * item.quantity}</p>
+                {cart.map(item => {
+                  const isItemSoldOut = item.isAvailable === false;
+                  return (
+                    <div 
+                      key={item.cartItemId || item._id} 
+                      style={{ 
+                        display: 'flex', 
+                        justifyContent: 'space-between', 
+                        alignItems: 'center', 
+                        paddingBottom: '1.5rem', 
+                        borderBottom: '1px solid var(--surface-border)',
+                        opacity: isItemSoldOut ? 0.7 : 1
+                      }}
+                    >
+                      <div style={{ flex: 1 }}>
+                        <h4 style={{ margin: '0 0 0.25rem 0', fontSize: '1.125rem', display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                          <span style={{ textDecoration: isItemSoldOut ? 'line-through' : 'none' }}>{item.name}</span>
+                          {item.variant && <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', fontWeight: '600' }}>({item.variant})</span>}
+                          {item.isCombo && <span style={{ fontSize: '0.65rem', padding: '0.15rem 0.5rem', background: 'rgba(239, 68, 68, 0.1)', color: 'var(--error)', borderRadius: '6px', fontWeight: '800' }}>COMBO</span>}
+                          {isItemSoldOut && (
+                            <span style={{ fontSize: '0.7rem', fontWeight: '800', color: '#ef4444', backgroundColor: '#fee2e2', padding: '0.2rem 0.5rem', borderRadius: '6px' }}>
+                              ⚠️ SOLD OUT
+                            </span>
+                          )}
+                        </h4>
+                        <p style={{ fontSize: '0.95rem', fontWeight: '700', color: isItemSoldOut ? '#94a3b8' : 'var(--secondary)', marginBottom: item.isCombo ? '0.5rem' : '0' }}>₹{item.price * item.quantity}</p>
 
-                      {item.isCombo && (
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', borderLeft: '2px solid var(--surface-border)', paddingLeft: '0.5rem' }}>
-                          {item.comboItems && item.comboItems.length > 0 && item.comboItems.map((ci, idx) => (
-                            <div key={`ci-${idx}`} style={{ marginBottom: '0.1rem' }}>• {ci.quantity} {ci.name}</div>
-                          ))}
-                          {item.freeItems && item.freeItems.length > 0 && item.freeItems.map((fi, idx) => (
-                            <div key={`fi-${idx}`} style={{ color: '#10b981', marginTop: '0.2rem' }}>+ Free {fi.quantity} {fi.name}</div>
-                          ))}
+                        {item.isCombo && (
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', borderLeft: '2px solid var(--surface-border)', paddingLeft: '0.5rem' }}>
+                            {item.comboItems && item.comboItems.length > 0 && item.comboItems.map((ci, idx) => (
+                              <div key={`ci-${idx}`} style={{ marginBottom: '0.1rem' }}>• {ci.quantity} {ci.name}</div>
+                            ))}
+                            {item.freeItems && item.freeItems.length > 0 && item.freeItems.map((fi, idx) => (
+                              <div key={`fi-${idx}`} style={{ color: '#10b981', marginTop: '0.2rem' }}>+ Free {fi.quantity} {fi.name}</div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {isItemSoldOut ? (
+                        <button
+                          onClick={() => removeFromCart(item.cartItemId || item._id)}
+                          style={{
+                            background: 'rgba(239, 68, 68, 0.1)',
+                            border: '1px solid rgba(239, 68, 68, 0.3)',
+                            color: '#ef4444',
+                            borderRadius: '10px',
+                            padding: '0.4rem 0.8rem',
+                            fontSize: '0.8rem',
+                            fontWeight: '700',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          Remove
+                        </button>
+                      ) : (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', background: '#f8fafc', padding: '0.4rem', borderRadius: '12px', border: '1px solid var(--surface-border)' }}>
+                          <button
+                            onClick={() => updateQuantity(item.cartItemId || item._id, -1)}
+                            style={{ background: 'none', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', padding: '0.25rem' }}
+                          >
+                            <Minus size={16} />
+                          </button>
+                          <span style={{ minWidth: '20px', textAlign: 'center', fontWeight: '700', color: 'var(--text-primary)' }}>{item.quantity}</span>
+                          <button
+                            onClick={() => updateQuantity(item.cartItemId || item._id, 1)}
+                            style={{ background: 'none', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', padding: '0.25rem' }}
+                          >
+                            <Plus size={16} />
+                          </button>
                         </div>
                       )}
-                    </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', background: '#f8fafc', padding: '0.4rem', borderRadius: '12px', border: '1px solid var(--surface-border)' }}>
                       <button
-                        onClick={() => updateQuantity(item.cartItemId || item._id, -1)}
-                        style={{ background: 'none', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', padding: '0.25rem' }}
+                        onClick={() => removeFromCart(item.cartItemId || item._id)}
+                        style={{ marginLeft: '1rem', background: 'none', border: 'none', color: 'var(--error)', cursor: 'pointer', opacity: 0.6 }}
                       >
-                        <Minus size={16} />
-                      </button>
-                      <span style={{ minWidth: '20px', textAlign: 'center', fontWeight: '700', color: 'var(--text-primary)' }}>{item.quantity}</span>
-                      <button
-                        onClick={() => updateQuantity(item.cartItemId || item._id, 1)}
-                        style={{ background: 'none', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', padding: '0.25rem' }}
-                      >
-                        <Plus size={16} />
+                        <Trash2 size={18} />
                       </button>
                     </div>
-
-                    <button
-                      onClick={() => removeFromCart(item.cartItemId || item._id)}
-                      style={{ marginLeft: '1rem', background: 'none', border: 'none', color: 'var(--error)', cursor: 'pointer', opacity: 0.6 }}
-                    >
-                      <Trash2 size={18} />
-                    </button>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               <div style={{ marginTop: '2rem', padding: '1.25rem', background: '#f8fafc', borderRadius: '16px', border: '1px solid var(--surface-border)' }}>
@@ -478,7 +575,7 @@ const Cart = () => {
                         marginBottom: '0.75rem'
                       }}>
                         <img 
-                          src={product.image ? (product.image.startsWith('/uploads') ? `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${product.image}` : product.image) : 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=1000&q=80'} 
+                          src={product.image ? (product.image.startsWith('/uploads') ? `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${product.image}` : product.image) : 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=1000&q=80'} 
                           alt={product.name} 
                           style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                         />
@@ -780,10 +877,22 @@ const Cart = () => {
               <button
                 onClick={handleCheckout}
                 className="btn btn-primary"
-                disabled={loading}
-                style={{ marginTop: '1.5rem', height: '60px', borderRadius: '16px', fontSize: '1.125rem', width: '100%', opacity: loading ? 0.7 : 1 }}
+                disabled={loading || hasOutOfStockItems || store?.isOpen === false || isStoreClosed}
+                style={{ 
+                  marginTop: '1.5rem', 
+                  height: '60px', 
+                  borderRadius: '16px', 
+                  fontSize: '1.125rem', 
+                  width: '100%', 
+                  opacity: (loading || hasOutOfStockItems || store?.isOpen === false || isStoreClosed) ? 0.6 : 1,
+                  background: hasOutOfStockItems ? '#64748b' : undefined
+                }}
               >
-                {loading ? 'Processing...' : (
+                {loading ? 'Processing...' : hasOutOfStockItems ? (
+                  'Remove Sold Out Items to Pay'
+                ) : (store?.isOpen === false || isStoreClosed) ? (
+                  'Stall Currently Closed'
+                ) : (
                   <>
                     Pay ₹{finalTotal} <ChevronRight size={20} style={{ marginLeft: '0.5rem' }} />
                   </>

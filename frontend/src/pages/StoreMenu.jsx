@@ -48,26 +48,35 @@ const StoreMenu = () => {
   useEffect(() => {
     if (socket && connected && id) {
       const handleStoreStatus = ({ storeId, isOpen }) => {
-        if (storeId === id) {
+        if (String(storeId) === String(id)) {
           setStore(prev => prev ? { ...prev, isOpen } : prev);
         }
       };
 
       const handleProductAvailability = ({ storeId, productId, isAvailable }) => {
-        if (storeId === id) {
+        if (String(storeId) === String(id)) {
           setStore(prev => {
             if (!prev) return prev;
             return {
               ...prev,
-              products: prev.products.map(p => p._id === productId ? { ...p, isAvailable } : p)
+              products: (prev.products || []).map(p => 
+                (String(p._id) === String(productId) || String(p.id) === String(productId))
+                  ? { ...p, isAvailable }
+                  : p
+              )
             };
           });
         }
       };
 
-      const handleStoreMenu = ({ storeId, products }) => {
-        if (storeId === id && products) {
-          setStore(prev => prev ? { ...prev, products } : prev);
+      const handleStoreMenu = (data) => {
+        const incomingId = String(data?.storeId || data?._id || data?.id || '');
+        if (incomingId === String(id)) {
+          if (data.store && Array.isArray(data.store.products)) {
+            setStore(data.store);
+          } else if (Array.isArray(data.products)) {
+            setStore(prev => prev ? { ...prev, products: data.products } : prev);
+          }
         }
       };
 

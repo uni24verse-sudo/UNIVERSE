@@ -397,7 +397,10 @@ router.post('/:storeId/product', auth, upload.single('imageFile'), async (req, r
 
     const io = req.app.get('io');
     if (io) {
-      io.emit('store_menu_update', { storeId: store._id || store.id, products: store.products });
+      const sId = String(req.params.storeId || store._id || store.id);
+      const payload = { storeId: sId, _id: sId, products: store.products, store };
+      io.emit('store_menu_update', payload);
+      io.to(sId).emit('store_menu_update', payload);
     }
 
     res.status(201).json(store);
@@ -415,7 +418,10 @@ router.delete('/:storeId/product/:productId', auth, async (req, res) => {
 
     const io = req.app.get('io');
     if (io) {
-      io.emit('store_menu_update', { storeId: store._id || store.id, products: store.products });
+      const sId = String(req.params.storeId || store._id || store.id);
+      const payload = { storeId: sId, _id: sId, productId: req.params.productId, products: store.products, store };
+      io.emit('store_menu_update', payload);
+      io.to(sId).emit('store_menu_update', payload);
     }
 
     res.json(store);
@@ -433,12 +439,20 @@ router.put('/:storeId/product/:productId/toggle', auth, async (req, res) => {
 
     const io = req.app.get('io');
     if (io) {
+      const sId = String(req.params.storeId);
       io.emit('product_availability_update', {
-        storeId: req.params.storeId,
+        storeId: sId,
         productId: req.params.productId,
         isAvailable: result.isAvailable
       });
-      io.emit('store_menu_update', { storeId: req.params.storeId, products: result.store?.products || [] });
+      io.to(sId).emit('product_availability_update', {
+        storeId: sId,
+        productId: req.params.productId,
+        isAvailable: result.isAvailable
+      });
+      const menuPayload = { storeId: sId, _id: sId, products: result.store?.products || [], store: result.store };
+      io.emit('store_menu_update', menuPayload);
+      io.to(sId).emit('store_menu_update', menuPayload);
     }
 
     res.json({ message: 'Product updated successfully', store: result.store });
@@ -491,7 +505,10 @@ router.put('/:storeId/product/:productId', auth, upload.single('imageFile'), asy
 
     const io = req.app.get('io');
     if (io) {
-      io.emit('store_menu_update', { storeId: store._id || store.id, products: store.products });
+      const sId = String(req.params.storeId || store._id || store.id);
+      const payload = { storeId: sId, _id: sId, products: store.products, store };
+      io.emit('store_menu_update', payload);
+      io.to(sId).emit('store_menu_update', payload);
     }
 
     res.json({ message: 'Product updated successfully', store });

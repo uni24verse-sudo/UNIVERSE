@@ -12,7 +12,7 @@ const OptimizedImage = ({ src, alt, className, style, loading = 'lazy' }) => {
   const [error, setError] = useState(false);
 
   const getOptimizedUrl = (url) => {
-    if (!url) return 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=1000&q=80';
+    if (!url) return 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=1000&q=80';
     
     // Auto-inject Cloudinary optimizations if using Cloudinary
     if (url.includes('cloudinary.com')) {
