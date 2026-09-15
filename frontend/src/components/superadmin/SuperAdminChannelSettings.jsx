@@ -414,16 +414,26 @@ const SuperAdminChannelSettings = ({ token, socket }) => {
                       <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '16px', border: '1px solid #e2e8f0', marginBottom: '1.5rem' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem', fontSize: '0.85rem' }}>
                           <span style={{ color: '#64748b' }}>Phone Number:</span>
-                          <span style={{ fontWeight: '800', color: '#0f172a' }}>+{slot.phoneNumber}</span>
+                          <span style={{ fontWeight: '800', color: '#0f172a' }}>
+                            {slot.phoneNumber ? `+${slot.phoneNumber}` : (slot.isSandbox ? 'Simulated (Sandbox)' : 'Linked')}
+                          </span>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem', fontSize: '0.85rem' }}>
                           <span style={{ color: '#64748b' }}>WhatsApp Name:</span>
-                          <span style={{ fontWeight: '700', color: '#0f172a' }}>{slot.pushName || 'UniVerse Bot'}</span>
+                          <span style={{ fontWeight: '700', color: '#0f172a' }}>
+                            {slot.pushName || (slot.isSandbox ? 'UniVerse Simulator' : 'UniVerse Bot')}
+                          </span>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: '#94a3b8' }}>
                           <span>Session:</span>
                           <span>Isolated Path ({slot.slotIndex})</span>
                         </div>
+                        {slot.isSandbox && (
+                          <div style={{ marginTop: '0.6rem', padding: '0.4rem 0.6rem', borderRadius: '8px', background: '#fef3c7', color: '#b45309', fontSize: '0.75rem', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                            <span>🧪</span>
+                            <span>Sandbox Simulation. Click Unlink to pair your real phone.</span>
+                          </div>
+                        )}
                       </div>
                     ) : (
                       <div style={{ background: '#f8fafc', padding: '1.25rem', borderRadius: '16px', border: '1px dashed #cbd5e1', textAlign: 'center', marginBottom: '1.5rem' }}>
@@ -448,7 +458,7 @@ const SuperAdminChannelSettings = ({ token, socket }) => {
                             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', cursor: 'pointer'
                           }}
                         >
-                          <LogOut size={16} /> Disconnect Device
+                          <LogOut size={16} /> Unlink / Disconnect Slot
                         </button>
                       </div>
                     ) : (

@@ -97,8 +97,8 @@ class WhatsAppMultiDeviceService {
   /**
    * Start or restart Baileys socket for a specific slot (1 to 5)
    */
-  async startSocket(slotIndex) {
-    if (this.isSandbox) {
+  async startSocket(slotIndex, forceReal = false) {
+    if (this.isSandbox && !forceReal) {
       console.log(`[WhatsApp Slot ${slotIndex}] Sandbox mode active: socket start simulated.`);
       this.status.set(slotIndex, 'connected');
       return null;
@@ -264,14 +264,6 @@ class WhatsAppMultiDeviceService {
    * Request pairing QR code for a specific slot
    */
   async requestQR(slotIndex) {
-    if (this.isSandbox) {
-      return { 
-        status: 'already_connected', 
-        qrBase64: null, 
-        message: 'WhatsApp running in SAFE SANDBOX mode (Console simulation).' 
-      };
-    }
-
     if (slotIndex < 1 || slotIndex > this.MAX_SLOTS) {
       throw new Error(`Slot must be between 1 and ${this.MAX_SLOTS}`);
     }
@@ -288,8 +280,8 @@ class WhatsAppMultiDeviceService {
       return { status: 'pairing', qrBase64: existingQR.qrBase64 };
     }
 
-    // Start or restart socket
-    await this.startSocket(slotIndex);
+    // Start or restart socket with forceReal=true so a real Baileys QR code is generated
+    await this.startSocket(slotIndex, true);
 
     // Wait up to 6 seconds for QR emission
     for (let attempt = 0; attempt < 12; attempt++) {
@@ -392,12 +384,12 @@ class WhatsAppMultiDeviceService {
       const isSocketLive = this.sockets.has(i) && inMemoryStatus === 'connected';
       let effectiveStatus = 'empty';
 
-      if (this.isSandbox) {
-        effectiveStatus = 'connected';
-      } else if (isSocketLive) {
+      if (isSocketLive) {
         effectiveStatus = 'connected';
       } else if (inMemoryStatus === 'pairing') {
         effectiveStatus = 'pairing';
+      } else if (this.isSandbox && inMemoryStatus !== 'empty') {
+        effectiveStatus = 'connected';
       }
 
       slots.push({
@@ -410,7 +402,7 @@ class WhatsAppMultiDeviceService {
         platform: primary?.platform || 'WhatsApp Multi-Device',
         status: effectiveStatus,
         lastActive: primary?.lastActive,
-        isSandbox: this.isSandbox
+        isSandbox: this.isSandbox && !isSocketLive
       });
     }
 
@@ -434,8 +426,15 @@ class WhatsAppMultiDeviceService {
       recipientJid = `${cleanNumber}@s.whatsapp.net`;
     }
 
-    // Safe Sandbox Mode Check
-    if (this.isSandbox) {
+    if (slotIndex < 1 || slotIndex > this.MAX_SLOTS) {
+      throw new Error(`Invalid slot index ${slotIndex}`);
+    }
+
+    const socket = this.sockets.get(slotIndex);
+    const isSocketReady = socket && this.status.get(slotIndex) === 'connected';
+
+    // If slot is not genuinely connected with a live socket, but sandbox mode is active, simulate
+    if (!isSocketReady && this.isSandbox) {
       console.log(`[WhatsApp Sandbox] Simulated send to ${recipientJid}:`, messagePayload.body || messagePayload.text || messagePayload);
       if (this.io) {
         this.io.to('superadmin_room').emit('superadmin:whatsapp_simulated', {
@@ -446,12 +445,7 @@ class WhatsAppMultiDeviceService {
       return { success: true, messageId: `sandbox_${Date.now()}`, recipient: recipientJid, sandbox: true };
     }
 
-    if (slotIndex < 1 || slotIndex > this.MAX_SLOTS) {
-      throw new Error(`Invalid slot index ${slotIndex}`);
-    }
-
-    const socket = this.sockets.get(slotIndex);
-    if (!socket || this.status.get(slotIndex) !== 'connected') {
+    if (!isSocketReady) {
       throw new Error(`WhatsApp Slot ${slotIndex} is not connected.`);
     }
 
@@ -511,14 +505,9 @@ class WhatsAppMultiDeviceService {
   async sendDirectMessage(destinationNumber, textMessage, options = {}) {
     if (!destinationNumber || (!textMessage && !options.headerMediaUrl)) return false;
 
-    if (this.isSandbox) {
-      console.log(`[WhatsApp Sandbox Direct] Message to ${destinationNumber}: ${textMessage}`);
-      return true;
-    }
-
-    // Find any slot with 'connected' status
+    // Find any slot with a genuine connected live socket
     for (let slot = 1; slot <= this.MAX_SLOTS; slot++) {
-      if (this.status.get(slot) === 'connected') {
+      if (this.status.get(slot) === 'connected' && this.sockets.has(slot)) {
         try {
           await this.sendMessage(slot, destinationNumber, { 
             body: textMessage,
@@ -532,6 +521,12 @@ class WhatsAppMultiDeviceService {
       }
     }
 
+    // Fallback to sandbox simulation if active and no live socket is available
+    if (this.isSandbox) {
+      console.log(`[WhatsApp Sandbox Direct] Message to ${destinationNumber}: ${textMessage}`);
+      return true;
+    }
+
     console.warn(`⚠️ [WhatsApp Direct] No connected WhatsApp slot available to send message to ${destinationNumber}`);
     return false;
   }
@@ -540,25 +535,12 @@ class WhatsAppMultiDeviceService {
    * Fetch all participating WhatsApp groups from connected WhatsApp instance
    */
   async fetchParticipatingGroups(slotIndex = null) {
-    if (this.isSandbox) {
-      return [
-        {
-          id: 'sandbox-group@g.us',
-          subject: 'UniVerse UAT Sandbox Group',
-          creation: Math.floor(Date.now() / 1000),
-          owner: 'admin',
-          desc: 'Simulated WhatsApp Group for UAT Sandbox',
-          participantsCount: 5
-        }
-      ];
-    }
-
     let targetSocket = null;
     if (slotIndex && this.sockets.has(slotIndex) && this.status.get(slotIndex) === 'connected') {
       targetSocket = this.sockets.get(slotIndex);
     } else {
       for (let s = 1; s <= this.MAX_SLOTS; s++) {
-        if (this.status.get(s) === 'connected') {
+        if (this.status.get(s) === 'connected' && this.sockets.has(s)) {
           targetSocket = this.sockets.get(s);
           break;
         }
@@ -566,6 +548,18 @@ class WhatsAppMultiDeviceService {
     }
 
     if (!targetSocket) {
+      if (this.isSandbox) {
+        return [
+          {
+            id: 'sandbox-group@g.us',
+            subject: 'UniVerse UAT Sandbox Group',
+            creation: Math.floor(Date.now() / 1000),
+            owner: 'admin',
+            desc: 'Simulated WhatsApp Group for UAT Sandbox',
+            participantsCount: 5
+          }
+        ];
+      }
       return [];
     }
 
