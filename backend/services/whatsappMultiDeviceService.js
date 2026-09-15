@@ -40,12 +40,14 @@ class WhatsAppMultiDeviceService {
     console.log(`--- Initializing WhatsApp Multi-Device (Max 5 Slots) Engine [Sandbox: ${this.isSandbox}] ---`);
     try {
       for (let i = 1; i <= this.MAX_SLOTS; i++) {
-        let account = await prisma.channelAccount.findFirst({
-          where: { type: 'whatsapp', slotIndex: i }
+        const accounts = await prisma.channelAccount.findMany({
+          where: { type: 'whatsapp', slotIndex: i },
+          orderBy: { createdAt: 'asc' }
         });
 
-        if (!account) {
-          account = await prisma.channelAccount.create({
+        let primaryAccount = accounts[0];
+        if (!primaryAccount) {
+          primaryAccount = await prisma.channelAccount.create({
             data: {
               id: `wa_slot_${i}`,
               type: 'whatsapp',
@@ -55,6 +57,14 @@ class WhatsAppMultiDeviceService {
               status: this.isSandbox ? 'connected' : 'empty'
             }
           });
+        }
+
+        // Prune duplicate accounts for this slotIndex if any exist
+        if (accounts.length > 1) {
+          const duplicateIds = accounts.slice(1).map(a => a.id);
+          await prisma.channelAccount.deleteMany({
+            where: { id: { in: duplicateIds } }
+          }).catch(() => {});
         }
 
         if (this.isSandbox) {
@@ -69,9 +79,14 @@ class WhatsAppMultiDeviceService {
           console.log(`[WhatsApp Slot ${i}] Existing session found, initiating connection...`);
           this.startSocket(i).catch(err => {
             console.error(`[WhatsApp Slot ${i}] Failed to resume session:`, err.message);
+            this.status.set(i, 'empty');
           });
         } else {
-          this.status.set(i, account.status || 'empty');
+          this.status.set(i, 'empty');
+          await prisma.channelAccount.updateMany({
+            where: { type: 'whatsapp', slotIndex: i },
+            data: { status: 'empty', phoneNumber: '', pushName: '', lastActive: null }
+          }).catch(() => {});
         }
       }
     } catch (err) {
@@ -261,9 +276,9 @@ class WhatsAppMultiDeviceService {
       throw new Error(`Slot must be between 1 and ${this.MAX_SLOTS}`);
     }
 
-    // Check if slot is already connected
-    const currentStatus = this.status.get(slotIndex);
-    if (currentStatus === 'connected') {
+    // Check if slot is genuinely live and connected in memory
+    const isLive = this.sockets.has(slotIndex) && this.status.get(slotIndex) === 'connected';
+    if (isLive) {
       return { status: 'already_connected', qrBase64: null };
     }
 
@@ -313,15 +328,10 @@ class WhatsAppMultiDeviceService {
     this.status.set(slotIndex, 'empty');
     this.cleanupSessionFiles(slotIndex);
 
-    const account = await prisma.channelAccount.findFirst({
-      where: { type: 'whatsapp', slotIndex }
-    });
-    if (account) {
-      await prisma.channelAccount.update({
-        where: { id: account.id },
-        data: { status: 'empty', phoneNumber: '', pushName: '', lastActive: null }
-      });
-    }
+    await prisma.channelAccount.updateMany({
+      where: { type: 'whatsapp', slotIndex },
+      data: { status: 'empty', phoneNumber: '', pushName: '', lastActive: null }
+    }).catch(() => {});
 
     if (this.io) {
       this.io.to('superadmin_room').emit('superadmin:whatsapp_status', {
@@ -349,23 +359,62 @@ class WhatsAppMultiDeviceService {
    * Get all 5 slots summary
    */
   async getAllSlotsSummary() {
-    const accounts = await prisma.channelAccount.findMany({
-      where: { type: 'whatsapp' },
-      orderBy: { slotIndex: 'asc' }
-    });
+    const slots = [];
+    for (let i = 1; i <= this.MAX_SLOTS; i++) {
+      const accounts = await prisma.channelAccount.findMany({
+        where: { type: 'whatsapp', slotIndex: i },
+        orderBy: { createdAt: 'asc' }
+      });
 
-    return accounts.map(acc => ({
-      _id: acc.id,
-      id: acc.id,
-      slotIndex: acc.slotIndex,
-      nickname: acc.nickname,
-      phoneNumber: acc.phoneNumber,
-      pushName: acc.pushName,
-      platform: acc.platform,
-      status: this.isSandbox ? 'connected' : (this.status.get(acc.slotIndex) || acc.status || 'empty'),
-      lastActive: acc.lastActive,
-      isSandbox: this.isSandbox
-    }));
+      let primary = accounts[0];
+      if (!primary) {
+        primary = await prisma.channelAccount.create({
+          data: {
+            id: `wa_slot_${i}`,
+            type: 'whatsapp',
+            slotIndex: i,
+            nickname: `WhatsApp Slot ${i}`,
+            sessionPath: `sessions/whatsapp_slot_${i}`,
+            status: 'empty'
+          }
+        }).catch(() => null);
+      }
+
+      // Automatically prune duplicate rows for this slotIndex
+      if (accounts.length > 1) {
+        const duplicateIds = accounts.slice(1).map(a => a.id);
+        await prisma.channelAccount.deleteMany({
+          where: { id: { in: duplicateIds } }
+        }).catch(() => {});
+      }
+
+      const inMemoryStatus = this.status.get(i);
+      const isSocketLive = this.sockets.has(i) && inMemoryStatus === 'connected';
+      let effectiveStatus = 'empty';
+
+      if (this.isSandbox) {
+        effectiveStatus = 'connected';
+      } else if (isSocketLive) {
+        effectiveStatus = 'connected';
+      } else if (inMemoryStatus === 'pairing') {
+        effectiveStatus = 'pairing';
+      }
+
+      slots.push({
+        _id: primary ? primary.id : `wa_slot_${i}`,
+        id: primary ? primary.id : `wa_slot_${i}`,
+        slotIndex: i,
+        nickname: primary?.nickname || `WhatsApp Slot ${i}`,
+        phoneNumber: isSocketLive ? (primary?.phoneNumber || '') : '',
+        pushName: isSocketLive ? (primary?.pushName || '') : '',
+        platform: primary?.platform || 'WhatsApp Multi-Device',
+        status: effectiveStatus,
+        lastActive: primary?.lastActive,
+        isSandbox: this.isSandbox
+      });
+    }
+
+    return slots;
   }
 
   /**

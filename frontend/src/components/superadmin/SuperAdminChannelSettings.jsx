@@ -239,22 +239,51 @@ const SuperAdminChannelSettings = ({ token, socket }) => {
     }
   };
 
+  // Guarantee exactly 5 distinct slots (1..5) with zero duplicate cards
+  const uniqueWhatsappSlots = React.useMemo(() => {
+    const map = new Map();
+    (data.whatsapp.slots || []).forEach(slot => {
+      if (slot.slotIndex >= 1 && slot.slotIndex <= 5 && !map.has(slot.slotIndex)) {
+        map.set(slot.slotIndex, slot);
+      }
+    });
+    const result = [];
+    for (let i = 1; i <= 5; i++) {
+      if (map.has(i)) {
+        result.push(map.get(i));
+      } else {
+        result.push({
+          id: `wa_slot_${i}`,
+          _id: `wa_slot_${i}`,
+          slotIndex: i,
+          nickname: `WhatsApp Slot ${i}`,
+          status: 'empty',
+          phoneNumber: '',
+          pushName: ''
+        });
+      }
+    }
+    return result;
+  }, [data.whatsapp.slots]);
+
   return (
-    <div>
-      {/* Header */}
-      <header style={{ marginBottom: '2.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
+    <div style={{ maxWidth: '1400px', margin: '0 auto', paddingBottom: '4rem' }}>
+      {/* HEADER BAR */}
+      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '2.5rem', flexWrap: 'wrap', gap: '1.5rem' }}>
         <div>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'rgba(239, 65, 35, 0.1)', color: 'var(--primary)', padding: '4px 12px', borderRadius: '100px', fontSize: '0.8rem', fontWeight: '800', marginBottom: '0.5rem' }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 10px', borderRadius: '100px', background: 'rgba(239, 65, 35, 0.08)', color: 'var(--primary)', fontWeight: '800', fontSize: '0.75rem', marginBottom: '0.5rem' }}>
             <ShieldCheck size={14} /> SuperAdmin Exclusive Gateway Hub
           </div>
-          <h1 style={{ fontSize: '2rem', fontWeight: '900', margin: 0, color: '#0f172a' }}>Channels & Multi-Device Hub</h1>
-          <p style={{ color: 'var(--text-secondary)', marginTop: '0.4rem', fontSize: '1rem' }}>
+          <h1 style={{ margin: 0, fontSize: '2.2rem', fontWeight: '900', letterSpacing: '-0.03em', color: '#0f172a' }}>
+            Channels & Multi-Device Hub
+          </h1>
+          <p style={{ margin: '0.35rem 0 0 0', color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
             Manage up to 5 WhatsApp Baileys accounts and multiple Gmail SMTP senders with dedicated isolation.
           </p>
         </div>
 
-        {/* Channel Switcher Tabs */}
-        <div style={{ display: 'flex', gap: '0.5rem', background: '#f1f5f9', padding: '0.4rem', borderRadius: '16px' }}>
+        {/* TABS */}
+        <div style={{ display: 'flex', gap: '0.5rem', background: '#f1f5f9', padding: '4px', borderRadius: '16px' }}>
           <button
             onClick={() => setActiveTab('whatsapp')}
             style={{
@@ -269,7 +298,7 @@ const SuperAdminChannelSettings = ({ token, socket }) => {
             <Smartphone size={18} color="#25D366" />
             WhatsApp Hub (Max 5)
             <span style={{ fontSize: '0.75rem', padding: '2px 8px', borderRadius: '100px', background: activeTab === 'whatsapp' ? 'rgba(37, 211, 102, 0.15)' : '#e2e8f0', color: activeTab === 'whatsapp' ? '#16a34a' : '#64748b' }}>
-              {data.whatsapp.slots.filter(s => s.status === 'connected').length}/5 Active
+              {uniqueWhatsappSlots.filter(s => s.status === 'connected').length}/5 Active
             </span>
           </button>
 
@@ -297,7 +326,7 @@ const SuperAdminChannelSettings = ({ token, socket }) => {
       {activeTab === 'whatsapp' && (
         <div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.5rem' }}>
-            {data.whatsapp.slots.map((slot) => {
+            {uniqueWhatsappSlots.map((slot) => {
               const isConnected = slot.status === 'connected';
               const isPairing = slot.status === 'pairing';
 
