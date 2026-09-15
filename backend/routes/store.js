@@ -3,8 +3,9 @@ const router = express.Router();
 const auth = require('../middleware/auth');
 const prisma = require('../config/prisma');
 const storeRepository = require('../repositories/storeRepository');
-const { normalizeStore } = require('../utils/pgAdapter');
+const { normalizeStore, normalizeOrder } = require('../utils/pgAdapter');
 const telegramService = require('../services/telegramService');
+const refundService = require('../services/refundService');
 const multer = require('multer');
 const cloudinary = require('cloudinary').v2;
 const { Readable } = require('stream');
@@ -393,6 +394,12 @@ router.post('/:storeId/product', auth, upload.single('imageFile'), async (req, r
     });
 
     if (!store) return res.status(404).json({ message: 'Store not found or unauthorized' });
+
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('store_menu_update', { storeId: store._id || store.id, products: store.products });
+    }
+
     res.status(201).json(store);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -405,6 +412,12 @@ router.delete('/:storeId/product/:productId', auth, async (req, res) => {
     const adminId = req.admin.id || req.admin._id;
     const store = await storeRepository.deleteProduct(req.params.storeId, adminId, req.params.productId);
     if (!store) return res.status(404).json({ message: 'Product or store not found' });
+
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('store_menu_update', { storeId: store._id || store.id, products: store.products });
+    }
+
     res.json(store);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -425,6 +438,7 @@ router.put('/:storeId/product/:productId/toggle', auth, async (req, res) => {
         productId: req.params.productId,
         isAvailable: result.isAvailable
       });
+      io.emit('store_menu_update', { storeId: req.params.storeId, products: result.store?.products || [] });
     }
 
     res.json({ message: 'Product updated successfully', store: result.store });
@@ -475,17 +489,70 @@ router.put('/:storeId/product/:productId', auth, upload.single('imageFile'), asy
     const store = await storeRepository.updateProduct(req.params.storeId, adminId, req.params.productId, updateData);
     if (!store) return res.status(404).json({ message: 'Product or store not found' });
 
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('store_menu_update', { storeId: store._id || store.id, products: store.products });
+    }
+
     res.json({ message: 'Product updated successfully', store });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 });
 
-// Toggle Store Open/Closed Status
+// Toggle Store Open/Closed Status with Graceful Pending Orders Auto-Cancellation
 router.put('/:storeId/toggle-status', auth, async (req, res) => {
   try {
     const adminId = req.admin.id || req.admin._id;
-    const store = await storeRepository.toggleStatus(req.params.storeId, adminId);
+    const storeId = req.params.storeId;
+    const { forceCancelPending } = req.body || {};
+
+    const currentStore = await prisma.store.findFirst({
+      where: { id: storeId, ...(adminId ? { adminId } : {}) }
+    });
+    if (!currentStore) return res.status(404).json({ message: 'Store not found' });
+
+    // If currently OPEN and turning OFF, check for pending orders
+    const willClose = currentStore.isOpen;
+    if (willClose) {
+      const pendingOrders = await prisma.order.findMany({
+        where: {
+          storeId,
+          status: 'Pending'
+        },
+        include: { store: true }
+      });
+
+      if (pendingOrders.length > 0 && !forceCancelPending) {
+        return res.status(200).json({
+          requiresConfirmation: true,
+          pendingCount: pendingOrders.length,
+          message: `You have ${pendingOrders.length} pending order(s) waiting for acceptance. Closing your stall will cancel and immediately refund them to students.`
+        });
+      }
+
+      // If forceCancelPending is confirmed or 0 pending orders, cancel all pending orders
+      if (pendingOrders.length > 0 && forceCancelPending) {
+        const io = req.app.get('io');
+        for (const order of pendingOrders) {
+          await refundService.handleOrderCancellation({
+            orderId: order.id,
+            reason: 'Stall closed by vendor before acceptance',
+            actorType: 'VENDOR',
+            actorId: adminId,
+            io
+          }).catch(e => console.error(`[StoreToggle] Cancellation error for #${order.orderNumber}:`, e.message));
+
+          if (io) {
+            const normalized = normalizeOrder(order);
+            io.to(order.storeId).emit('order_status_update', normalized);
+            io.to(order.id).emit('order_status_update', normalized);
+          }
+        }
+      }
+    }
+
+    const store = await storeRepository.toggleStatus(storeId, adminId);
     if (!store) return res.status(404).json({ message: 'Store not found' });
 
     telegramService.sendStatusAlert(store, store.isOpen).catch(() => {});
@@ -496,7 +563,12 @@ router.put('/:storeId/toggle-status', auth, async (req, res) => {
       io.to('superadmin_room').emit('superadmin:store_update', store);
     }
 
-    res.json({ message: `Store is now ${store.isOpen ? 'Open' : 'Closed'}`, isOpen: store.isOpen, isAutomated: store.isAutomated });
+    res.json({ 
+      message: `Store is now ${store.isOpen ? 'Open' : 'Closed'}`, 
+      isOpen: store.isOpen, 
+      isAutomated: store.isAutomated,
+      requiresConfirmation: false 
+    });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

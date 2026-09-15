@@ -34,6 +34,7 @@ export default function LiveOrdersScreen({ navigation }) {
   const { width: screenWidth } = Dimensions.get('window');
   const [searchQuery, setSearchQuery] = useState('');
   const [, setTick] = useState(0);
+  const [isStoreOpen, setIsStoreOpen] = useState(true);
   
   const { isAudioEnabled, toggleAudio, queueAnnouncement, cancelAnnouncement } = useAudioAlerts();
 
@@ -41,6 +42,17 @@ export default function LiveOrdersScreen({ navigation }) {
   const isEmployee = user?.role === 'employee';
 
   const isFocused = useIsFocused();
+
+  const fetchStoreStatus = useCallback(async () => {
+    try {
+      const res = await apiClient.get('/store/my-stores');
+      if (res.data && res.data.length > 0) {
+        setIsStoreOpen(res.data[0].isOpen !== false);
+      }
+    } catch (e) {
+      console.error('Failed to fetch store status:', e.message);
+    }
+  }, []);
 
   // Tick every 30 seconds to refresh relative times and pre-order countdowns
   useEffect(() => {
@@ -78,12 +90,16 @@ export default function LiveOrdersScreen({ navigation }) {
   useEffect(() => {
     if (isFocused) {
       fetchOrders();
+      fetchStoreStatus();
     }
-  }, [isFocused, fetchOrders]);
+  }, [isFocused, fetchOrders, fetchStoreStatus]);
 
   useEffect(() => {
-    if (isConnected) fetchOrders();
-  }, [isConnected, fetchOrders]);
+    if (isConnected) {
+      fetchOrders();
+      fetchStoreStatus();
+    }
+  }, [isConnected, fetchOrders, fetchStoreStatus]);
 
   // Socket listeners for real-time order lifecycle
   useEffect(() => {
@@ -107,16 +123,25 @@ export default function LiveOrdersScreen({ navigation }) {
       setOrders((prev) => prev.map((o) => (o._id === cancelledOrder._id ? cancelledOrder : o)));
     };
 
+    const handleStoreStatus = ({ storeId, isOpen }) => {
+      const currentStoreId = user?.storeId || user?.id;
+      if (!currentStoreId || storeId === currentStoreId) {
+        setIsStoreOpen(isOpen);
+      }
+    };
+
     socket.on('new_order', handleNewOrder);
     socket.on('order_status_update', handleStatusUpdate);
     socket.on('order_cancelled', handleCancelled);
+    socket.on('store_status_update', handleStoreStatus);
 
     return () => {
       socket.off('new_order', handleNewOrder);
       socket.off('order_status_update', handleStatusUpdate);
       socket.off('order_cancelled', handleCancelled);
+      socket.off('store_status_update', handleStoreStatus);
     };
-  }, [socket, queueAnnouncement, cancelAnnouncement]);
+  }, [socket, queueAnnouncement, cancelAnnouncement, user]);
 
   const updateStatus = async (orderId, currentStatus, newStatus) => {
     try {
@@ -493,7 +518,25 @@ export default function LiveOrdersScreen({ navigation }) {
           </View>
         </View>
         
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <TouchableOpacity 
+            style={[
+              styles.audioToggle, 
+              { 
+                backgroundColor: isStoreOpen ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)',
+                borderColor: isStoreOpen ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)',
+                borderWidth: 1
+              }
+            ]}
+            onPress={() => navigation.navigate('Menu')}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.dot, { backgroundColor: isStoreOpen ? '#10B981' : '#EF4444', marginRight: 5 }]} />
+            <Text style={{ fontSize: 12, fontWeight: '800', color: isStoreOpen ? '#10B981' : '#EF4444' }}>
+              {isStoreOpen ? 'OPEN' : 'CLOSED'}
+            </Text>
+          </TouchableOpacity>
+
           <TouchableOpacity 
             style={[styles.audioToggle, { backgroundColor: isAudioEnabled ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)' }]}
             onPress={toggleAudio}
@@ -501,11 +544,11 @@ export default function LiveOrdersScreen({ navigation }) {
           >
             <Ionicons 
               name={isAudioEnabled ? 'volume-high' : 'volume-mute'} 
-              size={18} 
+              size={16} 
               color={isAudioEnabled ? '#10B981' : '#EF4444'} 
             />
-            <Text style={{ fontSize: 13, fontWeight: '800', color: isAudioEnabled ? '#10B981' : '#EF4444', marginLeft: 4 }}>
-              {isAudioEnabled ? 'AUDIO ON' : 'MUTED'}
+            <Text style={{ fontSize: 12, fontWeight: '800', color: isAudioEnabled ? '#10B981' : '#EF4444', marginLeft: 4 }}>
+              {isAudioEnabled ? 'AUDIO' : 'MUTED'}
             </Text>
           </TouchableOpacity>
         </View>

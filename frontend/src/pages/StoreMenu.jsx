@@ -65,12 +65,20 @@ const StoreMenu = () => {
         }
       };
 
+      const handleStoreMenu = ({ storeId, products }) => {
+        if (storeId === id && products) {
+          setStore(prev => prev ? { ...prev, products } : prev);
+        }
+      };
+
       socket.on('store_status_update', handleStoreStatus);
       socket.on('product_availability_update', handleProductAvailability);
+      socket.on('store_menu_update', handleStoreMenu);
 
       return () => {
         socket.off('store_status_update', handleStoreStatus);
         socket.off('product_availability_update', handleProductAvailability);
+        socket.off('store_menu_update', handleStoreMenu);
       };
     }
   }, [socket, connected, id]);
