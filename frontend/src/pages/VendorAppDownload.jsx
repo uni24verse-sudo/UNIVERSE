@@ -23,7 +23,7 @@ const VendorAppDownload = () => {
           The ultimate control center for your stall. Manage live orders, verify handovers with QR scanning, and get loud native push notifications so you never miss an order—even when your phone is locked.
         </p>
         
-        <a href="https://drive.google.com/uc?export=download&id=1foItaydd123G-mIwpJ0CDFZfQxF6DHgC" className="vd-download-btn" target="_blank" rel="noopener noreferrer">
+        <a href="/universe-vendor.apk" download="universe-vendor.apk" className="vd-download-btn">
           <Download size={24} />
           Download APK
         </a>
