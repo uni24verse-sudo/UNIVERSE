@@ -68,8 +68,8 @@ class WhatsAppMultiDeviceService {
         }
 
         if (this.isSandbox) {
-          this.status.set(i, 'connected');
-          console.log(`[WhatsApp Slot ${i}] Running in SAFE SANDBOX mode (Baileys socket skipped).`);
+          this.status.set(i, 'empty');
+          console.log(`[WhatsApp Slot ${i}] Initialized (Ready for pairing / Sandbox fallback ready).`);
           continue;
         }
 
@@ -268,10 +268,18 @@ class WhatsAppMultiDeviceService {
       throw new Error(`Slot must be between 1 and ${this.MAX_SLOTS}`);
     }
 
-    // Check if slot is genuinely live and connected in memory
-    const isLive = this.sockets.has(slotIndex) && this.status.get(slotIndex) === 'connected';
+    // Check if slot is genuinely live and authenticated with a real phone
+    const socket = this.sockets.get(slotIndex);
+    const isLive = socket && this.status.get(slotIndex) === 'connected' && Boolean(socket.user?.id);
     if (isLive) {
       return { status: 'already_connected', qrBase64: null };
+    }
+
+    // Terminate any unauthenticated stale socket so a fresh pairing socket can start
+    if (socket && !socket.user?.id) {
+      try { socket.end(); } catch (e) {}
+      this.sockets.delete(slotIndex);
+      this.cleanupSessionFiles(slotIndex);
     }
 
     // If an active QR already exists and is fresh (< 40s), return it immediately
@@ -290,7 +298,7 @@ class WhatsAppMultiDeviceService {
       if (qrData) {
         return { status: 'pairing', qrBase64: qrData.qrBase64 };
       }
-      if (this.status.get(slotIndex) === 'connected') {
+      if (this.status.get(slotIndex) === 'connected' && Boolean(this.sockets.get(slotIndex)?.user?.id)) {
         return { status: 'already_connected', qrBase64: null };
       }
     }
@@ -309,10 +317,14 @@ class WhatsAppMultiDeviceService {
     const socket = this.sockets.get(slotIndex);
     if (socket) {
       try {
-        await socket.logout();
-      } catch (err) {
-        console.warn(`[WhatsApp Slot ${slotIndex}] Error during logout:`, err.message);
-      }
+        await Promise.race([
+          socket.logout().catch(() => {}),
+          delay(1000)
+        ]);
+      } catch (err) {}
+      try {
+        socket.end();
+      } catch (err) {}
       this.sockets.delete(slotIndex);
     }
 
@@ -381,24 +393,17 @@ class WhatsAppMultiDeviceService {
       }
 
       const inMemoryStatus = this.status.get(i);
-      const isSocketLive = this.sockets.has(i) && inMemoryStatus === 'connected';
-      let effectiveStatus = 'empty';
-
-      if (isSocketLive) {
-        effectiveStatus = 'connected';
-      } else if (inMemoryStatus === 'pairing') {
-        effectiveStatus = 'pairing';
-      } else if (this.isSandbox && inMemoryStatus !== 'empty') {
-        effectiveStatus = 'connected';
-      }
+      const socket = this.sockets.get(i);
+      const isSocketLive = Boolean(socket?.user?.id) && inMemoryStatus === 'connected';
+      let effectiveStatus = isSocketLive ? 'connected' : (inMemoryStatus === 'pairing' ? 'pairing' : 'empty');
 
       slots.push({
         _id: primary ? primary.id : `wa_slot_${i}`,
         id: primary ? primary.id : `wa_slot_${i}`,
         slotIndex: i,
         nickname: primary?.nickname || `WhatsApp Slot ${i}`,
-        phoneNumber: isSocketLive ? (primary?.phoneNumber || '') : '',
-        pushName: isSocketLive ? (primary?.pushName || '') : '',
+        phoneNumber: isSocketLive ? (primary?.phoneNumber || socket?.user?.id?.split(':')[0] || '') : '',
+        pushName: isSocketLive ? (primary?.pushName || socket?.user?.name || '') : '',
         platform: primary?.platform || 'WhatsApp Multi-Device',
         status: effectiveStatus,
         lastActive: primary?.lastActive,

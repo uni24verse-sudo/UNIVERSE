@@ -451,14 +451,24 @@ const SuperAdminChannelSettings = ({ token, socket }) => {
                     {isConnected ? (
                       <div style={{ display: 'flex', gap: '0.75rem' }}>
                         <button
-                          onClick={() => handleDisconnect(slot.slotIndex)}
+                          onClick={() => handleOpenQR(slot.slotIndex)}
                           style={{
-                            flex: 1, padding: '0.75rem', borderRadius: '12px', border: '1px solid rgba(239, 68, 68, 0.2)',
-                            background: 'rgba(239, 68, 68, 0.05)', color: '#ef4444', fontWeight: '800', fontSize: '0.85rem',
+                            flex: 1, padding: '0.75rem', borderRadius: '12px', border: '1px solid #25D366',
+                            background: 'rgba(37, 211, 102, 0.08)', color: '#16a34a', fontWeight: '800', fontSize: '0.82rem',
                             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', cursor: 'pointer'
                           }}
                         >
-                          <LogOut size={16} /> Unlink / Disconnect Slot
+                          <QrCode size={15} /> Re-pair QR
+                        </button>
+                        <button
+                          onClick={() => handleDisconnect(slot.slotIndex)}
+                          style={{
+                            flex: 1, padding: '0.75rem', borderRadius: '12px', border: '1px solid rgba(239, 68, 68, 0.2)',
+                            background: 'rgba(239, 68, 68, 0.05)', color: '#ef4444', fontWeight: '800', fontSize: '0.82rem',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', cursor: 'pointer'
+                          }}
+                        >
+                          <LogOut size={15} /> Unlink
                         </button>
                       </div>
                     ) : (
