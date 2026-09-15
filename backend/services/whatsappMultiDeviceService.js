@@ -97,13 +97,7 @@ class WhatsAppMultiDeviceService {
   /**
    * Start or restart Baileys socket for a specific slot (1 to 5)
    */
-  async startSocket(slotIndex, forceReal = false) {
-    if (this.isSandbox && !forceReal) {
-      console.log(`[WhatsApp Slot ${slotIndex}] Sandbox mode active: socket start simulated.`);
-      this.status.set(slotIndex, 'connected');
-      return null;
-    }
-
+  async startSocket(slotIndex) {
     if (slotIndex < 1 || slotIndex > this.MAX_SLOTS) {
       throw new Error(`Invalid slot index ${slotIndex}. Only slots 1 to 5 are supported.`);
     }
@@ -114,7 +108,7 @@ class WhatsAppMultiDeviceService {
     }
 
     const { state, saveCreds } = await useMultiFileAuthState(slotSessionDir);
-    let version = [2, 3000, 1015901307];
+    let version = [2, 3000, 1043857760];
     try {
       const v = await fetchLatestBaileysVersion();
       if (v?.version) version = v.version;
@@ -127,7 +121,7 @@ class WhatsAppMultiDeviceService {
       auth: state,
       logger: pino({ level: 'silent' }),
       printQRInTerminal: false,
-      browser: Browsers.macOS('Desktop'),
+      browser: Browsers.ubuntu('Chrome'),
       syncFullHistory: false,
       connectTimeoutMs: 60000,
       defaultQueryTimeoutMs: 60000,
@@ -288,8 +282,8 @@ class WhatsAppMultiDeviceService {
       return { status: 'pairing', qrBase64: existingQR.qrBase64 };
     }
 
-    // Start or restart socket with forceReal=true so a real Baileys QR code is generated
-    await this.startSocket(slotIndex, true);
+    // Start or restart socket so a real Baileys QR code is generated
+    await this.startSocket(slotIndex);
 
     // Wait up to 6 seconds for QR emission
     for (let attempt = 0; attempt < 12; attempt++) {
