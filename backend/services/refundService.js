@@ -151,11 +151,16 @@ const handleOrderCancellation = async ({
         .catch(err => console.error('[refundService] Journey cancellation dispatch error:', err.message));
     }
 
-    // 🚨 If student UPI is already known, notify Super Admin Team immediately
-    if (targetUpi) {
-      whatsappMultiDeviceService.sendRefundAlertToTeam({ order, refund }).catch(err => {
-        console.error('[refundService] Team alert error:', err.message);
-      });
+    // 🌐 Real-time Socket Broadcasts on Cancellation
+    if (io) {
+      io.to(order._id.toString()).emit('order_status_update', order);
+      if (order.orderNumber) {
+        io.to(order.orderNumber.toString()).emit('order_status_update', order);
+      }
+      if (order.storeId) {
+        io.to(order.storeId.toString()).emit('order_status_update', order);
+      }
+      io.to('superadmin_room').emit('superadmin:order_update', order);
     }
 
     return {

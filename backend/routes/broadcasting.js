@@ -318,6 +318,20 @@ router.get('/campaigns/:id/status', async (req, res) => {
   }
 });
 
+// Helper to safely unpack nodes from PostgreSQL Prisma Json column
+const parseNodes = (nodes) => {
+  if (Array.isArray(nodes)) return nodes;
+  if (typeof nodes === 'string') {
+    try {
+      const parsed = JSON.parse(nodes);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+      return [];
+    }
+  }
+  return [];
+};
+
 /**
  * 3. JOURNEY BUILDER: GET ALL JOURNEYS
  */
@@ -326,7 +340,7 @@ router.get('/journeys', async (req, res) => {
     const journeys = await prisma.journey.findMany({
       orderBy: { updatedAt: 'desc' }
     });
-    res.json(journeys.map(j => ({ ...j, _id: j.id })));
+    res.json(journeys.map(j => ({ ...j, _id: j.id, nodes: parseNodes(j.nodes) })));
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -342,18 +356,19 @@ router.post('/journeys', async (req, res) => {
       return res.status(400).json({ message: 'Name and triggerType are required.' });
     }
 
+    const cleanNodes = parseNodes(nodes);
     const journey = await prisma.journey.create({
       data: {
         id: crypto.randomUUID(),
         name,
         description: description || '',
         triggerType,
-        nodes: nodes || [],
+        nodes: cleanNodes,
         status: status || 'Draft'
       }
     });
 
-    res.status(201).json({ ...journey, _id: journey.id });
+    res.status(201).json({ ...journey, _id: journey.id, nodes: cleanNodes });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -369,14 +384,14 @@ router.put('/journeys/:id', async (req, res) => {
     if (name !== undefined) updateData.name = name;
     if (description !== undefined) updateData.description = description;
     if (triggerType !== undefined) updateData.triggerType = triggerType;
-    if (nodes !== undefined) updateData.nodes = nodes;
+    if (nodes !== undefined) updateData.nodes = parseNodes(nodes);
     if (status !== undefined) updateData.status = status;
 
     const updated = await prisma.journey.update({
       where: { id: req.params.id },
       data: updateData
     });
-    res.json({ ...updated, _id: updated.id });
+    res.json({ ...updated, _id: updated.id, nodes: parseNodes(updated.nodes) });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -439,7 +454,8 @@ router.post('/journeys/:id/enroll-test', async (req, res) => {
 
     // Map trace with journey node labels for rich visual timeline
     const nodeMap = {};
-    (journey.nodes || []).forEach(n => { nodeMap[n.id] = n; });
+    const journeyNodes = parseNodes(journey.nodes);
+    journeyNodes.forEach(n => { nodeMap[n.id] = n; });
 
     const executionTrace = (finalState?.history || []).map(h => {
       const node = nodeMap[h.nodeId];

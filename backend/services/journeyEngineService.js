@@ -3,6 +3,34 @@ const prisma = require('../config/prisma');
 const whatsappMultiDeviceService = require('./whatsappMultiDeviceService');
 const emailMultiAccountService = require('./emailMultiAccountService');
 
+// Safe JSON array unpacker (handles Prisma JSONB, strings, or raw objects)
+function parseNodes(rawNodes) {
+  if (Array.isArray(rawNodes)) return rawNodes;
+  if (typeof rawNodes === 'string') {
+    try {
+      const parsed = JSON.parse(rawNodes);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+      return [];
+    }
+  }
+  return [];
+}
+
+// Safe metadata unpacker (handles nested strings or objects)
+function getMetadata(obj) {
+  if (!obj) return {};
+  const m = obj.metadata !== undefined ? obj.metadata : obj;
+  if (typeof m === 'string') {
+    try {
+      return JSON.parse(m);
+    } catch (e) {
+      return {};
+    }
+  }
+  return m && typeof m === 'object' ? m : {};
+}
+
 class JourneyEngineService {
   constructor() {
     this.intervalId = null;
@@ -32,7 +60,7 @@ class JourneyEngineService {
       if (!journey) return null;
       if (!isTest && journey.status !== 'Active') return null;
 
-      const nodes = Array.isArray(journey.nodes) ? journey.nodes : [];
+      const nodes = parseNodes(journey.nodes);
 
       // Find initial trigger node
       const triggerNode = nodes.find(n => n.type === 'trigger');
@@ -57,8 +85,8 @@ class JourneyEngineService {
           }
         });
         const existingState = activeStates.find(s => {
-          const m = s.metadata || {};
-          return String(m.orderId) === String(orderIdentifier) || String(m.orderNumber) === String(orderIdentifier);
+          const m = getMetadata(s);
+          return String(m.orderId || '') === String(orderIdentifier) || String(m.orderNumber || '') === String(orderIdentifier);
         });
 
         if (existingState) {
@@ -123,17 +151,20 @@ class JourneyEngineService {
         where: { triggerType, status: 'Active' }
       });
 
+      let anyEnrolled = false;
       if (activeJourneys.length > 0) {
         for (const journey of activeJourneys) {
-          await this.enrollUser(journey.id, userDetails);
+          const state = await this.enrollUser(journey.id, userDetails);
+          if (state) anyEnrolled = true;
         }
-        return;
       }
 
       // 🛡️ FAILSAFE SYSTEM FALLBACK:
-      // If a critical order/refund event fires and NO active journey is found in the DB,
+      // If no active journey exists or all enrollments failed,
       // deliver a brand-standard fallback alert so students are never left without notice.
-      await this.sendFailsafeFallback(triggerType, userDetails);
+      if (!anyEnrolled) {
+        await this.sendFailsafeFallback(triggerType, userDetails);
+      }
     } catch (err) {
       console.error(`[JourneyEngine] Error firing event "${triggerType}":`, err.message);
     }
@@ -231,7 +262,7 @@ class JourneyEngineService {
       });
 
       const activeStates = candidateStates.filter(s => {
-        const m = s.metadata || {};
+        const m = getMetadata(s);
         const sOrderId = String(m.orderId || '');
         const sOrderNum = String(m.orderNumber || '');
         return (
@@ -246,14 +277,14 @@ class JourneyEngineService {
         const journey = state.journey;
         if (!journey || journey.status !== 'Active') continue;
 
-        const nodes = Array.isArray(journey.nodes) ? journey.nodes : [];
+        const nodes = parseNodes(journey.nodes);
         const node = nodes.find(n => n.id === state.currentNodeId);
         if (!node) continue;
 
         // Merge updated metadata
-        let updatedMetadata = state.metadata || {};
+        let updatedMetadata = getMetadata(state);
         if (orderDetails?.metadata) {
-          updatedMetadata = { ...updatedMetadata, ...orderDetails.metadata };
+          updatedMetadata = { ...updatedMetadata, ...getMetadata(orderDetails.metadata) };
         }
 
         let nextNodeId = null;
@@ -333,7 +364,7 @@ class JourneyEngineService {
         return;
       }
 
-      const nodes = Array.isArray(journey.nodes) ? journey.nodes : [];
+      const nodes = parseNodes(journey.nodes);
       const node = nodes.find(n => n.id === state.currentNodeId);
       if (!node) {
         await prisma.userJourneyState.update({
@@ -480,7 +511,7 @@ class JourneyEngineService {
       }).catch(() => null);
     }
 
-    const meta = state.metadata || {};
+    const meta = getMetadata(state);
     let rawBody = customBody || template?.body || '👋 Hi {{name}}, welcome to UniVerse! Order fresh food easily on campus at https://www.universeorder.co.in 🍔🍕';
 
     const orderNum = meta.orderNumber || meta.orderId || '';
@@ -532,16 +563,35 @@ class JourneyEngineService {
         buttons
       };
 
-      await whatsappMultiDeviceService.sendMessage(slotIndex, state.phone, payload);
+      let sentSuccessfully = false;
+      let deliveryError = null;
+
+      try {
+        await whatsappMultiDeviceService.sendMessage(slotIndex, state.phone, payload);
+        sentSuccessfully = true;
+      } catch (err) {
+        console.warn(`[JourneyEngine] Slot ${slotIndex} dispatch failed (${err.message}). Attempting failover across all connected slots...`);
+        try {
+          const directSent = await whatsappMultiDeviceService.sendDirectMessage(state.phone, body, payload);
+          if (directSent) {
+            sentSuccessfully = true;
+          } else {
+            deliveryError = err.message || 'All WhatsApp slots offline';
+          }
+        } catch (fbErr) {
+          deliveryError = fbErr.message;
+        }
+      }
 
       history.push({
         nodeId: node.id,
         action: 'whatsapp_sent',
         channelAccountId,
-        status: 'Delivered',
+        status: sentSuccessfully ? 'Delivered' : 'Offline_Queued',
         recipient: state.phone,
         renderedBody: body,
         slotIndex,
+        error: sentSuccessfully ? null : deliveryError,
         executedAt: new Date()
       });
 

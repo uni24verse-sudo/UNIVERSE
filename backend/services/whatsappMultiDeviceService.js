@@ -588,12 +588,31 @@ class WhatsAppMultiDeviceService {
 
       if (config.notifyGroup && config.groupJid) {
         destinations.push(config.groupJid);
-      } else if (config.notifyPhones && phoneList.length > 0) {
-        destinations.push(...phoneList);
-      } else if (process.env.REFUND_ALERT_WHATSAPP_GROUP_JID) {
-        destinations.push(process.env.REFUND_ALERT_WHATSAPP_GROUP_JID);
-      } else {
-        destinations.push('7985397373');
+      }
+      if (config.notifyPhones && phoneList.length > 0) {
+        for (const p of phoneList) {
+          if (!destinations.includes(p)) destinations.push(p);
+        }
+      }
+      if (destinations.length === 0) {
+        if (process.env.REFUND_ALERT_WHATSAPP_GROUP_JID) {
+          destinations.push(process.env.REFUND_ALERT_WHATSAPP_GROUP_JID);
+        } else {
+          destinations.push('7985397373');
+        }
+      }
+
+      // Real-time telemetry to Super Admin web portal
+      if (this.io) {
+        this.io.to('superadmin_room').emit('superadmin:refund_alert', {
+          orderNumber: order.orderNumber,
+          amount,
+          studentName,
+          studentPhone,
+          upiId,
+          reason,
+          claimPayUrl
+        });
       }
 
       for (const dest of destinations) {

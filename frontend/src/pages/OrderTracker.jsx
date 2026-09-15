@@ -341,33 +341,42 @@ const OrderTracker = () => {
                 {/* OPTION 1: 1-TAP REFUND TO ORIGINAL PAYER UPI (If captured) */}
                 {originalPayerUpi && !showCustomInput && (
                   <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '16px', marginBottom: '0.75rem', border: '1px solid #e2e8f0' }}>
-                    <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.75rem', color: '#64748b', fontWeight: '700' }}>⚡ Recommended 1-Tap Refund:</p>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-                      <span style={{ fontSize: '0.9rem', fontWeight: '800', color: '#0f172a' }}>{originalPayerUpi}</span>
-                      <span style={{ fontSize: '0.7rem', background: '#eff6ff', color: '#2563eb', padding: '0.2rem 0.5rem', borderRadius: '6px', fontWeight: '700' }}>Original Payment UPI</span>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.6rem' }}>
+                      <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '700' }}>⚡ Refund Destination Account:</span>
+                      <span style={{ fontSize: '0.7rem', background: '#eff6ff', color: '#2563eb', padding: '0.2rem 0.5rem', borderRadius: '6px', fontWeight: '700' }}>Verified Payment UPI</span>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#ffffff', padding: '0.65rem 0.85rem', borderRadius: '12px', border: '1px solid #cbd5e1', marginBottom: '0.75rem' }}>
+                      <span style={{ fontSize: '0.95rem', fontWeight: '800', color: '#0f172a' }}>{originalPayerUpi}</span>
+                      <button 
+                        onClick={() => {
+                          setCustomUpi(originalPayerUpi);
+                          setShowCustomInput(true);
+                        }}
+                        style={{ background: 'transparent', border: 'none', color: '#2563eb', fontSize: '0.75rem', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                      >
+                        <Edit3 size={12} /> Change
+                      </button>
                     </div>
 
                     <button 
                       onClick={() => handleRequestRefund(originalPayerUpi)}
                       disabled={isSubmittingRefund}
                       style={{
-                        width: '100%', height: '44px', borderRadius: '12px',
+                        width: '100%', height: '46px', borderRadius: '12px',
                         background: 'linear-gradient(135deg, #10b981, #059669)',
-                        color: 'white', border: 'none', fontWeight: '800', fontSize: '0.9rem',
+                        color: 'white', border: 'none', fontWeight: '800', fontSize: '0.92rem',
                         cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
                         boxShadow: '0 4px 14px rgba(16, 185, 129, 0.3)'
                       }}
                     >
-                      {isSubmittingRefund ? 'Submitting...' : `Confirm & Claim ₹${order.totalAmount}`}
+                      {isSubmittingRefund ? 'Submitting...' : `Get ₹${order.totalAmount} Refund on this UPI →`}
                     </button>
 
-                    <div style={{ textAlign: 'center', marginTop: '0.75rem' }}>
-                      <button 
-                        onClick={() => setShowCustomInput(true)}
-                        style={{ background: 'transparent', border: 'none', color: '#64748b', fontSize: '0.75rem', cursor: 'pointer', textDecoration: 'underline' }}
-                      >
-                        Want refund on a different UPI ID? Click here
-                      </button>
+                    <div style={{ textAlign: 'center', marginTop: '0.6rem' }}>
+                      <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: '500' }}>
+                        ⚡ Direct credit to your bank account within 2–5 minutes
+                      </span>
                     </div>
                   </div>
                 )}
@@ -376,34 +385,21 @@ const OrderTracker = () => {
                 {(!originalPayerUpi || showCustomInput) && (
                   <div>
                     <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.8rem', color: '#475569' }}>
-                      Enter your UPI ID to receive ₹<strong style={{ color: '#059669' }}>{order.totalAmount}</strong> instantly:
+                      Enter your UPI ID to receive ₹<strong style={{ color: '#059669' }}>{order.totalAmount}</strong> directly:
                     </p>
 
-                    <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                    <div style={{ marginBottom: '0.75rem' }}>
                       <input 
                         type="text"
                         placeholder="e.g. 9876543210@paytm or name@oksbi"
                         value={customUpi}
                         onChange={(e) => setCustomUpi(e.target.value)}
                         style={{
-                          flex: 1, height: '44px', padding: '0 0.85rem', borderRadius: '12px',
+                          width: '100%', height: '44px', padding: '0 0.85rem', borderRadius: '12px',
                           background: '#ffffff', border: '1.5px solid #cbd5e1',
-                          color: '#0f172a', fontSize: '0.85rem', outline: 'none'
+                          color: '#0f172a', fontSize: '0.88rem', outline: 'none', boxSizing: 'border-box'
                         }}
                       />
-                      <button 
-                        onClick={() => handleRequestRefund()}
-                        disabled={isSubmittingRefund}
-                        style={{
-                          height: '44px', padding: '0 1.25rem', borderRadius: '12px',
-                          background: 'linear-gradient(135deg, #ef4444, #dc2626)',
-                          color: 'white', border: 'none', fontWeight: '800', fontSize: '0.85rem',
-                          cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem',
-                          boxShadow: '0 4px 12px rgba(239, 68, 68, 0.3)'
-                        }}
-                      >
-                        {isSubmittingRefund ? 'Sending...' : <><Send size={14} /> Submit</>}
-                      </button>
                     </div>
 
                     {/* Quick Autofill Chips from student phone */}
@@ -429,11 +425,26 @@ const OrderTracker = () => {
                       </div>
                     )}
 
+                    <button 
+                      onClick={() => handleRequestRefund()}
+                      disabled={isSubmittingRefund || !customUpi.trim()}
+                      style={{
+                        width: '100%', height: '46px', borderRadius: '12px',
+                        background: 'linear-gradient(135deg, #10b981, #059669)',
+                        color: 'white', border: 'none', fontWeight: '800', fontSize: '0.92rem',
+                        cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
+                        boxShadow: '0 4px 14px rgba(16, 185, 129, 0.3)',
+                        opacity: (isSubmittingRefund || !customUpi.trim()) ? 0.6 : 1
+                      }}
+                    >
+                      {isSubmittingRefund ? 'Sending...' : `Get ₹${order.totalAmount} Refund on this UPI →`}
+                    </button>
+
                     {originalPayerUpi && (
-                      <div style={{ textAlign: 'center', marginTop: '0.5rem' }}>
+                      <div style={{ textAlign: 'center', marginTop: '0.65rem' }}>
                         <button 
                           onClick={() => setShowCustomInput(false)}
-                          style={{ background: 'transparent', border: 'none', color: '#2563eb', fontSize: '0.75rem', cursor: 'pointer' }}
+                          style={{ background: 'transparent', border: 'none', color: '#2563eb', fontSize: '0.75rem', fontWeight: '600', cursor: 'pointer' }}
                         >
                           ← Back to original UPI ({originalPayerUpi})
                         </button>
