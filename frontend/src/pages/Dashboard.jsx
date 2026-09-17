@@ -496,6 +496,9 @@ const Dashboard = () => {
   );
 
   const commissionRate = store?.commissionRate || 5;
+  const platformRate = 0.03;
+  const gatewayRate = 0.02;
+  const penaltyRate = 0.04;
 
   const now = new Date();
   const startOfWeek = new Date(now);
