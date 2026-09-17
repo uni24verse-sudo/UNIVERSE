@@ -48,59 +48,165 @@ router.post('/dispatch', async (req, res) => {
       name, 
       channel, 
       channelAccountId, 
-      masterTemplateId, 
+      masterTemplateId,
+      whatsappAccountId,
+      emailAccountId,
+      whatsappTemplateId,
+      emailTemplateId,
       targetAudience, 
       customNumbers, 
-      customEmails 
+      customEmails,
+      uploadedAudience,
+      audienceFilters,
+      pacing
     } = req.body;
 
-    if (!name || !channel || !channelAccountId || !masterTemplateId) {
-      return res.status(400).json({ message: 'Campaign name, channel, sender account, and template are required.' });
+    if (!name || !channel) {
+      return res.status(400).json({ message: 'Campaign name and channel are required.' });
     }
 
-    const template = await prisma.masterTemplate.findUnique({
-      where: { id: String(masterTemplateId) }
-    });
-    if (!template) return res.status(404).json({ message: 'Template not found' });
+    const isBoth = channel === 'both';
+    let waAccount = null;
+    let waTemplate = null;
+    let emAccount = null;
+    let emTemplate = null;
 
-    const channelAccount = await prisma.channelAccount.findUnique({
-      where: { id: String(channelAccountId) }
-    });
-    if (!channelAccount) return res.status(404).json({ message: 'Channel sender account not found' });
+    if (channel === 'whatsapp' || isBoth) {
+      const waId = whatsappAccountId || channelAccountId;
+      const waTplId = whatsappTemplateId || masterTemplateId;
+      if (!waId || !waTplId) {
+        return res.status(400).json({ message: 'WhatsApp sender account and Master Template are required.' });
+      }
+      waAccount = await prisma.channelAccount.findUnique({ where: { id: String(waId) } });
+      waTemplate = await prisma.masterTemplate.findUnique({ where: { id: String(waTplId) } });
+      if (!waAccount) return res.status(404).json({ message: 'WhatsApp sender account not found' });
+      if (!waTemplate) return res.status(404).json({ message: 'WhatsApp template not found' });
+    }
+
+    if (channel === 'email' || isBoth) {
+      const emId = emailAccountId || channelAccountId;
+      const emTplId = emailTemplateId || masterTemplateId;
+      if (!emId || !emTplId) {
+        return res.status(400).json({ message: 'Email sender account and Master Template are required.' });
+      }
+      emAccount = await prisma.channelAccount.findUnique({ where: { id: String(emId) } });
+      emTemplate = await prisma.masterTemplate.findUnique({ where: { id: String(emTplId) } });
+      if (!emAccount) return res.status(404).json({ message: 'Email sender account not found' });
+      if (!emTemplate) return res.status(404).json({ message: 'Email template not found' });
+    }
 
     // Build recipient list based on audience
     let recipients = [];
+    const phoneMap = new Map();
 
-    if (customNumbers && customNumbers.length > 0) {
-      recipients = customNumbers.map(n => ({
-        phone: n.trim(),
-        name: req.body.recipientName || '',
-        email: ''
-      }));
-    } else if (targetAudience === 'All Vendors') {
-      const vendors = await prisma.admin.findMany({ where: { role: 'vendor' } });
-      recipients = vendors.map(v => ({
-        phone: v.telegramChatId || '', // fallback
-        name: v.name || '',
-        email: v.email || ''
-      })).filter(r => r.phone || r.email);
-    } else if (targetAudience === 'All Students' || targetAudience === 'Campus Zone Users') {
-      const orders = await prisma.order.findMany({
-        where: { customerPhone: { not: '' } },
-        orderBy: { createdAt: 'desc' }
-      });
-      const phoneMap = new Map();
-      orders.forEach(o => {
-        if (o.customerPhone && !phoneMap.has(o.customerPhone)) {
-          phoneMap.set(o.customerPhone, {
-            phone: o.customerPhone,
-            name: o.customerName || '',
-            email: o.customerEmail || ''
-          });
+    // Helper to clean phone
+    const cleanPhone = (p) => {
+      if (!p) return '';
+      let cl = String(p).trim().replace(/[^\d+]/g, '');
+      if (cl.startsWith('+91')) cl = cl.slice(3);
+      else if (cl.startsWith('91') && cl.length === 12) cl = cl.slice(2);
+      else if (cl.startsWith('0') && cl.length === 11) cl = cl.slice(1);
+      return cl.replace(/[^\d]/g, '');
+    };
+
+    // A. Direct uploaded audience from wizard
+    if (Array.isArray(uploadedAudience) && uploadedAudience.length > 0) {
+      for (const row of uploadedAudience) {
+        const p = cleanPhone(row.phone || row.mobile);
+        if (p && p.length >= 7) {
+          if (!phoneMap.has(p)) {
+            phoneMap.set(p, {
+              phone: p,
+              name: String(row.name || 'Recipient').trim(),
+              email: String(row.email || '').trim().toLowerCase(),
+              campus: String(row.campus || 'UniVerse Campus').trim()
+            });
+          }
+        }
+      }
+
+      // Automatically persist uploaded contacts into Master Data table with phone deduplication
+      setImmediate(async () => {
+        try {
+          for (const item of phoneMap.values()) {
+            const safeName = item.name.replace(/'/g, "''");
+            const safeEmail = item.email.replace(/'/g, "''");
+            const safeCampus = item.campus.replace(/'/g, "''");
+            const safeCampaignName = String(name).replace(/'/g, "''");
+            const id = crypto.randomUUID();
+
+            await prisma.$executeRawUnsafe(`
+              INSERT INTO mastercontacts (id, phone, name, email, campus, source, "createdAt", "updatedAt")
+              VALUES ('${id}', '${item.phone}', '${safeName}', '${safeEmail}', '${safeCampus}', 'Broadcast Import: ${safeCampaignName}', NOW(), NOW())
+              ON CONFLICT (phone) DO UPDATE SET
+                name = CASE WHEN mastercontacts.name IN ('Recipient', '') THEN EXCLUDED.name ELSE mastercontacts.name END,
+                email = CASE WHEN mastercontacts.email = '' THEN EXCLUDED.email ELSE mastercontacts.email END,
+                "updatedAt" = NOW();
+            `).catch(() => {});
+          }
+        } catch (e) {
+          console.warn('[Broadcast] Auto-sync to Master Data note:', e.message);
         }
       });
-      recipients = Array.from(phoneMap.values());
+    } else if (customNumbers && customNumbers.length > 0) {
+      for (const n of customNumbers) {
+        const p = cleanPhone(n);
+        if (p && p.length >= 7 && !phoneMap.has(p)) {
+          phoneMap.set(p, {
+            phone: p,
+            name: req.body.recipientName || 'Recipient',
+            email: ''
+          });
+        }
+      }
+    } else if (targetAudience === 'All Vendors') {
+      const vendors = await prisma.admin.findMany({ where: { role: 'vendor' } });
+      vendors.forEach(v => {
+        const p = cleanPhone(v.telegramChatId || '');
+        if (p && !phoneMap.has(p)) {
+          phoneMap.set(p, { phone: p, name: v.name || 'Vendor Partner', email: v.email || '' });
+        }
+      });
+    } else {
+      // Customer 360 / Database Audience
+      // Prefer pulling from Master Data or Customer model
+      const customers = await prisma.customer.findMany({
+        orderBy: { updatedAt: 'desc' }
+      });
+
+      for (const c of customers) {
+        const p = cleanPhone(c.phone);
+        if (p && p.length >= 7 && !phoneMap.has(p)) {
+          phoneMap.set(p, {
+            phone: p,
+            name: c.currentName || 'UniVerse Student',
+            email: c.email || '',
+            campus: c.campus || 'Lovely Professional University'
+          });
+        }
+      }
+
+      // Also blend from orders
+      const orders = await prisma.order.findMany({
+        where: { customerPhone: { not: '' } },
+        select: { customerPhone: true, customerName: true, customerEmail: true },
+        take: 2000,
+        orderBy: { createdAt: 'desc' }
+      });
+      for (const o of orders) {
+        const p = cleanPhone(o.customerPhone);
+        if (p && p.length >= 7 && !phoneMap.has(p)) {
+          phoneMap.set(p, {
+            phone: p,
+            name: o.customerName || 'Campus Member',
+            email: o.customerEmail || '',
+            campus: 'Lovely Professional University'
+          });
+        }
+      }
     }
+
+    recipients = Array.from(phoneMap.values());
 
     if (recipients.length === 0) {
       return res.status(400).json({ message: 'No valid recipients found for this target audience.' });
@@ -119,10 +225,18 @@ router.post('/dispatch', async (req, res) => {
         id: campaignId,
         name,
         channel,
-        channelAccountId: channelAccount.id,
-        masterTemplateId: template.id,
-        targetAudience: targetAudience || 'All Students',
-        customFilters: { customNumbers, customEmails },
+        channelAccountId: waAccount ? waAccount.id : (emAccount ? emAccount.id : null),
+        masterTemplateId: waTemplate ? waTemplate.id : (emTemplate ? emTemplate.id : null),
+        targetAudience: targetAudience || 'Customer 360 / Master Data',
+        customFilters: { 
+          customNumbers, 
+          customEmails, 
+          audienceFilters,
+          whatsappAccountId: waAccount?.id,
+          emailAccountId: emAccount?.id,
+          whatsappTemplateId: waTemplate?.id,
+          emailTemplateId: emTemplate?.id
+        },
         stats: statsObj,
         totalRecipients: recipients.length,
         status: 'In-Progress',
@@ -132,7 +246,7 @@ router.post('/dispatch', async (req, res) => {
 
     // Async execution of broadcast queue
     const io = req.app.get('io');
-    executeBroadcastAsync(campaign.id, channelAccount, template, recipients, io);
+    executeBroadcastAsync(campaign.id, { channel, waAccount, waTemplate, emAccount, emTemplate }, recipients, io, pacing);
 
     res.json({
       success: true,
@@ -148,28 +262,29 @@ router.post('/dispatch', async (req, res) => {
 });
 
 // Helper for paced background execution
-async function executeBroadcastAsync(campaignId, channelAccount, template, recipients, io) {
+async function executeBroadcastAsync(campaignId, config, recipients, io, pacing) {
   let sentCount = 0;
   let deliveredCount = 0;
   let failedCount = 0;
   let lastErrorMsg = null;
   const logs = [];
+  const { channel, waAccount, waTemplate, emAccount, emTemplate } = config;
 
   for (let i = 0; i < recipients.length; i++) {
     const recipient = recipients[i];
+    let recipientDelivered = false;
 
     try {
-      // Dynamic tag substitution
-      let body = template.body
-        .replace(/{{name}}/gi, recipient.name || 'Campus Member')
-        .replace(/{{campus}}/gi, recipient.campus || 'UniVerse Campus')
-        .replace(/{{discount_code}}/gi, recipient.discountCode || '')
-        .replace(/{{phone}}/gi, recipient.phone || '')
-        .replace(/{{email}}/gi, recipient.email || '');
+      // 1. Send WhatsApp if channel is whatsapp or both
+      if ((channel === 'whatsapp' || channel === 'both') && waAccount && waTemplate && recipient.phone) {
+        let body = waTemplate.body
+          .replace(/{{name}}/gi, recipient.name || 'Campus Member')
+          .replace(/{{campus}}/gi, recipient.campus || 'UniVerse Campus')
+          .replace(/{{discount_code}}/gi, recipient.discountCode || '')
+          .replace(/{{phone}}/gi, recipient.phone || '')
+          .replace(/{{email}}/gi, recipient.email || '');
 
-      if (channelAccount.type === 'whatsapp' && recipient.phone) {
-        let slotIndex = channelAccount.slotIndex || 1;
-        // Verify slot connection, or auto-fallback to any connected slot
+        let slotIndex = waAccount.slotIndex || 1;
         if (whatsappMultiDeviceService.status.get(slotIndex) !== 'connected') {
           for (let s = 1; s <= 5; s++) {
             if (whatsappMultiDeviceService.status.get(s) === 'connected') {
@@ -180,49 +295,63 @@ async function executeBroadcastAsync(campaignId, channelAccount, template, recip
         }
 
         const payload = {
-          headerType: template.headerType,
-          headerMediaUrl: template.headerMediaUrl,
+          headerType: waTemplate.headerType,
+          headerMediaUrl: waTemplate.headerMediaUrl,
           body,
-          footer: template.footer,
-          buttons: Array.isArray(template.buttons) ? template.buttons : []
+          footer: waTemplate.footer,
+          buttons: Array.isArray(waTemplate.buttons) ? waTemplate.buttons : []
         };
 
         try {
           await whatsappMultiDeviceService.sendMessage(slotIndex, recipient.phone, payload);
+          recipientDelivered = true;
         } catch (sendErr) {
-          // If failed with image/media, retry as pure text
           if (payload.headerMediaUrl) {
-            console.warn(`[Broadcast] Image dispatch failed (${sendErr.message}), falling back to text for ${recipient.phone}`);
             await whatsappMultiDeviceService.sendMessage(slotIndex, recipient.phone, {
               ...payload,
               headerType: 'NONE',
               headerMediaUrl: null,
               body: `${body}\n\n📷 Image: ${payload.headerMediaUrl}`
             });
+            recipientDelivered = true;
           } else {
             throw sendErr;
           }
         }
+      }
 
-        deliveredCount++;
-        logs.push({ recipient: recipient.phone, status: 'Delivered', error: null });
-      } else if (channelAccount.type === 'email' && recipient.email) {
+      // 2. Send Email if channel is email or both
+      if ((channel === 'email' || channel === 'both') && emAccount && emTemplate && recipient.email) {
+        let emailBody = emTemplate.body
+          .replace(/{{name}}/gi, recipient.name || 'Campus Member')
+          .replace(/{{campus}}/gi, recipient.campus || 'UniVerse Campus')
+          .replace(/{{discount_code}}/gi, recipient.discountCode || '')
+          .replace(/{{phone}}/gi, recipient.phone || '')
+          .replace(/{{email}}/gi, recipient.email || '');
+
         const html = `
           <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 1.5rem; background: #0f172a; color: #f8fafc; border-radius: 16px;">
-            ${template.emailHeroImageUrl ? `<img src="${template.emailHeroImageUrl}" style="width: 100%; border-radius: 12px; margin-bottom: 1rem;" />` : ''}
-            <h2 style="color: #ef4123;">${template.subject || template.name}</h2>
-            <div style="line-height: 1.6; font-size: 1rem;">${body.replace(/\n/g, '<br/>')}</div>
-            ${template.emailCtaText ? `<div style="margin: 2rem 0; text-align: center;"><a href="${template.emailCtaUrl}" style="background: #ef4123; color: white; padding: 0.8rem 2rem; border-radius: 100px; text-decoration: none; font-weight: bold;">${template.emailCtaText}</a></div>` : ''}
+            ${emTemplate.emailHeroImageUrl ? `<img src="${emTemplate.emailHeroImageUrl}" style="width: 100%; border-radius: 12px; margin-bottom: 1rem;" />` : ''}
+            <h2 style="color: #ef4123;">${emTemplate.subject || emTemplate.name}</h2>
+            <div style="line-height: 1.6; font-size: 1rem;">${emailBody.replace(/\n/g, '<br/>')}</div>
+            ${emTemplate.emailCtaText ? `<div style="margin: 2rem 0; text-align: center;"><a href="${emTemplate.emailCtaUrl}" style="background: #ef4123; color: white; padding: 0.8rem 2rem; border-radius: 100px; text-decoration: none; font-weight: bold;">${emTemplate.emailCtaText}</a></div>` : ''}
           </div>
         `;
-        await emailMultiAccountService.sendEmail(channelAccount.id, {
+
+        await emailMultiAccountService.sendEmail(emAccount.id, {
           to: recipient.email,
-          subject: template.subject || template.name,
+          subject: emTemplate.subject || emTemplate.name,
           html,
-          text: body
+          text: emailBody
         });
+        recipientDelivered = true;
+      }
+
+      if (recipientDelivered) {
         deliveredCount++;
-        logs.push({ recipient: recipient.email, status: 'Delivered', error: null });
+        logs.push({ recipient: recipient.phone || recipient.email, status: 'Delivered', error: null });
+      } else {
+        throw new Error('No reachable channel contact details');
       }
       sentCount++;
     } catch (err) {

@@ -29,7 +29,8 @@ import {
   GitBranch,
   Sliders,
   RotateCcw,
-  Search
+  Search,
+  Database
 } from 'lucide-react';
 import SuperAdmin3DAnalytics from '../components/superadmin/SuperAdmin3DAnalytics';
 import SuperAdminMasterTemplates from '../components/superadmin/SuperAdminMasterTemplates';
@@ -37,6 +38,7 @@ import SuperAdminBroadcasting from '../components/superadmin/SuperAdminBroadcast
 import SuperAdminJourneyBuilder from '../components/superadmin/SuperAdminJourneyBuilder';
 import SuperAdminChannelSettings from '../components/superadmin/SuperAdminChannelSettings';
 import SuperAdminCustomerIntelligence from '../components/superadmin/SuperAdminCustomerIntelligence';
+import SuperAdminMasterData from '../components/superadmin/SuperAdminMasterData';
 import SuperAdminRefunds from '../components/superadmin/SuperAdminRefunds';
 import SuperAdminHeroPromotions from '../components/superadmin/SuperAdminHeroPromotions';
 import SuperAdminOrdersFeed from '../components/superadmin/SuperAdminOrdersFeed';
@@ -260,6 +262,7 @@ const SuperAdminPanel = () => {
             { id: '3d_analytics', icon: TrendingUp, label: 'Executive Analytics', badge: 'LIVE' },
             { id: 'refunds', icon: RotateCcw, label: '⚡ Instant Refunds', badge: pendingRefundCount > 0 ? `${pendingRefundCount} PENDING` : null },
             { id: 'customers', icon: Users, label: 'Customer 360 & Audit', badge: 'NEW' },
+            { id: 'master_data', icon: Database, label: 'Master Data', badge: 'SUPERADMIN' },
             { id: 'master_templates', icon: FileText, label: 'Master Templates' },
             { id: 'broadcasting', icon: Radio, label: 'Broadcasting Hub' },
             { id: 'journey_builder', icon: GitBranch, label: 'Journey Builder' },
@@ -334,6 +337,11 @@ const SuperAdminPanel = () => {
         {/* CUSTOMER 360 & AUDIT LEDGER TAB */}
         {activeTab === 'customers' && (
           <SuperAdminCustomerIntelligence token={token} socket={socket} />
+        )}
+
+        {/* MASTER DATA AUDIENCE & INGESTION TAB */}
+        {activeTab === 'master_data' && (
+          <SuperAdminMasterData token={token} />
         )}
 
         {/* MASTER TEMPLATES TAB */}

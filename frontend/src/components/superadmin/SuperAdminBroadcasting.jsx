@@ -12,10 +12,21 @@ import {
   Sparkles, 
   RefreshCw, 
   Eye,
-  ShieldCheck,
-  Zap,
-  TrendingUp,
-  X
+  ShieldCheck, 
+  Zap, 
+  TrendingUp, 
+  X,
+  Plus,
+  FileText,
+  Upload,
+  Download,
+  Check,
+  ChevronRight,
+  ChevronLeft,
+  Calendar,
+  Radio,
+  Sliders,
+  Database
 } from 'lucide-react';
 
 const SuperAdminBroadcasting = ({ token, socket }) => {
@@ -23,18 +34,41 @@ const SuperAdminBroadcasting = ({ token, socket }) => {
   const [channelData, setChannelData] = useState({ whatsapp: { slots: [] }, email: { accounts: [] } });
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
-
-  // Form State
-  const [name, setName] = useState('');
-  const [channel, setChannel] = useState('whatsapp');
-  const [selectedAccountId, setSelectedAccountId] = useState('');
-  const [selectedTemplateId, setSelectedTemplateId] = useState('');
-  const [targetAudience, setTargetAudience] = useState('Specific Phone Numbers / Custom');
-  const [customNumbersInput, setCustomNumbersInput] = useState('');
   const [dispatching, setDispatching] = useState(false);
+  const [liveProgress, setLiveProgress] = useState(null);
+
+  // Wizard Modal State
+  const [showWizard, setShowWizard] = useState(false);
+  const [wizardStep, setWizardStep] = useState(1); // 1 to 7
+
+  // Step 1: Broadcast Identity & Channels
+  const [broadcastName, setBroadcastName] = useState('');
+  const [broadcastChannel, setBroadcastChannel] = useState('whatsapp'); // 'whatsapp', 'email', 'both'
+
+  // Step 2: Templates
+  const [selectedWhatsAppTemplateId, setSelectedWhatsAppTemplateId] = useState('');
+  const [selectedEmailTemplateId, setSelectedEmailTemplateId] = useState('');
+
+  // Step 3: Senders
+  const [selectedWhatsAppAccountId, setSelectedWhatsAppAccountId] = useState('');
+  const [selectedEmailAccountId, setSelectedEmailAccountId] = useState('');
+
+  // Step 4: Target Audience
+  const [audienceSource, setAudienceSource] = useState('customer360'); // 'customer360' or 'upload'
+  const [c360Segment, setC360Segment] = useState('all_students');
+  const [c360Campus, setC360Campus] = useState('All');
+  const [c360MinSpend, setC360MinSpend] = useState('');
   
-  // Live Dispatch Progress State
-  const [liveProgress, setLiveProgress] = useState(null); // { campaignId, sentCount, deliveredCount, failedCount, total, progressPercent }
+  // Upload audience state
+  const [uploadedFile, setUploadedFile] = useState(null);
+  const [parsedContacts, setParsedContacts] = useState([]);
+  const [uploadError, setUploadError] = useState('');
+  const [estimatedAudienceCount, setEstimatedAudienceCount] = useState(0);
+
+  // Step 5: Pacing & Delivery
+  const [pacingMode, setPacingMode] = useState('safe'); // 'safe' (3-5s), 'express' (0.5-1s)
+  const [scheduleMode, setScheduleMode] = useState('now'); // 'now', 'later'
+  const [scheduledDateTime, setScheduledDateTime] = useState('');
 
   const headers = { Authorization: `Bearer ${token}` };
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
@@ -54,14 +88,20 @@ const SuperAdminBroadcasting = ({ token, socket }) => {
       }
       setTemplates(templRes.data);
 
-      // Auto select first connected account & first template
+      // Pre-select first connected account & template if available
       if (chanRes.data.success) {
         const firstConnected = chanRes.data.whatsapp.slots.find(s => s.status === 'connected');
-        if (firstConnected) setSelectedAccountId(firstConnected._id);
+        if (firstConnected) setSelectedWhatsAppAccountId(firstConnected._id);
+        if (chanRes.data.email.accounts.length > 0) {
+          setSelectedEmailAccountId(chanRes.data.email.accounts[0]._id);
+        }
       }
-      if (templRes.data.length > 0) {
-        setSelectedTemplateId(templRes.data[0]._id);
-      }
+
+      const waTpl = templRes.data.find(t => t.channel === 'whatsapp');
+      if (waTpl) setSelectedWhatsAppTemplateId(waTpl._id);
+      const emTpl = templRes.data.find(t => t.channel === 'email');
+      if (emTpl) setSelectedEmailTemplateId(emTpl._id);
+
     } catch (err) {
       console.error('Failed to load broadcasting data:', err);
     } finally {
@@ -72,6 +112,21 @@ const SuperAdminBroadcasting = ({ token, socket }) => {
   useEffect(() => {
     fetchData();
   }, [token]);
+
+  // Estimate audience count when customer360 is selected
+  useEffect(() => {
+    if (audienceSource === 'customer360') {
+      axios.get(`${apiUrl}/api/super-admin/master-data`, { headers, params: { limit: 1 } })
+        .then(res => {
+          if (res.data.summary) {
+            setEstimatedAudienceCount(res.data.summary.totalContacts || 0);
+          }
+        })
+        .catch(() => {});
+    } else {
+      setEstimatedAudienceCount(parsedContacts.length);
+    }
+  }, [audienceSource, parsedContacts.length, token]);
 
   // Socket listener for live broadcast progress
   useEffect(() => {
@@ -91,7 +146,7 @@ const SuperAdminBroadcasting = ({ token, socket }) => {
     return () => socket.off('superadmin:broadcast_progress', handleProgress);
   }, [socket]);
 
-  // Active polling fallback while dispatching is true
+  // Polling fallback while dispatching
   useEffect(() => {
     if (!dispatching || !liveProgress?.campaignId) return;
 
@@ -125,11 +180,8 @@ const SuperAdminBroadcasting = ({ token, socket }) => {
   // Helper to render WhatsApp Markdown (*bold*, _italic_, links)
   const renderWhatsAppFormattedText = (rawText) => {
     if (!rawText) return null;
-
     return rawText.split('\n').map((line, lineIdx) => {
-      // Split by *bold*, _italic_, and URLs
       const parts = line.split(/(\*[^*]+\*|_[^_]+_|https?:\/\/[^\s]+)/g);
-
       return (
         <div key={lineIdx} style={{ minHeight: '1.3em', marginBottom: line === '' ? '0.5em' : '0' }}>
           {parts.map((part, pIdx) => {
@@ -149,41 +201,144 @@ const SuperAdminBroadcasting = ({ token, socket }) => {
     });
   };
 
-  // Filter accounts and templates based on selected channel
-  const availableAccounts = channel === 'whatsapp' 
-    ? channelData.whatsapp.slots.filter(s => s.status === 'connected')
-    : channelData.email.accounts;
+  // Filter templates & senders
+  const waTemplates = templates.filter(t => t.channel === 'whatsapp');
+  const emTemplates = templates.filter(t => t.channel === 'email');
+  const waAccounts = channelData.whatsapp.slots.filter(s => s.status === 'connected');
+  const emAccounts = channelData.email.accounts;
 
-  const availableTemplates = templates.filter(t => t.channel === channel);
-  const selectedTemplate = templates.find(t => t._id === selectedTemplateId);
+  const selectedWaTemplate = templates.find(t => t._id === selectedWhatsAppTemplateId);
+  const selectedEmTemplate = templates.find(t => t._id === selectedEmailTemplateId);
 
-  const handleDispatch = async (e) => {
-    e.preventDefault();
-    if (!selectedAccountId) {
-      return alert(`Please select an active ${channel === 'whatsapp' ? 'WhatsApp device' : 'Email account'}.`);
+  // Parse document upload (CSV/TXT)
+  const handleAudienceFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setUploadedFile(file);
+    setUploadError('');
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target.result;
+      try {
+        const rows = text.split(/\r\n|\n/).filter(r => r.trim());
+        if (rows.length < 2) {
+          setUploadError('Document appears empty or contains no headers.');
+          return;
+        }
+
+        const headersArr = rows[0].toLowerCase().split(',').map(h => h.trim().replace(/^["']|["']$/g, ''));
+        const phoneIdx = headersArr.findIndex(h => h.includes('phone') || h.includes('mobile') || h.includes('contact'));
+        const nameIdx = headersArr.findIndex(h => h.includes('name'));
+        const emailIdx = headersArr.findIndex(h => h.includes('email') || h.includes('mail'));
+        const campusIdx = headersArr.findIndex(h => h.includes('campus') || h.includes('college'));
+
+        if (phoneIdx === -1) {
+          setUploadError('Document must contain a "phone" or "mobile" column.');
+          return;
+        }
+
+        const seenPhones = new Set();
+        const extracted = [];
+
+        for (let i = 1; i < rows.length; i++) {
+          const cols = rows[i].split(',').map(c => c.trim().replace(/^["']|["']$/g, ''));
+          const rawPhone = cols[phoneIdx] || '';
+          let cleanPhone = rawPhone.replace(/\D/g, '');
+          if (cleanPhone.startsWith('91') && cleanPhone.length === 12) cleanPhone = cleanPhone.slice(2);
+          if (cleanPhone.startsWith('0') && cleanPhone.length === 11) cleanPhone = cleanPhone.slice(1);
+
+          if (cleanPhone && cleanPhone.length >= 7 && !seenPhones.has(cleanPhone)) {
+            seenPhones.add(cleanPhone);
+            extracted.push({
+              phone: cleanPhone,
+              name: nameIdx !== -1 ? (cols[nameIdx] || 'Recipient') : 'Recipient',
+              email: emailIdx !== -1 ? (cols[emailIdx] || '') : '',
+              campus: campusIdx !== -1 ? (cols[campusIdx] || 'UniVerse Campus') : 'UniVerse Campus'
+            });
+          }
+        }
+
+        if (extracted.length === 0) {
+          setUploadError('No valid contacts with phone numbers found in document.');
+        } else {
+          setParsedContacts(extracted);
+        }
+      } catch (err) {
+        setUploadError('Failed to parse document: ' + err.message);
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  // Download Sample Template
+  const handleDownloadSampleTemplate = () => {
+    window.open(`${apiUrl}/api/super-admin/master-data/sample-template`, '_blank');
+  };
+
+  // Submit & Trigger Broadcast
+  const handleTriggerBroadcast = async () => {
+    // Validation
+    if (!broadcastName.trim()) {
+      alert('Please enter a campaign name in Step 1.');
+      setWizardStep(1);
+      return;
     }
-    if (!selectedTemplateId) {
-      return alert('Please select a Master Template.');
+
+    if (broadcastChannel === 'whatsapp' || broadcastChannel === 'both') {
+      if (!selectedWhatsAppAccountId) {
+        alert('Please select a connected WhatsApp sender account in Step 3.');
+        setWizardStep(3);
+        return;
+      }
+      if (!selectedWhatsAppTemplateId) {
+        alert('Please select a WhatsApp Master Template in Step 2.');
+        setWizardStep(2);
+        return;
+      }
+    }
+
+    if (broadcastChannel === 'email' || broadcastChannel === 'both') {
+      if (!selectedEmailAccountId) {
+        alert('Please select a configured Email sender account in Step 3.');
+        setWizardStep(3);
+        return;
+      }
+      if (!selectedEmailTemplateId) {
+        alert('Please select an Email Master Template in Step 2.');
+        setWizardStep(2);
+        return;
+      }
+    }
+
+    if (audienceSource === 'upload' && parsedContacts.length === 0) {
+      alert('Please upload a document with valid contacts or choose Customer 360 in Step 4.');
+      setWizardStep(4);
+      return;
     }
 
     setDispatching(true);
     setLiveProgress({ total: 1, sentCount: 0, deliveredCount: 0, failedCount: 0, progressPercent: 0 });
+    setShowWizard(false);
 
     try {
-      const customNumbers = customNumbersInput.split(',').map(n => n.trim()).filter(Boolean);
-
       const payload = {
-        name: name || `Broadcast ${new Date().toLocaleDateString('en-IN')}`,
-        channel,
-        channelAccountId: selectedAccountId,
-        masterTemplateId: selectedTemplateId,
-        targetAudience,
-        customNumbers
+        name: broadcastName.trim(),
+        channel: broadcastChannel,
+        channelAccountId: broadcastChannel === 'whatsapp' ? selectedWhatsAppAccountId : selectedEmailAccountId,
+        masterTemplateId: broadcastChannel === 'whatsapp' ? selectedWhatsAppTemplateId : selectedEmailTemplateId,
+        whatsappAccountId: selectedWhatsAppAccountId,
+        emailAccountId: selectedEmailAccountId,
+        whatsappTemplateId: selectedWhatsAppTemplateId,
+        emailTemplateId: selectedEmailTemplateId,
+        targetAudience: audienceSource === 'upload' ? `Uploaded Document (${parsedContacts.length} recipients)` : `Customer 360 (${c360Segment})`,
+        uploadedAudience: audienceSource === 'upload' ? parsedContacts : null,
+        audienceFilters: audienceSource === 'customer360' ? { segment: c360Segment, campus: c360Campus, minSpend: c360MinSpend } : null,
+        pacing: pacingMode
       };
 
       const res = await axios.post(`${apiUrl}/api/super-admin/broadcasting/dispatch`, payload, { headers });
       if (res.data.success) {
-        setName('');
         setLiveProgress(prev => ({
           ...prev,
           campaignId: res.data.campaignId,
@@ -191,26 +346,94 @@ const SuperAdminBroadcasting = ({ token, socket }) => {
         }));
       }
     } catch (err) {
-      alert('Broadcast failed to initiate: ' + (err.response?.data?.message || err.message));
+      alert('Broadcast dispatch failed: ' + (err.response?.data?.message || err.message));
       setDispatching(false);
       setLiveProgress(null);
     }
   };
 
+  // Open Wizard Helper
+  const handleOpenWizard = () => {
+    setWizardStep(1);
+    setBroadcastName(`Broadcast ${new Date().toLocaleDateString('en-IN')}`);
+    setShowWizard(true);
+  };
+
   return (
     <div>
       {/* Header */}
-      <header style={{ marginBottom: '2rem' }}>
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'rgba(239, 65, 35, 0.08)', color: 'var(--primary)', padding: '4px 12px', borderRadius: '100px', fontSize: '0.78rem', fontWeight: '800', marginBottom: '0.5rem' }}>
-          <Zap size={14} /> Multi-Device Campus Messaging
+      <header style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
+        <div>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'rgba(239, 65, 35, 0.08)', color: 'var(--primary)', padding: '4px 12px', borderRadius: '100px', fontSize: '0.78rem', fontWeight: '800', marginBottom: '0.5rem' }}>
+            <Zap size={14} /> Multi-Channel Campus Broadcasting
+          </div>
+          <h1 style={{ fontSize: '1.9rem', fontWeight: '900', margin: 0, color: '#0f172a', letterSpacing: '-0.02em' }}>
+            Broadcasting Studio
+          </h1>
+          <p style={{ color: 'var(--text-secondary)', marginTop: '0.35rem', fontSize: '0.95rem' }}>
+            Launch high-impact announcements, flash deals, and campus updates via connected WhatsApp devices and verified Email senders.
+          </p>
         </div>
-        <h1 style={{ fontSize: '1.85rem', fontWeight: '900', margin: 0, color: '#0f172a' }}>Broadcasting Studio</h1>
-        <p style={{ color: 'var(--text-secondary)', marginTop: '0.35rem', fontSize: '0.95rem' }}>
-          Deploy announcements, flash deals, and campus updates across student & vendor segments via connected WhatsApp devices & Email.
-        </p>
+
+        {/* CREATE BROADCAST BUTTON */}
+        <button
+          onClick={handleOpenWizard}
+          style={{
+            padding: '0.85rem 1.6rem',
+            borderRadius: '14px',
+            border: 'none',
+            background: 'linear-gradient(135deg, #ef4123, #ea580c)',
+            color: '#ffffff',
+            fontWeight: '900',
+            fontSize: '1rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            cursor: 'pointer',
+            boxShadow: '0 6px 20px rgba(239, 65, 35, 0.35)',
+            transition: 'transform 0.15s ease'
+          }}
+        >
+          <Plus size={20} /> Create Broadcast
+        </button>
       </header>
 
-      {/* Live Dispatch Progress Banner (Clean Enterprise Design) */}
+      {/* 4 Stat Overview Tiles */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.25rem', marginBottom: '2rem' }}>
+        <div style={{ background: '#ffffff', padding: '1.4rem', borderRadius: '20px', border: '1px solid var(--surface-border)', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#64748b', fontSize: '0.8rem', fontWeight: '700', marginBottom: '6px' }}>
+            <Radio size={16} color="var(--primary)" /> Total Broadcasts
+          </div>
+          <p style={{ margin: 0, fontSize: '1.85rem', fontWeight: '900', color: '#0f172a' }}>{campaigns.length}</p>
+          <span style={{ fontSize: '0.72rem', color: '#10b981', fontWeight: '700' }}>Dispatched via Studio</span>
+        </div>
+
+        <div style={{ background: '#ffffff', padding: '1.4rem', borderRadius: '20px', border: '1px solid var(--surface-border)', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#64748b', fontSize: '0.8rem', fontWeight: '700', marginBottom: '6px' }}>
+            <Smartphone size={16} color="#25D366" /> Connected WhatsApp Senders
+          </div>
+          <p style={{ margin: 0, fontSize: '1.85rem', fontWeight: '900', color: '#0f172a' }}>{waAccounts.length} / 5</p>
+          <span style={{ fontSize: '0.72rem', color: '#64748b' }}>Active Multi-Device Slots</span>
+        </div>
+
+        <div style={{ background: '#ffffff', padding: '1.4rem', borderRadius: '20px', border: '1px solid var(--surface-border)', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#64748b', fontSize: '0.8rem', fontWeight: '700', marginBottom: '6px' }}>
+            <Mail size={16} color="#ea4335" /> Active Email Senders
+          </div>
+          <p style={{ margin: 0, fontSize: '1.85rem', fontWeight: '900', color: '#0f172a' }}>{emAccounts.length}</p>
+          <span style={{ fontSize: '0.72rem', color: '#64748b' }}>Configured SMTP / SES</span>
+        </div>
+
+        <div style={{ background: '#ffffff', padding: '1.4rem', borderRadius: '20px', border: '1px solid var(--surface-border)', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#64748b', fontSize: '0.8rem', fontWeight: '700', marginBottom: '6px' }}>
+            <FileText size={16} color="#6366f1" /> Master Templates
+          </div>
+          <p style={{ margin: 0, fontSize: '1.85rem', fontWeight: '900', color: '#0f172a' }}>{templates.length}</p>
+          <span style={{ fontSize: '0.72rem', color: '#64748b' }}>Pre-approved messaging designs</span>
+        </div>
+      </div>
+
+      {/* Live Dispatch Progress Monitor */}
       {liveProgress && (
         <div style={{
           background: '#ffffff',
@@ -239,7 +462,7 @@ const SuperAdminBroadcasting = ({ token, socket }) => {
                   {dispatching ? 'Broadcast Dispatch in Progress' : (liveProgress.failedCount > 0 ? 'Broadcast Dispatch Finished with Errors' : 'Broadcast Dispatch Completed')}
                 </h4>
                 <p style={{ margin: '2px 0 0', fontSize: '0.78rem', color: '#64748b' }}>
-                  Anti-ban pacing active • Sending via AWS EC2
+                  Pacing active • Multi-device background engine
                 </p>
               </div>
             </div>
@@ -253,7 +476,6 @@ const SuperAdminBroadcasting = ({ token, socket }) => {
             </div>
           </div>
 
-          {/* Progress Track */}
           <div style={{ width: '100%', height: '6px', background: '#f1f5f9', borderRadius: '100px', overflow: 'hidden', marginBottom: '1.1rem' }}>
             <div style={{
               width: `${liveProgress.progressPercent || 0}%`,
@@ -263,7 +485,6 @@ const SuperAdminBroadcasting = ({ token, socket }) => {
             }} />
           </div>
 
-          {/* 4 Clean Metric Tiles */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.75rem', textAlign: 'center' }}>
             <div style={{ background: '#f8fafc', padding: '0.65rem', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
               <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: '700' }}>Total</span>
@@ -282,252 +503,8 @@ const SuperAdminBroadcasting = ({ token, socket }) => {
               <p style={{ margin: '2px 0 0', fontSize: '1.15rem', fontWeight: '900', color: liveProgress.failedCount > 0 ? '#ef4444' : '#64748b' }}>{liveProgress.failedCount || 0}</p>
             </div>
           </div>
-
-          {/* Diagnostic Error Note if Failed */}
-          {liveProgress.lastError && (
-            <div style={{
-              marginTop: '0.9rem', padding: '0.65rem 0.85rem', background: 'rgba(239, 68, 68, 0.08)',
-              borderRadius: '8px', border: '1px solid rgba(239, 68, 68, 0.2)', fontSize: '0.75rem', color: '#dc2626',
-              display: 'flex', alignItems: 'center', gap: '8px'
-            }}>
-              <span>⚠️ <strong>Dispatch Diagnostics:</strong> {liveProgress.lastError}</span>
-            </div>
-          )}
         </div>
       )}
-
-      {/* COMPOSER GRID: Form on Left, Live Simulator on Right */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '2.5rem', marginBottom: '3rem' }}>
-        {/* Left: Campaign Configuration Form */}
-        <div style={{ background: '#ffffff', borderRadius: '24px', border: '1px solid var(--surface-border)', padding: '2rem', boxShadow: '0 4px 16px rgba(0,0,0,0.02)' }}>
-          <h3 style={{ margin: '0 0 1.5rem', fontSize: '1.3rem', fontWeight: '900', color: '#0f172a' }}>
-            Compose Broadcast
-          </h3>
-
-          <form onSubmit={handleDispatch} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-            {/* Campaign Name */}
-            <div>
-              <label style={{ fontSize: '0.8rem', fontWeight: '700', color: '#475569', display: 'block', marginBottom: '4px' }}>Campaign Name</label>
-              <input 
-                type="text"
-                placeholder="e.g. Saturday Evening Flash Deals"
-                value={name}
-                onChange={e => setName(e.target.value)}
-                style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '0.9rem', boxSizing: 'border-box' }}
-              />
-            </div>
-
-            {/* Channel Selection */}
-            <div>
-              <label style={{ fontSize: '0.8rem', fontWeight: '700', color: '#475569', display: 'block', marginBottom: '6px' }}>Delivery Channel</label>
-              <div style={{ display: 'flex', gap: '0.75rem' }}>
-                <button
-                  type="button"
-                  onClick={() => { setChannel('whatsapp'); setSelectedAccountId(''); }}
-                  style={{
-                    flex: 1, padding: '0.75rem', borderRadius: '12px', border: '2px solid',
-                    borderColor: channel === 'whatsapp' ? '#25D366' : '#e2e8f0',
-                    background: channel === 'whatsapp' ? 'rgba(37, 211, 102, 0.08)' : '#ffffff',
-                    color: channel === 'whatsapp' ? '#16a34a' : '#64748b',
-                    fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
-                  }}
-                >
-                  <Smartphone size={16} /> WhatsApp
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { setChannel('email'); setSelectedAccountId(''); }}
-                  style={{
-                    flex: 1, padding: '0.75rem', borderRadius: '12px', border: '2px solid',
-                    borderColor: channel === 'email' ? '#ea4335' : '#e2e8f0',
-                    background: channel === 'email' ? 'rgba(234, 67, 53, 0.08)' : '#ffffff',
-                    color: channel === 'email' ? '#ea4335' : '#64748b',
-                    fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
-                  }}
-                >
-                  <Mail size={16} /> Email
-                </button>
-              </div>
-            </div>
-
-            {/* SENDER DEVICE SELECTOR */}
-            <div>
-              <label style={{ fontSize: '0.8rem', fontWeight: '700', color: '#475569', display: 'block', marginBottom: '4px' }}>
-                Sender Account / Device
-              </label>
-              {availableAccounts.length === 0 ? (
-                <div style={{ padding: '0.75rem', background: '#fef2f2', border: '1px solid #fee2e2', borderRadius: '10px', color: '#ef4444', fontSize: '0.8rem', fontWeight: '700' }}>
-                  No active {channel === 'whatsapp' ? 'WhatsApp devices connected. Go to Channel Hub to pair.' : 'Email senders configured.'}
-                </div>
-              ) : (
-                <select
-                  value={selectedAccountId}
-                  onChange={e => setSelectedAccountId(e.target.value)}
-                  style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '0.9rem', boxSizing: 'border-box', background: '#fff' }}
-                >
-                  <option value="">-- Select Sender Device --</option>
-                  {availableAccounts.map(acc => (
-                    <option key={acc._id} value={acc._id}>
-                      {channel === 'whatsapp' 
-                        ? `[Slot #${acc.slotIndex}] ${acc.nickname} (+${acc.phoneNumber})` 
-                        : `${acc.nickname} <${acc.emailConfig?.fromEmail}>`}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </div>
-
-            {/* MASTER TEMPLATE PICKER */}
-            <div>
-              <label style={{ fontSize: '0.8rem', fontWeight: '700', color: '#475569', display: 'block', marginBottom: '4px' }}>
-                Master Template
-              </label>
-              <select
-                value={selectedTemplateId}
-                onChange={e => setSelectedTemplateId(e.target.value)}
-                style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '0.9rem', boxSizing: 'border-box', background: '#fff' }}
-              >
-                <option value="">-- Select Master Template --</option>
-                {availableTemplates.map(t => (
-                  <option key={t._id} value={t._id}>
-                    {t.name} ({t.category})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* TARGET AUDIENCE */}
-            <div>
-              <label style={{ fontSize: '0.8rem', fontWeight: '700', color: '#475569', display: 'block', marginBottom: '4px' }}>
-                Target Audience
-              </label>
-              <select
-                value={targetAudience}
-                onChange={e => setTargetAudience(e.target.value)}
-                style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '0.9rem', boxSizing: 'border-box', background: '#fff' }}
-              >
-                <option value="Specific Phone Numbers / Custom">Specific Test Number (Safe Mode)</option>
-                <option value="All Students">All Registered Students</option>
-                <option value="All Vendors">All Food Vendors</option>
-                <option value="Campus Zone Users">Campus Food Court Active Users</option>
-              </select>
-            </div>
-
-            {/* Custom Numbers input if chosen */}
-            {targetAudience === 'Specific Phone Numbers / Custom' && (
-              <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '14px', border: '1px solid #e2e8f0' }}>
-                <label style={{ fontSize: '0.8rem', fontWeight: '700', color: '#475569', display: 'block', marginBottom: '4px' }}>
-                  Target Phone Numbers (Comma Separated)
-                </label>
-                <input 
-                  type="text"
-                  placeholder="e.g. 9876543210, 9123456789"
-                  value={customNumbersInput}
-                  onChange={e => setCustomNumbersInput(e.target.value)}
-                  style={{ width: '100%', padding: '0.65rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.85rem', boxSizing: 'border-box' }}
-                />
-                <span style={{ fontSize: '0.7rem', color: '#94a3b8', display: 'block', marginTop: '4px' }}>
-                  Enter destination mobile numbers with or without country code.
-                </span>
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={dispatching || availableAccounts.length === 0}
-              style={{
-                marginTop: '0.5rem', padding: '1rem', background: 'linear-gradient(135deg, #ef4123, #ea580c)', color: 'white',
-                border: 'none', borderRadius: '14px', fontWeight: '900', fontSize: '1rem', cursor: 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
-                boxShadow: '0 4px 16px rgba(239, 65, 35, 0.3)', opacity: dispatching ? 0.7 : 1
-              }}
-            >
-              <Send size={18} /> {dispatching ? 'Dispatching...' : 'Dispatch Broadcast Now'}
-            </button>
-          </form>
-        </div>
-
-        {/* Right: Live Simulated Recipient Preview */}
-        <div>
-          <div style={{ background: '#ffffff', borderRadius: '24px', border: '1px solid var(--surface-border)', padding: '2rem', boxShadow: '0 4px 16px rgba(0,0,0,0.02)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-              <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: '900', color: '#0f172a' }}>
-                Live Message Preview
-              </h3>
-              <span style={{ fontSize: '0.75rem', color: '#64748b', background: '#f1f5f9', padding: '3px 8px', borderRadius: '6px', fontWeight: '700' }}>
-                Dynamic Tag Simulator
-              </span>
-            </div>
-
-            {selectedTemplate ? (
-              channel === 'whatsapp' ? (
-                /* WhatsApp Bubble Simulation */
-                <div style={{ background: '#e5ddd5', backgroundImage: 'radial-gradient(#d1c7bc 1px, transparent 1px)', backgroundSize: '16px 16px', padding: '1.5rem', borderRadius: '20px' }}>
-                  <div style={{ background: '#ffffff', borderRadius: '14px', borderTopLeftRadius: '4px', padding: '1rem', boxShadow: '0 2px 5px rgba(0,0,0,0.1)' }}>
-                    {selectedTemplate.headerType === 'IMAGE' && selectedTemplate.headerMediaUrl && (
-                      <div style={{ width: '100%', height: '160px', borderRadius: '8px', overflow: 'hidden', marginBottom: '0.75rem' }}>
-                        <img src={selectedTemplate.headerMediaUrl} alt="Header Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                      </div>
-                    )}
-
-                    {/* WhatsApp Body Formatted */}
-                    <div style={{ fontSize: '0.875rem', color: '#111b21', lineHeight: 1.5 }}>
-                      {renderWhatsAppFormattedText(selectedTemplate.body)}
-                    </div>
-
-                    {/* Formatted Actions / Buttons inside bubble */}
-                    {selectedTemplate.buttons && selectedTemplate.buttons.length > 0 && (
-                      <div style={{ marginTop: '0.75rem', borderTop: '1px dashed #cbd5e1', paddingTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '0.85rem' }}>
-                        {selectedTemplate.buttons.map((btn, idx) => (
-                          <div key={idx} style={{ color: '#00a884', fontWeight: '700' }}>
-                            {btn.type === 'URL' && <span>🔗 <u>{btn.text}</u>: <a href={btn.value} target="_blank" rel="noreferrer" style={{ color: '#0284c7' }}>{btn.value}</a></span>}
-                            {btn.type === 'PHONE_NUMBER' && <span>📞 {btn.text}: {btn.value}</span>}
-                            {btn.type === 'QUICK_REPLY' && <span>👉 [ {btn.text} ]</span>}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.75rem', borderTop: '1px solid #f1f5f9', paddingTop: '4px' }}>
-                      <span style={{ fontSize: '0.7rem', color: '#8696a0', fontStyle: 'italic' }}>{selectedTemplate.footer}</span>
-                      <span style={{ fontSize: '0.65rem', color: '#8696a0' }}>Just now</span>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                /* Email Preview Simulation */
-                <div style={{ background: '#0f172a', borderRadius: '20px', padding: '1.5rem', color: '#f8fafc' }}>
-                  <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Subject:</span>
-                  <h4 style={{ margin: '4px 0 1rem 0', fontSize: '1rem', fontWeight: '900', color: '#f8fafc' }}>
-                    {selectedTemplate.subject || selectedTemplate.name}
-                  </h4>
-
-                  {selectedTemplate.emailHeroImageUrl && (
-                    <div style={{ width: '100%', height: '140px', borderRadius: '10px', overflow: 'hidden', marginBottom: '1rem' }}>
-                      <img src={selectedTemplate.emailHeroImageUrl} alt="Hero" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    </div>
-                  )}
-
-                  <div style={{ fontSize: '0.85rem', color: '#cbd5e1', lineHeight: 1.6, whiteSpace: 'pre-wrap', marginBottom: '1.5rem' }}>
-                    {selectedTemplate.body}
-                  </div>
-
-                  <div style={{ textAlign: 'center' }}>
-                    <span style={{ display: 'inline-block', padding: '8px 24px', background: '#ef4123', color: 'white', borderRadius: '100px', fontSize: '0.85rem', fontWeight: '800' }}>
-                      {selectedTemplate.emailCtaText || 'Open App'}
-                    </span>
-                  </div>
-                </div>
-              )
-            ) : (
-              <div style={{ padding: '3rem', textAlign: 'center', color: '#94a3b8', background: '#f8fafc', borderRadius: '16px', border: '1px dashed #cbd5e1' }}>
-                <Layers size={32} style={{ opacity: 0.5, marginBottom: '0.5rem' }} />
-                <p style={{ margin: 0, fontSize: '0.9rem' }}>Select a Master Template on the left to preview.</p>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
 
       {/* PAST CAMPAIGNS LOG */}
       <div style={{ background: '#ffffff', borderRadius: '24px', border: '1px solid var(--surface-border)', padding: '2rem', boxShadow: '0 4px 16px rgba(0,0,0,0.02)' }}>
@@ -536,7 +513,10 @@ const SuperAdminBroadcasting = ({ token, socket }) => {
         </h3>
 
         {campaigns.length === 0 ? (
-          <p style={{ color: '#94a3b8', textAlign: 'center', padding: '2rem 0', margin: 0 }}>No broadcast campaigns dispatched yet.</p>
+          <div style={{ textAlign: 'center', padding: '3rem 0', color: '#94a3b8' }}>
+            <Radio size={40} style={{ opacity: 0.4, marginBottom: '0.75rem' }} />
+            <p style={{ margin: 0, fontSize: '0.9rem' }}>No broadcast campaigns dispatched yet. Click "Create Broadcast" above to send your first message.</p>
+          </div>
         ) : (
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
@@ -555,9 +535,11 @@ const SuperAdminBroadcasting = ({ token, socket }) => {
                   <tr key={c._id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                     <td style={{ padding: '1rem', fontWeight: '800', color: '#0f172a' }}>{c.name}</td>
                     <td style={{ padding: '1rem' }}>
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontWeight: '700' }}>
-                        {c.channel === 'whatsapp' ? <Smartphone size={14} color="#25D366" /> : <Mail size={14} color="#ea4335" />}
-                        {c.channelAccountId?.nickname || 'Default Sender'}
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontWeight: '700' }}>
+                        {c.channel === 'whatsapp' && <Smartphone size={14} color="#25D366" />}
+                        {c.channel === 'email' && <Mail size={14} color="#ea4335" />}
+                        {c.channel === 'both' && <Sparkles size={14} color="#8b5cf6" />}
+                        <span style={{ textTransform: 'capitalize' }}>{c.channel}</span>
                       </span>
                     </td>
                     <td style={{ padding: '1rem', color: '#64748b' }}>{c.targetAudience}</td>
@@ -583,6 +565,708 @@ const SuperAdminBroadcasting = ({ token, socket }) => {
           </div>
         )}
       </div>
+
+      {/* 7-STEP CREATE BROADCAST MODAL WIZARD */}
+      {showWizard && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(6px)',
+          zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: '1rem'
+        }}>
+          <div style={{
+            background: '#ffffff', borderRadius: '24px', width: '100%', maxWidth: '840px',
+            maxHeight: '92vh', overflowY: 'auto', display: 'flex', flexDirection: 'column',
+            boxShadow: '0 25px 60px rgba(0,0,0,0.25)', position: 'relative'
+          }}>
+            {/* Modal Header & Steps Bar */}
+            <div style={{ padding: '1.5rem 2rem', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <span style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Step {wizardStep} of 7
+                </span>
+                <h2 style={{ margin: '2px 0 0', fontSize: '1.35rem', fontWeight: '900', color: '#0f172a' }}>
+                  {wizardStep === 1 && '1. Campaign Identity & Delivery Channels'}
+                  {wizardStep === 2 && '2. Master Template Selection'}
+                  {wizardStep === 3 && '3. Sender Device & Account'}
+                  {wizardStep === 4 && '4. Target Audience & Ingestion'}
+                  {wizardStep === 5 && '5. Anti-Ban Pacing & Scheduling'}
+                  {wizardStep === 6 && '6. Live Dynamic Message Preview'}
+                  {wizardStep === 7 && '7. Review & Launch Broadcast'}
+                </h2>
+              </div>
+              <button
+                onClick={() => setShowWizard(false)}
+                style={{ background: '#f1f5f9', border: 'none', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Step Progress Pills */}
+            <div style={{ display: 'flex', background: '#f8fafc', padding: '0.75rem 2rem', borderBottom: '1px solid #e2e8f0', gap: '6px', overflowX: 'auto' }}>
+              {[
+                { n: 1, label: 'Channels' },
+                { n: 2, label: 'Templates' },
+                { n: 3, label: 'Senders' },
+                { n: 4, label: 'Audience' },
+                { n: 5, label: 'Pacing' },
+                { n: 6, label: 'Preview' },
+                { n: 7, label: 'Launch' }
+              ].map(s => (
+                <button
+                  key={s.n}
+                  onClick={() => s.n < wizardStep && setWizardStep(s.n)}
+                  style={{
+                    padding: '0.35rem 0.75rem',
+                    borderRadius: '100px',
+                    border: 'none',
+                    background: wizardStep === s.n ? 'var(--primary)' : (wizardStep > s.n ? '#10b981' : '#e2e8f0'),
+                    color: (wizardStep === s.n || wizardStep > s.n) ? '#ffffff' : '#64748b',
+                    fontWeight: '800',
+                    fontSize: '0.72rem',
+                    cursor: s.n < wizardStep ? 'pointer' : 'default',
+                    whiteSpace: 'nowrap',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}
+                >
+                  {wizardStep > s.n ? <Check size={12} /> : s.n} {s.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Modal Body: STEP CONTENT */}
+            <div style={{ padding: '2rem', flex: 1 }}>
+
+              {/* STEP 1: IDENTITY & CHANNELS */}
+              {wizardStep === 1 && (
+                <div>
+                  <div style={{ marginBottom: '1.75rem' }}>
+                    <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '800', color: '#334155', marginBottom: '6px' }}>
+                      Broadcast Campaign Name *
+                    </label>
+                    <input 
+                      type="text"
+                      placeholder="e.g. Campus Night Canteen 20% Flash Deal"
+                      value={broadcastName}
+                      onChange={e => setBroadcastName(e.target.value)}
+                      style={{ width: '100%', padding: '0.85rem 1rem', borderRadius: '12px', border: '1.5px solid #cbd5e1', fontSize: '0.95rem', boxSizing: 'border-box' }}
+                    />
+                    <span style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '4px', display: 'block' }}>
+                      Used to identify this campaign in reports and Master Data import logs.
+                    </span>
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '800', color: '#334155', marginBottom: '8px' }}>
+                      Select Delivery Channel *
+                    </label>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
+                      {/* WhatsApp Card */}
+                      <div 
+                        onClick={() => setBroadcastChannel('whatsapp')}
+                        style={{
+                          padding: '1.25rem',
+                          borderRadius: '16px',
+                          border: '2px solid',
+                          borderColor: broadcastChannel === 'whatsapp' ? '#25D366' : '#e2e8f0',
+                          background: broadcastChannel === 'whatsapp' ? 'rgba(37, 211, 102, 0.06)' : '#ffffff',
+                          cursor: 'pointer',
+                          textAlign: 'center',
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'rgba(37, 211, 102, 0.12)', color: '#25D366', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 0.75rem' }}>
+                          <Smartphone size={24} />
+                        </div>
+                        <h4 style={{ margin: '0 0 0.25rem', fontSize: '1rem', fontWeight: '900', color: '#0f172a' }}>WhatsApp</h4>
+                        <p style={{ margin: 0, fontSize: '0.75rem', color: '#64748b' }}>
+                          Instant phone notification with media & interactive quick buttons
+                        </p>
+                      </div>
+
+                      {/* Email Card */}
+                      <div 
+                        onClick={() => setBroadcastChannel('email')}
+                        style={{
+                          padding: '1.25rem',
+                          borderRadius: '16px',
+                          border: '2px solid',
+                          borderColor: broadcastChannel === 'email' ? '#ea4335' : '#e2e8f0',
+                          background: broadcastChannel === 'email' ? 'rgba(234, 67, 53, 0.06)' : '#ffffff',
+                          cursor: 'pointer',
+                          textAlign: 'center',
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'rgba(234, 67, 53, 0.12)', color: '#ea4335', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 0.75rem' }}>
+                          <Mail size={24} />
+                        </div>
+                        <h4 style={{ margin: '0 0 0.25rem', fontSize: '1rem', fontWeight: '900', color: '#0f172a' }}>Email</h4>
+                        <p style={{ margin: 0, fontSize: '0.75rem', color: '#64748b' }}>
+                          Formatted rich HTML newsletters with hero banners & action links
+                        </p>
+                      </div>
+
+                      {/* Both Card */}
+                      <div 
+                        onClick={() => setBroadcastChannel('both')}
+                        style={{
+                          padding: '1.25rem',
+                          borderRadius: '16px',
+                          border: '2px solid',
+                          borderColor: broadcastChannel === 'both' ? '#8b5cf6' : '#e2e8f0',
+                          background: broadcastChannel === 'both' ? 'rgba(139, 92, 246, 0.06)' : '#ffffff',
+                          cursor: 'pointer',
+                          textAlign: 'center',
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'rgba(139, 92, 246, 0.12)', color: '#8b5cf6', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 0.75rem' }}>
+                          <Sparkles size={24} />
+                        </div>
+                        <h4 style={{ margin: '0 0 0.25rem', fontSize: '1rem', fontWeight: '900', color: '#0f172a' }}>Both (Omnichannel)</h4>
+                        <p style={{ margin: 0, fontSize: '0.75rem', color: '#64748b' }}>
+                          Max reach: Dispatches via WhatsApp & Email simultaneously
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* STEP 2: TEMPLATE SELECTION */}
+              {wizardStep === 2 && (
+                <div>
+                  <p style={{ margin: '0 0 1.5rem', fontSize: '0.85rem', color: '#64748b' }}>
+                    Choose pre-designed templates from your <strong>Master Templates</strong> catalog. Templates will populate dynamic tags like <code>{'{{name}}'}</code> and <code>{'{{campus}}'}</code> automatically.
+                  </p>
+
+                  {(broadcastChannel === 'whatsapp' || broadcastChannel === 'both') && (
+                    <div style={{ background: '#f8fafc', padding: '1.25rem', borderRadius: '16px', border: '1px solid #e2e8f0', marginBottom: '1.25rem' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: '800', color: '#0f172a', marginBottom: '6px' }}>
+                        <Smartphone size={16} color="#25D366" /> WhatsApp Master Template *
+                      </label>
+                      <select
+                        value={selectedWhatsAppTemplateId}
+                        onChange={e => setSelectedWhatsAppTemplateId(e.target.value)}
+                        style={{ width: '100%', padding: '0.8rem', borderRadius: '10px', border: '1.5px solid #cbd5e1', fontSize: '0.9rem', background: '#fff' }}
+                      >
+                        <option value="">-- Choose WhatsApp Template --</option>
+                        {waTemplates.map(t => (
+                          <option key={t._id} value={t._id}>
+                            {t.name} ({t.category})
+                          </option>
+                        ))}
+                      </select>
+
+                      {selectedWaTemplate && (
+                        <div style={{ marginTop: '0.75rem', padding: '0.75rem', background: '#ffffff', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.8rem', color: '#475569' }}>
+                          <span style={{ fontWeight: '700', color: '#0f172a' }}>Template Body:</span> {selectedWaTemplate.body}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {(broadcastChannel === 'email' || broadcastChannel === 'both') && (
+                    <div style={{ background: '#f8fafc', padding: '1.25rem', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: '800', color: '#0f172a', marginBottom: '6px' }}>
+                        <Mail size={16} color="#ea4335" /> Email Master Template *
+                      </label>
+                      <select
+                        value={selectedEmailTemplateId}
+                        onChange={e => setSelectedEmailTemplateId(e.target.value)}
+                        style={{ width: '100%', padding: '0.8rem', borderRadius: '10px', border: '1.5px solid #cbd5e1', fontSize: '0.9rem', background: '#fff' }}
+                      >
+                        <option value="">-- Choose Email Template --</option>
+                        {emTemplates.map(t => (
+                          <option key={t._id} value={t._id}>
+                            {t.name} — {t.subject || 'No Subject'} ({t.category})
+                          </option>
+                        ))}
+                      </select>
+
+                      {selectedEmTemplate && (
+                        <div style={{ marginTop: '0.75rem', padding: '0.75rem', background: '#ffffff', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.8rem', color: '#475569' }}>
+                          <span style={{ fontWeight: '700', color: '#0f172a' }}>Subject:</span> {selectedEmTemplate.subject || selectedEmTemplate.name}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* STEP 3: SENDER CONFIGURATION */}
+              {wizardStep === 3 && (
+                <div>
+                  <p style={{ margin: '0 0 1.5rem', fontSize: '0.85rem', color: '#64748b' }}>
+                    Select the sending accounts or devices configured on your platform to dispatch this broadcast.
+                  </p>
+
+                  {(broadcastChannel === 'whatsapp' || broadcastChannel === 'both') && (
+                    <div style={{ background: '#f8fafc', padding: '1.25rem', borderRadius: '16px', border: '1px solid #e2e8f0', marginBottom: '1.25rem' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: '800', color: '#0f172a', marginBottom: '6px' }}>
+                        <Smartphone size={16} color="#25D366" /> WhatsApp Sender Device *
+                      </label>
+                      {waAccounts.length === 0 ? (
+                        <div style={{ padding: '0.85rem', background: 'rgba(239, 68, 68, 0.08)', borderRadius: '10px', color: '#dc2626', fontSize: '0.82rem', fontWeight: '700' }}>
+                          ⚠️ No connected WhatsApp devices found. Please navigate to "Channels & Devices" tab to scan QR.
+                        </div>
+                      ) : (
+                        <select
+                          value={selectedWhatsAppAccountId}
+                          onChange={e => setSelectedWhatsAppAccountId(e.target.value)}
+                          style={{ width: '100%', padding: '0.8rem', borderRadius: '10px', border: '1.5px solid #cbd5e1', fontSize: '0.9rem', background: '#fff' }}
+                        >
+                          <option value="">-- Choose WhatsApp Sender --</option>
+                          {waAccounts.map(acc => (
+                            <option key={acc._id} value={acc._id}>
+                              [Slot #{acc.slotIndex}] {acc.nickname} (+{acc.phoneNumber}) • Active
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                    </div>
+                  )}
+
+                  {(broadcastChannel === 'email' || broadcastChannel === 'both') && (
+                    <div style={{ background: '#f8fafc', padding: '1.25rem', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: '800', color: '#0f172a', marginBottom: '6px' }}>
+                        <Mail size={16} color="#ea4335" /> Email Sender Account *
+                      </label>
+                      {emAccounts.length === 0 ? (
+                        <div style={{ padding: '0.85rem', background: 'rgba(239, 68, 68, 0.08)', borderRadius: '10px', color: '#dc2626', fontSize: '0.82rem', fontWeight: '700' }}>
+                          ⚠️ No email accounts configured. Navigate to "Channels & Devices" to setup SMTP / AWS SES.
+                        </div>
+                      ) : (
+                        <select
+                          value={selectedEmailAccountId}
+                          onChange={e => setSelectedEmailAccountId(e.target.value)}
+                          style={{ width: '100%', padding: '0.8rem', borderRadius: '10px', border: '1.5px solid #cbd5e1', fontSize: '0.9rem', background: '#fff' }}
+                        >
+                          <option value="">-- Choose Email Sender --</option>
+                          {emAccounts.map(acc => (
+                            <option key={acc._id} value={acc._id}>
+                              {acc.nickname} &lt;{acc.emailConfig?.fromEmail || acc.email}&gt;
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* STEP 4: TARGET AUDIENCE & INGESTION */}
+              {wizardStep === 4 && (
+                <div>
+                  {/* Audience Source Toggle */}
+                  <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem' }}>
+                    <button
+                      type="button"
+                      onClick={() => setAudienceSource('customer360')}
+                      style={{
+                        flex: 1, padding: '1rem', borderRadius: '14px', border: '2px solid',
+                        borderColor: audienceSource === 'customer360' ? 'var(--primary)' : '#e2e8f0',
+                        background: audienceSource === 'customer360' ? 'rgba(239, 65, 35, 0.06)' : '#ffffff',
+                        color: audienceSource === 'customer360' ? 'var(--primary)' : '#64748b',
+                        fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
+                      }}
+                    >
+                      <Database size={18} /> Customer 360 / Database
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setAudienceSource('upload')}
+                      style={{
+                        flex: 1, padding: '1rem', borderRadius: '14px', border: '2px solid',
+                        borderColor: audienceSource === 'upload' ? '#6366f1' : '#e2e8f0',
+                        background: audienceSource === 'upload' ? 'rgba(99, 102, 241, 0.06)' : '#ffffff',
+                        color: audienceSource === 'upload' ? '#6366f1' : '#64748b',
+                        fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
+                      }}
+                    >
+                      <Upload size={18} /> Upload Document (CSV / Excel / PDF)
+                    </button>
+                  </div>
+
+                  {audienceSource === 'customer360' ? (
+                    <div style={{ background: '#f8fafc', padding: '1.5rem', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginBottom: '1.25rem' }}>
+                        <div>
+                          <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: '800', color: '#475569', marginBottom: '4px' }}>Audience Segment</label>
+                          <select
+                            value={c360Segment}
+                            onChange={e => setC360Segment(e.target.value)}
+                            style={{ width: '100%', padding: '0.7rem', borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '0.85rem', background: '#fff' }}
+                          >
+                            <option value="all_students">All Registered Students</option>
+                            <option value="active_buyers">Active Buyers (Last 14 Days)</option>
+                            <option value="high_spenders">High Spenders (VIP)</option>
+                            <option value="all_vendors">All Campus Food Vendors</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: '800', color: '#475569', marginBottom: '4px' }}>Target Campus</label>
+                          <select
+                            value={c360Campus}
+                            onChange={e => setC360Campus(e.target.value)}
+                            style={{ width: '100%', padding: '0.7rem', borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '0.85rem', background: '#fff' }}
+                          >
+                            <option value="All">All Campuses</option>
+                            <option value="Lovely Professional University">Lovely Professional University</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div style={{ padding: '0.85rem 1rem', background: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span style={{ fontSize: '0.85rem', color: '#475569', fontWeight: '700' }}>Estimated Eligible Recipients:</span>
+                        <span style={{ fontSize: '1.1rem', fontWeight: '900', color: '#10b981' }}>~{estimatedAudienceCount} recipients</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      {/* Download Template Banner */}
+                      <div style={{ padding: '1rem 1.25rem', background: '#f8fafc', borderRadius: '14px', border: '1px solid #e2e8f0', marginBottom: '1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
+                        <div>
+                          <span style={{ fontSize: '0.85rem', fontWeight: '800', color: '#0f172a', display: 'block' }}>
+                            Download Required CSV/Excel Template
+                          </span>
+                          <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                            Fields: <strong>name</strong> (required), <strong>phone</strong> (required), email, campus, notes.
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleDownloadSampleTemplate}
+                          style={{ padding: '0.5rem 1rem', borderRadius: '8px', border: '1.5px solid var(--primary)', background: '#ffffff', color: 'var(--primary)', fontWeight: '800', fontSize: '0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                        >
+                          <Download size={14} /> Download Sample CSV
+                        </button>
+                      </div>
+
+                      {/* Dropzone */}
+                      <div style={{ border: '2px dashed #cbd5e1', borderRadius: '16px', padding: '1.75rem', textAlign: 'center', background: '#fcfcfc', marginBottom: '1rem' }}>
+                        <Upload size={32} color="#6366f1" style={{ marginBottom: '0.5rem' }} />
+                        <p style={{ margin: '0 0 0.5rem', fontSize: '0.88rem', fontWeight: '800', color: '#0f172a' }}>
+                          Upload Document (.csv, .txt, .tsv)
+                        </p>
+                        <input 
+                          type="file"
+                          accept=".csv, .txt, .tsv"
+                          onChange={handleAudienceFileUpload}
+                          style={{ fontSize: '0.8rem', color: '#64748b' }}
+                        />
+                      </div>
+
+                      {uploadError && (
+                        <div style={{ padding: '0.75rem', background: 'rgba(239, 68, 68, 0.08)', borderRadius: '10px', color: '#dc2626', fontSize: '0.8rem', marginBottom: '1rem' }}>
+                          ⚠️ {uploadError}
+                        </div>
+                      )}
+
+                      {parsedContacts.length > 0 && (
+                        <div style={{ padding: '1rem', background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.2)', borderRadius: '14px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                            <span style={{ fontSize: '0.88rem', fontWeight: '800', color: '#059669' }}>
+                              ✓ {parsedContacts.length} verified unique contacts extracted
+                            </span>
+                            <span style={{ fontSize: '0.72rem', background: '#10b981', color: '#fff', padding: '2px 8px', borderRadius: '100px', fontWeight: '800' }}>
+                              Auto-Saved to Master Data
+                            </span>
+                          </div>
+                          <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                            All contacts from this file will be automatically added to your Master Data page and deduplicated by phone number.
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* STEP 5: PACING & DELIVERY */}
+              {wizardStep === 5 && (
+                <div>
+                  <div style={{ marginBottom: '1.75rem' }}>
+                    <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '800', color: '#334155', marginBottom: '8px' }}>
+                      Anti-Ban Dispatch Pacing *
+                    </label>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                      <div 
+                        onClick={() => setPacingMode('safe')}
+                        style={{
+                          padding: '1.25rem', borderRadius: '16px', border: '2px solid',
+                          borderColor: pacingMode === 'safe' ? '#10b981' : '#e2e8f0',
+                          background: pacingMode === 'safe' ? 'rgba(16, 185, 129, 0.06)' : '#ffffff',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: '100px', background: '#10b981', color: '#fff', fontSize: '0.68rem', fontWeight: '800', marginBottom: '6px' }}>
+                          RECOMMENDED
+                        </span>
+                        <h4 style={{ margin: '0 0 0.25rem', fontSize: '1rem', fontWeight: '800', color: '#0f172a' }}>Standard Safe Pacing</h4>
+                        <p style={{ margin: 0, fontSize: '0.78rem', color: '#64748b', lineHeight: 1.4 }}>
+                          3-5s random jitter between messages. Zero risk of account bans or rate-limiting.
+                        </p>
+                      </div>
+
+                      <div 
+                        onClick={() => setPacingMode('express')}
+                        style={{
+                          padding: '1.25rem', borderRadius: '16px', border: '2px solid',
+                          borderColor: pacingMode === 'express' ? '#f59e0b' : '#e2e8f0',
+                          background: pacingMode === 'express' ? 'rgba(245, 158, 11, 0.06)' : '#ffffff',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: '100px', background: '#f59e0b', color: '#fff', fontSize: '0.68rem', fontWeight: '800', marginBottom: '6px' }}>
+                          FAST
+                        </span>
+                        <h4 style={{ margin: '0 0 0.25rem', fontSize: '1rem', fontWeight: '800', color: '#0f172a' }}>Express Mode</h4>
+                        <p style={{ margin: 0, fontSize: '0.78rem', color: '#64748b', lineHeight: 1.4 }}>
+                          0.5-1s per message. Best for campus flash emergency announcements.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '800', color: '#334155', marginBottom: '8px' }}>
+                      Dispatch Execution Timing *
+                    </label>
+                    <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
+                      <button
+                        type="button"
+                        onClick={() => setScheduleMode('now')}
+                        style={{
+                          flex: 1, padding: '0.75rem', borderRadius: '10px', border: '1.5px solid',
+                          borderColor: scheduleMode === 'now' ? 'var(--primary)' : '#e2e8f0',
+                          background: scheduleMode === 'now' ? 'rgba(239, 65, 35, 0.08)' : '#fff',
+                          color: scheduleMode === 'now' ? 'var(--primary)' : '#64748b',
+                          fontWeight: '800', cursor: 'pointer'
+                        }}
+                      >
+                        Dispatch Immediately
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setScheduleMode('later')}
+                        style={{
+                          flex: 1, padding: '0.75rem', borderRadius: '10px', border: '1.5px solid',
+                          borderColor: scheduleMode === 'later' ? 'var(--primary)' : '#e2e8f0',
+                          background: scheduleMode === 'later' ? 'rgba(239, 65, 35, 0.08)' : '#fff',
+                          color: scheduleMode === 'later' ? 'var(--primary)' : '#64748b',
+                          fontWeight: '800', cursor: 'pointer'
+                        }}
+                      >
+                        Schedule for Later Date
+                      </button>
+                    </div>
+
+                    {scheduleMode === 'later' && (
+                      <input 
+                        type="datetime-local"
+                        value={scheduledDateTime}
+                        onChange={e => setScheduledDateTime(e.target.value)}
+                        style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '0.9rem' }}
+                      />
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* STEP 6: DYNAMIC LIVE PREVIEW */}
+              {wizardStep === 6 && (
+                <div>
+                  <p style={{ margin: '0 0 1.25rem', fontSize: '0.85rem', color: '#64748b' }}>
+                    Previewing message appearance across selected channels. Tags are substituted with sample member data.
+                  </p>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: broadcastChannel === 'both' ? '1fr 1fr' : '1fr', gap: '1.5rem' }}>
+                    {/* WhatsApp Bubble Preview */}
+                    {(broadcastChannel === 'whatsapp' || broadcastChannel === 'both') && (
+                      <div>
+                        <span style={{ display: 'block', fontSize: '0.8rem', fontWeight: '800', color: '#16a34a', marginBottom: '6px' }}>
+                          WhatsApp Screen Simulator
+                        </span>
+                        <div style={{ background: '#e5ddd5', backgroundImage: 'radial-gradient(#d1c7bc 1px, transparent 1px)', backgroundSize: '16px 16px', padding: '1.25rem', borderRadius: '18px' }}>
+                          <div style={{ background: '#ffffff', borderRadius: '12px', borderTopLeftRadius: '3px', padding: '1rem', boxShadow: '0 2px 6px rgba(0,0,0,0.1)' }}>
+                            {selectedWaTemplate?.headerMediaUrl && (
+                              <div style={{ width: '100%', height: '140px', borderRadius: '8px', overflow: 'hidden', marginBottom: '0.75rem' }}>
+                                <img src={selectedWaTemplate.headerMediaUrl} alt="Header Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                              </div>
+                            )}
+                            <div style={{ fontSize: '0.85rem', color: '#111b21', lineHeight: 1.5 }}>
+                              {renderWhatsAppFormattedText(selectedWaTemplate?.body || 'Hello Rahul, check out today’s flash deals at BH1 Food Court!')}
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.75rem', borderTop: '1px solid #f1f5f9', paddingTop: '4px' }}>
+                              <span style={{ fontSize: '0.68rem', color: '#8696a0', fontStyle: 'italic' }}>{selectedWaTemplate?.footer || 'UniVerse Campus'}</span>
+                              <span style={{ fontSize: '0.65rem', color: '#8696a0' }}>12:45 PM</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Email Card Preview */}
+                    {(broadcastChannel === 'email' || broadcastChannel === 'both') && (
+                      <div>
+                        <span style={{ display: 'block', fontSize: '0.8rem', fontWeight: '800', color: '#ea4335', marginBottom: '6px' }}>
+                          Email Inbox Simulator
+                        </span>
+                        <div style={{ background: '#0f172a', borderRadius: '18px', padding: '1.25rem', color: '#f8fafc' }}>
+                          <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>Subject:</span>
+                          <h4 style={{ margin: '2px 0 0.75rem', fontSize: '0.95rem', fontWeight: '900', color: '#f8fafc' }}>
+                            {selectedEmTemplate?.subject || selectedEmTemplate?.name || 'Exclusive Campus Offer for You'}
+                          </h4>
+                          {selectedEmTemplate?.emailHeroImageUrl && (
+                            <div style={{ width: '100%', height: '120px', borderRadius: '8px', overflow: 'hidden', marginBottom: '0.75rem' }}>
+                              <img src={selectedEmTemplate.emailHeroImageUrl} alt="Hero" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            </div>
+                          )}
+                          <div style={{ fontSize: '0.82rem', color: '#cbd5e1', lineHeight: 1.5, whiteSpace: 'pre-wrap', marginBottom: '1rem' }}>
+                            {selectedEmTemplate?.body || 'Hi Rahul, special discount waiting for you at UniVerse.'}
+                          </div>
+                          <div style={{ textAlign: 'center' }}>
+                            <span style={{ display: 'inline-block', padding: '6px 18px', background: '#ef4123', color: 'white', borderRadius: '100px', fontSize: '0.78rem', fontWeight: '800' }}>
+                              {selectedEmTemplate?.emailCtaText || 'Open UniVerse App'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* STEP 7: REVIEW & LAUNCH */}
+              {wizardStep === 7 && (
+                <div>
+                  <h3 style={{ margin: '0 0 1rem', fontSize: '1.15rem', fontWeight: '900', color: '#0f172a' }}>
+                    Pre-Flight Dispatch Summary
+                  </h3>
+
+                  <div style={{ background: '#f8fafc', borderRadius: '16px', border: '1px solid #e2e8f0', padding: '1.25rem', marginBottom: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.5rem' }}>
+                      <span style={{ color: '#64748b', fontSize: '0.85rem' }}>Campaign Name:</span>
+                      <strong style={{ color: '#0f172a', fontSize: '0.85rem' }}>{broadcastName}</strong>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.5rem' }}>
+                      <span style={{ color: '#64748b', fontSize: '0.85rem' }}>Delivery Channels:</span>
+                      <strong style={{ color: 'var(--primary)', fontSize: '0.85rem', textTransform: 'uppercase' }}>{broadcastChannel}</strong>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.5rem' }}>
+                      <span style={{ color: '#64748b', fontSize: '0.85rem' }}>Target Audience:</span>
+                      <strong style={{ color: '#0f172a', fontSize: '0.85rem' }}>
+                        {audienceSource === 'upload' ? `Uploaded Document (${parsedContacts.length} contacts)` : `Customer 360 (${c360Segment})`}
+                      </strong>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.5rem' }}>
+                      <span style={{ color: '#64748b', fontSize: '0.85rem' }}>Pacing Mode:</span>
+                      <strong style={{ color: '#0f172a', fontSize: '0.85rem' }}>
+                        {pacingMode === 'safe' ? 'Standard Safe (3-5s anti-ban)' : 'Express Fast (0.5s)'}
+                      </strong>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: '#64748b', fontSize: '0.85rem' }}>Master Data Auto-Sync:</span>
+                      <strong style={{ color: '#10b981', fontSize: '0.85rem' }}>Enabled (Deduplicated on Phone)</strong>
+                    </div>
+                  </div>
+
+                  <div style={{ padding: '1rem', background: 'rgba(239, 65, 35, 0.08)', borderRadius: '14px', border: '1px solid rgba(239, 65, 35, 0.2)', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <ShieldCheck size={18} color="var(--primary)" />
+                    <span style={{ fontSize: '0.82rem', color: '#b91c1c', fontWeight: '700' }}>
+                      Ready to launch. Clicking "Trigger Broadcast Now" will initiate dispatching in background pacing.
+                    </span>
+                  </div>
+                </div>
+              )}
+
+            </div>
+
+            {/* Modal Footer: Navigation Controls */}
+            <div style={{ padding: '1.25rem 2rem', borderTop: '1px solid #e2e8f0', background: '#f8fafc', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <button
+                type="button"
+                onClick={() => setWizardStep(s => Math.max(1, s - 1))}
+                disabled={wizardStep === 1}
+                style={{
+                  padding: '0.75rem 1.25rem',
+                  borderRadius: '12px',
+                  border: '1px solid #cbd5e1',
+                  background: '#ffffff',
+                  color: '#475569',
+                  fontWeight: '700',
+                  fontSize: '0.85rem',
+                  cursor: wizardStep === 1 ? 'not-allowed' : 'pointer',
+                  opacity: wizardStep === 1 ? 0.5 : 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+              >
+                <ChevronLeft size={16} /> Back
+              </button>
+
+              {wizardStep < 7 ? (
+                <button
+                  type="button"
+                  onClick={() => setWizardStep(s => Math.min(7, s + 1))}
+                  style={{
+                    padding: '0.75rem 1.5rem',
+                    borderRadius: '12px',
+                    border: 'none',
+                    background: 'var(--primary)',
+                    color: '#ffffff',
+                    fontWeight: '800',
+                    fontSize: '0.88rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    boxShadow: '0 4px 12px rgba(239, 65, 35, 0.25)'
+                  }}
+                >
+                  Next Step <ChevronRight size={16} />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleTriggerBroadcast}
+                  disabled={dispatching}
+                  style={{
+                    padding: '0.85rem 1.75rem',
+                    borderRadius: '12px',
+                    border: 'none',
+                    background: 'linear-gradient(135deg, #10b981, #059669)',
+                    color: '#ffffff',
+                    fontWeight: '900',
+                    fontSize: '0.95rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    boxShadow: '0 4px 16px rgba(16, 185, 129, 0.35)'
+                  }}
+                >
+                  <Send size={18} /> Trigger Broadcast Now
+                </button>
+              )}
+            </div>
+
+          </div>
+        </div>
+      )}
     </div>
   );
 };
