@@ -28,7 +28,8 @@ import {
   Radio,
   GitBranch,
   Sliders,
-  RotateCcw
+  RotateCcw,
+  Search
 } from 'lucide-react';
 import SuperAdmin3DAnalytics from '../components/superadmin/SuperAdmin3DAnalytics';
 import SuperAdminMasterTemplates from '../components/superadmin/SuperAdminMasterTemplates';
@@ -60,6 +61,8 @@ const SuperAdminPanel = () => {
   const [loading, setLoading] = useState(true);
   const [orderFilter, setOrderFilter] = useState('All');
   const [pendingRefundCount, setPendingRefundCount] = useState(0);
+  const [storeSearch, setStoreSearch] = useState('');
+  const [storeStatusFilter, setStoreStatusFilter] = useState('all');
   
   // New Location Form State
   const [showLocationForm, setShowLocationForm] = useState(false);
@@ -488,14 +491,99 @@ const SuperAdminPanel = () => {
         )}
 
         {/* STORES TAB */}
-        {activeTab === 'stores' && (
-          <div>
-             <header style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h1 style={{ fontSize: '2rem', fontWeight: '900' }}>Store Directory</h1>
-            </header>
-            
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: '1.5rem' }}>
-              {stores.map(store => (
+        {activeTab === 'stores' && (() => {
+          const filteredStores = stores.filter(store => {
+            const matchesSearch = !storeSearch.trim() || 
+              (store.name && store.name.toLowerCase().includes(storeSearch.toLowerCase())) ||
+              (store.admin?.name && store.admin.name.toLowerCase().includes(storeSearch.toLowerCase())) ||
+              (store.category && store.category.toLowerCase().includes(storeSearch.toLowerCase()));
+
+            if (!matchesSearch) return false;
+
+            if (storeStatusFilter === 'open') return store.isOpen && !store.isHidden;
+            if (storeStatusFilter === 'closed') return !store.isOpen && !store.isHidden;
+            if (storeStatusFilter === 'hidden') return store.isHidden;
+            return true;
+          });
+
+          return (
+            <div>
+              <header style={{ marginBottom: '1.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+                <div>
+                  <h1 style={{ fontSize: '2rem', fontWeight: '900', margin: 0, color: 'var(--text-primary)' }}>Store Directory</h1>
+                  <p style={{ color: 'var(--text-secondary)', margin: '0.25rem 0 0 0', fontSize: '0.9rem' }}>
+                    Control stall operational status, auto-scheduling, location assignments, and 5% commission profiles.
+                  </p>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <span style={{ padding: '0.5rem 1rem', background: '#ffffff', border: '1px solid var(--surface-border)', borderRadius: '100px', fontSize: '0.85rem', fontWeight: '800', color: 'var(--text-primary)' }}>
+                    {stores.length} Total Stalls
+                  </span>
+                  <span style={{ padding: '0.5rem 1rem', background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', borderRadius: '100px', fontSize: '0.85rem', fontWeight: '800' }}>
+                    {stores.filter(s => s.isOpen).length} Live Online
+                  </span>
+                </div>
+              </header>
+
+              {/* Search & Filter Bar */}
+              <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ position: 'relative', minWidth: '280px', flex: '1', maxWidth: '420px' }}>
+                  <Search size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
+                  <input 
+                    type="text"
+                    placeholder="Search stall, category, or vendor name..."
+                    value={storeSearch}
+                    onChange={(e) => setStoreSearch(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '0.7rem 1rem 0.7rem 2.85rem',
+                      borderRadius: '14px',
+                      border: '1px solid var(--surface-border)',
+                      background: '#ffffff',
+                      fontSize: '0.875rem',
+                      fontWeight: '600',
+                      outline: 'none',
+                      color: 'var(--text-primary)'
+                    }}
+                  />
+                </div>
+                <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', background: '#f1f5f9', padding: '0.35rem', borderRadius: '14px' }}>
+                  {[
+                    { id: 'all', label: 'All Stalls', count: stores.length },
+                    { id: 'open', label: 'Online', count: stores.filter(s => s.isOpen && !s.isHidden).length },
+                    { id: 'closed', label: 'Offline', count: stores.filter(s => !s.isOpen && !s.isHidden).length },
+                    { id: 'hidden', label: 'Hidden', count: stores.filter(s => s.isHidden).length }
+                  ].map((filter) => (
+                    <button
+                      key={filter.id}
+                      onClick={() => setStoreStatusFilter(filter.id)}
+                      style={{
+                        padding: '0.45rem 0.9rem',
+                        borderRadius: '10px',
+                        border: 'none',
+                        background: storeStatusFilter === filter.id ? '#ffffff' : 'transparent',
+                        color: storeStatusFilter === filter.id ? '#0f172a' : 'var(--text-secondary)',
+                        boxShadow: storeStatusFilter === filter.id ? '0 2px 6px rgba(0,0,0,0.06)' : 'none',
+                        fontWeight: '800',
+                        fontSize: '0.8rem',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.4rem',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      {filter.label}
+                      <span style={{ fontSize: '0.7rem', padding: '0.1rem 0.4rem', borderRadius: '100px', background: storeStatusFilter === filter.id ? 'rgba(15,23,42,0.08)' : 'rgba(0,0,0,0.05)', fontWeight: '900' }}>
+                        {filter.count}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: '1.5rem' }}>
+                {filteredStores.map(store => (
                 <div key={store._id} style={{ padding: '1.5rem', background: '#ffffff', borderRadius: '24px', border: '1px solid var(--surface-border)', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <div>
@@ -721,9 +809,19 @@ const SuperAdminPanel = () => {
                   </div>
                 </div>
               ))}
+              {filteredStores.length === 0 && (
+                <div style={{ padding: '4rem 2rem', background: '#ffffff', borderRadius: '24px', border: '1px dashed var(--surface-border)', textAlign: 'center', gridColumn: '1 / -1' }}>
+                  <Store size={48} color="var(--primary)" style={{ opacity: 0.25, margin: '0 auto 1rem' }} />
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: '800', margin: '0 0 0.5rem 0', color: 'var(--text-primary)' }}>No Stalls Found</h3>
+                  <p style={{ color: 'var(--text-secondary)', margin: 0, fontSize: '0.9rem' }}>
+                    {stores.length === 0 ? 'No registered stores found in the database. Ensure vendors have onboarded properly.' : 'No stores match your search or filter criteria.'}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
-        )}
+        );
+      })()}
 
         {/* LOCATIONS TAB */}
         {activeTab === 'locations' && (

@@ -19,7 +19,10 @@ import {
   Layers,
   ArrowRight,
   ShieldAlert,
-  Coins
+  Coins,
+  Radio,
+  Sliders,
+  CheckCheck
 } from 'lucide-react';
 
 const SuperAdminHeroPromotions = ({ token, socket }) => {
@@ -31,7 +34,7 @@ const SuperAdminHeroPromotions = ({ token, socket }) => {
   const [copiedId, setCopiedId] = useState(null);
 
   // Dual-Screen Preview Simulator Modal State
-  const [previewModal, setPreviewModal] = useState(null); // holds active banner item being edited/reviewed
+  const [previewModal, setPreviewModal] = useState(null);
   const [finalBannerUrl, setFinalBannerUrl] = useState('');
   const [finalTitle, setFinalTitle] = useState('');
   const [finalTag, setFinalTag] = useState('');
@@ -45,11 +48,11 @@ const SuperAdminHeroPromotions = ({ token, socket }) => {
     try {
       setLoading(true);
       const [bannerRes, locRes] = await Promise.all([
-        axios.get(`${API_URL}/api/banners/admin/all?hub=${encodeURIComponent(selectedHub)}`, authConfig),
-        axios.get(`${API_URL}/api/super-admin/locations/public`)
+        axios.get(`${API_URL}/api/banners/admin/all?hub=${encodeURIComponent(selectedHub)}`, authConfig).catch(() => ({ data: { banners: [], slotStats: [] } })),
+        axios.get(`${API_URL}/api/super-admin/locations/public`).catch(() => ({ data: [] }))
       ]);
-      setBanners(bannerRes.data.banners || []);
-      setSlotStats(bannerRes.data.slotStats || []);
+      setBanners(bannerRes.data?.banners || []);
+      setSlotStats(bannerRes.data?.slotStats || []);
       setLocations(locRes.data || []);
     } catch (err) {
       console.error('Failed to load promotions', err);
@@ -106,7 +109,7 @@ const SuperAdminHeroPromotions = ({ token, socket }) => {
   };
 
   const handleArchive = async (bannerId) => {
-    if (!window.confirm('Are you sure you want to deactivate and unlist this banner?')) return;
+    if (!window.confirm('Are you sure you want to deactivate and unlist this banner from the hero carousel?')) return;
     try {
       await axios.post(`${API_URL}/api/banners/admin/archive`, { bannerId }, authConfig);
       fetchPromotions();
@@ -123,64 +126,169 @@ const SuperAdminHeroPromotions = ({ token, socket }) => {
 
   const pendingQueue = banners.filter(b => b.status === 'pending_design');
   const activeBanners = banners.filter(b => b.status === 'active' && new Date(b.endDate) > new Date());
-  const historicalBanners = banners.filter(b => b.status !== 'pending_design' && (b.status !== 'active' || new Date(b.endDate) <= new Date()));
-
   const totalPaidRevenue = banners.reduce((acc, curr) => acc + (parseFloat(curr.amountPaid) || 1000), 0);
 
   return (
-    <div style={{ color: 'white', fontFamily: 'inherit' }}>
-      {/* Top Header Card */}
+    <div style={{ color: '#0f172a', fontFamily: 'inherit' }}>
+      {/* Top Header Card with Clean Light Aesthetic */}
       <div style={{ 
-        background: 'linear-gradient(135deg, rgba(239, 65, 35, 0.15) 0%, rgba(99, 102, 241, 0.15) 100%)',
+        background: '#ffffff',
         borderRadius: '24px',
-        border: '1px solid rgba(255,255,255,0.1)',
+        border: '1px solid var(--surface-border, #e2e8f0)',
         padding: '2rem',
         marginBottom: '2rem',
-        backdropFilter: 'blur(20px)'
+        boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.03)',
+        position: 'relative',
+        overflow: 'hidden'
       }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1.5rem' }}>
-          <div>
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(239, 65, 35, 0.2)', padding: '0.4rem 1rem', borderRadius: '100px', fontSize: '0.8rem', fontWeight: '800', color: '#ff6b4a', marginBottom: '0.75rem' }}>
+        {/* Subtle decorative glow */}
+        <div style={{
+          position: 'absolute',
+          top: 0,
+          right: 0,
+          width: '320px',
+          height: '100%',
+          background: 'radial-gradient(circle at top right, rgba(239, 65, 35, 0.06) 0%, rgba(99, 102, 241, 0.04) 50%, transparent 80%)',
+          pointerEvents: 'none'
+        }} />
+
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '2rem', position: 'relative', zIndex: 1 }}>
+          <div style={{ maxWidth: '650px' }}>
+            <div style={{ 
+              display: 'inline-flex', 
+              alignItems: 'center', 
+              gap: '0.45rem', 
+              background: 'rgba(239, 65, 35, 0.08)', 
+              border: '1px solid rgba(239, 65, 35, 0.2)', 
+              padding: '0.35rem 0.85rem', 
+              borderRadius: '100px', 
+              fontSize: '0.75rem', 
+              fontWeight: '800', 
+              color: '#ef4123', 
+              marginBottom: '0.75rem',
+              letterSpacing: '0.04em'
+            }}>
               <Sparkles size={14} /> HERO PROMOTIONS ENGINE • ₹1,000/MO SLOTS
             </div>
-            <h1 style={{ fontSize: '2rem', fontWeight: '900', margin: 0, letterSpacing: '-0.02em' }}>Location Hero Promotions</h1>
-            <p style={{ color: '#94a3b8', margin: '0.5rem 0 0 0', fontSize: '0.95rem' }}>
-              Manage location-specific rotating banner slots, format vendor flyers, and simulate Desktop & Mobile previews before publishing.
+            <h1 style={{ fontSize: '2.1rem', fontWeight: '900', margin: 0, letterSpacing: '-0.03em', color: '#0f172a' }}>
+              Location Hero Promotions
+            </h1>
+            <p style={{ color: '#64748b', margin: '0.5rem 0 0 0', fontSize: '0.95rem', lineHeight: '1.5' }}>
+              Monetize premium homepage banner real estate. Review vendor flyers, format to master 1920×768 canvases, and simulate Desktop & Mobile viewports before broadcasting.
             </p>
           </div>
 
-          {/* Quick Metrics */}
-          <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
-            <div style={{ background: 'rgba(0,0,0,0.3)', padding: '1rem 1.5rem', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.06)' }}>
-              <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: '700', textTransform: 'uppercase' }}>Total Ad Revenue</span>
-              <h3 style={{ margin: '0.25rem 0 0 0', fontSize: '1.5rem', fontWeight: '900', color: '#10b981' }}>₹{totalPaidRevenue.toLocaleString()}</h3>
+          {/* Quick Metrics Cards */}
+          <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+            {/* Total Ad Revenue */}
+            <div style={{ 
+              background: 'linear-gradient(135deg, #ffffff 0%, rgba(16, 185, 129, 0.05) 100%)', 
+              padding: '1.25rem 1.5rem', 
+              borderRadius: '20px', 
+              border: '1px solid rgba(16, 185, 129, 0.25)',
+              boxShadow: '0 4px 12px rgba(16, 185, 129, 0.04)',
+              minWidth: '160px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
+                <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Ad Revenue</span>
+                <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: 'rgba(16, 185, 129, 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#10b981' }}>
+                  <Coins size={16} />
+                </div>
+              </div>
+              <h3 style={{ margin: 0, fontSize: '1.75rem', fontWeight: '900', color: '#0f172a' }}>
+                ₹{totalPaidRevenue.toLocaleString()}
+              </h3>
+              <span style={{ fontSize: '0.7rem', color: '#059669', fontWeight: '700', marginTop: '0.2rem', display: 'inline-block' }}>
+                100% Platform Direct
+              </span>
             </div>
-            <div style={{ background: 'rgba(0,0,0,0.3)', padding: '1rem 1.5rem', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.06)' }}>
-              <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: '700', textTransform: 'uppercase' }}>Active Slides</span>
-              <h3 style={{ margin: '0.25rem 0 0 0', fontSize: '1.5rem', fontWeight: '900', color: '#6366f1' }}>{activeBanners.length} / 5 Slots</h3>
+
+            {/* Active Slides */}
+            <div style={{ 
+              background: 'linear-gradient(135deg, #ffffff 0%, rgba(99, 102, 241, 0.05) 100%)', 
+              padding: '1.25rem 1.5rem', 
+              borderRadius: '20px', 
+              border: '1px solid rgba(99, 102, 241, 0.25)',
+              boxShadow: '0 4px 12px rgba(99, 102, 241, 0.04)',
+              minWidth: '160px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
+                <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Active Slides</span>
+                <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: 'rgba(99, 102, 241, 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6366f1' }}>
+                  <Layers size={16} />
+                </div>
+              </div>
+              <h3 style={{ margin: 0, fontSize: '1.75rem', fontWeight: '900', color: '#0f172a' }}>
+                {activeBanners.length} / 5
+              </h3>
+              {/* Mini 5-dot occupancy indicator */}
+              <div style={{ display: 'flex', gap: '4px', marginTop: '0.4rem' }}>
+                {[1, 2, 3, 4, 5].map(idx => (
+                  <div 
+                    key={idx} 
+                    style={{ 
+                      width: '18px', 
+                      height: '5px', 
+                      borderRadius: '3px', 
+                      background: idx <= activeBanners.length ? '#6366f1' : '#e2e8f0' 
+                    }} 
+                  />
+                ))}
+              </div>
             </div>
-            <div style={{ background: 'rgba(0,0,0,0.3)', padding: '1rem 1.5rem', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.06)' }}>
-              <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: '700', textTransform: 'uppercase' }}>Design Queue</span>
-              <h3 style={{ margin: '0.25rem 0 0 0', fontSize: '1.5rem', fontWeight: '900', color: '#f59e0b' }}>{pendingQueue.length} Pending</h3>
+
+            {/* Design Queue */}
+            <div style={{ 
+              background: 'linear-gradient(135deg, #ffffff 0%, rgba(245, 158, 11, 0.05) 100%)', 
+              padding: '1.25rem 1.5rem', 
+              borderRadius: '20px', 
+              border: '1px solid rgba(245, 158, 11, 0.25)',
+              boxShadow: '0 4px 12px rgba(245, 158, 11, 0.04)',
+              minWidth: '160px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
+                <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Design Queue</span>
+                <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: 'rgba(245, 158, 11, 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#f59e0b' }}>
+                  <Clock size={16} />
+                </div>
+              </div>
+              <h3 style={{ margin: 0, fontSize: '1.75rem', fontWeight: '900', color: '#0f172a' }}>
+                {pendingQueue.length}
+              </h3>
+              <span style={{ fontSize: '0.7rem', color: pendingQueue.length > 0 ? '#d97706' : '#10b981', fontWeight: '700', marginTop: '0.2rem', display: 'inline-block' }}>
+                {pendingQueue.length > 0 ? 'Requires Action' : 'All Clear'}
+              </span>
             </div>
           </div>
         </div>
 
-        {/* Location Hub Pills */}
-        <div style={{ display: 'flex', gap: '0.5rem', overflowX: 'auto', marginTop: '1.5rem', paddingBottom: '0.5rem' }}>
+        {/* Location Hub Filter Pills */}
+        <div style={{ 
+          display: 'flex', 
+          gap: '0.5rem', 
+          overflowX: 'auto', 
+          marginTop: '1.75rem', 
+          paddingTop: '1rem',
+          borderTop: '1px solid var(--surface-border, #e2e8f0)',
+          alignItems: 'center'
+        }}>
+          <span style={{ fontSize: '0.8rem', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', marginRight: '0.5rem' }}>
+            Location Hub:
+          </span>
           <button 
             onClick={() => setSelectedHub('All')}
             style={{ 
-              padding: '0.5rem 1.25rem',
+              padding: '0.45rem 1.1rem',
               borderRadius: '100px',
-              border: 'none',
-              background: selectedHub === 'All' ? 'white' : 'rgba(255,255,255,0.08)',
-              color: selectedHub === 'All' ? '#0f172a' : '#94a3b8',
+              border: selectedHub === 'All' ? 'none' : '1px solid var(--surface-border, #e2e8f0)',
+              background: selectedHub === 'All' ? '#0f172a' : '#ffffff',
+              color: selectedHub === 'All' ? '#ffffff' : '#64748b',
               fontWeight: '800',
               fontSize: '0.85rem',
               cursor: 'pointer',
               whiteSpace: 'nowrap',
-              transition: 'all 0.2s'
+              boxShadow: selectedHub === 'All' ? '0 2px 8px rgba(15,23,42,0.15)' : 'none',
+              transition: 'all 0.15s ease'
             }}
           >
             All Locations
@@ -190,33 +298,45 @@ const SuperAdminHeroPromotions = ({ token, socket }) => {
               key={loc._id || loc.id}
               onClick={() => setSelectedHub(loc.name)}
               style={{ 
-                padding: '0.5rem 1.25rem',
+                padding: '0.45rem 1.1rem',
                 borderRadius: '100px',
-                border: 'none',
-                background: selectedHub === loc.name ? 'white' : 'rgba(255,255,255,0.08)',
-                color: selectedHub === loc.name ? '#0f172a' : '#94a3b8',
+                border: selectedHub === loc.name ? 'none' : '1px solid var(--surface-border, #e2e8f0)',
+                background: selectedHub === loc.name ? '#0f172a' : '#ffffff',
+                color: selectedHub === loc.name ? '#ffffff' : '#64748b',
                 fontWeight: '800',
                 fontSize: '0.85rem',
                 cursor: 'pointer',
                 whiteSpace: 'nowrap',
-                transition: 'all 0.2s',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '0.4rem'
+                gap: '0.4rem',
+                boxShadow: selectedHub === loc.name ? '0 2px 8px rgba(15,23,42,0.15)' : 'none',
+                transition: 'all 0.15s ease'
               }}
             >
-              <MapPin size={14} /> {loc.name}
+              <MapPin size={13} /> {loc.name}
             </button>
           ))}
         </div>
       </div>
 
-      {/* 5-Slot Visual Status Indicator */}
+      {/* 5-Slot Visual Board */}
       <div style={{ marginBottom: '2.5rem' }}>
-        <h3 style={{ fontSize: '1.1rem', fontWeight: '800', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <Layers size={18} color="#6366f1" /> Active 5-Slot Capacity ({selectedHub})
-        </h3>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+          <div>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: '900', margin: 0, display: 'flex', alignItems: 'center', gap: '0.6rem', color: '#0f172a' }}>
+              <Layers size={20} color="#6366f1" /> Active 5-Slot Carousel Board ({selectedHub})
+            </h3>
+            <p style={{ margin: '0.25rem 0 0 0', color: '#64748b', fontSize: '0.85rem' }}>
+              The hero carousel rotates through exactly 5 slots every 6 seconds on desktop & mobile screens.
+            </p>
+          </div>
+          <span style={{ fontSize: '0.8rem', fontWeight: '800', background: '#f1f5f9', color: '#475569', padding: '0.35rem 0.85rem', borderRadius: '100px' }}>
+            ₹1,000 / Slot / 30 Days
+          </span>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.25rem' }}>
           {[1, 2, 3, 4, 5].map(slotNum => {
             const occupant = activeBanners.find(b => b.slotIndex === slotNum);
             const daysLeft = occupant ? Math.max(0, Math.ceil((new Date(occupant.endDate) - new Date()) / (1000 * 60 * 60 * 24))) : 0;
@@ -224,41 +344,76 @@ const SuperAdminHeroPromotions = ({ token, socket }) => {
               <div 
                 key={slotNum}
                 style={{ 
-                  background: occupant ? 'rgba(16, 185, 129, 0.08)' : 'rgba(255, 255, 255, 0.03)',
-                  border: `1px solid ${occupant ? 'rgba(16, 185, 129, 0.3)' : 'rgba(255, 255, 255, 0.08)'}`,
-                  borderRadius: '16px',
+                  background: occupant ? 'linear-gradient(135deg, #ffffff 0%, rgba(16, 185, 129, 0.04) 100%)' : '#ffffff',
+                  border: occupant ? '1.5px solid rgba(16, 185, 129, 0.4)' : '1.5px dashed #cbd5e1',
+                  borderRadius: '20px',
                   padding: '1.25rem',
-                  position: 'relative',
-                  overflow: 'hidden'
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.75rem',
+                  boxShadow: occupant ? '0 8px 20px -4px rgba(16, 185, 129, 0.08)' : 'none',
+                  transition: 'all 0.2s ease',
+                  position: 'relative'
                 }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-                  <span style={{ fontSize: '0.75rem', fontWeight: '900', color: occupant ? '#10b981' : '#64748b', textTransform: 'uppercase' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ 
+                    fontSize: '0.75rem', 
+                    fontWeight: '900', 
+                    color: occupant ? '#059669' : '#64748b', 
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em' 
+                  }}>
                     SLOT #{slotNum}
                   </span>
                   <span style={{ 
-                    padding: '0.2rem 0.6rem', 
+                    padding: '0.25rem 0.65rem', 
                     borderRadius: '100px', 
                     fontSize: '0.65rem', 
                     fontWeight: '800',
-                    background: occupant ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255,255,255,0.06)',
-                    color: occupant ? '#10b981' : '#94a3b8'
+                    background: occupant ? 'rgba(16, 185, 129, 0.12)' : '#f1f5f9',
+                    color: occupant ? '#059669' : '#64748b',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.3rem'
                   }}>
-                    {occupant ? 'ACTIVE' : 'VACANT'}
+                    {occupant ? <><span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10b981' }} /> LIVE</> : 'AVAILABLE'}
                   </span>
                 </div>
+
                 {occupant ? (
                   <>
-                    <h4 style={{ margin: '0 0 0.25rem 0', fontSize: '1rem', fontWeight: '800', color: 'white' }}>{occupant.storeName}</h4>
-                    <p style={{ margin: 0, fontSize: '0.75rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                      <Clock size={12} /> {daysLeft} Days Remaining
-                    </p>
+                    <div style={{ height: '64px', borderRadius: '10px', overflow: 'hidden', position: 'relative' }}>
+                      <img 
+                        src={occupant.bannerUrl} 
+                        alt={occupant.storeName}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      />
+                      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 80%)' }} />
+                      <span style={{ position: 'absolute', bottom: '4px', left: '8px', color: '#fff', fontSize: '0.7rem', fontWeight: '800' }}>
+                        {occupant.storeName}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem', color: '#64748b', marginTop: 'auto' }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: '#059669', fontWeight: '700' }}>
+                        <Clock size={12} /> {daysLeft}d left
+                      </span>
+                      <button 
+                        onClick={() => handleOpenSimulator(occupant)}
+                        style={{ background: 'none', border: 'none', color: '#6366f1', fontSize: '0.75rem', fontWeight: '800', cursor: 'pointer', padding: 0 }}
+                      >
+                        Preview
+                      </button>
+                    </div>
                   </>
                 ) : (
-                  <>
-                    <h4 style={{ margin: '0 0 0.25rem 0', fontSize: '0.95rem', fontWeight: '700', color: '#64748b' }}>Ready for Booking</h4>
-                    <p style={{ margin: 0, fontSize: '0.75rem', color: '#475569' }}>₹1,000 / month</p>
-                  </>
+                  <div style={{ textAlign: 'center', padding: '1rem 0', marginTop: 'auto' }}>
+                    <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: '#f8fafc', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 0.5rem', color: '#94a3b8' }}>
+                      <Sparkles size={16} />
+                    </div>
+                    <h4 style={{ margin: 0, fontSize: '0.9rem', fontWeight: '800', color: '#475569' }}>Ready for Booking</h4>
+                    <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.75rem', color: '#94a3b8' }}>Auto-activates on payment</p>
+                  </div>
                 )}
               </div>
             );
@@ -268,104 +423,169 @@ const SuperAdminHeroPromotions = ({ token, socket }) => {
 
       {/* SECTION 1: Pending Design & Approval Queue */}
       <div style={{ marginBottom: '3rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
           <div>
-            <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '800' }}>
-              Pending Design & Review Queue ({pendingQueue.length})
+            <h3 style={{ margin: 0, fontSize: '1.35rem', fontWeight: '900', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+              Pending Design & Review Queue 
+              <span style={{ 
+                fontSize: '0.8rem', 
+                background: pendingQueue.length > 0 ? '#f59e0b' : '#10b981', 
+                color: 'white', 
+                padding: '0.2rem 0.65rem', 
+                borderRadius: '100px', 
+                fontWeight: '900' 
+              }}>
+                {pendingQueue.length}
+              </span>
             </h3>
-            <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.85rem', color: '#94a3b8' }}>
-              Vendors who paid ₹1,000. Download their flyer or format their text offer into the 1920×768 master canvas.
+            <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.875rem', color: '#64748b' }}>
+              Vendors who paid ₹1,000 for their hero campaign. Download their raw assets, align with standard 1920×768 master template, and publish.
             </p>
           </div>
         </div>
 
         {pendingQueue.length === 0 ? (
-          <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px dashed rgba(255,255,255,0.1)', borderRadius: '16px', padding: '3rem', textAlign: 'center', color: '#64748b' }}>
-            <CheckCircle2 size={40} style={{ margin: '0 auto 1rem auto', opacity: 0.3 }} />
-            <p style={{ margin: 0, fontSize: '1rem', fontWeight: '600' }}>All vendor requests have been designed and published!</p>
+          <div style={{ 
+            background: '#ffffff', 
+            border: '1px dashed var(--surface-border, #e2e8f0)', 
+            borderRadius: '24px', 
+            padding: '3.5rem 2rem', 
+            textAlign: 'center',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.01)'
+          }}>
+            <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem' }}>
+              <CheckCircle2 size={32} />
+            </div>
+            <h4 style={{ margin: 0, fontSize: '1.2rem', fontWeight: '800', color: '#0f172a' }}>All Vendor Requests Published!</h4>
+            <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.9rem', color: '#64748b', maxWidth: '480px', marginInline: 'auto' }}>
+              There are no pending hero promotion requests. When a vendor pays for a homepage hero slot, their campaign submission will queue here instantly.
+            </p>
           </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '1.25rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '1.5rem' }}>
             {pendingQueue.map(item => (
               <div 
                 key={item.id}
                 style={{ 
-                  background: 'rgba(15, 23, 42, 0.6)',
+                  background: '#ffffff',
                   border: '1px solid rgba(245, 158, 11, 0.3)',
-                  borderRadius: '20px',
-                  padding: '1.5rem',
+                  borderRadius: '24px',
+                  padding: '1.75rem',
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: '1rem'
+                  gap: '1.25rem',
+                  boxShadow: '0 8px 24px -4px rgba(245, 158, 11, 0.08)'
                 }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <div>
-                    <span style={{ fontSize: '0.75rem', fontWeight: '800', color: '#f59e0b', textTransform: 'uppercase' }}>
-                      {item.locationHub}
+                    <span style={{ fontSize: '0.75rem', fontWeight: '800', color: '#d97706', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                      {item.locationHub || 'All Hubs'}
                     </span>
-                    <h4 style={{ margin: '0.2rem 0 0 0', fontSize: '1.15rem', fontWeight: '800' }}>{item.storeName}</h4>
+                    <h4 style={{ margin: '0.2rem 0 0 0', fontSize: '1.25rem', fontWeight: '900', color: '#0f172a' }}>
+                      {item.storeName}
+                    </h4>
                   </div>
-                  <span style={{ background: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b', padding: '0.3rem 0.75rem', borderRadius: '100px', fontSize: '0.7rem', fontWeight: '800' }}>
-                    PAID ₹1,000
+                  <span style={{ background: 'rgba(16, 185, 129, 0.12)', color: '#059669', padding: '0.35rem 0.85rem', borderRadius: '100px', fontSize: '0.75rem', fontWeight: '900', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                    <Check size={12} /> PAID ₹1,000
                   </span>
                 </div>
 
                 {/* Submitted Content Preview */}
-                <div style={{ background: 'rgba(0,0,0,0.3)', borderRadius: '12px', padding: '1rem', border: '1px solid rgba(255,255,255,0.04)' }}>
+                <div style={{ background: '#f8fafc', borderRadius: '16px', padding: '1.25rem', border: '1px solid #e2e8f0' }}>
                   {item.rawAssetUrl ? (
                     <div>
-                      <span style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: '700', textTransform: 'uppercase' }}>Vendor Flyer Uploaded</span>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '0.5rem' }}>
+                      <span style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                        Uploaded Vendor Flyer
+                      </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '0.75rem' }}>
                         <img 
                           src={item.rawAssetUrl} 
                           alt="Vendor Flyer" 
-                          style={{ width: '60px', height: '60px', borderRadius: '8px', objectFit: 'cover' }}
+                          style={{ width: '72px', height: '72px', borderRadius: '12px', objectFit: 'cover', border: '1px solid #e2e8f0' }}
                         />
-                        <a 
-                          href={item.rawAssetUrl} 
-                          target="_blank" 
-                          rel="noreferrer"
-                          className="btn"
-                          style={{ background: 'rgba(255,255,255,0.1)', color: 'white', padding: '0.5rem 1rem', borderRadius: '8px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.4rem', textDecoration: 'none' }}
-                        >
-                          <Download size={14} /> Download Asset
-                        </a>
+                        <div style={{ flex: 1 }}>
+                          <a 
+                            href={item.rawAssetUrl} 
+                            target="_blank" 
+                            rel="noreferrer"
+                            style={{ 
+                              background: '#0f172a', 
+                              color: 'white', 
+                              padding: '0.55rem 1rem', 
+                              borderRadius: '10px', 
+                              fontSize: '0.8rem', 
+                              fontWeight: '700',
+                              display: 'inline-flex', 
+                              alignItems: 'center', 
+                              gap: '0.4rem', 
+                              textDecoration: 'none' 
+                            }}
+                          >
+                            <Download size={14} /> Download Asset
+                          </a>
+                          <p style={{ margin: '0.35rem 0 0 0', fontSize: '0.7rem', color: '#94a3b8' }}>
+                            Open high-resolution raw image
+                          </p>
+                        </div>
                       </div>
                     </div>
                   ) : (
                     <div>
-                      <span style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: '700', textTransform: 'uppercase' }}>Vendor Text Offer</span>
-                      <p style={{ margin: '0.5rem 0', fontSize: '0.9rem', color: 'white', fontStyle: 'italic', background: 'rgba(255,255,255,0.03)', padding: '0.6rem', borderRadius: '8px' }}>
+                      <span style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                        Vendor Custom Offer Text
+                      </span>
+                      <div style={{ 
+                        margin: '0.6rem 0', 
+                        fontSize: '0.9rem', 
+                        color: '#0f172a', 
+                        fontStyle: 'italic', 
+                        background: '#ffffff', 
+                        padding: '0.85rem', 
+                        borderRadius: '10px', 
+                        border: '1px solid #e2e8f0',
+                        lineHeight: '1.4'
+                      }}>
                         "{item.rawText}"
-                      </p>
+                      </div>
                       <button 
                         onClick={() => copyToClipboard(item.rawText, item.id)}
-                        style={{ background: 'none', border: 'none', color: '#6366f1', fontSize: '0.75rem', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.3rem', padding: 0 }}
+                        style={{ 
+                          background: 'none', 
+                          border: 'none', 
+                          color: '#6366f1', 
+                          fontSize: '0.8rem', 
+                          fontWeight: '800', 
+                          cursor: 'pointer', 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          gap: '0.35rem', 
+                          padding: 0 
+                        }}
                       >
-                        {copiedId === item.id ? <Check size={12} color="#10b981" /> : <Copy size={12} />}
-                        {copiedId === item.id ? 'Copied to Clipboard' : 'Copy Text'}
+                        {copiedId === item.id ? <CheckCheck size={14} color="#10b981" /> : <Copy size={14} />}
+                        {copiedId === item.id ? 'Copied to Clipboard!' : 'Copy Text Offer'}
                       </button>
                     </div>
                   )}
                 </div>
 
-                {/* Non-Refundable Agreement Badge */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.75rem', color: '#10b981' }}>
+                {/* Non-Refundable Badge */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem', color: '#059669', fontWeight: '600' }}>
                   <ShieldAlert size={14} />
-                  <span>Strictly Non-Refundable Terms Acknowledged</span>
+                  <span>Strictly Non-Refundable Terms Verified</span>
                 </div>
 
-                {/* Simulator Action Button */}
+                {/* Action Button */}
                 <button 
                   onClick={() => handleOpenSimulator(item)}
                   style={{ 
                     marginTop: 'auto',
-                    background: 'linear-gradient(135deg, #ef4123, #f59e0b)',
+                    background: 'linear-gradient(135deg, #ef4123 0%, #f59e0b 100%)',
                     color: 'white',
                     border: 'none',
-                    padding: '0.85rem',
-                    borderRadius: '12px',
+                    padding: '0.9rem',
+                    borderRadius: '14px',
                     fontWeight: '800',
                     fontSize: '0.9rem',
                     cursor: 'pointer',
@@ -373,7 +593,8 @@ const SuperAdminHeroPromotions = ({ token, socket }) => {
                     alignItems: 'center',
                     justifyContent: 'center',
                     gap: '0.5rem',
-                    boxShadow: '0 4px 15px rgba(239, 65, 35, 0.3)'
+                    boxShadow: '0 4px 15px rgba(239, 65, 35, 0.25)',
+                    transition: 'all 0.15s ease'
                   }}
                 >
                   <Eye size={16} /> Open Dual-Screen Preview Simulator
@@ -386,70 +607,107 @@ const SuperAdminHeroPromotions = ({ token, socket }) => {
 
       {/* SECTION 2: Active Banners on Live Website */}
       <div>
-        <h3 style={{ fontSize: '1.25rem', fontWeight: '800', marginBottom: '1rem' }}>
-          Live Banners in Hero Carousel ({activeBanners.length})
-        </h3>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+          <div>
+            <h3 style={{ fontSize: '1.35rem', fontWeight: '900', margin: 0, color: '#0f172a' }}>
+              Live Banners in Hero Carousel ({activeBanners.length})
+            </h3>
+            <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.875rem', color: '#64748b' }}>
+              Promotional banners currently appearing in rotation to customers on the homepage.
+            </p>
+          </div>
+        </div>
 
         {activeBanners.length === 0 ? (
-          <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '16px', padding: '2rem', textAlign: 'center', color: '#64748b' }}>
-            No paid banners live for {selectedHub}. Showing default curated system slides.
+          <div style={{ 
+            background: '#ffffff', 
+            border: '1px solid var(--surface-border, #e2e8f0)', 
+            borderRadius: '24px', 
+            padding: '2.5rem 2rem', 
+            textAlign: 'center', 
+            color: '#64748b',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.01)'
+          }}>
+            <p style={{ margin: 0, fontSize: '0.95rem' }}>
+              No paid banners currently active for <strong>{selectedHub}</strong>. UniVerse is currently broadcasting the default curated system slides.
+            </p>
           </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '1.25rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '1.5rem' }}>
             {activeBanners.map(banner => {
               const daysLeft = Math.max(0, Math.ceil((new Date(banner.endDate) - new Date()) / (1000 * 60 * 60 * 24)));
               return (
                 <div 
                   key={banner.id}
-                  style={{ 
-                    background: 'rgba(15, 23, 42, 0.6)',
-                    border: '1px solid rgba(16, 185, 129, 0.3)',
-                    borderRadius: '20px',
-                    overflow: 'hidden'
+                  style={{
+                    background: '#ffffff',
+                    borderRadius: '24px',
+                    border: '1px solid var(--surface-border, #e2e8f0)',
+                    overflow: 'hidden',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.04)'
                   }}
                 >
-                  <div style={{ 
-                    height: '140px', 
-                    backgroundImage: `url(${banner.bannerUrl})`, 
-                    backgroundSize: 'cover', 
-                    backgroundPosition: 'center', 
-                    position: 'relative' 
-                  }}>
-                    <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(15,23,42,0.9) 0%, transparent 60%)' }} />
+                  <div style={{ height: '180px', position: 'relative' }}>
+                    <img 
+                      src={banner.bannerUrl} 
+                      alt={banner.title} 
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                    />
+                    <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(15,23,42,0.85) 0%, transparent 60%)' }} />
                     <span style={{ 
                       position: 'absolute', 
-                      top: '12px', 
-                      right: '12px', 
-                      background: 'rgba(16, 185, 129, 0.9)', 
+                      top: '1rem', 
+                      left: '1rem', 
+                      background: '#0f172a', 
                       color: 'white', 
-                      padding: '0.25rem 0.75rem', 
+                      padding: '0.3rem 0.75rem', 
                       borderRadius: '100px', 
                       fontSize: '0.7rem', 
                       fontWeight: '800' 
                     }}>
-                      SLOT #{banner.slotIndex} • LIVE
+                      SLOT #{banner.slotIndex}
                     </span>
+                    <span style={{ 
+                      position: 'absolute', 
+                      top: '1rem', 
+                      right: '1rem', 
+                      background: 'rgba(16, 185, 129, 0.9)', 
+                      backdropFilter: 'blur(4px)',
+                      color: 'white', 
+                      padding: '0.3rem 0.75rem', 
+                      borderRadius: '100px', 
+                      fontSize: '0.7rem', 
+                      fontWeight: '800' 
+                    }}>
+                      {daysLeft} Days Remaining
+                    </span>
+                    <div style={{ position: 'absolute', bottom: '1rem', left: '1rem', right: '1rem' }}>
+                      <span style={{ color: '#ff6b4a', fontSize: '0.7rem', fontWeight: '800', textTransform: 'uppercase' }}>
+                        {banner.tag}
+                      </span>
+                      <h4 style={{ margin: '0.2rem 0 0 0', color: 'white', fontSize: '1.2rem', fontWeight: '900' }}>
+                        {banner.title}
+                      </h4>
+                    </div>
                   </div>
 
-                  <div style={{ padding: '1.25rem' }}>
-                    <h4 style={{ margin: '0 0 0.25rem 0', fontSize: '1.1rem', fontWeight: '800' }}>{banner.storeName}</h4>
-                    <p style={{ margin: '0 0 1rem 0', color: '#94a3b8', fontSize: '0.85rem' }}>{banner.title || 'Special Promotion'}</p>
-
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem', color: '#cbd5e1' }}>
-                      <span><Clock size={13} style={{ verticalAlign: 'middle', marginRight: '4px' }} /> {daysLeft} Days Left</span>
-                      <span style={{ color: '#10b981', fontWeight: '700' }}>Deep-linked to Stall</span>
+                  <div style={{ padding: '1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#ffffff', borderTop: '1px solid #f1f5f9' }}>
+                    <div>
+                      <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '700' }}>Target Stall:</span>
+                      <h5 style={{ margin: '0.1rem 0 0 0', fontSize: '0.95rem', fontWeight: '800', color: '#0f172a' }}>{banner.storeName}</h5>
                     </div>
-
-                    <div style={{ marginTop: '1.25rem', display: 'flex', gap: '0.75rem' }}>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
                       <button 
                         onClick={() => handleOpenSimulator(banner)}
-                        style={{ flex: 1, padding: '0.6rem', borderRadius: '10px', background: 'rgba(255,255,255,0.08)', color: 'white', border: 'none', fontWeight: '700', fontSize: '0.8rem', cursor: 'pointer' }}
+                        style={{ padding: '0.55rem 0.95rem', borderRadius: '10px', background: '#f1f5f9', color: '#0f172a', border: '1px solid #e2e8f0', fontWeight: '800', fontSize: '0.8rem', cursor: 'pointer' }}
                       >
-                        Edit / Simulator
+                        Simulator
                       </button>
                       <button 
                         onClick={() => handleArchive(banner.id)}
-                        style={{ padding: '0.6rem 1rem', borderRadius: '10px', background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)', fontWeight: '700', fontSize: '0.8rem', cursor: 'pointer' }}
+                        style={{ padding: '0.55rem 0.95rem', borderRadius: '10px', background: 'rgba(239, 68, 68, 0.08)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.2)', fontWeight: '800', fontSize: '0.8rem', cursor: 'pointer' }}
                       >
                         Deactivate
                       </button>
@@ -467,7 +725,7 @@ const SuperAdminHeroPromotions = ({ token, socket }) => {
         <div style={{
           position: 'fixed',
           inset: 0,
-          background: 'rgba(0, 0, 0, 0.85)',
+          background: 'rgba(15, 23, 42, 0.85)',
           backdropFilter: 'blur(16px)',
           zIndex: 9999,
           display: 'flex',
@@ -485,7 +743,8 @@ const SuperAdminHeroPromotions = ({ token, socket }) => {
             maxHeight: '92vh',
             overflowY: 'auto',
             padding: '2rem',
-            boxShadow: '0 25px 60px rgba(0, 0, 0, 0.6)'
+            boxShadow: '0 25px 60px rgba(0, 0, 0, 0.6)',
+            color: 'white'
           }}>
             {/* Modal Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
@@ -493,46 +752,73 @@ const SuperAdminHeroPromotions = ({ token, socket }) => {
                 <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', color: '#ff6b4a', fontSize: '0.75rem', fontWeight: '800', textTransform: 'uppercase' }}>
                   <Sparkles size={14} /> Dual-Screen Preview Simulator
                 </div>
-                <h2 style={{ margin: '0.2rem 0 0 0', fontSize: '1.5rem', fontWeight: '900' }}>
+                <h2 style={{ margin: '0.2rem 0 0 0', fontSize: '1.5rem', fontWeight: '900', color: 'white' }}>
                   Review & Publish Banner: {previewModal.storeName}
                 </h2>
               </div>
               <button 
                 onClick={() => setPreviewModal(null)}
-                style={{ background: 'rgba(255,255,255,0.06)', border: 'none', color: '#94a3b8', padding: '0.6rem', borderRadius: '12px', cursor: 'pointer' }}
+                style={{ background: 'rgba(255,255,255,0.08)', border: 'none', color: '#94a3b8', padding: '0.6rem', borderRadius: '12px', cursor: 'pointer' }}
               >
                 <X size={20} />
               </button>
             </div>
 
             {/* Inputs Row */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem', marginBottom: '2rem', background: 'rgba(255,255,255,0.03)', padding: '1.25rem', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.06)' }}>
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', 
+              gap: '1rem', 
+              marginBottom: '2rem', 
+              background: 'rgba(255,255,255,0.03)', 
+              padding: '1.25rem', 
+              borderRadius: '18px', 
+              border: '1px solid rgba(255,255,255,0.06)' 
+            }}>
               <div>
-                <label style={{ fontSize: '0.75rem', fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase' }}>Final 1920×768 Banner Image URL</label>
+                <label style={{ fontSize: '0.75rem', fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase' }}>
+                  Final 1920×768 Banner Image URL
+                </label>
                 <input 
                   type="text" 
                   value={finalBannerUrl}
                   onChange={(e) => setFinalBannerUrl(e.target.value)}
                   placeholder="https://... final master banner url"
-                  style={{ width: '100%', marginTop: '0.4rem', padding: '0.75rem 1rem', borderRadius: '10px', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', fontWeight: '600' }}
+                  style={{ width: '100%', marginTop: '0.4rem', padding: '0.75rem 1rem', borderRadius: '10px', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.12)', color: 'white', fontWeight: '600' }}
                 />
               </div>
               <div>
-                <label style={{ fontSize: '0.75rem', fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase' }}>Offer Headline / Title</label>
+                <label style={{ fontSize: '0.75rem', fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase' }}>
+                  Offer Headline / Title
+                </label>
                 <input 
                   type="text" 
                   value={finalTitle}
                   onChange={(e) => setFinalTitle(e.target.value)}
                   placeholder="e.g. Flat 20% Off Combos"
-                  style={{ width: '100%', marginTop: '0.4rem', padding: '0.75rem 1rem', borderRadius: '10px', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', fontWeight: '600' }}
+                  style={{ width: '100%', marginTop: '0.4rem', padding: '0.75rem 1rem', borderRadius: '10px', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.12)', color: 'white', fontWeight: '600' }}
                 />
               </div>
               <div>
-                <label style={{ fontSize: '0.75rem', fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase' }}>Slot Assignment (1 to 5)</label>
+                <label style={{ fontSize: '0.75rem', fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase' }}>
+                  Tag Badge (Optional)
+                </label>
+                <input 
+                  type="text" 
+                  value={finalTag}
+                  onChange={(e) => setFinalTag(e.target.value)}
+                  placeholder="e.g. Featured Stall"
+                  style={{ width: '100%', marginTop: '0.4rem', padding: '0.75rem 1rem', borderRadius: '10px', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.12)', color: 'white', fontWeight: '600' }}
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: '0.75rem', fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase' }}>
+                  Slot Assignment (1 to 5)
+                </label>
                 <select 
                   value={selectedSlot}
                   onChange={(e) => setSelectedSlot(parseInt(e.target.value, 10))}
-                  style={{ width: '100%', marginTop: '0.4rem', padding: '0.75rem 1rem', borderRadius: '10px', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', fontWeight: '600' }}
+                  style={{ width: '100%', marginTop: '0.4rem', padding: '0.75rem 1rem', borderRadius: '10px', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.12)', color: 'white', fontWeight: '600' }}
                 >
                   <option value={1}>Slot #1 (First Slide)</option>
                   <option value={2}>Slot #2</option>
@@ -547,10 +833,10 @@ const SuperAdminHeroPromotions = ({ token, socket }) => {
             <div style={{ marginBottom: '2rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#38bdf8', fontWeight: '800', fontSize: '0.85rem' }}>
-                  <Monitor size={18} /> DESKTOP VIEWPORT PREVIEW
+                  <Monitor size={18} /> DESKTOP VIEWPORT PREVIEW (1920 × 768 px Canvas)
                 </div>
                 <span style={{ background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', padding: '0.25rem 0.75rem', borderRadius: '100px', fontSize: '0.75rem', fontWeight: '900' }}>
-                  ASPECT RATIO: 16:6.4 (1920 × 768 px Master Canvas)
+                  16:6.4 RATIO
                 </span>
               </div>
 
@@ -598,7 +884,7 @@ const SuperAdminHeroPromotions = ({ token, socket }) => {
                     }}>
                       {finalTag}
                     </span>
-                    <h1 style={{ fontSize: '2rem', fontWeight: '900', margin: '0 0 0.5rem 0', lineHeight: 1.15 }}>
+                    <h1 style={{ fontSize: '2rem', fontWeight: '900', margin: '0 0 0.5rem 0', lineHeight: 1.15, color: 'white' }}>
                       {finalTitle}
                     </h1>
                     <p style={{ fontSize: '0.9rem', opacity: 0.9, margin: '0 0 1.25rem 0', color: '#cbd5e1' }}>
@@ -630,7 +916,7 @@ const SuperAdminHeroPromotions = ({ token, socket }) => {
                   <Smartphone size={18} /> MOBILE PHONE PREVIEW (iPhone / Android)
                 </div>
                 <span style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', padding: '0.25rem 0.75rem', borderRadius: '100px', fontSize: '0.75rem', fontWeight: '900' }}>
-                  ASPECT RATIO: 16:10 (Central Mobile Safe Zone: 1200 × 768 px)
+                  MOBILE SAFE ZONE
                 </span>
               </div>
 
@@ -695,8 +981,8 @@ const SuperAdminHeroPromotions = ({ token, socket }) => {
                 </div>
 
                 {/* Safe Zone Verification Checklist */}
-                <div style={{ flex: 1, minWidth: '280px', background: 'rgba(255,255,255,0.03)', padding: '1.5rem', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.06)' }}>
-                  <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '1rem', fontWeight: '800', color: '#10b981' }}>Safe Zone Verification</h4>
+                <div style={{ flex: 1, minWidth: '280px', background: 'rgba(255,255,255,0.03)', padding: '1.5rem', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                  <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '1rem', fontWeight: '800', color: '#10b981' }}>Safe Zone Verification Checklist</h4>
                   <ul style={{ margin: 0, paddingLeft: '1.25rem', fontSize: '0.85rem', color: '#94a3b8', lineHeight: '1.8' }}>
                     <li>Headline and offer text are centered and 100% visible on mobile.</li>
                     <li>No vital food dish photography is cropped out.</li>
@@ -711,7 +997,7 @@ const SuperAdminHeroPromotions = ({ token, socket }) => {
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', paddingTop: '1.5rem', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
               <button 
                 onClick={() => setPreviewModal(null)}
-                style={{ padding: '0.85rem 1.75rem', borderRadius: '12px', background: 'rgba(255,255,255,0.06)', color: 'white', border: 'none', fontWeight: '700', cursor: 'pointer' }}
+                style={{ padding: '0.85rem 1.75rem', borderRadius: '12px', background: 'rgba(255,255,255,0.08)', color: 'white', border: 'none', fontWeight: '700', cursor: 'pointer' }}
               >
                 Discard Changes
               </button>

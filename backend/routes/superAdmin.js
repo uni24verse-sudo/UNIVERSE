@@ -751,7 +751,6 @@ router.get('/stores', async (req, res) => {
       orderBy: { createdAt: 'desc' }
     });
 
-    const now = new Date();
     const storesWithRevenue = await Promise.all(stores.map(async (store) => {
       const completedOrders = await prisma.order.findMany({
         where: { storeId: store.id, status: 'Completed' }
@@ -766,14 +765,13 @@ router.get('/stores', async (req, res) => {
         productCount: Array.isArray(store.products) ? store.products.length : 0,
         totalRevenue,
         estimatedFees: estimatedFees.toFixed(2),
-        isTrialOver,
-        daysLeftInTrial: (store.isTrialStarted && trialEnd) ? 
-          Math.max(0, Math.ceil((trialEnd - now) / (1000 * 60 * 60 * 24))) : null
+        commissionRate: store.commissionRate || 5
       };
     }));
 
     res.json(storesWithRevenue);
   } catch (err) {
+    console.error('[superAdmin.stores] Error:', err);
     res.status(500).json({ message: err.message });
   }
 });
