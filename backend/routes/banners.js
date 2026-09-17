@@ -1,9 +1,31 @@
 const express = require('express');
 const router = express.Router();
 const crypto = require('crypto');
+const multer = require('multer');
+const { Readable } = require('stream');
+const cloudinary = require('cloudinary').v2;
 const prisma = require('../config/prisma');
 const auth = require('../middleware/auth');
 const superAdminAuth = require('../middleware/superAdminAuth');
+
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
+});
+
+const upload = multer({ 
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 25 * 1024 * 1024 } // 25MB max
+});
+
+function bufferToStream(buffer) {
+  const readable = new Readable();
+  readable._read = () => {};
+  readable.push(buffer);
+  readable.push(null);
+  return readable;
+}
 
 // Ensure herobanners table exists in PostgreSQL
 let tableInitialized = false;
@@ -80,7 +102,36 @@ router.get('/active', async (req, res) => {
   }
 });
 
-// 2. Vendor Endpoint: Book a Hero Banner Slot (₹1,000 / month)
+// 2. Vendor Endpoint: Upload Flyer/Poster Image Asset to Cloudinary
+router.post('/upload-asset', auth, upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'No file uploaded' });
+    }
+
+    const uploadResult = await new Promise((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream(
+        { folder: 'universe_hero_promotions' },
+        (error, result) => {
+          if (result) resolve(result);
+          else reject(error);
+        }
+      );
+      bufferToStream(req.file.buffer).pipe(stream);
+    });
+
+    res.json({
+      success: true,
+      url: uploadResult.secure_url,
+      publicId: uploadResult.public_id
+    });
+  } catch (err) {
+    console.error('[HeroBanners] Upload error:', err);
+    res.status(500).json({ message: 'Failed to upload image: ' + err.message });
+  }
+});
+
+// 3. Vendor Endpoint: Book a Hero Banner Slot (₹1,000 / month)
 router.post('/book-slot', auth, async (req, res) => {
   try {
     await ensureTableExists();

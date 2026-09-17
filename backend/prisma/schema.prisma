@@ -431,3 +431,24 @@ model VendorDevice {
 
   @@map("vendordevices")
 }
+
+model MasterContact {
+  id           String    @id
+  phone        String    @unique
+  name         String
+  email        String?   @default("")
+  campus       String?   @default("Lovely Professional University")
+  source       String?   @default("Customer 360")
+  tags         Json?     @default("[]")
+  metadata     Json?     @default("{}")
+  orderCount   Int?      @default(0)
+  totalSpent   Float?    @default(0)
+  lastActiveAt DateTime? @default(now())
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([phone])
+  @@index([source])
+  @@map("mastercontacts")
+}
+

@@ -14,7 +14,10 @@ import {
   TrendingUp,
   Store,
   Layers,
-  Info
+  Info,
+  Image,
+  Trash2,
+  Loader2
 } from 'lucide-react';
 
 const VendorPromotionManager = ({ store }) => {
@@ -30,6 +33,12 @@ const VendorPromotionManager = ({ store }) => {
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+
+  // Flyer / Poster Upload State
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [imagePreview, setImagePreview] = useState(null);
+  const [selectedFileName, setSelectedFileName] = useState('');
+  const [useManualLink, setUseManualLink] = useState(false);
 
   // Early Removal Modal State
   const [removalModal, setRemovalModal] = useState(null); // banner item
@@ -94,6 +103,8 @@ const VendorPromotionManager = ({ store }) => {
 
       setSuccessMessage(res.data.message || 'Promotion slot booked successfully!');
       setRawAssetUrl('');
+      setImagePreview(null);
+      setSelectedFileName('');
       setRawText('');
       setTermsAccepted(false);
       fetchPromotions();
@@ -102,6 +113,49 @@ const VendorPromotionManager = ({ store }) => {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setErrorMessage('Please select a valid image file (PNG, JPG, WEBP, etc.)');
+      return;
+    }
+
+    setSelectedFileName(file.name);
+    setImagePreview(URL.createObjectURL(file));
+    setUploadingImage(true);
+    setErrorMessage('');
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const res = await axios.post(`${API_URL}/api/banners/upload-asset`, formData, {
+        headers: {
+          ...authConfig.headers,
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+
+      if (res.data?.url) {
+        setRawAssetUrl(res.data.url);
+        setImagePreview(res.data.url);
+      }
+    } catch (err) {
+      console.error('Image upload error:', err);
+      setErrorMessage('Failed to upload image: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const handleRemoveUploadedImage = () => {
+    setImagePreview(null);
+    setSelectedFileName('');
+    setRawAssetUrl('');
   };
 
   const handleRequestRemoval = async () => {
@@ -239,19 +293,141 @@ const VendorPromotionManager = ({ store }) => {
             {/* Dynamic Input */}
             {assetType === 'image' ? (
               <div style={{ marginBottom: '1.5rem' }}>
-                <label style={{ fontSize: '0.75rem', fontWeight: '800', textTransform: 'uppercase', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.4rem' }}>
-                  Flyer / Poster Image Link
-                </label>
-                <input 
-                  type="url" 
-                  value={rawAssetUrl}
-                  onChange={(e) => setRawAssetUrl(e.target.value)}
-                  placeholder="https://... image link or hosted flyer"
-                  style={{ width: '100%', padding: '0.85rem 1rem', borderRadius: '12px', border: '1px solid var(--surface-border)', background: 'var(--input-bg, rgba(255,255,255,0.05))', color: 'inherit', fontWeight: '600' }}
-                />
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginTop: '0.3rem' }}>
-                  Any size or orientation is fine. UniVerse design team will re-scale it to fit the 1920×768 master canvas.
-                </span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+                  <label style={{ fontSize: '0.75rem', fontWeight: '800', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
+                    Flyer / Poster Image
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setUseManualLink(!useManualLink)}
+                    style={{ background: 'transparent', border: 'none', color: 'var(--primary)', fontSize: '0.75rem', fontWeight: '700', cursor: 'pointer', padding: 0 }}
+                  >
+                    {useManualLink ? '← Upload Image from Device' : 'Or paste direct link →'}
+                  </button>
+                </div>
+
+                {!useManualLink ? (
+                  <div>
+                    {imagePreview ? (
+                      <div style={{
+                        borderRadius: '16px',
+                        border: '1.5px solid #10b981',
+                        padding: '1rem',
+                        background: 'rgba(16, 185, 129, 0.05)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '1rem'
+                      }}>
+                        <img 
+                          src={imagePreview} 
+                          alt="Flyer Preview" 
+                          style={{ width: '64px', height: '64px', borderRadius: '10px', objectFit: 'cover', border: '1px solid rgba(0,0,0,0.1)' }} 
+                        />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <span style={{ fontSize: '0.85rem', fontWeight: '800', color: 'var(--text-primary)', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {selectedFileName || 'Uploaded Flyer Image'}
+                          </span>
+                          <span style={{ fontSize: '0.72rem', color: '#10b981', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
+                            <CheckCircle2 size={13} /> {uploadingImage ? 'Uploading...' : 'Ready for 30-Day Hero Slot'}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleRemoveUploadedImage}
+                          disabled={uploadingImage}
+                          style={{
+                            background: 'rgba(239, 68, 68, 0.1)',
+                            border: 'none',
+                            color: '#ef4444',
+                            borderRadius: '8px',
+                            padding: '6px 10px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            fontSize: '0.75rem',
+                            fontWeight: '700'
+                          }}
+                        >
+                          <Trash2 size={13} /> Remove
+                        </button>
+                      </div>
+                    ) : (
+                      <div>
+                        <input 
+                          type="file"
+                          id="flyer-file-input"
+                          accept="image/*"
+                          onChange={handleImageUpload}
+                          style={{ display: 'none' }}
+                        />
+                        <label
+                          htmlFor="flyer-file-input"
+                          style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            border: '2px dashed var(--surface-border)',
+                            borderRadius: '16px',
+                            padding: '2rem 1.5rem',
+                            background: 'var(--surface-bg, rgba(255,255,255,0.02))',
+                            cursor: uploadingImage ? 'wait' : 'pointer',
+                            transition: 'all 0.2s',
+                            textAlign: 'center'
+                          }}
+                        >
+                          {uploadingImage ? (
+                            <>
+                              <Loader2 size={32} className="spin" color="var(--primary)" style={{ marginBottom: '0.5rem' }} />
+                              <span style={{ fontSize: '0.85rem', fontWeight: '800', color: 'var(--text-primary)' }}>
+                                Uploading Flyer to Cloudinary...
+                              </span>
+                            </>
+                          ) : (
+                            <>
+                              <div style={{
+                                width: '48px',
+                                height: '48px',
+                                borderRadius: '14px',
+                                background: 'rgba(239, 65, 35, 0.1)',
+                                color: 'var(--primary)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                marginBottom: '0.75rem'
+                              }}>
+                                <UploadCloud size={24} />
+                              </div>
+                              <span style={{ fontSize: '0.9rem', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '0.25rem' }}>
+                                Click to Browse Flyer / Poster from Device
+                              </span>
+                              <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                                PNG, JPG, WEBP accepted. Any size or orientation — design team re-scales it.
+                              </span>
+                            </>
+                          )}
+                        </label>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div>
+                    <input 
+                      type="url" 
+                      value={rawAssetUrl}
+                      onChange={(e) => {
+                        setRawAssetUrl(e.target.value);
+                        setImagePreview(e.target.value);
+                      }}
+                      placeholder="https://... image link or hosted flyer"
+                      style={{ width: '100%', padding: '0.85rem 1rem', borderRadius: '12px', border: '1px solid var(--surface-border)', background: 'var(--input-bg, rgba(255,255,255,0.05))', color: 'inherit', fontWeight: '600' }}
+                    />
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginTop: '0.3rem' }}>
+                      Paste a direct image link from Imgur, Cloudinary, or any hosted flyer.
+                    </span>
+                  </div>
+                )}
               </div>
             ) : (
               <div style={{ marginBottom: '1.5rem' }}>

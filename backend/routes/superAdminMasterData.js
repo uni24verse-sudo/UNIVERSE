@@ -4,7 +4,24 @@ const crypto = require('crypto');
 const superAdminAuth = require('../middleware/superAdminAuth');
 const prisma = require('../config/prisma');
 
-// Enforce SuperAdmin Authentication for all Master Data operations
+/**
+ * 5. DOWNLOAD SAMPLE TEMPLATE (CSV) - Publicly Accessible for easy direct download
+ */
+router.get('/sample-template', (req, res) => {
+  const csvContent = [
+    'name,phone,email,campus,notes',
+    'Arjun Mehta,9876543210,arjun.mehta@example.com,Lovely Professional University,Food Court Regular',
+    'Priya Sharma,9812345678,priya.sharma@example.com,Lovely Professional University,Hostel Block 4',
+    'Sneha Kapoor,9123456789,,Lovely Professional University,Veg Only',
+    'Rohan Verma,9988776655,rohan.v@example.com,Lovely Professional University,Pre-Order Member'
+  ].join('\n');
+
+  res.setHeader('Content-Type', 'text/csv');
+  res.setHeader('Content-Disposition', 'attachment; filename="universe_master_contacts_template.csv"');
+  res.status(200).send(csvContent);
+});
+
+// Enforce SuperAdmin Authentication for all other Master Data operations
 router.use(superAdminAuth);
 
 /**
@@ -24,6 +41,7 @@ function normalizePhone(rawPhone) {
 /**
  * Lazy Table Initializer:
  * Ensures the `mastercontacts` PostgreSQL table exists safely with indexes.
+ * Executes DDL statements individually to comply with all PostgreSQL connection modes.
  */
 let isTableInitialized = false;
 async function ensureMasterContactsTable() {
@@ -44,14 +62,143 @@ async function ensureMasterContactsTable() {
         "lastActiveAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-      CREATE INDEX IF NOT EXISTS idx_mastercontacts_phone ON mastercontacts(phone);
-      CREATE INDEX IF NOT EXISTS idx_mastercontacts_source ON mastercontacts(source);
+      )
     `);
+    await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS idx_mastercontacts_phone ON mastercontacts(phone)`).catch(() => {});
+    await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS idx_mastercontacts_source ON mastercontacts(source)`).catch(() => {});
     isTableInitialized = true;
+    console.log('[MasterData] ✅ Table mastercontacts verified and ready.');
   } catch (err) {
-    console.warn('[MasterData] Table initialization note:', err.message);
-    isTableInitialized = true; // prevent repeated failing queries
+    console.error('[MasterData] ❌ Table initialization error:', err.message);
+  }
+}
+
+/**
+ * 2. SYNC FROM CUSTOMER 360 (Auto-deduplicating by phone number)
+ */
+async function syncCustomer360Internal() {
+  try {
+    await ensureMasterContactsTable();
+
+    // 1. Fetch from Customer model safely
+    let customers = [];
+    try {
+      customers = await prisma.customer.findMany({
+        orderBy: { updatedAt: 'desc' }
+      });
+    } catch (e) {
+      console.warn('[MasterData] Customer model fetch note:', e.message);
+    }
+
+    // 2. Fetch distinct phone orders to catch buyers
+    let orders = [];
+    try {
+      orders = await prisma.order.findMany({
+        select: {
+          customerPhone: true,
+          customerName: true,
+          customerEmail: true,
+          totalAmount: true,
+          createdAt: true
+        },
+        orderBy: { createdAt: 'desc' }
+      });
+    } catch (e) {
+      console.warn('[MasterData] Order fetch note:', e.message);
+    }
+
+    const phoneMap = new Map();
+
+    // Process structured customers first
+    for (const c of customers) {
+      const p = normalizePhone(c.phone);
+      if (p && p.length >= 7) {
+        let orderCount = 0;
+        let totalSpent = 0;
+        if (c.metrics) {
+          try {
+            const m = typeof c.metrics === 'string' ? JSON.parse(c.metrics || '{}') : c.metrics;
+            orderCount = Number(m.totalOrders) || 0;
+            totalSpent = Number(m.totalSpent) || 0;
+          } catch (_) {}
+        }
+        phoneMap.set(p, {
+          phone: p,
+          name: c.currentName || 'UniVerse Student',
+          email: c.email || '',
+          campus: c.campus || 'Lovely Professional University',
+          source: 'Customer 360',
+          orderCount,
+          totalSpent,
+          lastActiveAt: c.lastActivityAt || c.updatedAt || new Date()
+        });
+      }
+    }
+
+    // Blend orders to augment counts or add missing phones
+    for (const o of orders) {
+      const p = normalizePhone(o.customerPhone);
+      if (p && p.length >= 7) {
+        if (!phoneMap.has(p)) {
+          phoneMap.set(p, {
+            phone: p,
+            name: o.customerName || 'Campus Member',
+            email: o.customerEmail || '',
+            campus: 'Lovely Professional University',
+            source: 'Customer 360',
+            orderCount: 1,
+            totalSpent: Number(o.totalAmount) || 0,
+            lastActiveAt: o.createdAt || new Date()
+          });
+        } else {
+          const existing = phoneMap.get(p);
+          if ((!existing.email || existing.email === '') && o.customerEmail) {
+            existing.email = o.customerEmail;
+          }
+          if ((!existing.name || existing.name === 'UniVerse Student' || existing.name === 'Campus Member') && o.customerName && o.customerName !== 'UniVerse Student') {
+            existing.name = o.customerName;
+          }
+          if (existing.orderCount === 0) {
+            existing.orderCount += 1;
+            existing.totalSpent += (Number(o.totalAmount) || 0);
+          }
+        }
+      }
+    }
+
+    let syncedCount = 0;
+    for (const item of phoneMap.values()) {
+      const id = crypto.randomUUID();
+      const safeName = item.name || 'Campus Member';
+      const safeEmail = item.email || '';
+      const safeCampus = item.campus || 'Lovely Professional University';
+      const safeSource = item.source || 'Customer 360';
+      const orderCount = Number(item.orderCount) || 0;
+      const totalSpent = Number(item.totalSpent) || 0;
+
+      try {
+        await prisma.$executeRawUnsafe(`
+          INSERT INTO mastercontacts (
+            id, phone, name, email, campus, source, "orderCount", "totalSpent", "lastActiveAt", "updatedAt"
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
+          ON CONFLICT (phone) DO UPDATE SET
+            name = CASE WHEN mastercontacts.name IN ('UniVerse Student', 'Campus Guest', 'Campus Member', 'Recipient', '') THEN EXCLUDED.name ELSE mastercontacts.name END,
+            email = CASE WHEN mastercontacts.email = '' THEN EXCLUDED.email ELSE mastercontacts.email END,
+            "orderCount" = GREATEST(mastercontacts."orderCount", EXCLUDED."orderCount"),
+            "totalSpent" = GREATEST(mastercontacts."totalSpent", EXCLUDED."totalSpent"),
+            "updatedAt" = NOW()
+        `, id, item.phone, safeName, safeEmail, safeCampus, safeSource, orderCount, totalSpent);
+        syncedCount++;
+      } catch (insertErr) {
+        console.error(`[MasterData] Failed inserting phone ${item.phone}:`, insertErr.message);
+      }
+    }
+
+    console.log(`[MasterData] Synced ${syncedCount} unique contacts from Customer 360 & Orders.`);
+    return syncedCount;
+  } catch (err) {
+    console.error('[MasterData] Error in syncCustomer360Internal:', err);
+    return 0;
   }
 }
 
@@ -120,16 +267,19 @@ router.get('/', async (req, res) => {
       FROM mastercontacts;
     `;
 
-    const [contacts, totalRes, statsRes] = await Promise.all([
-      prisma.$queryRawUnsafe(contactsQuery).catch(() => []),
+    let [contacts, totalRes, statsRes] = await Promise.all([
+      prisma.$queryRawUnsafe(contactsQuery).catch(err => {
+        console.error('[MasterData] contacts query error:', err.message);
+        return [];
+      }),
       prisma.$queryRawUnsafe(countQuery).catch(() => [{ count: 0 }]),
       prisma.$queryRawUnsafe(statsQuery).catch(() => [{
         totalContacts: 0, whatsappReady: 0, emailReady: 0, bothReady: 0, customer360Count: 0, uploadedCount: 0
       }])
     ]);
 
-    const total = totalRes[0]?.count || 0;
-    const summary = statsRes[0] || {
+    let total = totalRes[0]?.count || 0;
+    let summary = statsRes[0] || {
       totalContacts: 0,
       whatsappReady: 0,
       emailReady: 0,
@@ -138,9 +288,20 @@ router.get('/', async (req, res) => {
       uploadedCount: 0
     };
 
-    // Auto-sync if master data is empty but customers table has data
+    // Auto-sync if master data is empty on initial load
     if (summary.totalContacts === 0) {
-      setImmediate(() => syncCustomer360Internal());
+      const synced = await syncCustomer360Internal();
+      if (synced > 0) {
+        [contacts, totalRes, statsRes] = await Promise.all([
+          prisma.$queryRawUnsafe(contactsQuery).catch(() => []),
+          prisma.$queryRawUnsafe(countQuery).catch(() => [{ count: 0 }]),
+          prisma.$queryRawUnsafe(statsQuery).catch(() => [{
+            totalContacts: 0, whatsappReady: 0, emailReady: 0, bothReady: 0, customer360Count: 0, uploadedCount: 0
+          }])
+        ]);
+        total = totalRes[0]?.count || 0;
+        summary = statsRes[0] || summary;
+      }
     }
 
     res.json({
@@ -160,111 +321,12 @@ router.get('/', async (req, res) => {
   }
 });
 
-/**
- * 2. SYNC FROM CUSTOMER 360 (Auto-deduplicating by phone number)
- */
-async function syncCustomer360Internal() {
-  try {
-    await ensureMasterContactsTable();
-
-    // 1. Fetch from Customer model
-    const customers = await prisma.customer.findMany({
-      orderBy: { updatedAt: 'desc' }
-    });
-
-    // 2. Fetch distinct phone orders to catch any unregistered guest buyers
-    const orders = await prisma.order.findMany({
-      where: { customerPhone: { not: '' } },
-      select: {
-        customerPhone: true,
-        customerName: true,
-        customerEmail: true,
-        totalAmount: true,
-        createdAt: true
-      },
-      orderBy: { createdAt: 'desc' }
-    });
-
-    const phoneMap = new Map();
-
-    // Process structured customers first
-    for (const c of customers) {
-      const p = normalizePhone(c.phone);
-      if (p && p.length >= 7) {
-        phoneMap.set(p, {
-          phone: p,
-          name: c.currentName || 'UniVerse Student',
-          email: c.email || '',
-          campus: c.campus || 'Lovely Professional University',
-          source: 'Customer 360',
-          orderCount: c.metrics?.totalOrders || 0,
-          totalSpent: c.metrics?.totalSpent || 0,
-          lastActiveAt: c.lastActivityAt || c.updatedAt || new Date()
-        });
-      }
-    }
-
-    // Blend orders to augment counts or add missing phones
-    for (const o of orders) {
-      const p = normalizePhone(o.customerPhone);
-      if (p && p.length >= 7) {
-        if (!phoneMap.has(p)) {
-          phoneMap.set(p, {
-            phone: p,
-            name: o.customerName || 'Campus Guest',
-            email: o.customerEmail || '',
-            campus: 'Lovely Professional University',
-            source: 'Customer 360 (Orders)',
-            orderCount: 1,
-            totalSpent: Number(o.totalAmount) || 0,
-            lastActiveAt: o.createdAt || new Date()
-          });
-        } else {
-          const existing = phoneMap.get(p);
-          if (!existing.email && o.customerEmail) existing.email = o.customerEmail;
-          if (existing.name === 'UniVerse Student' && o.customerName) existing.name = o.customerName;
-        }
-      }
-    }
-
-    let syncedCount = 0;
-    for (const item of phoneMap.values()) {
-      const safeName = item.name.replace(/'/g, "''");
-      const safeEmail = (item.email || '').replace(/'/g, "''");
-      const safeCampus = (item.campus || '').replace(/'/g, "''");
-      const safeSource = (item.source || 'Customer 360').replace(/'/g, "''");
-      const id = crypto.randomUUID();
-
-      await prisma.$executeRawUnsafe(`
-        INSERT INTO mastercontacts (
-          id, phone, name, email, campus, source, "orderCount", "totalSpent", "lastActiveAt", "updatedAt"
-        ) VALUES (
-          '${id}', '${item.phone}', '${safeName}', '${safeEmail}', '${safeCampus}', '${safeSource}',
-          ${item.orderCount || 0}, ${item.totalSpent || 0}, NOW(), NOW()
-        )
-        ON CONFLICT (phone) DO UPDATE SET
-          name = CASE WHEN mastercontacts.name IN ('UniVerse Student', 'Campus Guest', '') THEN EXCLUDED.name ELSE mastercontacts.name END,
-          email = CASE WHEN mastercontacts.email = '' THEN EXCLUDED.email ELSE mastercontacts.email END,
-          "orderCount" = GREATEST(mastercontacts."orderCount", EXCLUDED."orderCount"),
-          "totalSpent" = GREATEST(mastercontacts."totalSpent", EXCLUDED."totalSpent"),
-          "updatedAt" = NOW();
-      `).catch(() => {});
-      syncedCount++;
-    }
-
-    return syncedCount;
-  } catch (err) {
-    console.error('[MasterData] Error in syncCustomer360Internal:', err);
-    return 0;
-  }
-}
-
 router.post('/sync-customer360', async (req, res) => {
   try {
     const syncedCount = await syncCustomer360Internal();
     res.json({
       success: true,
-      message: `Successfully synchronized and de-duplicated ${syncedCount} contacts from Customer 360 into Master Data.`,
+      message: `Successfully synchronized and de-duplicated ${syncedCount} contacts into Master Data.`,
       syncedCount
     });
   } catch (err) {
@@ -323,26 +385,25 @@ router.post('/upload', async (req, res) => {
 
     // Ingest with upsert
     for (const item of validBatch) {
-      const safeName = item.name.replace(/'/g, "''");
-      const safeEmail = item.email.replace(/'/g, "''");
-      const safeCampus = item.campus.replace(/'/g, "''");
-      const safeSource = String(sourceLabel).replace(/'/g, "''");
       const id = crypto.randomUUID();
+      const safeSource = String(sourceLabel);
 
-      const result = await prisma.$executeRawUnsafe(`
-        INSERT INTO mastercontacts (
-          id, phone, name, email, campus, source, "createdAt", "updatedAt"
-        ) VALUES (
-          '${id}', '${item.phone}', '${safeName}', '${safeEmail}', '${safeCampus}', '${safeSource}', NOW(), NOW()
-        )
-        ON CONFLICT (phone) DO UPDATE SET
-          name = CASE WHEN mastercontacts.name IN ('Recipient', '') THEN EXCLUDED.name ELSE mastercontacts.name END,
-          email = CASE WHEN mastercontacts.email = '' THEN EXCLUDED.email ELSE mastercontacts.email END,
-          "updatedAt" = NOW();
-      `).catch(() => 0);
+      try {
+        const result = await prisma.$executeRawUnsafe(`
+          INSERT INTO mastercontacts (
+            id, phone, name, email, campus, source, "createdAt", "updatedAt"
+          ) VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+          ON CONFLICT (phone) DO UPDATE SET
+            name = CASE WHEN mastercontacts.name IN ('Recipient', '') THEN EXCLUDED.name ELSE mastercontacts.name END,
+            email = CASE WHEN mastercontacts.email = '' THEN EXCLUDED.email ELSE mastercontacts.email END,
+            "updatedAt" = NOW()
+        `, id, item.phone, item.name, item.email, item.campus, safeSource);
 
-      if (result > 0) newCount++;
-      else updatedCount++;
+        if (result > 0) newCount++;
+        else updatedCount++;
+      } catch (rowErr) {
+        console.error('[MasterData] Row upload error:', rowErr.message);
+      }
     }
 
     res.json({
@@ -381,25 +442,18 @@ router.post('/contact', async (req, res) => {
       return res.status(400).json({ message: 'Invalid phone number provided.' });
     }
 
-    const safeName = name.trim().replace(/'/g, "''");
-    const safeEmail = (email || '').trim().toLowerCase().replace(/'/g, "''");
-    const safeCampus = campus.trim().replace(/'/g, "''");
-    const safeNotes = notes.trim().replace(/'/g, "''");
     const id = crypto.randomUUID();
 
     await prisma.$executeRawUnsafe(`
       INSERT INTO mastercontacts (
         id, phone, name, email, campus, source, metadata, "updatedAt"
-      ) VALUES (
-        '${id}', '${cleanPhone}', '${safeName}', '${safeEmail}', '${safeCampus}', 'Manual Entry', 
-        '{"notes": "${safeNotes}"}'::jsonb, NOW()
-      )
+      ) VALUES ($1, $2, $3, $4, $5, 'Manual Entry', $6::jsonb, NOW())
       ON CONFLICT (phone) DO UPDATE SET
         name = EXCLUDED.name,
         email = CASE WHEN EXCLUDED.email != '' THEN EXCLUDED.email ELSE mastercontacts.email END,
         campus = EXCLUDED.campus,
-        "updatedAt" = NOW();
-    `);
+        "updatedAt" = NOW()
+    `, id, cleanPhone, name.trim(), (email || '').trim().toLowerCase(), campus.trim(), JSON.stringify({ notes: notes.trim() }));
 
     res.json({
       success: true,
@@ -408,23 +462,6 @@ router.post('/contact', async (req, res) => {
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
-});
-
-/**
- * 5. DOWNLOAD SAMPLE TEMPLATE (CSV)
- */
-router.get('/sample-template', (req, res) => {
-  const csvContent = [
-    'name,phone,email,campus,notes',
-    'Arjun Mehta,9876543210,arjun.mehta@example.com,Lovely Professional University,Food Court Regular',
-    'Priya Sharma,9812345678,priya.sharma@example.com,Lovely Professional University,Hostel Block 4',
-    'Sneha Kapoor,9123456789,,Lovely Professional University,Veg Only',
-    'Rohan Verma,9988776655,rohan.v@example.com,Lovely Professional University,Pre-Order Member'
-  ].join('\n');
-
-  res.setHeader('Content-Type', 'text/csv');
-  res.setHeader('Content-Disposition', 'attachment; filename="universe_master_contacts_template.csv"');
-  res.status(200).send(csvContent);
 });
 
 /**
@@ -438,7 +475,7 @@ router.get('/export', async (req, res) => {
       SELECT name, phone, email, campus, source, "orderCount", "totalSpent", "createdAt" 
       FROM mastercontacts 
       ORDER BY "updatedAt" DESC;
-    `);
+    `).catch(() => []);
 
     let csv = 'Name,Phone Number,Email,Campus,Source,Orders Placed,Total Spent (INR),Added On\n';
 

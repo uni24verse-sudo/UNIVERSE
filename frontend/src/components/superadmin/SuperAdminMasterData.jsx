@@ -139,14 +139,51 @@ const SuperAdminMasterData = ({ token }) => {
     }
   };
 
+  const [exporting, setExporting] = useState(false);
+
   // Download Sample Template
-  const handleDownloadSampleTemplate = () => {
-    window.open(`${apiUrl}/api/super-admin/master-data/sample-template`, '_blank');
+  const handleDownloadSampleTemplate = async () => {
+    try {
+      const res = await axios.get(`${apiUrl}/api/super-admin/master-data/sample-template`, {
+        responseType: 'blob'
+      });
+      const blob = new Blob([res.data], { type: 'text/csv;charset=utf-8;' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.setAttribute('download', 'universe_master_contacts_template.csv');
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err) {
+      window.open(`${apiUrl}/api/super-admin/master-data/sample-template`, '_blank');
+    }
   };
 
-  // Export Master CSV
-  const handleExportCSV = () => {
-    window.open(`${apiUrl}/api/super-admin/master-data/export`, '_blank');
+  // Export Master CSV with SuperAdmin Authentication
+  const handleExportCSV = async () => {
+    try {
+      setExporting(true);
+      const res = await axios.get(`${apiUrl}/api/super-admin/master-data/export`, {
+        headers,
+        responseType: 'blob'
+      });
+      const blob = new Blob([res.data], { type: 'text/csv;charset=utf-8;' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.setAttribute('download', `universe_master_data_${new Date().toISOString().split('T')[0]}.csv`);
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err) {
+      console.error('Export error, using fallback query token:', err);
+      window.open(`${apiUrl}/api/super-admin/master-data/export?token=${token}`, '_blank');
+    } finally {
+      setExporting(false);
+    }
   };
 
   // Save Single Contact
@@ -323,6 +360,7 @@ const SuperAdminMasterData = ({ token }) => {
 
           <button
             onClick={handleExportCSV}
+            disabled={exporting}
             style={{
               padding: '0.65rem 1.1rem',
               borderRadius: '12px',
@@ -334,12 +372,12 @@ const SuperAdminMasterData = ({ token }) => {
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              cursor: 'pointer',
+              cursor: exporting ? 'wait' : 'pointer',
               boxShadow: '0 2px 6px rgba(0,0,0,0.02)'
             }}
           >
-            <Download size={15} color="#0284c7" />
-            Export CSV
+            <Download size={15} color="#0284c7" className={exporting ? "spin" : ""} />
+            {exporting ? 'Exporting...' : 'Export CSV'}
           </button>
 
           <button
@@ -542,18 +580,26 @@ const SuperAdminMasterData = ({ token }) => {
             <p style={{ color: '#64748b', fontSize: '0.85rem', maxWidth: '400px', margin: '0 auto 1.25rem' }}>
               No contacts match the current query or filters. Click below to synchronize all Customer 360 records or upload an audience file.
             </p>
-            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
+            <div style={{ display: 'flex', gap: '0.65rem', justifyContent: 'center', flexWrap: 'wrap' }}>
               <button
                 onClick={handleSyncCustomer360}
-                style={{ padding: '0.65rem 1.2rem', borderRadius: '10px', background: 'var(--primary)', color: '#fff', border: 'none', fontWeight: '800', fontSize: '0.85rem', cursor: 'pointer' }}
+                disabled={syncing}
+                style={{ padding: '0.65rem 1.2rem', borderRadius: '10px', background: 'var(--primary)', color: '#fff', border: 'none', fontWeight: '800', fontSize: '0.85rem', cursor: syncing ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
               >
-                Sync Customer 360 Now
+                <RefreshCw size={14} className={syncing ? "spin" : ""} />
+                {syncing ? 'Syncing...' : 'Sync Customer 360 Now'}
+              </button>
+              <button
+                onClick={() => setShowUploadModal(true)}
+                style={{ padding: '0.65rem 1.2rem', borderRadius: '10px', background: '#059669', color: '#fff', border: 'none', fontWeight: '800', fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+              >
+                <Upload size={14} /> Upload Audience File
               </button>
               <button
                 onClick={handleDownloadSampleTemplate}
-                style={{ padding: '0.65rem 1.2rem', borderRadius: '10px', background: '#fff', border: '1px solid #cbd5e1', color: '#0f172a', fontWeight: '800', fontSize: '0.85rem', cursor: 'pointer' }}
+                style={{ padding: '0.65rem 1.2rem', borderRadius: '10px', background: '#fff', border: '1px solid #cbd5e1', color: '#0f172a', fontWeight: '800', fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
               >
-                Download Sample CSV
+                <Download size={14} /> Download Sample CSV
               </button>
             </div>
           </div>
