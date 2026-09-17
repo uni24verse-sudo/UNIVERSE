@@ -37,6 +37,8 @@ import SuperAdminJourneyBuilder from '../components/superadmin/SuperAdminJourney
 import SuperAdminChannelSettings from '../components/superadmin/SuperAdminChannelSettings';
 import SuperAdminCustomerIntelligence from '../components/superadmin/SuperAdminCustomerIntelligence';
 import SuperAdminRefunds from '../components/superadmin/SuperAdminRefunds';
+import SuperAdminHeroPromotions from '../components/superadmin/SuperAdminHeroPromotions';
+import SuperAdminOrdersFeed from '../components/superadmin/SuperAdminOrdersFeed';
 import { useSocket } from '../context/SocketContext';
 
 const SuperAdminPanel = () => {
@@ -258,6 +260,7 @@ const SuperAdminPanel = () => {
             { id: 'master_templates', icon: FileText, label: 'Master Templates' },
             { id: 'broadcasting', icon: Radio, label: 'Broadcasting Hub' },
             { id: 'journey_builder', icon: GitBranch, label: 'Journey Builder' },
+            { id: 'hero_promotions', icon: Sparkles, label: 'Hero Promotions', badge: '5 SLOTS' },
             { id: 'channel_settings', icon: Sliders, label: 'Channels & Devices', badge: '5 SLOTS' },
             { id: 'overview', icon: Activity, label: 'Platform Overview' },
             { id: 'vendors', icon: Users, label: 'Vendor Registry' },
@@ -350,6 +353,11 @@ const SuperAdminPanel = () => {
           <SuperAdminChannelSettings token={token} socket={socket} />
         )}
 
+        {/* HERO PROMOTIONS & BANNER MANAGEMENT TAB */}
+        {activeTab === 'hero_promotions' && (
+          <SuperAdminHeroPromotions token={token} socket={socket} />
+        )}
+
         {/* OVERVIEW TAB */}
         {activeTab === 'overview' && stats && (
           <div>
@@ -381,7 +389,7 @@ const SuperAdminPanel = () => {
               <div style={{ padding: '1.5rem', background: '#ffffff', borderRadius: '24px', border: '1px solid var(--surface-border)', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', background: 'linear-gradient(135deg, #ffffff 0%, rgba(252, 175, 23, 0.05) 100%)' }}>
                 <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Activity size={16} color="var(--secondary)" /> Total Platform Profit</p>
                 <h3 style={{ fontSize: '2.5rem', fontWeight: '900', margin: 0, color: 'var(--primary)' }}>₹{stats.totalProfit || 0}</h3>
-                <p style={{ marginTop: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: '600' }}>Net earnings after trial & fees</p>
+                <p style={{ marginTop: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: '600' }}>Net platform fee (3% commission)</p>
               </div>
             </div>
             
@@ -443,11 +451,7 @@ const SuperAdminPanel = () => {
                       </td>
                       <td style={{ padding: '1.25rem' }}>
                         <div style={{ fontWeight: '900', color: 'var(--primary)', fontSize: '1.1rem' }}>₹{v.stats?.profitGenerated || 0}</div>
-                        <div style={{ color: 'var(--text-secondary)', fontSize: '0.7rem', marginTop: '0.25rem', fontWeight: '600' }}>
-                          {v.store && v.store.isTrialStarted ? (
-                             new Date(v.store.trialEndDate) > new Date() ? 'Currently in Trial (0%)' : 'Post-Trial (3%)'
-                          ) : 'Trial Not Started'}
-                        </div>
+                        <div style={{ color: '#6366f1', fontSize: '0.7rem', marginTop: '0.25rem', fontWeight: '700' }}>Standard (3% Platform)</div>
                       </td>
                       <td style={{ padding: '1.25rem', textAlign: 'right' }}>
                         <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
@@ -687,51 +691,28 @@ const SuperAdminPanel = () => {
                     </div>
                   </div>
 
-                  {/* Trial & Billing Section */}
-                  <div style={{ padding: '1rem', background: store.isTrialStarted ? 'rgba(16, 185, 129, 0.05)' : 'rgba(245, 158, 11, 0.05)', borderRadius: '16px', border: `1px solid ${store.isTrialStarted ? 'rgba(16, 185, 129, 0.2)' : 'rgba(245, 158, 11, 0.2)'}` }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                        <p style={{ 
-                          fontSize: '0.75rem', 
-                          margin: 0, 
-                          fontWeight: '800', 
-                          textTransform: 'uppercase', 
-                          color: store.daysLeftInTrial > 0 ? '#10b981' : '#f59e0b' 
-                        }}>
-                          {store.isTrialStarted 
-                            ? (store.daysLeftInTrial > 0 ? 'Free Trial Active' : 'Trial Period Expired') 
-                            : 'Trial Not Started'}
-                        </p>
-                       {!store.isTrialStarted && (
-                         <button 
-                          onClick={async () => {
-                            if(window.confirm(`Start 30-day free trial for ${store.name}?`)) {
-                              try {
-                                await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/super-admin/store/${store._id}/start-trial`, {}, { headers: { Authorization: `Bearer ${token}` } });
-                                fetchDashboardData(true);
-                              } catch(err) { alert('Action failed'); }
-                            }
-                          }}
-                          style={{ padding: '0.4rem 0.8rem', background: '#f59e0b', color: 'black', border: 'none', borderRadius: '8px', fontSize: '0.7rem', fontWeight: '800', cursor: 'pointer' }}
-                         >
-                          Start 30-Day Trial
-                         </button>
-                       )}
+                  {/* Commission Profile Section */}
+                  <div style={{ padding: '1rem', background: 'rgba(99, 102, 241, 0.05)', borderRadius: '16px', border: '1px solid rgba(99, 102, 241, 0.2)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                      <p style={{ fontSize: '0.75rem', margin: 0, fontWeight: '800', textTransform: 'uppercase', color: '#6366f1' }}>Commission Profile</p>
+                      <span style={{ fontSize: '0.65rem', background: 'rgba(99, 102, 241, 0.1)', color: '#6366f1', padding: '0.2rem 0.5rem', borderRadius: '4px', fontWeight: '800' }}>ACTIVE</span>
                     </div>
-                    
-                    {store.isTrialStarted ? (
-                      <div>
-                        {store.daysLeftInTrial > 0 ? (
-                          <p style={{ fontSize: '1.25rem', fontWeight: '900', margin: 0 }}>{store.daysLeftInTrial} <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Days Remaining</span></p>
-                        ) : (
-                          <div>
-                            <p style={{ fontSize: '0.75rem', color: '#ef4444', fontWeight: '800', marginBottom: '0.25rem' }}>SUBSCRIPTION ACTIVE (5%)</p>
-                            <p style={{ fontSize: '1.5rem', fontWeight: '900', color: 'var(--secondary)', margin: 0 }}>₹{store.estimatedFees} <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Pending Fees</span></p>
-                          </div>
-                        )}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
+                        <span style={{ color: 'var(--text-secondary)', fontWeight: '600' }}>UniVerse Platform</span>
+                        <span style={{ color: 'var(--text-primary)', fontWeight: '800' }}>3%</span>
                       </div>
-                    ) : (
-                      <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', margin: 0 }}>Store is currently in early access.</p>
-                    )}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
+                        <span style={{ color: 'var(--text-secondary)', fontWeight: '600' }}>Payment Gateway</span>
+                        <span style={{ color: 'var(--text-primary)', fontWeight: '800' }}>2%</span>
+                      </div>
+                      <div style={{ height: '1px', background: 'rgba(99, 102, 241, 0.15)', margin: '0.25rem 0' }} />
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
+                        <span style={{ color: 'var(--text-secondary)', fontWeight: '700' }}>Total Deduction</span>
+                        <span style={{ color: '#6366f1', fontWeight: '900' }}>5%</span>
+                      </div>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>T+1 Automated Settlement</div>
+                    </div>
                   </div>
 
                   <div style={{ padding: '1rem', background: '#f8fafc', borderRadius: '12px', border: '1px solid var(--surface-border)', marginTop: 'auto' }}>
@@ -852,124 +833,12 @@ const SuperAdminPanel = () => {
           </div>
         )}
         {activeTab === 'orders' && (
-           <div>
-            <header style={{ marginBottom: '2rem' }}>
-              <h1 style={{ fontSize: '2rem', fontWeight: '900' }}>Global Orders Feed</h1>
-              <p style={{ color: 'var(--text-secondary)' }}>Live view of the last 100 transactions across all platform stores.</p>
-            </header>
-
-            {/* Filter Tabs */}
-            <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
-              {['All', 'Pending', 'Confirmed', 'Completed', 'Cancelled'].map(status => (
-                <button
-                  key={status}
-                  onClick={() => setOrderFilter(status)}
-                  style={{
-                    padding: '0.5rem 1.25rem',
-                    borderRadius: '100px',
-                    border: orderFilter === status ? `1px solid var(--primary)` : '1px solid var(--surface-border)',
-                    background: orderFilter === status ? 'rgba(239, 65, 35, 0.1)' : 'transparent',
-                    color: orderFilter === status ? 'var(--primary)' : 'var(--text-secondary)',
-                    cursor: 'pointer',
-                    fontSize: '0.85rem',
-                    fontWeight: '700',
-                    transition: 'all 0.2s ease'
-                  }}
-                >
-                  {status}
-                  <span style={{ marginLeft: '0.5rem', opacity: 0.5, fontSize: '0.75rem' }}>
-                    {status === 'All' ? orders.length : orders.filter(o => o.status === status).length}
-                  </span>
-                </button>
-              ))}
-            </div>
-
-            <div style={{ background: '#ffffff', borderRadius: '24px', border: '1px solid var(--surface-border)', overflow: 'hidden' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-                <thead>
-                  <tr style={{ background: '#f8fafc', borderBottom: '1px solid var(--surface-border)' }}>
-                    <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Order ID & Time</th>
-                    <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Customer Profile</th>
-                    <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Store</th>
-                    <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Items</th>
-                    <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Amount & Payment</th>
-                    <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem', textAlign: 'right' }}>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {orders
-                    .filter(o => orderFilter === 'All' ? true : o.status === orderFilter)
-                    .map(o => (
-                    <tr key={o._id} style={{ borderBottom: '1px solid var(--surface-border)' }}>
-                      <td style={{ padding: '1.25rem' }}>
-                        <div style={{ fontWeight: '700', fontFamily: 'monospace', color: 'var(--text-primary)' }}>#{o.orderNumber}</div>
-                        <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', marginTop: '0.25rem' }}>{new Date(o.createdAt).toLocaleString()}</div>
-                      </td>
-                      <td style={{ padding: '1.25rem' }}>
-                         <div style={{ fontWeight: '700', color: 'var(--text-primary)' }}>{o.customerName || 'Anonymous'}</div>
-                         <div style={{ color: 'var(--secondary)', fontSize: '0.8rem', marginTop: '0.25rem' }}>📞 {o.customerPhone || 'No Phone'}</div>
-                      </td>
-                      <td style={{ padding: '1.25rem' }}>
-                        <div style={{ fontWeight: '600', color: 'var(--primary)' }}>{o.store?.name || 'Deleted Store'}</div>
-                        <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>{o.store?.market || 'Unknown Market'}</div>
-                      </td>
-                      <td style={{ padding: '1.25rem' }}>
-                        <div style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-                           {o.items.length} unique items
-                        </div>
-                      </td>
-                      <td style={{ padding: '1.25rem' }}>
-                        <div style={{ fontWeight: '800', color: 'var(--text-primary)' }}>₹{o.totalAmount}</div>
-                        <div style={{ fontSize: '0.75rem', marginTop: '0.25rem', fontWeight: '600', color: o.paymentMethod === 'UPI' ? '#3b82f6' : 'var(--text-secondary)' }}>
-                           {o.paymentMethod} • {o.paymentStatus}
-                        </div>
-                      </td>
-                      <td style={{ padding: '1.25rem', textAlign: 'right' }}>
-                        <span style={{ 
-                          padding: '0.4rem 0.8rem', 
-                          borderRadius: '8px', 
-                          fontSize: '0.75rem',
-                          fontWeight: '800',
-                          textTransform: 'uppercase',
-                          background: o.status === 'Pending' ? 'rgba(245, 158, 11, 0.1)' : 
-                                      o.status === 'Confirmed' ? 'rgba(59, 130, 246, 0.1)' : 
-                                      o.status === 'Cancelled' ? 'rgba(239, 68, 68, 0.1)' :
-                                      'rgba(16, 185, 129, 0.1)',
-                          color: o.status === 'Pending' ? '#f59e0b' : 
-                                 o.status === 'Confirmed' ? '#3b82f6' : 
-                                 o.status === 'Cancelled' ? '#ef4444' :
-                                 '#10b981',
-                        }}>
-                          {o.status}
-                        </span>
-                        
-                        {(o.status === 'Pending' || o.status === 'Confirmed') && (
-                          <div style={{ marginTop: '0.75rem' }}>
-                            <button
-                              onClick={async () => {
-                                if(window.confirm('Abort this order globally? The vendor and customer will see it as cancelled instantly.')) {
-                                  try {
-                                    await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/super-admin/order/${o._id}/cancel`, {}, { headers: { Authorization: `Bearer ${token}` } });
-                                    fetchDashboardData(true);
-                                  } catch(err) { alert('Action failed'); }
-                                }
-                              }}
-                              style={{ padding: '0.3rem 0.6rem', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', color: '#ef4444', fontSize: '0.7rem', borderRadius: '6px', cursor: 'pointer', fontWeight: '800', textTransform: 'uppercase' }}
-                            >
-                              Abort Order
-                            </button>
-                          </div>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                  {orders.filter(o => orderFilter === 'All' ? true : o.status === orderFilter).length === 0 && (
-                    <tr><td colSpan="6" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>No orders found for this status.</td></tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-           </div>
+          <SuperAdminOrdersFeed 
+            token={token} 
+            socket={socket} 
+            stores={stores} 
+            locations={locations} 
+          />
         )}
 
         {/* FINANCE TAB */}
@@ -1026,75 +895,105 @@ const SuperAdminPanel = () => {
                   </thead>
                   <tbody>
                     {financeData
-                      .map(f => (
-                      <tr key={f.storeId} style={{ borderBottom: '1px solid var(--surface-border)' }}>
-                        <td style={{ padding: '1.25rem' }}>
-                          <div style={{ fontWeight: '700', color: 'var(--text-primary)' }}>{f.storeName}</div>
-                          <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>{f.ownerName}</div>
-                          <div style={{ color: '#3b82f6', fontSize: '0.75rem', fontWeight: '700', marginTop: '0.25rem', background: 'rgba(59, 130, 246, 0.1)', padding: '0.1rem 0.4rem', borderRadius: '4px', display: 'inline-block' }}>{f.upiId}</div>
-                          {f.isTrialActive && (
-                            <div style={{ marginTop: '0.25rem', display: 'block', fontSize: '0.65rem', color: '#10b981', fontWeight: '900' }}>• TRIAL ACTIVE (2% ONLY)</div>
-                          )}
-                        </td>
-                        <td style={{ padding: '1.25rem' }}>
-                          <div style={{ fontWeight: '600' }}>₹{f.totalRevenue.toLocaleString()}</div>
-                        </td>
-                        <td style={{ padding: '1.25rem' }}>
-                          <div style={{ fontWeight: '800', color: '#10b981' }}>₹{f.liveUnsettledRevenue?.toLocaleString() || '0'}</div>
-                        </td>
-                        <td style={{ padding: '1.25rem', color: 'var(--text-secondary)' }}>
-                          <div style={{ fontWeight: '600' }}>₹{f.gatewayFee.toLocaleString()}</div>
-                        </td>
-                        <td style={{ padding: '1.25rem', color: f.platformProfit > 0 ? '#f59e0b' : '#333' }}>
-                          <div style={{ fontWeight: '800' }}>{f.platformProfit > 0 ? `₹${f.platformProfit.toLocaleString()}` : '₹0 (Trial)'}</div>
-                        </td>
-                        <td style={{ padding: '1.25rem' }}>
-                          {f.cancellationPenalty > 0 ? (
-                            <div>
-                              <div style={{ fontWeight: '800', color: '#ef4444' }}>₹{f.cancellationPenalty.toLocaleString()}</div>
+                      .map(f => {
+                        // For ACCUMULATING rows: show projected (live) fees not stale settled history
+                        const isAccumulating = f.settlementStatus === 'accumulating';
+                        const displayGatewayFee = isAccumulating ? f.projectedGatewayFee : f.gatewayFee;
+                        const displayPlatformProfit = isAccumulating ? f.projectedPlatformProfit : f.platformProfit;
+                        const displayCancellationPenalty = isAccumulating ? (f.projectedCancellationPenalty || 0) : f.cancellationPenalty;
+                        const displayNetPayable = isAccumulating ? f.projectedNetPayable : f.netPayable;
+
+                        // Platform profit label: settled-at-zero (trial era) vs genuinely zero vs positive
+                        let platformProfitLabel;
+                        let platformProfitColor;
+                        if (displayPlatformProfit > 0) {
+                          platformProfitLabel = `₹${displayPlatformProfit.toLocaleString()}${isAccumulating ? ' (Projected)' : ''}`;
+                          platformProfitColor = '#f59e0b';
+                        } else if (f.wasSettledUnderTrial && !isAccumulating) {
+                          platformProfitLabel = '₹0 (Settled under Trial)';
+                          platformProfitColor = 'var(--text-secondary)';
+                        } else {
+                          platformProfitLabel = '₹0';
+                          platformProfitColor = '#333';
+                        }
+
+                        return (
+                        <tr key={f.storeId} style={{ borderBottom: '1px solid var(--surface-border)' }}>
+                          <td style={{ padding: '1.25rem' }}>
+                            <div style={{ fontWeight: '700', color: 'var(--text-primary)' }}>{f.storeName}</div>
+                            <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>{f.ownerName}</div>
+                            <div style={{ color: '#3b82f6', fontSize: '0.75rem', fontWeight: '700', marginTop: '0.25rem', background: 'rgba(59, 130, 246, 0.1)', padding: '0.1rem 0.4rem', borderRadius: '4px', display: 'inline-block' }}>{f.upiId}</div>
+                            <div style={{ marginTop: '0.25rem', display: 'block', fontSize: '0.65rem', color: '#6366f1', fontWeight: '700' }}>• Standard (3% Platform + 2% PG)</div>
+                          </td>
+                          <td style={{ padding: '1.25rem' }}>
+                            <div style={{ fontWeight: '600' }}>₹{f.totalRevenue.toLocaleString()}</div>
+                          </td>
+                          <td style={{ padding: '1.25rem' }}>
+                            <div style={{ fontWeight: '800', color: '#10b981' }}>₹{f.liveUnsettledRevenue?.toLocaleString() || '0'}</div>
+                          </td>
+                          <td style={{ padding: '1.25rem', color: 'var(--text-secondary)' }}>
+                            <div style={{ fontWeight: '600' }}>
+                              ₹{displayGatewayFee?.toLocaleString()}
+                              {isAccumulating && <span style={{ fontSize: '0.65rem', color: '#10b981', display: 'block', fontWeight: '700' }}>projected</span>}
                             </div>
-                          ) : (
-                            <div style={{ fontWeight: '600', color: '#333' }}>₹0</div>
-                          )}
-                        </td>
-                        <td style={{ padding: '1.25rem', color: '#10b981' }}>
-                          <div style={{ fontWeight: '900', fontSize: '1.1rem' }}>₹{f.netPayable.toLocaleString()}</div>
-                        </td>
-                        <td style={{ padding: '1.25rem', textAlign: 'right' }}>
-                          {f.settlementStatus === 'paid' ? (
-                            <span style={{ color: '#10b981', fontWeight: '800', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.5rem' }}>
-                              <CheckCircle size={16} /> SETTLED
-                            </span>
-                          ) : f.settlementStatus === 'accumulating' ? (
-                            <span style={{ color: '#f59e0b', fontWeight: '800', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.5rem' }}>
-                              <Activity size={16} /> ACCUMULATING
-                            </span>
-                          ) : (
-                            <button
-                              onClick={async () => {
-                                const utrNumber = window.prompt(`Enter UTR/Reference Number for settling ₹${f.netPayable.toLocaleString()} to ${f.storeName}:`);
-                                if (utrNumber && utrNumber.trim() !== '') {
-                                  try {
-                                    const url = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-                                    await axios.post(`${url}/api/super-admin/finance/settle`, {
-                                      storeId: f.storeId,
-                                      utrNumber: utrNumber.trim()
-                                    }, { headers: { Authorization: `Bearer ${token}` } });
-                                    fetchDashboardData(true);
-                                    alert('Successfully marked as settled and UTR recorded.');
-                                  } catch (err) { alert('Settlement failed: ' + (err.response?.data?.message || err.message)); }
-                                } else if (utrNumber !== null) {
-                                  alert('UTR Number is required to complete settlement.');
-                                }
-                              }}
-                              style={{ padding: '0.5rem 1rem', background: 'transparent', border: '1px solid var(--primary)', color: 'var(--primary)', borderRadius: '8px', cursor: 'pointer', fontWeight: '700', fontSize: '0.75rem' }}
-                            >
-                              SETTLE DUES ({f.pendingCount})
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
+                          </td>
+                          <td style={{ padding: '1.25rem', color: platformProfitColor }}>
+                            <div style={{ fontWeight: '800' }}>{platformProfitLabel}</div>
+                          </td>
+                          <td style={{ padding: '1.25rem' }}>
+                            {displayCancellationPenalty > 0 ? (
+                              <div>
+                                <div style={{ fontWeight: '800', color: '#ef4444' }}>
+                                  ₹{displayCancellationPenalty.toLocaleString()}
+                                  {isAccumulating && <span style={{ fontSize: '0.65rem', color: '#ef4444', display: 'block', fontWeight: '700' }}>projected</span>}
+                                </div>
+                              </div>
+                            ) : (
+                              <div style={{ fontWeight: '600', color: '#333' }}>₹0</div>
+                            )}
+                          </td>
+                          <td style={{ padding: '1.25rem', color: '#10b981' }}>
+                            <div style={{ fontWeight: '900', fontSize: '1.1rem' }}>
+                              ₹{displayNetPayable?.toLocaleString()}
+                              {isAccumulating && <span style={{ fontSize: '0.65rem', color: '#10b981', display: 'block', fontWeight: '700' }}>projected</span>}
+                            </div>
+                          </td>
+                          <td style={{ padding: '1.25rem', textAlign: 'right' }}>
+                            {f.settlementStatus === 'paid' ? (
+                              <span style={{ color: '#10b981', fontWeight: '800', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.5rem' }}>
+                                <CheckCircle size={16} /> SETTLED
+                              </span>
+                            ) : f.settlementStatus === 'accumulating' ? (
+                              <span style={{ color: '#f59e0b', fontWeight: '800', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.5rem' }}>
+                                <Activity size={16} /> ACCUMULATING
+                              </span>
+                            ) : (
+                              <button
+                                onClick={async () => {
+                                  const utrNumber = window.prompt(`Enter UTR/Reference Number for settling ₹${f.netPayable.toLocaleString()} to ${f.storeName}:`);
+                                  if (utrNumber && utrNumber.trim() !== '') {
+                                    try {
+                                      const url = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+                                      await axios.post(`${url}/api/super-admin/finance/settle`, {
+                                        storeId: f.storeId,
+                                        utrNumber: utrNumber.trim()
+                                      }, { headers: { Authorization: `Bearer ${token}` } });
+                                      fetchDashboardData(true);
+                                      alert('Successfully marked as settled and UTR recorded.');
+                                    } catch (err) { alert('Settlement failed: ' + (err.response?.data?.message || err.message)); }
+                                  } else if (utrNumber !== null) {
+                                    alert('UTR Number is required to complete settlement.');
+                                  }
+                                }}
+                                style={{ padding: '0.5rem 1rem', background: 'transparent', border: '1px solid var(--primary)', color: 'var(--primary)', borderRadius: '8px', cursor: 'pointer', fontWeight: '700', fontSize: '0.75rem' }}
+                              >
+                                SETTLE DUES ({f.pendingCount})
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
                     {financeData.length === 0 && (
                       <tr><td colSpan="8" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>No financial data available for this month.</td></tr>
                     )}

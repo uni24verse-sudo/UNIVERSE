@@ -18,3 +18,12 @@ scratch/
 /universe_developer_git_handbook.html
 /universe_developer_git_handbook.pdf
 *.bundle
+
+# K6 Performance Test files
+K6.zip
+k6.zip
+K6_extracted/
+k6_extracted/
+tmp/
+backend/scratch_check.js
+

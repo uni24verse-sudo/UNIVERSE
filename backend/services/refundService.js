@@ -409,11 +409,19 @@ const settleRefund = async ({ refundId, utr = '', settledBy = 'Super Admin', io 
       console.error('[refundService] Team settlement notice error:', err.message);
     });
 
-    // 🌐 Real-time Socket Updates
+    // 🌐 Real-time Socket Updates (User & SuperAdmin)
     if (io) {
-      io.to(order._id.toString()).emit('order_status_update', order);
+      const orderRoomId = order._id ? order._id.toString() : order.id.toString();
+      io.to(orderRoomId).emit('order_status_update', order);
+      if (order.id && order.id.toString() !== orderRoomId) {
+        io.to(order.id.toString()).emit('order_status_update', order);
+      }
       if (order.orderNumber) {
         io.to(order.orderNumber.toString()).emit('order_status_update', order);
+      }
+      io.to(orderRoomId).emit('refund_completed', { order, refund, utr: cleanUtr });
+      if (order.orderNumber) {
+        io.to(order.orderNumber.toString()).emit('refund_completed', { order, refund, utr: cleanUtr });
       }
       io.to('superadmin_room').emit('refund_settled', {
         refundId: refund._id,
@@ -422,6 +430,7 @@ const settleRefund = async ({ refundId, utr = '', settledBy = 'Super Admin', io 
         utr: cleanUtr,
         settledBy
       });
+      console.log(`[refundService] Broadcasted refund settlement for order #${order.orderNumber} (UTR: ${cleanUtr}) to rooms: ${orderRoomId}, ${order.orderNumber}`);
     }
 
     return {
@@ -439,7 +448,7 @@ const settleRefund = async ({ refundId, utr = '', settledBy = 'Super Admin', io 
 /**
  * 4. Update UTR on a previously settled refund
  */
-const updateRefundUtr = async ({ refundId, utr, updatedBy = 'Super Admin' }) => {
+const updateRefundUtr = async ({ refundId, utr, updatedBy = 'Super Admin', io = null }) => {
   try {
     const cleanUtr = (utr || '').trim();
     const refund = await prisma.refund.findFirst({
@@ -454,14 +463,25 @@ const updateRefundUtr = async ({ refundId, utr, updatedBy = 'Super Admin' }) => 
       data: { utr: cleanUtr }
     });
 
+    let updatedOrder = null;
     if (refund.orderId) {
-      await prisma.order.update({
+      const pgOrder = await prisma.order.update({
         where: { id: refund.orderId },
-        data: { refundUtr: cleanUtr }
+        data: { refundUtr: cleanUtr },
+        include: { store: true }
       });
+      updatedOrder = normalizeOrder(pgOrder);
+
+      if (io && updatedOrder) {
+        const orderRoomId = updatedOrder._id ? updatedOrder._id.toString() : updatedOrder.id.toString();
+        io.to(orderRoomId).emit('order_status_update', updatedOrder);
+        if (updatedOrder.orderNumber) {
+          io.to(updatedOrder.orderNumber.toString()).emit('order_status_update', updatedOrder);
+        }
+      }
     }
 
-    return { success: true, message: 'UTR updated successfully.', utr: cleanUtr };
+    return { success: true, message: 'UTR updated successfully.', utr: cleanUtr, order: updatedOrder };
   } catch (err) {
     console.error('[refundService.updateRefundUtr] Error:', err);
     return { success: false, message: err.message };

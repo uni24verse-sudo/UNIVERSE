@@ -23,6 +23,74 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Notifications from 'expo-notifications';
 import PagerView from 'react-native-pager-view';
 
+
+// Real-Time Auto-Cancellation Countdown Timer
+function AutoCancelTimer({ order }) {
+  const [timeLeft, setTimeLeft] = useState(null);
+  const [isUrgent, setIsUrgent] = useState(false);
+
+  useEffect(() => {
+    const calculateTime = () => {
+      // 15 mins for pre-order, 5 mins for regular order
+      const durationMs = (order.isPreOrder ? 15 : 5) * 60 * 1000;
+      const createdAtMs = order.createdAt ? new Date(order.createdAt).getTime() : Date.now();
+      const deadline = order.acceptDeadline ? new Date(order.acceptDeadline).getTime() : createdAtMs + durationMs;
+      const diff = deadline - Date.now();
+
+      if (diff <= 0) {
+        setTimeLeft(0);
+        setIsUrgent(true);
+      } else {
+        setTimeLeft(diff);
+        setIsUrgent(diff < 60000); // Urgent if less than 60 seconds
+      }
+    };
+
+    calculateTime();
+    const interval = setInterval(calculateTime, 1000);
+    return () => clearInterval(interval);
+  }, [order.createdAt, order.acceptDeadline, order.isPreOrder]);
+
+  if (timeLeft === null) return null;
+
+  if (timeLeft <= 0) {
+    return (
+      <View style={[styles.autoCancelBanner, styles.autoCancelExpired]}>
+        <Ionicons name="alert-circle" size={16} color="#DC2626" />
+        <Text style={[styles.autoCancelText, { color: '#DC2626' }]}>
+          ⚠️ Auto-Cancelling... Acceptance window expired
+        </Text>
+      </View>
+    );
+  }
+
+  const mins = Math.floor(timeLeft / 60000);
+  const secs = Math.floor((timeLeft % 60000) / 1000);
+  const formatted = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+
+  return (
+    <View style={[
+      styles.autoCancelBanner,
+      isUrgent ? styles.autoCancelUrgent : styles.autoCancelNormal
+    ]}>
+      <Ionicons 
+        name={isUrgent ? 'alarm' : 'time-outline'} 
+        size={16} 
+        color={isUrgent ? '#DC2626' : '#D97706'} 
+      />
+      <Text style={[
+        styles.autoCancelText, 
+        { color: isUrgent ? '#DC2626' : '#92400E', fontWeight: isUrgent ? '800' : '700' }
+      ]}>
+        {isUrgent ? `⚠️ Urgent: Auto-cancels in ${formatted}` : `⏳ Auto-cancels in ${formatted}`}
+      </Text>
+      <Text style={[styles.autoCancelSubText, { color: isUrgent ? '#EF4444' : '#B45309' }]}>
+        ({order.isPreOrder ? '15m' : '5m'} rule)
+      </Text>
+    </View>
+  );
+}
+
 export default function LiveOrdersScreen({ navigation }) {
   const { user } = useContext(AuthContext);
   const { socket, isConnected, socketError } = useContext(SocketContext);
@@ -1132,4 +1200,38 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+
+  /* Auto-cancel timer styles */
+  autoCancelBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    marginBottom: 6,
+    borderWidth: 1,
+  },
+  autoCancelNormal: {
+    backgroundColor: '#FFFBEB',
+    borderColor: '#FDE68A',
+  },
+  autoCancelUrgent: {
+    backgroundColor: '#FEF2F2',
+    borderColor: '#FECACA',
+  },
+  autoCancelExpired: {
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    borderColor: 'rgba(239, 68, 68, 0.3)',
+  },
+  autoCancelText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  autoCancelSubText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+
 });

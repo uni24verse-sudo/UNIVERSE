@@ -25,10 +25,14 @@ import {
 } from 'lucide-react';
 
 const CountdownTimer = ({ deadline }) => {
-  const [timeLeft, setTimeLeft] = useState(0);
+  const [timeLeft, setTimeLeft] = useState(() => {
+    return deadline ? Math.max(0, new Date(deadline).getTime() - Date.now()) : 0;
+  });
 
   useEffect(() => {
     if (!deadline) return;
+    setTimeLeft(Math.max(0, new Date(deadline).getTime() - Date.now()));
+
     const interval = setInterval(() => {
       const remaining = Math.max(0, new Date(deadline).getTime() - Date.now());
       setTimeLeft(remaining);
@@ -37,24 +41,27 @@ const CountdownTimer = ({ deadline }) => {
   }, [deadline]);
 
   if (!deadline && timeLeft <= 0) return null;
-  if (deadline && timeLeft <= 0) return <span style={{ color: 'var(--error)' }}>Timer Expired...</span>;
+  if (deadline && timeLeft <= 0) return <span style={{ color: 'var(--error)', fontWeight: '800' }}>Timer Expired...</span>;
 
   const minutes = Math.floor(timeLeft / 60000);
   const seconds = Math.floor((timeLeft % 60000) / 1000);
+  const isUrgent = minutes === 0 && seconds < 60;
   
   return (
     <div style={{
       display: 'inline-flex',
       alignItems: 'center',
       gap: '0.5rem',
-      background: minutes === 0 && seconds < 60 ? 'rgba(239, 68, 68, 0.1)' : 'rgba(99, 102, 241, 0.1)',
-      color: minutes === 0 && seconds < 60 ? 'var(--error)' : 'var(--primary)',
+      background: isUrgent ? 'rgba(239, 68, 68, 0.15)' : 'rgba(99, 102, 241, 0.1)',
+      color: isUrgent ? 'var(--error)' : 'var(--primary)',
       padding: '0.5rem 1rem',
       borderRadius: '12px',
       fontWeight: '800',
       fontSize: '1.25rem',
       marginTop: '1rem',
-      border: `1px solid ${minutes === 0 && seconds < 60 ? 'rgba(239, 68, 68, 0.3)' : 'rgba(99, 102, 241, 0.3)'}`
+      border: `1px solid ${isUrgent ? 'rgba(239, 68, 68, 0.4)' : 'rgba(99, 102, 241, 0.3)'}`,
+      boxShadow: isUrgent ? '0 0 16px rgba(239, 68, 68, 0.25)' : 'none',
+      transition: 'all 0.3s ease'
     }}>
       <Clock size={20} /> 
       {minutes}:{seconds.toString().padStart(2, '0')}
@@ -98,7 +105,8 @@ const OrderTracker = () => {
     const socket = io((import.meta.env.VITE_API_URL || 'http://localhost:5000') + '');
     socket.emit('join_order_room', id);
 
-    socket.on('order_status_update', (updatedOrder) => {
+    const handleOrderUpdate = (updatedOrder) => {
+      console.log('⚡ [OrderTracker Socket] Order update received in real-time:', updatedOrder);
       setOrder(prev => {
         if (prev && prev.status !== updatedOrder.status) {
           if (updatedOrder.status === 'Confirmed') {
@@ -107,15 +115,52 @@ const OrderTracker = () => {
             new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3').play().catch(() => {});
           }
         }
-        if (updatedOrder.refundStatus === 'Refunded' && prev?.refundStatus !== 'Refunded') {
+        const hasRefunded = updatedOrder.refundStatus === 'Refunded' || updatedOrder.refundStatus === 'Processed';
+        const wasRefunded = prev?.refundStatus === 'Refunded' || prev?.refundStatus === 'Processed';
+        if (hasRefunded && !wasRefunded) {
           new Audio('https://assets.mixkit.co/active_storage/sfx/2019/2019-preview.mp3').play().catch(() => {});
+          setShowRefundCard(true);
         }
-        return updatedOrder;
+        return {
+          ...prev,
+          ...updatedOrder
+        };
       });
-    });
+
+      if (updatedOrder.refundStatus === 'Refunded' || updatedOrder.refundStatus === 'Processed' || updatedOrder.refundUtr) {
+        setShowRefundCard(true);
+      }
+    };
+
+    const handleRefundCompleted = (data) => {
+      console.log('🎉 [OrderTracker Socket] Refund completed event received with UTR:', data);
+      new Audio('https://assets.mixkit.co/active_storage/sfx/2019/2019-preview.mp3').play().catch(() => {});
+      setOrder(prev => ({
+        ...prev,
+        ...(data.order || {}),
+        refundStatus: 'Refunded',
+        refundUtr: data.utr || data.refund?.utr || prev?.refundUtr || '',
+        status: 'Cancelled'
+      }));
+      setShowRefundCard(true);
+    };
+
+    socket.on('order_status_update', handleOrderUpdate);
+    socket.on('refund_completed', handleRefundCompleted);
+    socket.on('refund_settled', handleRefundCompleted);
 
     return () => socket.close();
   }, [id]);
+
+  // Ensure socket joins all room variants when order details are retrieved
+  useEffect(() => {
+    if (!order) return;
+    const socket = io((import.meta.env.VITE_API_URL || 'http://localhost:5000') + '');
+    if (order._id) socket.emit('join_order_room', order._id.toString());
+    if (order.id && order.id !== order._id) socket.emit('join_order_room', order.id.toString());
+    if (order.orderNumber) socket.emit('join_order_room', order.orderNumber.toString());
+    return () => socket.close();
+  }, [order?.id, order?._id, order?.orderNumber]);
 
   // Robust Wakeup Mechanism: Refetch data when returning from inactivity/sleep
   useEffect(() => {
@@ -524,10 +569,10 @@ const OrderTracker = () => {
            statusSteps[currentStepIndex >= 0 ? currentStepIndex : 0].desc}
         </p>
 
-        {order.status === 'Pending' && order.acceptDeadline && (
+        {order.status === 'Pending' && (
           <div style={{ marginBottom: '3rem' }}>
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>Auto-cancels if not accepted soon</p>
-            <CountdownTimer deadline={order.acceptDeadline} />
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.5rem', fontWeight: '600' }}>Auto-cancels if not accepted soon</p>
+            <CountdownTimer deadline={order.acceptDeadline || (order.createdAt ? new Date(new Date(order.createdAt).getTime() + (order.isPreOrder ? 15 : 5) * 60 * 1000).toISOString() : null)} />
           </div>
         )}
 

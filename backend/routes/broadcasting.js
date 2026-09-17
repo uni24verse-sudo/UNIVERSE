@@ -340,6 +340,42 @@ router.get('/journeys', async (req, res) => {
     const journeys = await prisma.journey.findMany({
       orderBy: { updatedAt: 'desc' }
     });
+
+    // Auto-sanitize existing lifecycle flows to ensure 30m delay and clean thank you message
+    for (const j of journeys) {
+      const nodes = parseNodes(j.nodes);
+      let changed = false;
+
+      nodes.forEach(n => {
+        if (n.id === 'node_delay_feedback' || (n.type === 'delay' && n.label?.toLowerCase().includes('meal'))) {
+          if (!n.config || n.config.delayMinutes !== 30) {
+            n.config = { ...n.config, delayDays: 0, delayHours: 0, delayMinutes: 30 };
+            changed = true;
+          }
+        }
+        if (n.id === 'node_msg_feedback' || (n.type === 'action' && (n.label?.toLowerCase().includes('feedback') || n.label?.toLowerCase().includes('thank')))) {
+          if (n.config?.customBody?.includes('How was your experience today?') || n.config?.btn1Text) {
+            n.label = '5. WhatsApp Thank You Message';
+            n.config = {
+              ...n.config,
+              customBody: 'Thank you for ordering with UniVerse! ❤️\n\nWe hope you enjoyed your meal from {{storeName}}.\nSee you again soon! 🌟\n\n_UniVerse • Smart Campus Dining_',
+              btn1Text: '',
+              btn2Text: ''
+            };
+            changed = true;
+          }
+        }
+      });
+
+      if (changed) {
+        await prisma.journey.update({
+          where: { id: j.id },
+          data: { nodes }
+        }).catch(() => {});
+        j.nodes = nodes;
+      }
+    }
+
     res.json(journeys.map(j => ({ ...j, _id: j.id, nodes: parseNodes(j.nodes) })));
   } catch (err) {
     res.status(500).json({ message: err.message });

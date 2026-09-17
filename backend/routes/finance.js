@@ -28,7 +28,7 @@ router.get('/my-settlements/:storeId', async (req, res) => {
         
         const now = new Date();
         const trialEnd = store.trialEndDate ? new Date(store.trialEndDate) : null;
-        const isTrialActive = store.isTrialStarted && trialEnd && now < trialEnd;
+        const isTrialActive = false; // Trial concept removed — always standard commission
 
         // Calculate available balance (sum of all pending settlements)
         const pendingSettlements = settlements.filter(s => s.status === 'pending');
@@ -46,7 +46,7 @@ router.get('/my-settlements/:storeId', async (req, res) => {
         const liveUnsettledRevenue = unsettledOrders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
         
         // Apply 5% fee assumption for live display (2% gateway + 3% platform), or 2% in trial
-        const liveFeeRate = isTrialActive ? 0.02 : 0.05;
+        const liveFeeRate = 0.05; // Standard 5% deduction (3% platform + 2% gateway)
         const liveUnsettledNet = liveUnsettledRevenue * (1 - liveFeeRate);
 
         // Find Next Settlement (oldest pending)
@@ -69,7 +69,7 @@ router.get('/my-settlements/:storeId', async (req, res) => {
             previousSettlement,
             isTrialActive,
             storeSettings: {
-                commissionRate: isTrialActive ? 2 : 5
+                commissionRate: 5
             }
         });
 

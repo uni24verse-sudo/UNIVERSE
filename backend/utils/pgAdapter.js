@@ -28,13 +28,25 @@ function normalizeAdmin(admin) {
 
 function normalizeOrder(order) {
   if (!order) return null;
+
+  // Calculate dynamic acceptance deadline for Pending orders
+  let acceptDeadline = order.acceptDeadline || null;
+  if (!acceptDeadline && order.status === 'Pending' && order.createdAt) {
+    const isRestaurantDining = (order.store?.storeType === 'Restaurant' || order.storeType === 'Restaurant') && order.orderType === 'Dine In';
+    if (!isRestaurantDining) {
+      const deadlineMinutes = order.isPreOrder ? 15 : 5;
+      acceptDeadline = new Date(new Date(order.createdAt).getTime() + deadlineMinutes * 60 * 1000).toISOString();
+    }
+  }
+
   return {
     ...order,
     _id: order.id,
     store: order.store ? normalizeStore(order.store) : order.storeId,
     storeId: order.storeId,
     items: Array.isArray(order.items) ? order.items : [],
-    cancelledBy: order.cancelledBy || {}
+    cancelledBy: order.cancelledBy || {},
+    acceptDeadline
   };
 }
 

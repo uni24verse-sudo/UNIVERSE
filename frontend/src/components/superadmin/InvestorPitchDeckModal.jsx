@@ -181,7 +181,7 @@ const InvestorPitchDeckModal = ({ isOpen, onClose, analyticsData }) => {
                   <span style={{ fontWeight: '900', fontSize: '1.2rem', color: '#ffffff' }}>3.0%</span>
                 </div>
                 <p style={{ margin: '0.5rem 0 0 0', color: '#94a3b8', fontSize: '0.9rem' }}>
-                  Charged on every successfully fulfilled order after the 30-day merchant trial expires. Directly withheld prior to weekly vendor disbursement.
+                  Charged on every successfully fulfilled order. Directly withheld prior to daily vendor disbursement.
                 </p>
               </div>
 
