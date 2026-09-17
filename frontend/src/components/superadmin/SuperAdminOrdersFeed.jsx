@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import axios from 'axios';
 import { 
   Search, 
@@ -9,13 +9,16 @@ import {
   ChevronRight, 
   ChevronsLeft, 
   ChevronsRight, 
+  ChevronDown,
   Copy, 
   Check, 
   ExternalLink, 
   Eye, 
   X, 
   Calendar, 
+  CalendarDays,
   Store, 
+  MapPin,
   CreditCard, 
   Clock, 
   Phone, 
@@ -24,8 +27,181 @@ import {
   ShoppingBag,
   TrendingUp,
   SlidersHorizontal,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Loader2,
+  CheckCheck
 } from 'lucide-react';
+
+// Premium Custom Dropdown Component (Replaces Ugly Native Browser Selects)
+const PremiumDropdown = ({ 
+  icon: Icon, 
+  label, 
+  value, 
+  options, 
+  onChange, 
+  minWidth = '210px', 
+  badge = null,
+  searchable = false
+}) => {
+  const [open, setOpen] = useState(false);
+  const [filterText, setFilterText] = useState('');
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const selectedOption = options.find(o => String(o.value) === String(value));
+  const displayLabel = selectedOption ? selectedOption.label : label;
+
+  const filteredOptions = searchable && filterText.trim()
+    ? options.filter(o => o.label.toLowerCase().includes(filterText.toLowerCase()))
+    : options;
+
+  return (
+    <div ref={dropdownRef} style={{ position: 'relative', minWidth, flex: '1 1 210px' }}>
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        style={{
+          width: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '0.65rem',
+          padding: '0.7rem 1rem',
+          borderRadius: '14px',
+          border: open ? '1.5px solid var(--primary, #ef4123)' : '1px solid var(--surface-border, #e2e8f0)',
+          background: '#ffffff',
+          color: 'var(--text-primary, #0f172a)',
+          fontWeight: '700',
+          fontSize: '0.85rem',
+          cursor: 'pointer',
+          boxShadow: open ? '0 0 0 3px rgba(239, 65, 35, 0.12)' : '0 2px 6px rgba(0,0,0,0.02)',
+          transition: 'all 0.15s ease'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', overflow: 'hidden' }}>
+          {Icon && <Icon size={16} color="var(--primary, #ef4123)" style={{ flexShrink: 0 }} />}
+          <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {displayLabel}
+          </span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexShrink: 0 }}>
+          {badge !== null && badge !== undefined && (
+            <span style={{ fontSize: '0.7rem', padding: '0.1rem 0.45rem', borderRadius: '100px', background: '#f1f5f9', color: '#64748b', fontWeight: '800' }}>
+              {badge}
+            </span>
+          )}
+          <ChevronDown 
+            size={15} 
+            color="#64748b" 
+            style={{ 
+              transform: open ? 'rotate(180deg)' : 'none', 
+              transition: 'transform 0.2s ease' 
+            }} 
+          />
+        </div>
+      </button>
+
+      {open && (
+        <div style={{
+          position: 'absolute',
+          top: 'calc(100% + 6px)',
+          left: 0,
+          right: 0,
+          zIndex: 100,
+          background: '#ffffff',
+          borderRadius: '16px',
+          border: '1px solid #e2e8f0',
+          boxShadow: '0 12px 36px -4px rgba(15, 23, 42, 0.15), 0 4px 12px rgba(0, 0, 0, 0.05)',
+          overflow: 'hidden'
+        }}>
+          {searchable && (
+            <div style={{ padding: '0.6rem', borderBottom: '1px solid #f1f5f9' }}>
+              <input 
+                type="text"
+                placeholder="Search..."
+                value={filterText}
+                onChange={(e) => setFilterText(e.target.value)}
+                autoFocus
+                style={{
+                  width: '100%',
+                  padding: '0.45rem 0.75rem',
+                  borderRadius: '8px',
+                  border: '1px solid #e2e8f0',
+                  fontSize: '0.8rem',
+                  fontWeight: '600',
+                  outline: 'none'
+                }}
+              />
+            </div>
+          )}
+          <div style={{ maxHeight: '250px', overflowY: 'auto', padding: '0.4rem' }}>
+            {filteredOptions.length === 0 ? (
+              <div style={{ padding: '0.75rem', textAlign: 'center', fontSize: '0.8rem', color: '#94a3b8' }}>
+                No options found
+              </div>
+            ) : (
+              filteredOptions.map(opt => {
+                const isSelected = String(opt.value) === String(value);
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => {
+                      onChange(opt.value);
+                      setOpen(false);
+                      setFilterText('');
+                    }}
+                    style={{
+                      width: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '0.6rem 0.85rem',
+                      borderRadius: '10px',
+                      border: 'none',
+                      background: isSelected ? 'rgba(239, 65, 35, 0.08)' : 'transparent',
+                      color: isSelected ? 'var(--primary, #ef4123)' : '#0f172a',
+                      fontWeight: isSelected ? '800' : '600',
+                      fontSize: '0.825rem',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      transition: 'background 0.1s'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isSelected) e.currentTarget.style.background = '#f8fafc';
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isSelected) e.currentTarget.style.background = 'transparent';
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', overflow: 'hidden' }}>
+                      {opt.dotColor && (
+                        <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: opt.dotColor, flexShrink: 0 }} />
+                      )}
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {opt.label}
+                      </span>
+                    </div>
+                    {isSelected && <Check size={14} color="var(--primary, #ef4123)" />}
+                  </button>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 const SuperAdminOrdersFeed = ({ token, socket, stores = [], locations = [] }) => {
   // Filter States
@@ -35,8 +211,13 @@ const SuperAdminOrdersFeed = ({ token, socket, stores = [], locations = [] }) =>
   const [selectedStoreId, setSelectedStoreId] = useState('All');
   const [selectedMarket, setSelectedMarket] = useState('All');
   const [paymentStatus, setPaymentStatus] = useState('All');
-  const [dateFilter, setDateFilter] = useState('all'); // 'all', 'today', 'yesterday', '7days', '30days'
+  const [dateFilter, setDateFilter] = useState('all'); // 'all', 'today', 'yesterday', '7days', '30days', 'this_month', 'custom'
   
+  // Custom Date Range State
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [showCustomDateBar, setShowCustomDateBar] = useState(false);
+
   // Pagination States
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(15);
@@ -48,13 +229,32 @@ const SuperAdminOrdersFeed = ({ token, socket, stores = [], locations = [] }) =>
   const [counts, setCounts] = useState({ all: 0, pending: 0, confirmed: 0, completed: 0, cancelled: 0 });
   const [metrics, setMetrics] = useState({ totalRevenue: 0, aov: 0, completedOrders: 0 });
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
   const [copiedId, setCopiedId] = useState(null);
+
+  // Internal store fallback cache to prevent "(0)" stalls
+  const [internalStores, setInternalStores] = useState(stores);
 
   // Detail Modal State
   const [selectedOrder, setSelectedOrder] = useState(null);
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
   const authConfig = useMemo(() => ({ headers: { Authorization: `Bearer ${token}` } }), [token]);
+
+  // Ensure stores are populated even if parent prop is delayed
+  useEffect(() => {
+    if (stores && stores.length > 0) {
+      setInternalStores(stores);
+    } else {
+      axios.get(`${API_URL}/api/super-admin/stores`, authConfig)
+        .then(res => {
+          if (Array.isArray(res.data) && res.data.length > 0) {
+            setInternalStores(res.data);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [stores, authConfig]);
 
   // Debounce search input
   useEffect(() => {
@@ -74,19 +274,26 @@ const SuperAdminOrdersFeed = ({ token, socket, stores = [], locations = [] }) =>
   const fetchOrders = async () => {
     try {
       setLoading(true);
+      const params = {
+        paginated: 'true',
+        page,
+        limit,
+        search: debouncedSearch,
+        status,
+        storeId: selectedStoreId,
+        market: selectedMarket,
+        paymentStatus,
+        dateFilter
+      };
+
+      if (dateFilter === 'custom') {
+        if (startDate) params.startDate = startDate;
+        if (endDate) params.endDate = endDate;
+      }
+
       const res = await axios.get(`${API_URL}/api/super-admin/orders`, {
         ...authConfig,
-        params: {
-          paginated: 'true',
-          page,
-          limit,
-          search: debouncedSearch,
-          status,
-          storeId: selectedStoreId,
-          market: selectedMarket,
-          paymentStatus,
-          dateFilter
-        }
+        params
       });
 
       if (res.data && res.data.orders) {
@@ -109,7 +316,7 @@ const SuperAdminOrdersFeed = ({ token, socket, stores = [], locations = [] }) =>
 
   useEffect(() => {
     fetchOrders();
-  }, [page, limit, debouncedSearch, status, selectedStoreId, selectedMarket, paymentStatus, dateFilter]);
+  }, [page, limit, debouncedSearch, status, selectedStoreId, selectedMarket, paymentStatus, dateFilter, startDate, endDate]);
 
   // Socket listener for real-time live order updates
   useEffect(() => {
@@ -137,35 +344,108 @@ const SuperAdminOrdersFeed = ({ token, socket, stores = [], locations = [] }) =>
     setSelectedMarket('All');
     setPaymentStatus('All');
     setDateFilter('all');
+    setStartDate('');
+    setEndDate('');
+    setShowCustomDateBar(false);
     setPage(1);
   };
 
-  const hasActiveFilters = search || status !== 'All' || selectedStoreId !== 'All' || selectedMarket !== 'All' || paymentStatus !== 'All' || dateFilter !== 'all';
+  const hasActiveFilters = search || status !== 'All' || selectedStoreId !== 'All' || selectedMarket !== 'All' || paymentStatus !== 'All' || dateFilter !== 'all' || startDate || endDate;
 
-  // Export to CSV
-  const handleExportCSV = () => {
-    if (orders.length === 0) return alert('No orders to export.');
-    const headers = ['Order Number', 'Date', 'Customer Name', 'Phone', 'Store Name', 'Market', 'Total Amount', 'Payment Method', 'Payment Status', 'Order Status'];
-    const rows = orders.map(o => [
-      o.orderNumber || o._id,
-      new Date(o.createdAt).toLocaleString(),
-      `"${o.customerName || 'Anonymous'}"`,
-      o.customerPhone || '',
-      `"${o.store?.name || 'Store'}"`,
-      `"${o.store?.market || ''}"`,
-      o.totalAmount,
-      o.paymentMethod || 'UPI',
-      o.paymentStatus || 'Confirmed',
-      o.status
-    ]);
-    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `UniVerse_Global_Orders_${new Date().toISOString().split('T')[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  // Comprehensive Export to CSV (Downloads ALL records matching current date range & filters)
+  const handleExportCSV = async () => {
+    try {
+      setExporting(true);
+      const params = {
+        exportAll: 'true',
+        search: debouncedSearch,
+        status,
+        storeId: selectedStoreId,
+        market: selectedMarket,
+        paymentStatus,
+        dateFilter
+      };
+
+      if (dateFilter === 'custom') {
+        if (startDate) params.startDate = startDate;
+        if (endDate) params.endDate = endDate;
+      }
+
+      const res = await axios.get(`${API_URL}/api/super-admin/orders`, {
+        ...authConfig,
+        params
+      });
+
+      const exportOrders = res.data?.orders || [];
+      if (exportOrders.length === 0) {
+        alert('No orders found matching the active range and filter criteria.');
+        return;
+      }
+
+      const headers = [
+        'Order ID',
+        'Order Number',
+        'Date',
+        'Time',
+        'Customer Name',
+        'Customer Phone',
+        'Stall / Store',
+        'Market / Hub',
+        'Items Summary',
+        'Total Items Qty',
+        'Gross Amount (INR)',
+        'Payment Method',
+        'Payment Status',
+        'Order Status'
+      ];
+
+      const rows = exportOrders.map(o => {
+        const orderDate = new Date(o.createdAt);
+        const dateStr = orderDate.toLocaleDateString();
+        const timeStr = orderDate.toLocaleTimeString();
+        const itemsSummary = Array.isArray(o.items) 
+          ? o.items.map(i => `${i.quantity || 1}x ${i.product?.name || i.name || 'Item'}`).join('; ')
+          : '1 Item';
+        const totalItems = Array.isArray(o.items)
+          ? o.items.reduce((sum, item) => sum + (item.quantity || 1), 0)
+          : 1;
+
+        return [
+          `"${o.id || o._id}"`,
+          `"${o.orderNumber || ''}"`,
+          `"${dateStr}"`,
+          `"${timeStr}"`,
+          `"${(o.customerName || 'Customer').replace(/"/g, '""')}"`,
+          `"${o.customerPhone || ''}"`,
+          `"${(o.store?.name || 'Store').replace(/"/g, '""')}"`,
+          `"${(o.store?.market || o.market || '').replace(/"/g, '""')}"`,
+          `"${itemsSummary.replace(/"/g, '""')}"`,
+          totalItems,
+          o.totalAmount || 0,
+          `"${o.paymentMethod || 'Online'}"`,
+          `"${o.paymentStatus || 'Confirmed'}"`,
+          `"${o.status}"`
+        ];
+      });
+
+      // UTF-8 BOM for Excel character encoding
+      const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const dateRangeTag = dateFilter === 'custom' && startDate && endDate ? `${startDate}_to_${endDate}` : dateFilter;
+      link.setAttribute('href', url);
+      link.setAttribute('download', `UniVerse_Global_Orders_${dateRangeTag}_${new Date().toISOString().split('T')[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Failed to export orders:', err);
+      alert('Failed to download orders data: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setExporting(false);
+    }
   };
 
   const handleCancelOrder = async (orderId) => {
@@ -178,14 +458,52 @@ const SuperAdminOrdersFeed = ({ token, socket, stores = [], locations = [] }) =>
     }
   };
 
-  // Distinct markets from stores
+  // Distinct markets from internal stores & locations
   const distinctMarkets = useMemo(() => {
     const set = new Set();
-    stores.forEach(s => {
+    internalStores.forEach(s => {
       if (s.market) set.add(s.market);
     });
+    if (locations && locations.length > 0) {
+      locations.forEach(l => {
+        if (l.name) set.add(l.name);
+      });
+    }
     return Array.from(set).sort();
-  }, [stores]);
+  }, [internalStores, locations]);
+
+  // Build options for Stalls
+  const storeOptions = useMemo(() => [
+    { value: 'All', label: `All Stalls / Stores (${internalStores.length})` },
+    ...internalStores.map(s => ({
+      value: s._id || s.id,
+      label: `${s.name} (${s.market || 'Campus'})`
+    }))
+  ], [internalStores]);
+
+  // Build options for Markets
+  const marketOptions = useMemo(() => [
+    { value: 'All', label: 'All Markets / Locations' },
+    ...distinctMarkets.map(m => ({ value: m, label: m }))
+  ], [distinctMarkets]);
+
+  // Build options for Payment Status
+  const paymentOptions = [
+    { value: 'All', label: 'All Payment Statuses' },
+    { value: 'Confirmed', label: 'Confirmed / Paid', dotColor: '#10b981' },
+    { value: 'Pending', label: 'Pending Payment', dotColor: '#f59e0b' },
+    { value: 'Failed', label: 'Failed Transactions', dotColor: '#ef4444' }
+  ];
+
+  // Quick preset pills
+  const datePresets = [
+    { id: 'all', label: 'All Time' },
+    { id: 'today', label: 'Today' },
+    { id: 'yesterday', label: 'Yesterday' },
+    { id: '7days', label: '7 Days' },
+    { id: '30days', label: '30 Days' },
+    { id: 'this_month', label: 'This Month' }
+  ];
 
   return (
     <div>
@@ -193,33 +511,43 @@ const SuperAdminOrdersFeed = ({ token, socket, stores = [], locations = [] }) =>
       <div style={{ marginBottom: '2rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.5rem' }}>
           <div>
-            <h1 style={{ fontSize: '2rem', fontWeight: '900', margin: '0 0 0.25rem 0', letterSpacing: '-0.02em' }}>
+            <h1 style={{ fontSize: '2rem', fontWeight: '900', margin: '0 0 0.25rem 0', letterSpacing: '-0.02em', color: '#0f172a' }}>
               Global Orders Control Feed
             </h1>
             <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
-              Real-time platform ledger with live telemetry, multi-dimensional filtering, and drill-down inspection.
+              Real-time platform ledger with live telemetry, custom date ranges, and full ledger export.
             </p>
           </div>
 
-          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
             <button
               onClick={handleExportCSV}
+              disabled={exporting}
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: '0.5rem',
-                padding: '0.65rem 1.25rem',
-                borderRadius: '12px',
-                border: '1px solid var(--surface-border)',
-                background: '#ffffff',
-                color: 'var(--text-primary)',
-                fontWeight: '700',
+                padding: '0.7rem 1.4rem',
+                borderRadius: '14px',
+                border: '1.5px solid rgba(16, 185, 129, 0.4)',
+                background: 'linear-gradient(135deg, #ffffff 0%, rgba(16, 185, 129, 0.05) 100%)',
+                color: '#059669',
+                fontWeight: '800',
                 fontSize: '0.85rem',
-                cursor: 'pointer',
-                boxShadow: '0 2px 6px rgba(0,0,0,0.04)'
+                cursor: exporting ? 'not-allowed' : 'pointer',
+                boxShadow: '0 2px 8px rgba(16, 185, 129, 0.08)',
+                transition: 'all 0.15s ease'
               }}
             >
-              <FileSpreadsheet size={16} color="#10b981" /> Export CSV
+              {exporting ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" /> Exporting All...
+                </>
+              ) : (
+                <>
+                  <FileSpreadsheet size={16} color="#10b981" /> Download All ({totalOrders.toLocaleString()})
+                </>
+              )}
             </button>
             <button
               onClick={fetchOrders}
@@ -227,15 +555,15 @@ const SuperAdminOrdersFeed = ({ token, socket, stores = [], locations = [] }) =>
                 display: 'flex',
                 alignItems: 'center',
                 gap: '0.5rem',
-                padding: '0.65rem 1.25rem',
-                borderRadius: '12px',
+                padding: '0.7rem 1.25rem',
+                borderRadius: '14px',
                 border: 'none',
-                background: 'var(--primary)',
+                background: 'var(--primary, #ef4123)',
                 color: '#ffffff',
-                fontWeight: '700',
+                fontWeight: '800',
                 fontSize: '0.85rem',
                 cursor: 'pointer',
-                boxShadow: '0 4px 12px rgba(239, 65, 35, 0.25)'
+                boxShadow: '0 4px 14px rgba(239, 65, 35, 0.25)'
               }}
             >
               <RotateCcw size={16} /> Refresh Feed
@@ -246,27 +574,31 @@ const SuperAdminOrdersFeed = ({ token, socket, stores = [], locations = [] }) =>
         {/* Financial Metrics Cards */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
           <div style={{ background: '#ffffff', padding: '1.25rem', borderRadius: '18px', border: '1px solid var(--surface-border)', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
-            <span style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Filtered Transactions</span>
-            <div style={{ fontSize: '1.65rem', fontWeight: '900', color: 'var(--text-primary)', marginTop: '0.25rem' }}>{totalOrders.toLocaleString()}</div>
-            <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Matching current query</span>
+            <span style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Filtered Transactions</span>
+            <div style={{ fontSize: '1.75rem', fontWeight: '900', color: 'var(--text-primary)', marginTop: '0.25rem' }}>{totalOrders.toLocaleString()}</div>
+            <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '600' }}>
+              {dateFilter === 'custom' && startDate && endDate ? `${startDate} to ${endDate}` : 'Matching active range'}
+            </span>
           </div>
 
           <div style={{ background: '#ffffff', padding: '1.25rem', borderRadius: '18px', border: '1px solid var(--surface-border)', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
-            <span style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Gross Volume</span>
-            <div style={{ fontSize: '1.65rem', fontWeight: '900', color: '#10b981', marginTop: '0.25rem' }}>₹{metrics.totalRevenue.toLocaleString()}</div>
-            <span style={{ fontSize: '0.75rem', color: '#10b981', fontWeight: '600' }}>{metrics.completedOrders} Completed Orders</span>
+            <span style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Gross Volume</span>
+            <div style={{ fontSize: '1.75rem', fontWeight: '900', color: '#10b981', marginTop: '0.25rem' }}>₹{metrics.totalRevenue.toLocaleString()}</div>
+            <span style={{ fontSize: '0.75rem', color: '#059669', fontWeight: '700' }}>{metrics.completedOrders} Completed Orders</span>
           </div>
 
           <div style={{ background: '#ffffff', padding: '1.25rem', borderRadius: '18px', border: '1px solid var(--surface-border)', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
-            <span style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Average Order Value</span>
-            <div style={{ fontSize: '1.65rem', fontWeight: '900', color: '#6366f1', marginTop: '0.25rem' }}>₹{metrics.aov}</div>
-            <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Per completed basket</span>
+            <span style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Average Order Value</span>
+            <div style={{ fontSize: '1.75rem', fontWeight: '900', color: '#6366f1', marginTop: '0.25rem' }}>₹{metrics.aov}</div>
+            <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '600' }}>Per completed order</span>
           </div>
 
           <div style={{ background: '#ffffff', padding: '1.25rem', borderRadius: '18px', border: '1px solid var(--surface-border)', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
-            <span style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Order Pagination</span>
-            <div style={{ fontSize: '1.65rem', fontWeight: '900', color: '#f59e0b', marginTop: '0.25rem' }}>Page {page} <span style={{ fontSize: '1rem', fontWeight: '600', color: 'var(--text-secondary)' }}>/ {totalPages}</span></div>
-            <span style={{ fontSize: '0.75rem', color: '#64748b' }}>{limit} orders per view</span>
+            <span style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Pagination View</span>
+            <div style={{ fontSize: '1.75rem', fontWeight: '900', color: '#f59e0b', marginTop: '0.25rem' }}>
+              Page {page} <span style={{ fontSize: '1rem', fontWeight: '600', color: 'var(--text-secondary)' }}>/ {totalPages}</span>
+            </div>
+            <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '600' }}>{limit} orders per view</span>
           </div>
         </div>
       </div>
@@ -274,16 +606,16 @@ const SuperAdminOrdersFeed = ({ token, socket, stores = [], locations = [] }) =>
       {/* FILTER CONTROL BAR */}
       <div style={{ 
         background: '#ffffff', 
-        borderRadius: '20px', 
+        borderRadius: '24px', 
         border: '1px solid var(--surface-border)', 
         padding: '1.5rem', 
         marginBottom: '1.5rem',
-        boxShadow: '0 4px 14px rgba(0,0,0,0.03)'
+        boxShadow: '0 4px 20px rgba(0,0,0,0.03)'
       }}>
-        {/* Row 1: Search & Date Pills */}
+        {/* Row 1: Search Input & Date Preset Pills */}
         <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center', marginBottom: '1.25rem' }}>
           {/* Search Input */}
-          <div style={{ flex: 1, minWidth: '280px', position: 'relative' }}>
+          <div style={{ flex: '1 1 300px', minWidth: '260px', position: 'relative' }}>
             <Search size={18} color="var(--text-secondary)" style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)' }} />
             <input 
               type="text"
@@ -293,13 +625,14 @@ const SuperAdminOrdersFeed = ({ token, socket, stores = [], locations = [] }) =>
               style={{
                 width: '100%',
                 padding: '0.75rem 2.5rem 0.75rem 2.75rem',
-                borderRadius: '12px',
+                borderRadius: '14px',
                 border: '1px solid var(--surface-border)',
-                background: 'var(--background)',
+                background: '#f8fafc',
                 fontSize: '0.9rem',
                 color: 'var(--text-primary)',
                 fontWeight: '600',
-                outline: 'none'
+                outline: 'none',
+                transition: 'all 0.15s ease'
               }}
             />
             {search && (
@@ -312,131 +645,243 @@ const SuperAdminOrdersFeed = ({ token, socket, stores = [], locations = [] }) =>
             )}
           </div>
 
-          {/* Date Range Selector Pills */}
-          <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
-            {[
-              { id: 'all', label: 'All Time' },
-              { id: 'today', label: 'Today' },
-              { id: 'yesterday', label: 'Yesterday' },
-              { id: '7days', label: '7 Days' },
-              { id: '30days', label: '30 Days' }
-            ].map(d => (
-              <button
-                key={d.id}
-                onClick={() => handleFilterChange(setDateFilter)(d.id)}
-                style={{
-                  padding: '0.5rem 0.9rem',
-                  borderRadius: '100px',
-                  border: dateFilter === d.id ? '1px solid var(--primary)' : '1px solid var(--surface-border)',
-                  background: dateFilter === d.id ? 'rgba(239, 65, 35, 0.1)' : 'transparent',
-                  color: dateFilter === d.id ? 'var(--primary)' : 'var(--text-secondary)',
-                  fontSize: '0.8rem',
-                  fontWeight: '700',
-                  cursor: 'pointer',
-                  transition: 'all 0.15s'
-                }}
-              >
-                {d.label}
-              </button>
-            ))}
+          {/* Date Presets Segmented Pills */}
+          <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', alignItems: 'center' }}>
+            {datePresets.map(d => {
+              const isActive = dateFilter === d.id;
+              return (
+                <button
+                  key={d.id}
+                  type="button"
+                  onClick={() => {
+                    handleFilterChange(setDateFilter)(d.id);
+                    setShowCustomDateBar(false);
+                  }}
+                  style={{
+                    padding: '0.5rem 0.9rem',
+                    borderRadius: '100px',
+                    border: isActive ? '1px solid var(--primary, #ef4123)' : '1px solid var(--surface-border)',
+                    background: isActive ? '#0f172a' : '#ffffff',
+                    color: isActive ? '#ffffff' : 'var(--text-secondary)',
+                    fontSize: '0.8rem',
+                    fontWeight: '800',
+                    cursor: 'pointer',
+                    boxShadow: isActive ? '0 2px 8px rgba(15,23,42,0.15)' : 'none',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  {d.label}
+                </button>
+              );
+            })}
+
+            {/* Custom Range Toggle Button */}
+            <button
+              type="button"
+              onClick={() => {
+                setShowCustomDateBar(!showCustomDateBar);
+                if (dateFilter !== 'custom') {
+                  setDateFilter('custom');
+                }
+              }}
+              style={{
+                padding: '0.5rem 1rem',
+                borderRadius: '100px',
+                border: dateFilter === 'custom' ? '1.5px solid var(--primary, #ef4123)' : '1px solid var(--surface-border)',
+                background: dateFilter === 'custom' ? 'rgba(239, 65, 35, 0.1)' : '#ffffff',
+                color: dateFilter === 'custom' ? 'var(--primary, #ef4123)' : 'var(--text-secondary)',
+                fontSize: '0.8rem',
+                fontWeight: '800',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+                boxShadow: dateFilter === 'custom' ? '0 2px 8px rgba(239, 65, 35, 0.15)' : 'none',
+                transition: 'all 0.15s ease'
+              }}
+            >
+              <CalendarDays size={14} /> Custom Range 📅
+            </button>
           </div>
         </div>
 
-        {/* Row 2: Secondary Dropdowns (Store, Market, Payment) */}
-        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
-          {/* Store Filter */}
-          <div style={{ minWidth: '180px', flex: 1 }}>
-            <select
-              value={selectedStoreId}
-              onChange={(e) => handleFilterChange(setSelectedStoreId)(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '0.65rem 0.85rem',
-                borderRadius: '10px',
-                border: '1px solid var(--surface-border)',
-                background: 'var(--background)',
-                color: 'var(--text-primary)',
-                fontWeight: '600',
-                fontSize: '0.85rem',
-                outline: 'none'
-              }}
-            >
-              <option value="All">All Stalls / Stores ({stores.length})</option>
-              {stores.map(s => (
-                <option key={s._id || s.id} value={s._id || s.id}>
-                  {s.name} ({s.market || 'Campus'})
-                </option>
-              ))}
-            </select>
+        {/* Custom Date Range Picker Bar (Shown when Custom Range is active) */}
+        {(showCustomDateBar || dateFilter === 'custom') && (
+          <div style={{
+            background: 'linear-gradient(135deg, #f8fafc 0%, rgba(239, 65, 35, 0.03) 100%)',
+            border: '1.5px solid rgba(239, 65, 35, 0.25)',
+            borderRadius: '18px',
+            padding: '1rem 1.25rem',
+            marginBottom: '1.25rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '1rem',
+            animation: 'fadeIn 0.2s ease'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--primary, #ef4123)', fontWeight: '800', fontSize: '0.85rem' }}>
+              <Calendar size={18} />
+              <span>Select Exact Date Window:</span>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <label style={{ fontSize: '0.75rem', fontWeight: '800', color: '#64748b', textTransform: 'uppercase' }}>From:</label>
+                <input 
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => {
+                    setStartDate(e.target.value);
+                    setPage(1);
+                  }}
+                  style={{
+                    padding: '0.5rem 0.75rem',
+                    borderRadius: '10px',
+                    border: '1px solid var(--surface-border)',
+                    background: '#ffffff',
+                    fontSize: '0.85rem',
+                    fontWeight: '700',
+                    color: '#0f172a',
+                    outline: 'none',
+                    cursor: 'pointer'
+                  }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <label style={{ fontSize: '0.75rem', fontWeight: '800', color: '#64748b', textTransform: 'uppercase' }}>To:</label>
+                <input 
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => {
+                    setEndDate(e.target.value);
+                    setPage(1);
+                  }}
+                  style={{
+                    padding: '0.5rem 0.75rem',
+                    borderRadius: '10px',
+                    border: '1px solid var(--surface-border)',
+                    background: '#ffffff',
+                    fontSize: '0.85rem',
+                    fontWeight: '700',
+                    color: '#0f172a',
+                    outline: 'none',
+                    cursor: 'pointer'
+                  }}
+                />
+              </div>
+
+              {startDate && endDate && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPage(1);
+                    fetchOrders();
+                  }}
+                  style={{
+                    padding: '0.55rem 1.1rem',
+                    borderRadius: '10px',
+                    border: 'none',
+                    background: 'var(--primary, #ef4123)',
+                    color: '#ffffff',
+                    fontWeight: '800',
+                    fontSize: '0.8rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.35rem',
+                    boxShadow: '0 2px 8px rgba(239, 65, 35, 0.25)'
+                  }}
+                >
+                  <Check size={14} /> Apply Range
+                </button>
+              )}
+
+              {(startDate || endDate) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStartDate('');
+                    setEndDate('');
+                    setDateFilter('all');
+                    setShowCustomDateBar(false);
+                    setPage(1);
+                  }}
+                  style={{
+                    padding: '0.55rem 0.85rem',
+                    borderRadius: '10px',
+                    border: '1px solid var(--surface-border)',
+                    background: '#ffffff',
+                    color: '#64748b',
+                    fontWeight: '700',
+                    fontSize: '0.8rem',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Clear Range
+                </button>
+              )}
+            </div>
           </div>
+        )}
+
+        {/* Row 2: Premium Dropdown Selectors (Stalls, Markets, Payment) */}
+        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
+          {/* Store / Stall Filter */}
+          <PremiumDropdown 
+            icon={Store}
+            label="All Stalls / Stores"
+            value={selectedStoreId}
+            options={storeOptions}
+            onChange={handleFilterChange(setSelectedStoreId)}
+            badge={internalStores.length}
+            searchable={internalStores.length > 5}
+            minWidth="240px"
+          />
 
           {/* Market / Location Filter */}
-          <div style={{ minWidth: '160px', flex: 1 }}>
-            <select
-              value={selectedMarket}
-              onChange={(e) => handleFilterChange(setSelectedMarket)(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '0.65rem 0.85rem',
-                borderRadius: '10px',
-                border: '1px solid var(--surface-border)',
-                background: 'var(--background)',
-                color: 'var(--text-primary)',
-                fontWeight: '600',
-                fontSize: '0.85rem',
-                outline: 'none'
-              }}
-            >
-              <option value="All">All Markets / Locations</option>
-              {distinctMarkets.map(m => (
-                <option key={m} value={m}>{m}</option>
-              ))}
-            </select>
-          </div>
+          <PremiumDropdown 
+            icon={MapPin}
+            label="All Markets / Locations"
+            value={selectedMarket}
+            options={marketOptions}
+            onChange={handleFilterChange(setSelectedMarket)}
+            badge={distinctMarkets.length}
+            searchable={distinctMarkets.length > 5}
+            minWidth="220px"
+          />
 
           {/* Payment Status Filter */}
-          <div style={{ minWidth: '140px' }}>
-            <select
-              value={paymentStatus}
-              onChange={(e) => handleFilterChange(setPaymentStatus)(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '0.65rem 0.85rem',
-                borderRadius: '10px',
-                border: '1px solid var(--surface-border)',
-                background: 'var(--background)',
-                color: 'var(--text-primary)',
-                fontWeight: '600',
-                fontSize: '0.85rem',
-                outline: 'none'
-              }}
-            >
-              <option value="All">All Payment Statuses</option>
-              <option value="Confirmed">Confirmed / Paid</option>
-              <option value="Pending">Pending Payment</option>
-              <option value="Failed">Failed</option>
-            </select>
-          </div>
+          <PremiumDropdown 
+            icon={CreditCard}
+            label="All Payment Statuses"
+            value={paymentStatus}
+            options={paymentOptions}
+            onChange={handleFilterChange(setPaymentStatus)}
+            minWidth="200px"
+          />
 
           {/* Reset Filters Button */}
           {hasActiveFilters && (
             <button
               onClick={resetAllFilters}
               style={{
-                padding: '0.65rem 1rem',
-                borderRadius: '10px',
+                padding: '0.7rem 1.1rem',
+                borderRadius: '14px',
                 border: '1px solid rgba(239, 68, 68, 0.3)',
                 background: 'rgba(239, 68, 68, 0.08)',
                 color: '#ef4444',
-                fontWeight: '700',
-                fontSize: '0.8rem',
+                fontWeight: '800',
+                fontSize: '0.825rem',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '0.4rem'
+                gap: '0.4rem',
+                transition: 'all 0.15s ease'
               }}
             >
-              <X size={14} /> Clear Filters
+              <X size={14} /> Clear All Filters
             </button>
           )}
         </div>
@@ -450,39 +895,42 @@ const SuperAdminOrdersFeed = ({ token, socket, stores = [], locations = [] }) =>
           { id: 'Confirmed', label: 'Confirmed', count: counts.confirmed, color: '#3b82f6' },
           { id: 'Completed', label: 'Completed', count: counts.completed, color: '#10b981' },
           { id: 'Cancelled', label: 'Cancelled', count: counts.cancelled, color: '#ef4444' }
-        ].map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => handleFilterChange(setStatus)(tab.id)}
-            style={{
-              padding: '0.6rem 1.25rem',
-              borderRadius: '100px',
-              border: status === tab.id ? '1px solid var(--primary)' : '1px solid var(--surface-border)',
-              background: status === tab.id ? 'rgba(239, 65, 35, 0.1)' : '#ffffff',
-              color: status === tab.id ? 'var(--primary)' : 'var(--text-secondary)',
-              cursor: 'pointer',
-              fontSize: '0.85rem',
-              fontWeight: '800',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              transition: 'all 0.15s ease',
-              boxShadow: status === tab.id ? '0 2px 8px rgba(239, 65, 35, 0.15)' : 'none'
-            }}
-          >
-            {tab.label}
-            <span style={{
-              background: status === tab.id ? 'var(--primary)' : 'rgba(0,0,0,0.06)',
-              color: status === tab.id ? '#ffffff' : 'var(--text-secondary)',
-              padding: '0.15rem 0.5rem',
-              borderRadius: '100px',
-              fontSize: '0.75rem',
-              fontWeight: '900'
-            }}>
-              {tab.count}
-            </span>
-          </button>
-        ))}
+        ].map(tab => {
+          const isSelected = status === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => handleFilterChange(setStatus)(tab.id)}
+              style={{
+                padding: '0.6rem 1.25rem',
+                borderRadius: '100px',
+                border: isSelected ? '1px solid var(--primary, #ef4123)' : '1px solid var(--surface-border)',
+                background: isSelected ? 'rgba(239, 65, 35, 0.1)' : '#ffffff',
+                color: isSelected ? 'var(--primary, #ef4123)' : 'var(--text-secondary)',
+                cursor: 'pointer',
+                fontSize: '0.85rem',
+                fontWeight: '800',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                transition: 'all 0.15s ease',
+                boxShadow: isSelected ? '0 2px 8px rgba(239, 65, 35, 0.15)' : 'none'
+              }}
+            >
+              {tab.label}
+              <span style={{
+                background: isSelected ? 'var(--primary, #ef4123)' : 'rgba(0,0,0,0.06)',
+                color: isSelected ? '#ffffff' : 'var(--text-secondary)',
+                padding: '0.15rem 0.5rem',
+                borderRadius: '100px',
+                fontSize: '0.75rem',
+                fontWeight: '900'
+              }}>
+                {tab.count}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
       {/* ORDERS TABLE CARD */}
@@ -495,19 +943,32 @@ const SuperAdminOrdersFeed = ({ token, socket, stores = [], locations = [] }) =>
       }}>
         {loading ? (
           <div style={{ padding: '4rem 2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
-            <div className="pulse-container" style={{ margin: '0 auto 1rem auto' }}><div className="pulse-dot"></div></div>
-            <p style={{ fontWeight: '700', fontSize: '0.95rem' }}>Loading transactions from platform ledger...</p>
+            <div style={{ width: '40px', height: '40px', borderRadius: '50%', border: '3px solid #f1f5f9', borderTopColor: 'var(--primary, #ef4123)', animation: 'spin 1s linear infinite', margin: '0 auto 1rem' }} />
+            <p style={{ fontWeight: '700', fontSize: '0.95rem' }}>Loading platform transactions...</p>
           </div>
         ) : orders.length === 0 ? (
           <div style={{ padding: '4rem 2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
             <ShoppingBag size={48} style={{ opacity: 0.2, margin: '0 auto 1rem auto' }} />
-            <h3 style={{ fontSize: '1.2rem', fontWeight: '800', margin: '0 0 0.5rem 0', color: 'var(--text-primary)' }}>No Orders Found</h3>
-            <p style={{ margin: 0, fontSize: '0.85rem' }}>Try relaxing your search terms or clearing your date/status filters.</p>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: '800', margin: '0 0 0.5rem 0', color: 'var(--text-primary)' }}>No Orders Found</h3>
+            <p style={{ margin: 0, fontSize: '0.9rem' }}>
+              {dateFilter === 'custom' && startDate && endDate 
+                ? `No transactions recorded between ${startDate} and ${endDate}.` 
+                : 'Try relaxing your search terms or clearing your date/status filters.'}
+            </p>
             {hasActiveFilters && (
               <button
                 onClick={resetAllFilters}
-                className="btn btn-primary"
-                style={{ marginTop: '1.25rem', padding: '0.5rem 1.5rem', borderRadius: '10px' }}
+                style={{ 
+                  marginTop: '1.25rem', 
+                  padding: '0.6rem 1.5rem', 
+                  borderRadius: '12px',
+                  background: 'var(--primary, #ef4123)',
+                  color: 'white',
+                  border: 'none',
+                  fontWeight: '800',
+                  fontSize: '0.85rem',
+                  cursor: 'pointer'
+                }}
               >
                 Reset All Filters
               </button>

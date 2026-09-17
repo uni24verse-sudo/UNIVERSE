@@ -596,13 +596,21 @@ router.get('/orders', async (req, res) => {
     } else if (dateFilter === '30days') {
       const past30 = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
       where.createdAt = { gte: past30 };
-    } else if (startDate || endDate) {
+    } else if (dateFilter === 'this_month') {
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      where.createdAt = { gte: startOfMonth };
+    } else if (dateFilter === 'custom' || startDate || endDate) {
       where.createdAt = {};
-      if (startDate) where.createdAt.gte = new Date(startDate);
+      if (startDate) {
+        const parts = startDate.split('-').map(Number);
+        const sDate = parts.length === 3 ? new Date(parts[0], parts[1] - 1, parts[2], 0, 0, 0, 0) : new Date(startDate);
+        where.createdAt.gte = sDate;
+      }
       if (endDate) {
-        const end = new Date(endDate);
-        end.setHours(23, 59, 59, 999);
-        where.createdAt.lte = end;
+        const parts = endDate.split('-').map(Number);
+        const eDate = parts.length === 3 ? new Date(parts[0], parts[1] - 1, parts[2], 23, 59, 59, 999) : new Date(endDate);
+        if (parts.length !== 3) eDate.setHours(23, 59, 59, 999);
+        where.createdAt.lte = eDate;
       }
     }
 
@@ -615,6 +623,19 @@ router.get('/orders', async (req, res) => {
         { customerPhone: { contains: query, mode: 'insensitive' } },
         { store: { name: { contains: query, mode: 'insensitive' } } }
       ];
+    }
+
+    // Fast Export All Query for CSV/Excel Downloads matching current filters
+    if (req.query.exportAll === 'true') {
+      const allMatchingOrders = await prisma.order.findMany({
+        where,
+        include: { store: true },
+        orderBy: { createdAt: 'desc' }
+      });
+      return res.json({ 
+        orders: allMatchingOrders.map(normalizeOrder), 
+        total: allMatchingOrders.length 
+      });
     }
 
     // Parse pagination values
