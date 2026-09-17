@@ -17,6 +17,40 @@ const generateOrderNumber = () => Math.floor(1000 + Math.random() * 9000).toStri
 // Generate a cryptographically secure random token (hex string)
 const generateSecureToken = () => crypto.randomBytes(16).toString('hex');
 
+// Helper to parse scheduled pickup time in Indian Standard Time (IST, UTC + 5:30)
+function parseScheduledTimeIST(scheduledTimeStr) {
+  if (!scheduledTimeStr) return null;
+  const trimmed = scheduledTimeStr.trim().toUpperCase();
+  const isPM = trimmed.includes('PM');
+  const isAM = trimmed.includes('AM');
+  const cleanStr = trimmed.replace(/[^\d:]/g, '');
+  const parts = cleanStr.split(':');
+  if (parts.length < 2) return null;
+
+  let hours = parseInt(parts[0], 10);
+  const minutes = parseInt(parts[1], 10);
+  if (isNaN(hours) || isNaN(minutes)) return null;
+
+  if (isPM && hours < 12) hours += 12;
+  if (isAM && hours === 12) hours = 0;
+
+  // Real-world IST time computation (UTC + 5:30)
+  const now = new Date();
+  const utcMs = now.getTime() + (now.getTimezoneOffset() * 60000);
+  const istNow = new Date(utcMs + (5.5 * 3600000));
+
+  const istScheduled = new Date(istNow);
+  istScheduled.setHours(hours, minutes, 0, 0);
+
+  const diffMinutes = (istScheduled.getTime() - istNow.getTime()) / (1000 * 60);
+  return {
+    diffMinutes,
+    hours,
+    minutes,
+    formattedTime: `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`
+  };
+}
+
 // Create a new Order (Public Customer endpoint)
 // NOTE: For Razorpay checkouts, use /api/payments/razorpay/verify
 router.post('/create', async (req, res) => {
@@ -106,12 +140,9 @@ router.put('/:id/status', auth, async (req, res) => {
       'Confirmed': ['Pending'],
       'Cooking': ['Confirmed'],
       'Ready': ['Cooking'],
+      'Completed': ['Ready'],
       'Cancelled': ['Payment Pending', 'Pending'] 
     };
-
-    if (status === 'Completed') {
-      return res.status(400).json({ message: 'Orders can only be completed via secure QR Handover.' });
-    }
 
     if (!validTransitions[status]) {
       return res.status(400).json({ message: 'Invalid or unsupported status transition requested.' });
@@ -139,19 +170,14 @@ router.put('/:id/status', auth, async (req, res) => {
       });
     }
 
-    // PRE-ORDER STRICT TIME LOCK
+    // PRE-ORDER STRICT TIME LOCK (Evaluated in Indian Standard Time, UTC + 5:30)
     if (existingOrder.isPreOrder && existingOrder.scheduledTime) {
       if (status === 'Cooking' || status === 'Ready') {
-        const [hours, minutes] = existingOrder.scheduledTime.split(':').map(Number);
-        const now = new Date();
-        const scheduledDate = new Date();
-        scheduledDate.setHours(hours, minutes, 0, 0);
-
-        const diffMs = scheduledDate.getTime() - now.getTime();
-        const diffMins = diffMs / (1000 * 60);
-
-        if (diffMins > 20) {
-          return res.status(403).json({ message: `Too early to prepare! Please wait until there is less than 20 minutes left. (Current: ${Math.round(diffMins)} mins left)` });
+        const parsed = parseScheduledTimeIST(existingOrder.scheduledTime);
+        if (parsed && parsed.diffMinutes > 20) {
+          return res.status(403).json({ 
+            message: `Too early to prepare! Please wait until there is less than 20 minutes left before ${existingOrder.scheduledTime}. (Current: ${Math.round(parsed.diffMinutes)} mins left)` 
+          });
         }
       }
     }
@@ -183,6 +209,7 @@ router.put('/:id/status', auth, async (req, res) => {
       let eventType = 'ORDER_ACCEPTED';
       if (status === 'Cooking') eventType = 'ORDER_COOKING';
       else if (status === 'Ready') eventType = 'ORDER_READY';
+      else if (status === 'Completed') eventType = 'ORDER_COMPLETED';
 
       auditService.logEvent({
         orderId: updatedOrder.id,
@@ -195,7 +222,8 @@ router.put('/:id/status', auth, async (req, res) => {
         newStatus: status,
         metadata: {
           storeName: updatedOrder.store?.name || 'Kitchen Counter',
-          prepTime: status === 'Ready' ? new Date() : null
+          prepTime: status === 'Ready' ? new Date() : null,
+          handoverMethod: status === 'Completed' ? 'DIRECT_STATUS_UPDATE' : null
         }
       }).catch(err => console.error('[AuditService] Log event error:', err.message));
     }
@@ -233,6 +261,11 @@ router.put('/:id/status', auth, async (req, res) => {
           .catch(e => console.error('[JourneyEngine] Order Ready resume error:', e.message));
         journeyEngineService.triggerEvent('Order Ready', orderPayload)
           .catch(e => console.error('[JourneyEngine] Order Ready trigger error:', e.message));
+      } else if (status === 'Completed') {
+        journeyEngineService.resumeOrderJourney(updatedOrder.id, 'Order Completed', orderPayload)
+          .catch(e => console.error('[JourneyEngine] Order Completed resume error:', e.message));
+        journeyEngineService.triggerEvent('Order Completed', orderPayload)
+          .catch(e => console.error('[JourneyEngine] Order Completed trigger error:', e.message));
       } else if (status === 'Cancelled') {
         journeyEngineService.resumeOrderJourney(updatedOrder.id, 'Order Rejected', orderPayload)
           .catch(e => console.error('[JourneyEngine] Order Rejected resume error:', e.message));
@@ -391,6 +424,160 @@ router.put('/verify-handover', auth, async (req, res) => {
 
     res.json({ success: true, message: 'Handover verified and order completed', order: updatedOrder });
   } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// Helper for completing orders directly (used by direct handover & complete-all-ready)
+async function completeSingleOrder(existingOrder, admin, io, handoverMethod = 'DIRECT_BUTTON') {
+  const updated = await prisma.order.update({
+    where: { id: existingOrder.id },
+    data: { status: 'Completed' },
+    include: { store: true }
+  });
+
+  const updatedOrder = normalizeOrder(updated);
+
+  if (io) {
+    io.to(updatedOrder.id).emit('order_status_update', updatedOrder);
+    if (updatedOrder.storeId) {
+      io.to(updatedOrder.storeId).emit('order_status_update', updatedOrder);
+    }
+    io.to('superadmin_room').emit('superadmin:order_update', updatedOrder);
+  }
+
+  auditService.logEvent({
+    orderId: updatedOrder.id,
+    orderNumber: updatedOrder.orderNumber,
+    userId: updatedOrder.userId,
+    actorType: 'VENDOR_STAFF',
+    actorId: admin?.name || 'VENDOR_STAFF',
+    eventType: 'ORDER_COMPLETED',
+    oldStatus: 'Ready',
+    newStatus: 'Completed',
+    metadata: {
+      storeName: updatedOrder.store?.name || 'Kitchen Counter',
+      handoverTime: new Date(),
+      handoverMethod
+    }
+  }).catch(err => console.error('[AuditService] Direct Handover log error:', err.message));
+
+  if (updatedOrder.customerPhone) {
+    const orderPayload = {
+      userId: updatedOrder.userId || updatedOrder.customerPhone,
+      name: updatedOrder.customerName || 'Student',
+      phone: updatedOrder.customerPhone,
+      metadata: {
+        orderId: updatedOrder.orderNumber || updatedOrder.id,
+        orderNumber: updatedOrder.orderNumber || '',
+        storeName: updatedOrder.store?.name || 'Campus Food Court',
+        amount: updatedOrder.totalAmount
+      }
+    };
+
+    journeyEngineService.resumeOrderJourney(updatedOrder.id, 'Order Completed', orderPayload)
+      .catch(e => console.error('[JourneyEngine] Direct Handover resume error:', e.message));
+    journeyEngineService.triggerEvent('Order Completed', orderPayload)
+      .catch(e => console.error('[JourneyEngine] Direct Handover trigger error:', e.message));
+  }
+
+  return updatedOrder;
+}
+
+// Direct 1-Tap Handover (No QR Scan required, Protected)
+router.put('/:id/handover-direct', auth, async (req, res) => {
+  try {
+    const orderId = req.params.id;
+    const authorizedStoreId = req.admin.storeId || req.admin.id || req.admin._id;
+
+    const existingOrder = await prisma.order.findFirst({
+      where: {
+        OR: [{ id: orderId }, { orderNumber: orderId }]
+      },
+      include: { store: true }
+    });
+
+    if (!existingOrder) return res.status(404).json({ message: 'Order not found' });
+
+    if (req.admin.role !== 'superadmin') {
+      if (existingOrder.storeId !== authorizedStoreId && existingOrder.store?.adminId !== String(authorizedStoreId)) {
+        return res.status(403).json({ message: 'Unauthorized: Order belongs to another store' });
+      }
+    }
+
+    if (existingOrder.status === 'Completed') {
+      return res.status(409).json({ message: 'Order is already marked as Completed.' });
+    }
+
+    if (existingOrder.status !== 'Ready') {
+      return res.status(400).json({ 
+        message: `Only Ready orders can be completed. Current status: ${existingOrder.status}` 
+      });
+    }
+
+    const io = req.app.get('io');
+    const updatedOrder = await completeSingleOrder(existingOrder, req.admin, io, 'DIRECT_BUTTON');
+
+    res.json({
+      success: true,
+      message: `Order #${updatedOrder.orderNumber} successfully handed over & completed.`,
+      order: updatedOrder
+    });
+  } catch (err) {
+    console.error('[HandoverDirect] Error:', err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// Bulk Complete All Ready Orders for Store (Protected)
+router.put('/store/:storeId/complete-all-ready', auth, async (req, res) => {
+  try {
+    const storeId = req.params.storeId;
+    const adminId = req.admin.id || req.admin._id;
+
+    const store = await prisma.store.findUnique({
+      where: { id: storeId }
+    });
+    if (!store) return res.status(404).json({ message: 'Store not found' });
+
+    if (store.adminId !== String(adminId) && req.admin.storeId !== storeId && req.admin.role !== 'superadmin') {
+      return res.status(403).json({ message: 'Unauthorized access to store orders' });
+    }
+
+    // Find all ready orders for this store
+    const readyOrders = await prisma.order.findMany({
+      where: {
+        storeId,
+        status: 'Ready'
+      },
+      include: { store: true }
+    });
+
+    if (readyOrders.length === 0) {
+      return res.json({
+        success: true,
+        message: 'No orders are currently in Ready state.',
+        count: 0,
+        orders: []
+      });
+    }
+
+    const io = req.app.get('io');
+    const completedOrders = [];
+
+    for (const order of readyOrders) {
+      const completed = await completeSingleOrder(order, req.admin, io, 'BULK_COMPLETE_ALL');
+      completedOrders.push(completed);
+    }
+
+    res.json({
+      success: true,
+      message: `Successfully completed all ${completedOrders.length} ready orders!`,
+      count: completedOrders.length,
+      orders: completedOrders
+    });
+  } catch (err) {
+    console.error('[CompleteAllReady] Error:', err);
     res.status(500).json({ message: err.message });
   }
 });

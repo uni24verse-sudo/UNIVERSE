@@ -101,10 +101,11 @@ export default function LiveOrdersScreen({ navigation }) {
   const scrollViewRef = useRef(null);
   const { width: screenWidth } = Dimensions.get('window');
   const [searchQuery, setSearchQuery] = useState('');
-  const [, setTick] = useState(0);
+  const [tick, setTick] = useState(0);
   const [isStoreOpen, setIsStoreOpen] = useState(true);
   
-  const { isAudioEnabled, toggleAudio, queueAnnouncement, cancelAnnouncement } = useAudioAlerts();
+  const { isAudioEnabled, toggleAudio, queueAnnouncement, cancelAnnouncement, queuePreOrderReminder } = useAudioAlerts();
+  const alertedPreOrdersRef = useRef(new Set());
 
   // Role check: employees must not see financial/revenue summaries for privacy
   const isEmployee = user?.role === 'employee';
@@ -127,6 +128,35 @@ export default function LiveOrdersScreen({ navigation }) {
     const interval = setInterval(() => setTick(t => t + 1), 30000);
     return () => clearInterval(interval);
   }, []);
+
+  // 🔔 Kitchen Reminder: Check pre-orders every tick and alert when time <= 20 min!
+  useEffect(() => {
+    orders.forEach(order => {
+      if (order.isPreOrder && order.scheduledTime && (order.status === 'Confirmed' || order.status === 'Pending')) {
+        const parsed = parseScheduledTimeIST(order.scheduledTime);
+        if (parsed && parsed.diffMinutes <= 20 && parsed.diffMinutes >= -30) {
+          const orderId = order._id || order.id;
+          if (!alertedPreOrdersRef.current.has(orderId)) {
+            alertedPreOrdersRef.current.add(orderId);
+
+            // 1. Play chime + Speak TTS alert
+            queuePreOrderReminder(order);
+
+            // 2. Trigger local push notification & vibration
+            Notifications.scheduleNotificationAsync({
+              content: {
+                title: `🔥 Start Cooking Pre-Order #${order.orderNumber || ''}!`,
+                body: `Scheduled for ${order.scheduledTime}. Preparation window is open now.`,
+                sound: true,
+                priority: Notifications.AndroidNotificationPriority.HIGH,
+              },
+              trigger: null,
+            }).catch(e => console.log('[PreOrderNotification] Error:', e));
+          }
+        }
+      }
+    });
+  }, [orders, tick, queuePreOrderReminder]);
 
   // Sync app badge count for active orders
   useEffect(() => {
@@ -232,17 +262,89 @@ export default function LiveOrdersScreen({ navigation }) {
     }
   };
 
-  // Pre-order calculation helper
+  const handleDirectHandover = async (orderId, orderNumber) => {
+    try {
+      // Optimistic Update
+      setOrders((prev) => prev.map((o) => (o._id === orderId ? { ...o, status: 'Completed' } : o)));
+      await apiClient.put(`/orders/${orderId}/handover-direct`);
+    } catch (error) {
+      Alert.alert('Error', error.response?.data?.message || 'Failed to complete handover');
+      fetchOrders();
+    }
+  };
+
+  const handleCompleteAllReady = async () => {
+    const readyCount = orders.filter(o => o.status === 'Ready').length;
+    if (readyCount === 0) return;
+
+    Alert.alert(
+      'Complete All Ready Orders?',
+      `Are you sure you want to mark all ${readyCount} Ready orders as handed over to students?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: `Yes, Complete All (${readyCount})`,
+          style: 'default',
+          onPress: async () => {
+            const storeId = user?.storeId || user?.id;
+            if (!storeId) return;
+
+            try {
+              // Optimistic update
+              setOrders((prev) => prev.map((o) => (o.status === 'Ready' ? { ...o, status: 'Completed' } : o)));
+              const res = await apiClient.put(`/orders/store/${storeId}/complete-all-ready`);
+              Alert.alert('Success', res.data?.message || `Completed ${readyCount} orders!`);
+            } catch (error) {
+              Alert.alert('Error', error.response?.data?.message || 'Failed to bulk complete orders');
+              fetchOrders();
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  // Helper to parse scheduled pickup time in Indian Standard Time (IST, UTC + 5:30)
+  function parseScheduledTimeIST(scheduledTimeStr) {
+    if (!scheduledTimeStr) return null;
+    const trimmed = scheduledTimeStr.trim().toUpperCase();
+    const isPM = trimmed.includes('PM');
+    const isAM = trimmed.includes('AM');
+    const cleanStr = trimmed.replace(/[^\d:]/g, '');
+    const parts = cleanStr.split(':');
+    if (parts.length < 2) return null;
+
+    let hours = parseInt(parts[0], 10);
+    const minutes = parseInt(parts[1], 10);
+    if (isNaN(hours) || isNaN(minutes)) return null;
+
+    if (isPM && hours < 12) hours += 12;
+    if (isAM && hours === 12) hours = 0;
+
+    const now = new Date();
+    const utcMs = now.getTime() + (now.getTimezoneOffset() * 60000);
+    const istNow = new Date(utcMs + (5.5 * 3600000));
+
+    const istScheduled = new Date(istNow);
+    istScheduled.setHours(hours, minutes, 0, 0);
+
+    const diffMinutes = (istScheduled.getTime() - istNow.getTime()) / (1000 * 60);
+    return {
+      diffMinutes: Math.round(diffMinutes),
+      hours,
+      minutes,
+      formattedTime: `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`
+    };
+  }
+
+  // Pre-order calculation helper (Accurate IST & Auto-unlocking)
   const getPreOrderInfo = (order) => {
     if (!order.isPreOrder || !order.scheduledTime) return { isPreOrder: false, locked: false, text: '' };
     
-    const [hours, minutes] = order.scheduledTime.split(':').map(Number);
-    const now = new Date();
-    const scheduledDate = new Date();
-    scheduledDate.setHours(hours, minutes, 0, 0);
+    const parsed = parseScheduledTimeIST(order.scheduledTime);
+    if (!parsed) return { isPreOrder: false, locked: false, text: '' };
 
-    const diffMs = scheduledDate.getTime() - now.getTime();
-    const diffMins = Math.floor(diffMs / (1000 * 60));
+    const diffMins = parsed.diffMinutes;
 
     if (diffMins > 20) {
       return { 
@@ -424,15 +526,28 @@ export default function LiveOrdersScreen({ navigation }) {
 
     if (order.status === 'Ready') {
       return (
-        <TouchableOpacity 
-          onPress={() => navigation.navigate('Scanner')}
-          activeOpacity={0.8}
-        >
-          <LinearGradient colors={['#10B981', '#047857']} style={styles.gradientBtn}>
-            <Ionicons name="qr-code-outline" size={18} color="white" style={{ marginRight: 6 }} />
-            <Text style={styles.btnText}>Scan QR Handover</Text>
-          </LinearGradient>
-        </TouchableOpacity>
+        <View style={styles.actionRow}>
+          <TouchableOpacity 
+            style={{ flex: 1.3 }} 
+            onPress={() => handleDirectHandover(order._id, order.orderNumber)}
+            activeOpacity={0.8}
+          >
+            <LinearGradient colors={['#10B981', '#059669']} style={styles.gradientBtn}>
+              <Ionicons name="flash" size={17} color="white" style={{ marginRight: 6 }} />
+              <Text style={styles.btnText}>Complete Handover</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={{ flex: 0.8 }} 
+            onPress={() => navigation.navigate('Scanner')}
+            activeOpacity={0.8}
+          >
+            <View style={[styles.gradientBtn, { backgroundColor: '#EDE9FE', borderWidth: 1, borderColor: '#DDD6FE' }]}>
+              <Ionicons name="qr-code-outline" size={17} color="#7C3AED" style={{ marginRight: 4 }} />
+              <Text style={[styles.btnText, { color: '#7C3AED' }]}>Scan QR</Text>
+            </View>
+          </TouchableOpacity>
+        </View>
       );
     }
 
@@ -737,6 +852,45 @@ export default function LiveOrdersScreen({ navigation }) {
               renderItem={renderItem}
               contentContainerStyle={styles.list}
               refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => fetchOrders(true)} colors={['#3B82F6']} />}
+              ListHeaderComponent={
+                readyOrders.length > 0 ? (
+                  <TouchableOpacity
+                    onPress={handleCompleteAllReady}
+                    activeOpacity={0.85}
+                    style={{ marginBottom: 14 }}
+                  >
+                    <LinearGradient
+                      colors={['#10B981', '#059669']}
+                      style={{
+                        paddingVertical: 12,
+                        paddingHorizontal: 16,
+                        borderRadius: 14,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        shadowColor: '#10B981',
+                        shadowOffset: { width: 0, height: 4 },
+                        shadowOpacity: 0.25,
+                        shadowRadius: 8,
+                        elevation: 4
+                      }}
+                    >
+                      <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                        <Ionicons name="flash" size={20} color="#FFFFFF" style={{ marginRight: 10 }} />
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ color: '#FFFFFF', fontWeight: '900', fontSize: 14 }}>
+                            Complete All Ready Orders ({readyOrders.length})
+                          </Text>
+                          <Text style={{ color: '#D1FAE5', fontSize: 11, fontWeight: '600', marginTop: 1 }}>
+                            Rush-hour or closing clear (no QR scan needed)
+                          </Text>
+                        </View>
+                      </View>
+                      <Ionicons name="chevron-forward" size={18} color="#FFFFFF" />
+                    </LinearGradient>
+                  </TouchableOpacity>
+                ) : null
+              }
               ListEmptyComponent={
                 <View style={styles.emptyContainer}>
                   <Text style={styles.emptyTitle}>No Ready Orders</Text>

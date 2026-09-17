@@ -207,7 +207,7 @@ const VendorPromotionManager = ({ store }) => {
 
         <div style={{ background: 'var(--surface-bg, rgba(255,255,255,0.05))', padding: '1.25rem 1.75rem', borderRadius: '18px', border: '1px solid var(--surface-border)', textAlign: 'right' }}>
           <span style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Fixed Monthly Rate</span>
-          <div style={{ fontSize: '1.85rem', fontWeight: '900', color: 'var(--primary)' }}>₹1,000 <span style={{ fontSize: '0.9rem', fontWeight: '600', color: 'var(--text-secondary)' }}>/ 30 Days</span></div>
+          <div style={{ fontSize: '1.85rem', fontWeight: '900', color: 'var(--primary)' }}>₹799 <span style={{ fontSize: '0.9rem', fontWeight: '600', color: 'var(--text-secondary)' }}>/ 30 Days</span></div>
           <span style={{ fontSize: '0.75rem', color: '#10b981', fontWeight: '700' }}>Active Slots: {activeCount} / 2 Allowed</span>
         </div>
       </div>
@@ -508,7 +508,7 @@ const VendorPromotionManager = ({ store }) => {
                 gap: '0.5rem'
               }}
             >
-              {submitting ? 'Booking Slot...' : activeCount >= 2 ? 'Max 2 Slots Booked' : 'Pay ₹1,000 & Submit Promotion'}
+              {submitting ? 'Booking Slot...' : activeCount >= 2 ? 'Max 2 Slots Booked' : 'Pay ₹799 & Submit Promotion'}
             </button>
           </form>
         </div>
@@ -591,7 +591,7 @@ const VendorPromotionManager = ({ store }) => {
                             {promo.title || promo.rawText || `${store.name} Hero Promotion`}
                           </h4>
                         </div>
-                        <span style={{ fontWeight: '800', color: 'var(--primary)', fontSize: '0.9rem' }}>₹1,000 Paid</span>
+                        <span style={{ fontWeight: '800', color: 'var(--primary)', fontSize: '0.9rem' }}>₹{promo.amountPaid || 799} Paid</span>
                       </div>
 
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>

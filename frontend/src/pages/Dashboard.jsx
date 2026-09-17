@@ -40,7 +40,8 @@ import {
   ChevronDown,
   Users,
   Sparkles,
-  Smartphone
+  Smartphone,
+  Zap
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
@@ -156,8 +157,9 @@ const Dashboard = () => {
   });
   const [customEndDate, setCustomEndDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [activeTab, setActiveTab] = useState('orders'); // 'orders', 'finance', 'kds'
-  const [currentTime, setCurrentTime] = useState(new Date());
   const [showReleaseModal, setShowReleaseModal] = useState(false);
+  const [completingOrderId, setCompletingOrderId] = useState(null);
+  const [bulkCompleting, setBulkCompleting] = useState(false);
 
   useEffect(() => {
     const vendorId = vendor?.id || vendor?._id;
@@ -460,6 +462,56 @@ const Dashboard = () => {
     }
   };
 
+  const handleDirectHandover = async (orderId) => {
+    try {
+      setCompletingOrderId(orderId);
+      const res = await axios.put(
+        `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/orders/${orderId}/handover-direct`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (res.data?.success && res.data?.order) {
+        setOrders(prev => prev.map(o => (o._id === orderId || o.id === orderId) ? res.data.order : o));
+        new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3').play().catch(() => {});
+      }
+    } catch (err) {
+      console.error('Direct Handover Error:', err);
+      alert(err.response?.data?.message || 'Failed to complete handover');
+    } finally {
+      setCompletingOrderId(null);
+    }
+  };
+
+  const handleCompleteAllReady = async () => {
+    const readyOrdersCount = orders.filter(o => o.status === 'Ready').length;
+    if (readyOrdersCount === 0) return;
+
+    const confirmed = window.confirm(`Complete all ${readyOrdersCount} Ready orders? This marks them as handed over to students.`);
+    if (!confirmed) return;
+
+    const targetStoreId = store?._id || store?.id;
+    if (!targetStoreId) return;
+
+    try {
+      setBulkCompleting(true);
+      const res = await axios.put(
+        `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/orders/store/${targetStoreId}/complete-all-ready`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (res.data?.success && Array.isArray(res.data?.orders)) {
+        const completedMap = new Map(res.data.orders.map(o => [o.id || o._id, o]));
+        setOrders(prev => prev.map(o => completedMap.get(o._id) || completedMap.get(o.id) || o));
+        new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3').play().catch(() => {});
+      }
+    } catch (err) {
+      console.error('Bulk Complete Error:', err);
+      alert(err.response?.data?.message || 'Failed to bulk complete orders');
+    } finally {
+      setBulkCompleting(false);
+    }
+  };
+
   const handleLogout = () => {
     logout();
     navigate('/vendor/login');
@@ -629,6 +681,38 @@ const Dashboard = () => {
   const chartData = getChartData();
 
   // --- KDS UTILS ---
+  function parseScheduledTimeIST(scheduledTimeStr) {
+    if (!scheduledTimeStr) return null;
+    const trimmed = scheduledTimeStr.trim().toUpperCase();
+    const isPM = trimmed.includes('PM');
+    const isAM = trimmed.includes('AM');
+    const cleanStr = trimmed.replace(/[^\d:]/g, '');
+    const parts = cleanStr.split(':');
+    if (parts.length < 2) return null;
+
+    let hours = parseInt(parts[0], 10);
+    const minutes = parseInt(parts[1], 10);
+    if (isNaN(hours) || isNaN(minutes)) return null;
+
+    if (isPM && hours < 12) hours += 12;
+    if (isAM && hours === 12) hours = 0;
+
+    const now = new Date();
+    const utcMs = now.getTime() + (now.getTimezoneOffset() * 60000);
+    const istNow = new Date(utcMs + (5.5 * 3600000));
+
+    const istScheduled = new Date(istNow);
+    istScheduled.setHours(hours, minutes, 0, 0);
+
+    const diffMinutes = (istScheduled.getTime() - istNow.getTime()) / (1000 * 60);
+    return {
+      diffMinutes: Math.round(diffMinutes),
+      hours,
+      minutes,
+      formattedTime: `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`
+    };
+  }
+
   const getKdsTimerStyle = (order) => {
     if (order.status === 'Ready') return { bg: '#3b82f615', text: '#3b82f6', border: '#3b82f6', label: 'WAITING PICKUP' };
     
@@ -636,11 +720,8 @@ const Dashboard = () => {
     let diffMinutes = 0;
     
     if (order.isPreOrder && order.scheduledTime) {
-      const [hours, minutes] = order.scheduledTime.split(':').map(Number);
-      const scheduledDate = new Date();
-      scheduledDate.setHours(hours, minutes, 0, 0);
-      
-      diffMinutes = (scheduledDate - now) / 60000;
+      const parsed = parseScheduledTimeIST(order.scheduledTime);
+      diffMinutes = parsed ? parsed.diffMinutes : 0;
       
       if (diffMinutes < 0) return { bg: '#ef444415', text: '#ef4444', border: '#ef4444', label: 'OVERDUE' };
       if (diffMinutes <= 15) return { bg: '#f59e0b15', text: '#f59e0b', border: '#f59e0b', label: `${Math.floor(diffMinutes)}m LEFT` };
@@ -1244,6 +1325,52 @@ const Dashboard = () => {
                   ))}
                 </div>
 
+                {/* Bulk Complete All Ready Banner */}
+                {orders.filter(o => o.status === 'Ready').length > 0 && ['Active', 'Ready', 'All'].includes(orderFilter) && (
+                  <div style={{
+                    background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(5, 150, 105, 0.08) 100%)',
+                    border: '1.5px solid rgba(16, 185, 129, 0.3)',
+                    borderRadius: '16px',
+                    padding: '0.9rem 1.25rem',
+                    marginBottom: '1rem',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    flexWrap: 'wrap',
+                    gap: '0.75rem'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                      <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#10b981', boxShadow: '0 0 10px #10b981' }} />
+                      <span style={{ fontSize: '0.875rem', fontWeight: '800', color: '#065f46' }}>
+                        <strong>{orders.filter(o => o.status === 'Ready').length}</strong> Ready for Pickup
+                      </span>
+                      <span style={{ fontSize: '0.75rem', color: '#047857', opacity: 0.8 }}>
+                        (Fast rush-hour or closing clear without scanning)
+                      </span>
+                    </div>
+                    <button
+                      onClick={handleCompleteAllReady}
+                      disabled={bulkCompleting}
+                      style={{
+                        background: 'linear-gradient(135deg, #10b981, #059669)',
+                        border: 'none',
+                        color: 'white',
+                        padding: '0.55rem 1.1rem',
+                        borderRadius: '10px',
+                        fontSize: '0.8rem',
+                        fontWeight: '900',
+                        cursor: bulkCompleting ? 'wait' : 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.4rem',
+                        boxShadow: '0 2px 8px rgba(16, 185, 129, 0.3)'
+                      }}
+                    >
+                      <Zap size={14} /> {bulkCompleting ? 'Completing...' : `Complete All Ready (${orders.filter(o => o.status === 'Ready').length})`}
+                    </button>
+                  </div>
+                )}
+
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxHeight: isMobile ? 'none' : '65vh', overflowY: isMobile ? 'visible' : 'auto', paddingRight: '0.5rem' }}>
                   {filteredOrders.length === 0 ? (
                     <div style={{ textAlign: 'center', padding: '3rem 0' }}>
@@ -1439,8 +1566,49 @@ const Dashboard = () => {
                                 </button>
                               )}
                               {order.status === 'Ready' && (
-                                <div style={{ flex: 1, textAlign: 'center', padding: '0.75rem', borderRadius: '12px', background: 'rgba(139, 92, 246, 0.1)', color: '#8b5cf6', fontSize: '0.875rem', fontWeight: '800', border: '1px dashed #8b5cf6' }}>
-                                  Waiting for QR Scan
+                                <div style={{ display: 'flex', gap: '0.6rem', flex: 1, flexWrap: 'wrap' }}>
+                                  <button
+                                    onClick={() => handleDirectHandover(order._id || order.id)}
+                                    disabled={completingOrderId === (order._id || order.id)}
+                                    style={{
+                                      flex: 1.2,
+                                      padding: '0.75rem 1rem',
+                                      borderRadius: '12px',
+                                      border: 'none',
+                                      background: 'linear-gradient(135deg, #10b981, #059669)',
+                                      color: 'white',
+                                      fontSize: '0.85rem',
+                                      fontWeight: '900',
+                                      cursor: completingOrderId === (order._id || order.id) ? 'wait' : 'pointer',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      gap: '0.4rem',
+                                      boxShadow: '0 2px 8px rgba(16, 185, 129, 0.25)'
+                                    }}
+                                  >
+                                    <Zap size={15} /> {completingOrderId === (order._id || order.id) ? 'Completing...' : 'Complete Handover'}
+                                  </button>
+                                  <button
+                                    onClick={() => setShowScanner(true)}
+                                    style={{
+                                      flex: 0.8,
+                                      padding: '0.75rem 0.85rem',
+                                      borderRadius: '12px',
+                                      border: '1px solid rgba(139, 92, 246, 0.4)',
+                                      background: 'rgba(139, 92, 246, 0.08)',
+                                      color: '#7c3aed',
+                                      fontSize: '0.85rem',
+                                      fontWeight: '800',
+                                      cursor: 'pointer',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      gap: '0.35rem'
+                                    }}
+                                  >
+                                    <QrCode size={15} /> Scan QR
+                                  </button>
                                 </div>
                               )}
                              {order.status === 'Pending' && (

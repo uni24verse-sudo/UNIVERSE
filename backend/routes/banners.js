@@ -46,7 +46,7 @@ async function ensureTableExists() {
         "targetUrl" TEXT DEFAULT '',
         "title" TEXT DEFAULT '',
         "tag" TEXT DEFAULT 'Featured Stall',
-        "amountPaid" NUMERIC DEFAULT 1000,
+        "amountPaid" NUMERIC DEFAULT 799,
         "paymentStatus" TEXT DEFAULT 'PAID',
         "status" TEXT DEFAULT 'pending_design',
         "removalReason" TEXT DEFAULT '',
@@ -131,7 +131,7 @@ router.post('/upload-asset', auth, upload.single('file'), async (req, res) => {
   }
 });
 
-// 3. Vendor Endpoint: Book a Hero Banner Slot (₹1,000 / month)
+// 3. Vendor Endpoint: Book a Hero Banner Slot (₹799 / month)
 router.post('/book-slot', auth, async (req, res) => {
   try {
     await ensureTableExists();
@@ -197,7 +197,7 @@ router.post('/book-slot', auth, async (req, res) => {
         "termsAccepted", "termsText", "targetUrl", "createdAt", "updatedAt"
       ) VALUES (
         $1, $2, $3, $4, $5, $6,
-        $7, $8, $9, 1000, 'PAID', 'pending_design',
+        $7, $8, $9, 799, 'PAID', 'pending_design',
         true, $10, $11, NOW(), NOW()
       )
     `, bannerId, slotIndex, locationHub, locationId || '', stallId, storeName,
