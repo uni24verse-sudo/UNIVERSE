@@ -3,10 +3,8 @@ const prisma = require('../config/prisma');
 
 module.exports = async function (req, res, next) {
   const authHeader = req.header('Authorization');
-  if (!authHeader) return res.status(401).json({ message: 'Access Denied. No token provided.' });
-
-  const token = authHeader.replace('Bearer ', '').trim();
-  if (!token) return res.status(401).json({ message: 'Access Denied. Token missing.' });
+  let token = authHeader ? authHeader.replace('Bearer ', '').trim() : (req.query?.token || req.query?.auth || '');
+  if (!token) return res.status(401).json({ message: 'Access Denied. No token provided.' });
 
   let verified;
   try {

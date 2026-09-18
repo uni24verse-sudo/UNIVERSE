@@ -8,6 +8,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import VendorFinance from '../components/VendorFinance';
 import EmployeeManagement from '../components/EmployeeManagement';
+import VendorPromotionManager from '../components/VendorPromotionManager';
 import { 
   LayoutDashboard, 
   Store, 
@@ -37,15 +38,21 @@ import {
   Search,
   Check,
   ChevronDown,
-  Users
+  Users,
+  Sparkles,
+  Smartphone,
+  Zap
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
 const CountdownTimer = ({ deadline, onAccept }) => {
-  const [timeLeft, setTimeLeft] = useState(0);
+  const [timeLeft, setTimeLeft] = useState(() => {
+    return deadline ? Math.max(0, new Date(deadline).getTime() - Date.now()) : 0;
+  });
 
   useEffect(() => {
     if (!deadline) return;
+    setTimeLeft(Math.max(0, new Date(deadline).getTime() - Date.now()));
     const interval = setInterval(() => {
       const remaining = Math.max(0, new Date(deadline).getTime() - Date.now());
       setTimeLeft(remaining);
@@ -150,8 +157,9 @@ const Dashboard = () => {
   });
   const [customEndDate, setCustomEndDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [activeTab, setActiveTab] = useState('orders'); // 'orders', 'finance', 'kds'
-  const [currentTime, setCurrentTime] = useState(new Date());
   const [showReleaseModal, setShowReleaseModal] = useState(false);
+  const [completingOrderId, setCompletingOrderId] = useState(null);
+  const [bulkCompleting, setBulkCompleting] = useState(false);
 
   useEffect(() => {
     const vendorId = vendor?.id || vendor?._id;
@@ -454,6 +462,56 @@ const Dashboard = () => {
     }
   };
 
+  const handleDirectHandover = async (orderId) => {
+    try {
+      setCompletingOrderId(orderId);
+      const res = await axios.put(
+        `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/orders/${orderId}/handover-direct`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (res.data?.success && res.data?.order) {
+        setOrders(prev => prev.map(o => (o._id === orderId || o.id === orderId) ? res.data.order : o));
+        new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3').play().catch(() => {});
+      }
+    } catch (err) {
+      console.error('Direct Handover Error:', err);
+      alert(err.response?.data?.message || 'Failed to complete handover');
+    } finally {
+      setCompletingOrderId(null);
+    }
+  };
+
+  const handleCompleteAllReady = async () => {
+    const readyOrdersCount = orders.filter(o => o.status === 'Ready').length;
+    if (readyOrdersCount === 0) return;
+
+    const confirmed = window.confirm(`Complete all ${readyOrdersCount} Ready orders? This marks them as handed over to students.`);
+    if (!confirmed) return;
+
+    const targetStoreId = store?._id || store?.id;
+    if (!targetStoreId) return;
+
+    try {
+      setBulkCompleting(true);
+      const res = await axios.put(
+        `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/orders/store/${targetStoreId}/complete-all-ready`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (res.data?.success && Array.isArray(res.data?.orders)) {
+        const completedMap = new Map(res.data.orders.map(o => [o.id || o._id, o]));
+        setOrders(prev => prev.map(o => completedMap.get(o._id) || completedMap.get(o.id) || o));
+        new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3').play().catch(() => {});
+      }
+    } catch (err) {
+      console.error('Bulk Complete Error:', err);
+      alert(err.response?.data?.message || 'Failed to bulk complete orders');
+    } finally {
+      setBulkCompleting(false);
+    }
+  };
+
   const handleLogout = () => {
     logout();
     navigate('/vendor/login');
@@ -490,6 +548,9 @@ const Dashboard = () => {
   );
 
   const commissionRate = store?.commissionRate || 5;
+  const platformRate = 0.03;
+  const gatewayRate = 0.02;
+  const penaltyRate = 0.04;
 
   const now = new Date();
   const startOfWeek = new Date(now);
@@ -510,30 +571,9 @@ const Dashboard = () => {
     const gross = completed.reduce((acc, curr) => acc + curr.totalAmount, 0);
     const cancelledVolume = cancelled.reduce((acc, curr) => acc + curr.totalAmount, 0);
 
-    const trialEnd = store?.trialEndDate ? new Date(store.trialEndDate) : null;
-    const gatewayRate = 0.02;
-    const penaltyRate = 0.04;
-    const platformRate = 0.03;
-
-    // Split revenue into trial (0% platform) and post-trial (3% platform)
-    let trialRevenue = 0;
-    let postTrialRevenue = 0;
-
-    if (store?.isTrialStarted && trialEnd) {
-      completed.forEach(order => {
-        if (new Date(order.createdAt) <= trialEnd) {
-          trialRevenue += order.totalAmount;
-        } else {
-          postTrialRevenue += order.totalAmount;
-        }
-      });
-    } else {
-      // If trial never started, everything is post-trial
-      postTrialRevenue = gross;
-    }
-
+    // Standard rates — 3% UniVerse platform commission + 2% payment gateway
     const gatewayFee = gross * gatewayRate;
-    const platformCommission = postTrialRevenue * platformRate;
+    const platformCommission = gross * platformRate;
     const cancellationPenalty = cancelledVolume * penaltyRate;
 
     const deductions = gatewayFee + platformCommission + cancellationPenalty;
@@ -641,6 +681,38 @@ const Dashboard = () => {
   const chartData = getChartData();
 
   // --- KDS UTILS ---
+  function parseScheduledTimeIST(scheduledTimeStr) {
+    if (!scheduledTimeStr) return null;
+    const trimmed = scheduledTimeStr.trim().toUpperCase();
+    const isPM = trimmed.includes('PM');
+    const isAM = trimmed.includes('AM');
+    const cleanStr = trimmed.replace(/[^\d:]/g, '');
+    const parts = cleanStr.split(':');
+    if (parts.length < 2) return null;
+
+    let hours = parseInt(parts[0], 10);
+    const minutes = parseInt(parts[1], 10);
+    if (isNaN(hours) || isNaN(minutes)) return null;
+
+    if (isPM && hours < 12) hours += 12;
+    if (isAM && hours === 12) hours = 0;
+
+    const now = new Date();
+    const utcMs = now.getTime() + (now.getTimezoneOffset() * 60000);
+    const istNow = new Date(utcMs + (5.5 * 3600000));
+
+    const istScheduled = new Date(istNow);
+    istScheduled.setHours(hours, minutes, 0, 0);
+
+    const diffMinutes = (istScheduled.getTime() - istNow.getTime()) / (1000 * 60);
+    return {
+      diffMinutes: Math.round(diffMinutes),
+      hours,
+      minutes,
+      formattedTime: `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`
+    };
+  }
+
   const getKdsTimerStyle = (order) => {
     if (order.status === 'Ready') return { bg: '#3b82f615', text: '#3b82f6', border: '#3b82f6', label: 'WAITING PICKUP' };
     
@@ -648,11 +720,8 @@ const Dashboard = () => {
     let diffMinutes = 0;
     
     if (order.isPreOrder && order.scheduledTime) {
-      const [hours, minutes] = order.scheduledTime.split(':').map(Number);
-      const scheduledDate = new Date();
-      scheduledDate.setHours(hours, minutes, 0, 0);
-      
-      diffMinutes = (scheduledDate - now) / 60000;
+      const parsed = parseScheduledTimeIST(order.scheduledTime);
+      diffMinutes = parsed ? parsed.diffMinutes : 0;
       
       if (diffMinutes < 0) return { bg: '#ef444415', text: '#ef4444', border: '#ef4444', label: 'OVERDUE' };
       if (diffMinutes <= 15) return { bg: '#f59e0b15', text: '#f59e0b', border: '#f59e0b', label: `${Math.floor(diffMinutes)}m LEFT` };
@@ -795,6 +864,19 @@ const Dashboard = () => {
             <button onClick={() => { setActiveTab('employees'); if (isMobile) setShowSidebar(false); }} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem', borderRadius: '14px', background: activeTab === 'employees' ? 'rgba(139, 92, 246, 0.1)' : 'transparent', color: activeTab === 'employees' ? '#8b5cf6' : 'var(--text-secondary)', fontWeight: activeTab === 'employees' ? '700' : '500', border: 'none', cursor: 'pointer', transition: 'var(--transition)' }}>
               <Users size={20} /> Employees
             </button>
+            <button onClick={() => { setActiveTab('promotions'); if (isMobile) setShowSidebar(false); }} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem', borderRadius: '14px', background: activeTab === 'promotions' ? 'rgba(239, 65, 35, 0.1)' : 'transparent', color: activeTab === 'promotions' ? 'var(--primary)' : 'var(--text-secondary)', fontWeight: activeTab === 'promotions' ? '700' : '500', border: 'none', cursor: 'pointer', transition: 'var(--transition)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                <Sparkles size={20} /> Promote Stall
+              </div>
+              <NewFeatureBadge />
+            </button>
+
+            <Link to="/vendor-app-download" onClick={() => isMobile && setShowSidebar(false)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem', borderRadius: '14px', background: 'rgba(59, 130, 246, 0.08)', color: '#2563eb', fontWeight: '700', textDecoration: 'none', transition: 'var(--transition)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                <Smartphone size={20} /> UNIVERSE App (APK)
+              </div>
+              <span style={{ fontSize: '0.65rem', background: '#2563eb', color: 'white', padding: '2px 8px', borderRadius: '6px', fontWeight: '800' }}>APP</span>
+            </Link>
             <Link to="/vendor/store/manage" onClick={() => isMobile && setShowSidebar(false)} style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem', borderRadius: '14px', color: 'var(--text-secondary)', fontWeight: '500', textDecoration: 'none', transition: 'var(--transition)' }}>
               <QrCode size={20} /> Store & Menu
             </Link>
@@ -1032,6 +1114,8 @@ const Dashboard = () => {
           <VendorFinance storeId={store?._id} />
         ) : activeTab === 'employees' ? (
           <EmployeeManagement storeId={store?._id} />
+        ) : activeTab === 'promotions' ? (
+          <VendorPromotionManager store={store} />
         ) : activeTab === 'kds' ? (
           <div style={{ padding: isMobile ? '0' : '1rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
@@ -1115,17 +1199,12 @@ const Dashboard = () => {
 
                       <div style={{ padding: '1rem', background: 'var(--surface)', borderTop: '1px solid var(--surface-border)', display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
                         {order.status === 'Pending' && (
-                          <>
-                            {(!order.acceptDeadline) ? (
-                              <button onClick={() => updateOrderStatus(order._id, 'Confirmed')} style={{ flex: 1, padding: '1rem', borderRadius: '12px', background: '#3b82f6', color: 'white', fontWeight: '800', border: 'none', fontSize: '1rem' }}>
-                                Accept Order
-                              </button>
-                            ) : (
-                              <div style={{ display: 'flex', gap: '0.75rem', width: '100%', alignItems: 'center' }}>
-                                <CountdownTimer deadline={order.acceptDeadline} onAccept={() => updateOrderStatus(order._id, 'Confirmed')} />
-                              </div>
-                            )}
-                          </>
+                          <div style={{ display: 'flex', gap: '0.75rem', width: '100%', alignItems: 'center' }}>
+                            <CountdownTimer 
+                              deadline={order.acceptDeadline || (order.createdAt ? new Date(new Date(order.createdAt).getTime() + (order.isPreOrder ? 15 : 5) * 60 * 1000).toISOString() : null)} 
+                              onAccept={() => updateOrderStatus(order._id, 'Confirmed')} 
+                            />
+                          </div>
                         )}
                         {order.status === 'Confirmed' && (
                           <button onClick={() => updateOrderStatus(order._id, 'Ready')} style={{ flex: 1, padding: '1rem', borderRadius: '12px', background: '#10b981', color: 'white', fontWeight: '800', border: 'none', fontSize: '1rem' }}>
@@ -1245,6 +1324,52 @@ const Dashboard = () => {
                     </button>
                   ))}
                 </div>
+
+                {/* Bulk Complete All Ready Banner */}
+                {orders.filter(o => o.status === 'Ready').length > 0 && ['Active', 'Ready', 'All'].includes(orderFilter) && (
+                  <div style={{
+                    background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(5, 150, 105, 0.08) 100%)',
+                    border: '1.5px solid rgba(16, 185, 129, 0.3)',
+                    borderRadius: '16px',
+                    padding: '0.9rem 1.25rem',
+                    marginBottom: '1rem',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    flexWrap: 'wrap',
+                    gap: '0.75rem'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                      <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#10b981', boxShadow: '0 0 10px #10b981' }} />
+                      <span style={{ fontSize: '0.875rem', fontWeight: '800', color: '#065f46' }}>
+                        <strong>{orders.filter(o => o.status === 'Ready').length}</strong> Ready for Pickup
+                      </span>
+                      <span style={{ fontSize: '0.75rem', color: '#047857', opacity: 0.8 }}>
+                        (Fast rush-hour or closing clear without scanning)
+                      </span>
+                    </div>
+                    <button
+                      onClick={handleCompleteAllReady}
+                      disabled={bulkCompleting}
+                      style={{
+                        background: 'linear-gradient(135deg, #10b981, #059669)',
+                        border: 'none',
+                        color: 'white',
+                        padding: '0.55rem 1.1rem',
+                        borderRadius: '10px',
+                        fontSize: '0.8rem',
+                        fontWeight: '900',
+                        cursor: bulkCompleting ? 'wait' : 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.4rem',
+                        boxShadow: '0 2px 8px rgba(16, 185, 129, 0.3)'
+                      }}
+                    >
+                      <Zap size={14} /> {bulkCompleting ? 'Completing...' : `Complete All Ready (${orders.filter(o => o.status === 'Ready').length})`}
+                    </button>
+                  </div>
+                )}
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxHeight: isMobile ? 'none' : '65vh', overflowY: isMobile ? 'visible' : 'auto', paddingRight: '0.5rem' }}>
                   {filteredOrders.length === 0 ? (
@@ -1413,19 +1538,9 @@ const Dashboard = () => {
                         {order.status !== 'Completed' && order.status !== 'Cancelled' && (
                            <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
                              {order.status === 'Pending' && (
-                               <>
-                                 {(!order.acceptDeadline) ? (
-                                   <button 
-                                     onClick={() => updateOrderStatus(order._id, 'Confirmed')} 
-                                     className="btn btn-primary" 
-                                     style={{ flex: 1, padding: '0.75rem', borderRadius: '12px', fontSize: '0.875rem' }}
-                                   >
-                                     Accept Order
-                                   </button>
-                                 ) : (
-                                   <CountdownTimer deadline={order.acceptDeadline} onAccept={() => updateOrderStatus(order._id, 'Confirmed')} />
-                                 )}
-                               </>
+                               <div style={{ display: 'flex', gap: '0.75rem', width: '100%', alignItems: 'center' }}>
+                                 <CountdownTimer deadline={order.acceptDeadline || (order.createdAt ? new Date(new Date(order.createdAt).getTime() + (order.isPreOrder ? 15 : 5) * 60 * 1000).toISOString() : null)} onAccept={() => updateOrderStatus(order._id, 'Confirmed')} />
+                               </div>
                              )}
                              {order.status === 'Confirmed' && (
                                 <div style={{ display: 'flex', gap: '0.5rem', flex: 1 }}>
@@ -1451,8 +1566,49 @@ const Dashboard = () => {
                                 </button>
                               )}
                               {order.status === 'Ready' && (
-                                <div style={{ flex: 1, textAlign: 'center', padding: '0.75rem', borderRadius: '12px', background: 'rgba(139, 92, 246, 0.1)', color: '#8b5cf6', fontSize: '0.875rem', fontWeight: '800', border: '1px dashed #8b5cf6' }}>
-                                  Waiting for QR Scan
+                                <div style={{ display: 'flex', gap: '0.6rem', flex: 1, flexWrap: 'wrap' }}>
+                                  <button
+                                    onClick={() => handleDirectHandover(order._id || order.id)}
+                                    disabled={completingOrderId === (order._id || order.id)}
+                                    style={{
+                                      flex: 1.2,
+                                      padding: '0.75rem 1rem',
+                                      borderRadius: '12px',
+                                      border: 'none',
+                                      background: 'linear-gradient(135deg, #10b981, #059669)',
+                                      color: 'white',
+                                      fontSize: '0.85rem',
+                                      fontWeight: '900',
+                                      cursor: completingOrderId === (order._id || order.id) ? 'wait' : 'pointer',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      gap: '0.4rem',
+                                      boxShadow: '0 2px 8px rgba(16, 185, 129, 0.25)'
+                                    }}
+                                  >
+                                    <Zap size={15} /> {completingOrderId === (order._id || order.id) ? 'Completing...' : 'Complete Handover'}
+                                  </button>
+                                  <button
+                                    onClick={() => setShowScanner(true)}
+                                    style={{
+                                      flex: 0.8,
+                                      padding: '0.75rem 0.85rem',
+                                      borderRadius: '12px',
+                                      border: '1px solid rgba(139, 92, 246, 0.4)',
+                                      background: 'rgba(139, 92, 246, 0.08)',
+                                      color: '#7c3aed',
+                                      fontSize: '0.85rem',
+                                      fontWeight: '800',
+                                      cursor: 'pointer',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      gap: '0.35rem'
+                                    }}
+                                  >
+                                    <QrCode size={15} /> Scan QR
+                                  </button>
                                 </div>
                               )}
                              {order.status === 'Pending' && (
@@ -1602,31 +1758,40 @@ const Dashboard = () => {
                 </div>
               </div>
 
-              {/* Subscription Status Card */}
+              {/* Commission Plan Card */}
               {store && (
                 <div className="glass-card" style={{ 
                   padding: '1.5rem', 
                   borderRadius: '24px', 
-                  border: `1px solid ${store.isTrialStarted ? (store.daysLeftInTrial > 0 ? 'rgba(16, 185, 129, 0.4)' : 'rgba(239, 68, 68, 0.4)') : 'var(--surface-border)'}`,
-                  background: store.isTrialStarted ? (store.daysLeftInTrial > 0 ? 'rgba(16, 185, 129, 0.05)' : 'rgba(239, 68, 68, 0.05)') : 'var(--glass-bg)'
+                  border: '1px solid rgba(99, 102, 241, 0.3)',
+                  background: 'rgba(99, 102, 241, 0.04)'
                 }}>
-                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: '600', marginBottom: '1rem' }}>Subscription Status</p>
-                  {!store.isTrialStarted ? (
-                    <div>
-                      <h3 style={{ fontSize: '1.25rem', margin: 0, color: 'var(--secondary)' }}>Staging Phase</h3>
-                      <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>Waiting for trial activation.</p>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: '600', margin: 0 }}>Commission Plan</p>
+                    <span style={{ 
+                      fontSize: '0.7rem', 
+                      fontWeight: '700', 
+                      padding: '0.2rem 0.5rem', 
+                      borderRadius: '999px', 
+                      background: 'rgba(99, 102, 241, 0.15)', 
+                      color: '#6366f1' 
+                    }}>
+                      STANDARD 5%
+                    </span>
+                  </div>
+                  <h3 style={{ fontSize: '1.5rem', margin: '0 0 0.5rem 0', fontWeight: '800', color: 'var(--text-primary)' }}>
+                    ₹{(totalRevenue * 0.05).toFixed(2)}
+                  </h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span>Platform Fee (3%):</span>
+                      <strong style={{ color: 'var(--text-primary)' }}>₹{(totalRevenue * 0.03).toFixed(2)}</strong>
                     </div>
-                  ) : store.daysLeftInTrial > 0 ? (
-                    <div>
-                      <h3 style={{ fontSize: '1.75rem', margin: 0, color: '#10b981' }}>{store.daysLeftInTrial} Days</h3>
-                      <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>Free Trial in progress (0% fees)</p>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span>Payment Gateway (2%):</span>
+                      <strong style={{ color: 'var(--text-primary)' }}>₹{(totalRevenue * 0.02).toFixed(2)}</strong>
                     </div>
-                  ) : (
-                    <div>
-                      <h3 style={{ fontSize: '1.75rem', margin: 0, color: 'var(--error)' }}>₹{(totalRevenue - totalNet).toFixed(2)}</h3>
-                      <p style={{ fontSize: '0.75rem', opacity: 0.8, marginTop: '0.5rem', fontWeight: '700' }}>{commissionRate}% Platform Fee Applied</p>
-                    </div>
-                  )}
+                  </div>
                 </div>
               )}
 

@@ -481,12 +481,12 @@ const SuperAdminJourneyBuilder = ({ token }) => {
       {
         id: 'node_msg_feedback',
         type: 'action',
-        label: '5. WhatsApp Feedback & Thank You',
+        label: '5. WhatsApp Thank You Message',
         config: {
           channel: 'whatsapp',
-          customBody: 'Thank you for ordering with UNIVERSE! ❤️ We hope you enjoyed your meal from {{storeName}}. How was your experience today?',
-          btn1Text: '⭐ 5 Stars - Loved It!',
-          btn2Text: '💬 Share Feedback'
+          customBody: 'Thank you for ordering with UniVerse! ❤️\n\nWe hope you enjoyed your meal from {{storeName}}.\nSee you again soon! 🌟\n\n_UniVerse • Smart Campus Dining_',
+          btn1Text: '',
+          btn2Text: ''
         },
         position: { x: 3860, y: 60 },
         nextNodeId: null
@@ -1399,14 +1399,20 @@ const SuperAdminJourneyBuilder = ({ token }) => {
                               {node.config?.customBody || tpl?.body || '⚠️ Click Configure to customize WhatsApp message and interactive buttons.'}
                             </div>
 
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px dashed #bbf7d0' }}>
-                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', background: '#ffffff', border: '1px solid #86efac', color: '#16a34a', padding: '2px 7px', borderRadius: '5px', fontSize: '0.7rem', fontWeight: '800' }}>
-                                <Star size={10} fill="#16a34a" /> {node.config?.btn1Text || '⭐ 5 Stars - Loved It!'}
-                              </span>
-                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', background: '#ffffff', border: '1px solid #86efac', color: '#16a34a', padding: '2px 7px', borderRadius: '5px', fontSize: '0.7rem', fontWeight: '800' }}>
-                                <MessageSquare size={10} /> {node.config?.btn2Text || '💬 Feedback'}
-                              </span>
-                            </div>
+                            {(node.config?.btn1Text || node.config?.btn2Text) ? (
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px dashed #bbf7d0' }}>
+                                {node.config?.btn1Text && (
+                                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', background: '#ffffff', border: '1px solid #86efac', color: '#16a34a', padding: '2px 7px', borderRadius: '5px', fontSize: '0.7rem', fontWeight: '800' }}>
+                                    <Star size={10} fill="#16a34a" /> {node.config?.btn1Text}
+                                  </span>
+                                )}
+                                {node.config?.btn2Text && (
+                                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', background: '#ffffff', border: '1px solid #86efac', color: '#16a34a', padding: '2px 7px', borderRadius: '5px', fontSize: '0.7rem', fontWeight: '800' }}>
+                                    <MessageSquare size={10} /> {node.config?.btn2Text}
+                                  </span>
+                                )}
+                              </div>
+                            ) : null}
                           </div>
                         </div>
                       )}

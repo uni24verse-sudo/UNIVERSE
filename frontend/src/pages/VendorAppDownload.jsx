@@ -17,7 +17,7 @@ const VendorAppDownload = () => {
 
       {/* Hero Section */}
       <section className="vd-hero">
-        <div className="vd-badge">Internal Distribution Only</div>
+        <div className="vd-badge">Official Stall Terminal</div>
         <h1 className="vd-title">UNIVERSE<br/>Vendor OS</h1>
         <p className="vd-subtitle">
           The ultimate control center for your stall. Manage live orders, verify handovers with QR scanning, and get loud native push notifications so you never miss an order—even when your phone is locked.
@@ -25,9 +25,9 @@ const VendorAppDownload = () => {
         
         <a href="/universe-vendor.apk" download="universe-vendor.apk" className="vd-download-btn">
           <Download size={24} />
-          Download APK
+          Download UNIVERSE APK
         </a>
-        <span className="vd-btn-sub">Version 1.0.0 • Android 8.0+ • Size: ~45MB</span>
+        <span className="vd-btn-sub">Version 1.0.0 • Android 8.0+ • Size: ~112MB</span>
         <div style={{ marginTop: '1rem', color: '#f59e0b', fontSize: '0.8rem', fontWeight: '600' }}>
           *You may need to allow "Install from Unknown Sources" in your Android settings.
         </div>

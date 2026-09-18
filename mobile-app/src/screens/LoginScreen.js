@@ -37,7 +37,7 @@ export default function LoginScreen() {
       >
         <View style={styles.card}>
           <View style={styles.header}>
-            <Text style={styles.title}>Universe</Text>
+            <Text style={styles.title}>UNIVERSE</Text>
             <View style={styles.badge}>
               <Text style={styles.badgeText}>STAFF</Text>
             </View>

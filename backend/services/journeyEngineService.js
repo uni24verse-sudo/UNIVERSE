@@ -321,19 +321,55 @@ class JourneyEngineService {
           console.log(`[JourneyEngine] Order ${orderIdStr} event "${eventType}" triggered advancement from [${node.label}] to node ${nextNodeId}`);
           const nextNode = nodes.find(n => n.id === nextNodeId);
           if (nextNode) {
+            let scheduledTime = new Date();
+            let nextStatus = 'Pending';
+            const history = Array.isArray(state.history) ? [...state.history] : [];
+
+            if (nextNode.type === 'delay') {
+              const delayDays = nextNode.config?.delayDays || 0;
+              const delayHours = nextNode.config?.delayHours || 0;
+              const delayMinutes = nextNode.config?.delayMinutes !== undefined ? nextNode.config.delayMinutes : 30;
+              const delayMs = (delayDays * 86400 + delayHours * 3600 + delayMinutes * 60) * 1000;
+              
+              scheduledTime = new Date(Date.now() + Math.max(delayMs, 1000));
+              nextStatus = 'Pending';
+              history.push({
+                nodeId: nextNode.id,
+                action: 'delay_scheduled',
+                status: 'Scheduled',
+                renderedBody: `Scheduled wait: ${nextNode.label || 'Timer delay'} (executes at ${scheduledTime.toLocaleTimeString()})`,
+                executedAt: new Date()
+              });
+              console.log(`[JourneyEngine] Delay node scheduled for ${delayMinutes} mins (target: ${scheduledTime.toISOString()}) for order ${orderIdStr}`);
+            } else if (nextNode.type === 'wait_event') {
+              nextStatus = 'Waiting_Event';
+              history.push({
+                nodeId: nextNode.id,
+                action: 'waiting_order_event',
+                status: 'Listening 24/7',
+                renderedBody: `Workflow standing by at [${nextNode.label}]. Awaiting real-time event "${nextNode.config?.eventType || 'Order Event'}".`,
+                executedAt: new Date()
+              });
+            }
+
             const updatedState = await prisma.userJourneyState.update({
               where: { id: state.id },
               data: {
                 currentNodeId: nextNode.id,
-                status: 'Pending',
-                scheduledExecutionTime: new Date(),
-                metadata: updatedMetadata
+                status: nextStatus,
+                scheduledExecutionTime: scheduledTime,
+                metadata: updatedMetadata,
+                history
               },
               include: { journey: true }
             });
             resumedCount++;
-            // Execute immediately without delay
-            await this.executeNode(updatedState);
+
+            // CRITICAL FIX: Only execute immediately if next node is an immediate action, condition, or tag.
+            // NEVER execute immediately if it is a DELAY or a WAIT_EVENT!
+            if (nextNode.type === 'action' || nextNode.type === 'condition' || nextNode.type === 'tag') {
+              await this.executeNode(updatedState);
+            }
           }
         }
       }

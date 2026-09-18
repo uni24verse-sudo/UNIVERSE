@@ -76,10 +76,12 @@ export const useAudioAlerts = () => {
       }
       
       let text;
-      if (preOrderStr) {
-         text = `New pre-order ${preOrderStr}. ${itemCount} items. Order ${orderIdDisplay}.`;
+      if (order._isPreparationReminder) {
+        text = `Attention kitchen! Pre-order #${orderIdDisplay} scheduled for ${order.scheduledTime || ''} is now ready to prepare!`;
+      } else if (preOrderStr) {
+        text = `New pre-order ${preOrderStr}. ${itemCount} items. Order ${orderIdDisplay}.`;
       } else {
-         text = `New ${orderTypeStr} order. ${itemCount} items. Order ${orderIdDisplay}.`;
+        text = `New ${orderTypeStr} order. ${itemCount} items. Order ${orderIdDisplay}.`;
       }
       
       await new Promise(resolve => {
@@ -108,10 +110,17 @@ export const useAudioAlerts = () => {
   const queueAnnouncement = useCallback((order) => {
     if (!isAudioEnabled) return;
     // Avoid duplicates in queue
-    if (!queue.current.find(o => o._id === order._id)) {
+    if (!queue.current.find(o => o._id === order._id && !o._isPreparationReminder)) {
       queue.current.push(order);
       processQueue();
     }
+  }, [isAudioEnabled, processQueue]);
+
+  const queuePreOrderReminder = useCallback((order) => {
+    if (!isAudioEnabled) return;
+    const reminderOrder = { ...order, _isPreparationReminder: true };
+    queue.current.push(reminderOrder);
+    processQueue();
   }, [isAudioEnabled, processQueue]);
 
   const cancelAnnouncement = useCallback((orderId) => {
@@ -128,6 +137,7 @@ export const useAudioAlerts = () => {
     isAudioEnabled, 
     toggleAudio, 
     queueAnnouncement, 
-    cancelAnnouncement 
+    cancelAnnouncement,
+    queuePreOrderReminder
   };
 };

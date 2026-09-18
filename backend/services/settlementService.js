@@ -72,16 +72,10 @@ const generateSettlements = async (date = null, specificStoreId = null) => {
             const dailyRevenue = completedOrders.reduce((sum, order) => sum + (order.totalAmount || 0), 0);
             const dailyCancelledVolume = cancelledOrders.reduce((sum, order) => sum + (order.totalAmount || 0), 0);
 
-            // Calculate fees
-            const gatewayRate = 0.02; // Always 2%
-            
-            // Determine Trial Status
-            const trialEnd = store.trialEndDate ? new Date(store.trialEndDate) : null;
-            const isTrialActive = store.isTrialStarted && trialEnd && startOfYesterday < trialEnd;
-            
-            // Post-trial is 3% Platform Fee + 2% Gateway (Total 5%), Trial is 0% Platform Fee + 2% Gateway
-            const profitRate = isTrialActive ? 0 : 0.03; 
-            const penaltyRate = 0.04; // 4% penalty on cancelled volume
+            // Calculate fees — standard rates, trial concept removed
+            const gatewayRate = 0.02;  // Always 2% PG fee
+            const profitRate = 0.03;   // Always 3% UniVerse platform commission
+            const penaltyRate = 0.04;  // 4% penalty on cancelled volume
 
             const gatewayFee = dailyRevenue * gatewayRate;
             const platformProfit = dailyRevenue * profitRate;
@@ -95,88 +89,29 @@ const generateSettlements = async (date = null, specificStoreId = null) => {
 
             let finalSettlementId;
 
-            if (isTrialActive) {
-                // TRIAL MODE: Accrue to Monthly Settlement
-                let settlement = await prisma.settlement.findFirst({
-                    where: {
-                        storeId: store.id,
-                        settlementType: 'monthly',
-                        month,
-                        year,
-                        status: 'pending'
-                    }
-                });
-
-                if (!settlement) {
-                    // Create new monthly settlement container
-                    const startOfMonth = new Date(year, month - 1, 1);
-                    const endOfMonth = new Date(year, month, 0, 23, 59, 59);
-                    
-                    settlement = await prisma.settlement.create({
-                        data: {
-                            id: crypto.randomUUID(),
-                            storeId: store.id,
-                            settlementType: 'monthly',
-                            month,
-                            year,
-                            periodStart: startOfMonth,
-                            periodEnd: endOfMonth,
-                            totalRevenue: 0,
-                            feesBreakdown: { gatewayFee: 0, platformProfit: 0, cancellationPenalty: 0 },
-                            netPayable: 0,
-                            status: 'pending'
-                        }
-                    });
+            // T+1 Daily Settlement — standard commission, no trial branching
+            const dailySettlement = await prisma.settlement.create({
+                data: {
+                    id: crypto.randomUUID(),
+                    storeId: store.id,
+                    settlementType: 'daily',
+                    month,
+                    year,
+                    periodStart: startOfYesterday,
+                    periodEnd: endOfYesterday,
+                    totalRevenue: Number(dailyRevenue.toFixed(2)),
+                    feesBreakdown: {
+                        gatewayFee: Number(gatewayFee.toFixed(2)),
+                        platformProfit: Number(platformProfit.toFixed(2)),
+                        cancellationPenalty: Number(cancellationPenalty.toFixed(2))
+                    },
+                    netPayable: Number(netPayable.toFixed(2)),
+                    status: 'pending'
                 }
+            });
 
-                // Add daily amounts to the monthly accrual
-                const currentFees = settlement.feesBreakdown && typeof settlement.feesBreakdown === 'object' ? settlement.feesBreakdown : {};
-                const updatedFees = {
-                    gatewayFee: Number(((currentFees.gatewayFee || 0) + gatewayFee).toFixed(2)),
-                    platformProfit: Number(((currentFees.platformProfit || 0) + platformProfit).toFixed(2)),
-                    cancellationPenalty: Number(((currentFees.cancellationPenalty || 0) + cancellationPenalty).toFixed(2))
-                };
-                const updatedRevenue = Number((settlement.totalRevenue + dailyRevenue).toFixed(2));
-                const updatedNet = Number((settlement.netPayable + netPayable).toFixed(2));
-
-                await prisma.settlement.update({
-                    where: { id: settlement.id },
-                    data: {
-                        totalRevenue: updatedRevenue,
-                        feesBreakdown: updatedFees,
-                        netPayable: updatedNet,
-                        status: 'pending'
-                    }
-                });
-
-                finalSettlementId = settlement.id;
-                console.log(`[settlementService] Updated Monthly Accrual for Store ${store.name || store.id}`);
-
-            } else {
-                // POST-TRIAL MODE: Create Next-Day (Daily) Settlement
-                const dailySettlement = await prisma.settlement.create({
-                    data: {
-                        id: crypto.randomUUID(),
-                        storeId: store.id,
-                        settlementType: 'daily',
-                        month,
-                        year,
-                        periodStart: startOfYesterday,
-                        periodEnd: endOfYesterday,
-                        totalRevenue: Number(dailyRevenue.toFixed(2)),
-                        feesBreakdown: {
-                            gatewayFee: Number(gatewayFee.toFixed(2)),
-                            platformProfit: Number(platformProfit.toFixed(2)),
-                            cancellationPenalty: Number(cancellationPenalty.toFixed(2))
-                        },
-                        netPayable: Number(netPayable.toFixed(2)),
-                        status: 'pending'
-                    }
-                });
-
-                finalSettlementId = dailySettlement.id;
-                console.log(`[settlementService] Created Daily Settlement for Store ${store.name || store.id}`);
-            }
+            finalSettlementId = dailySettlement.id;
+            console.log(`[settlementService] Created Daily Settlement for Store ${store.name || store.id}`);
 
             // MARK ORDERS AS SETTLED
             const allOrderIds = [

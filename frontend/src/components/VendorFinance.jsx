@@ -58,7 +58,7 @@ const VendorFinance = ({ storeId }) => {
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '2rem' }}>
                 <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981' }}></div>
-                    Active settlement schedule: <strong style={{ color: 'var(--text-primary)' }}>{isTrialActive ? 'Monthly' : 'Next Day'}</strong>
+                    Active settlement schedule: <strong style={{ color: 'var(--text-primary)' }}>Next Day (T+1)</strong>
                 </span>
             </div>
 

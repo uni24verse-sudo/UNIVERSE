@@ -51,15 +51,8 @@ router.get('/stats', async (req, res) => {
 
     for (const store of stores) {
       const storeOrders = completedOrders.filter(o => o.storeId === store.id);
-      const trialEnd = store.trialEndDate ? new Date(store.trialEndDate) : null;
-      const isTrialOver = store.isTrialStarted && trialEnd && now > trialEnd;
-
-      if (isTrialOver && trialEnd) {
-        // Only apply 3% platform fee to orders completed AFTER the trial ended
-        const postTrialOrders = storeOrders.filter(o => new Date(o.createdAt) > trialEnd);
-        const postTrialRevenue = postTrialOrders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
-        totalProfit += postTrialRevenue * 0.03;
-      }
+      const storeRevenue = storeOrders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+      totalProfit += storeRevenue * 0.03;
 
       // Add cancellation penalties (4% of cancelled volume)
       const cancelledOrders = await prisma.order.findMany({
@@ -136,14 +129,7 @@ router.get('/realtime-analytics', async (req, res) => {
     let totalPlatformProfit = 0;
     for (const store of allStores) {
       const storeCompleted = completedOrders.filter(o => o.store && (o.store._id?.toString() === store._id.toString() || o.store.toString() === store._id.toString()));
-      const trialEnd = store.trialEndDate ? new Date(store.trialEndDate) : null;
-      const isTrialOver = store.isTrialStarted && trialEnd && now > trialEnd;
-
-      if (isTrialOver && trialEnd) {
-        // Only charge 3% platform commission on orders placed AFTER the 30-day free trial ended
-        const postTrial = storeCompleted.filter(o => new Date(o.createdAt) > trialEnd);
-        totalPlatformProfit += postTrial.reduce((sum, o) => sum + (o.totalAmount || 0), 0) * 0.03;
-      }
+      totalPlatformProfit += storeCompleted.reduce((sum, o) => sum + (o.totalAmount || 0), 0) * 0.03;
 
       // 4% cancellation penalty on cancelled confirmed orders
       const storeCancelled = allOrders.filter(o => 
@@ -512,15 +498,7 @@ router.get('/vendors', async (req, res) => {
         revenue = completed.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
         orderCount = storeOrders.length;
 
-        const now = new Date();
-        const trialEnd = store.trialEndDate ? new Date(store.trialEndDate) : null;
-        const isTrialOver = store.isTrialStarted && trialEnd && now > trialEnd;
-
-        if (isTrialOver && trialEnd) {
-          const postTrialOrders = completed.filter(o => new Date(o.createdAt) > trialEnd);
-          const postTrialRevenue = postTrialOrders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
-          profitGenerated = postTrialRevenue * 0.03;
-        }
+        profitGenerated = revenue * 0.03;
 
         const cancelledOrders = storeOrders.filter(o => o.status === 'Cancelled' && o.paymentStatus === 'Confirmed');
         const cancelledVolume = cancelledOrders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
@@ -560,16 +538,175 @@ router.get('/vendors', async (req, res) => {
   }
 });
 
-// 3. Get All Orders (Recent first)
+// 3. Get All Orders with Advanced Search, Filtering & Pagination
 router.get('/orders', async (req, res) => {
   try {
-    const pgOrders = await prisma.order.findMany({
-      include: { store: true },
-      orderBy: { createdAt: 'desc' },
-      take: 100
+    const { 
+      page = 1, 
+      limit = 15, 
+      search = '', 
+      status = 'All', 
+      storeId = 'All', 
+      market = 'All', 
+      paymentMethod = 'All', 
+      paymentStatus = 'All',
+      dateFilter = 'all',
+      startDate,
+      endDate,
+      paginated = 'false'
+    } = req.query;
+
+    const where = {};
+
+    // 1. Status Filter
+    if (status && status !== 'All') {
+      where.status = status;
+    }
+
+    // 2. Store Filter
+    if (storeId && storeId !== 'All') {
+      where.storeId = storeId;
+    }
+
+    // 3. Market Filter
+    if (market && market !== 'All') {
+      where.store = { ...where.store, market: market };
+    }
+
+    // 4. Payment Filters
+    if (paymentMethod && paymentMethod !== 'All') {
+      where.paymentMethod = paymentMethod;
+    }
+    if (paymentStatus && paymentStatus !== 'All') {
+      where.paymentStatus = paymentStatus;
+    }
+
+    // 5. Date Range Filtering
+    const now = new Date();
+    if (dateFilter === 'today') {
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      where.createdAt = { gte: todayStart };
+    } else if (dateFilter === 'yesterday') {
+      const yestStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+      const yestEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 23, 59, 59, 999);
+      where.createdAt = { gte: yestStart, lte: yestEnd };
+    } else if (dateFilter === '7days') {
+      const past7 = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      where.createdAt = { gte: past7 };
+    } else if (dateFilter === '30days') {
+      const past30 = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      where.createdAt = { gte: past30 };
+    } else if (dateFilter === 'this_month') {
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      where.createdAt = { gte: startOfMonth };
+    } else if (dateFilter === 'custom' || startDate || endDate) {
+      where.createdAt = {};
+      if (startDate) {
+        const parts = startDate.split('-').map(Number);
+        const sDate = parts.length === 3 ? new Date(parts[0], parts[1] - 1, parts[2], 0, 0, 0, 0) : new Date(startDate);
+        where.createdAt.gte = sDate;
+      }
+      if (endDate) {
+        const parts = endDate.split('-').map(Number);
+        const eDate = parts.length === 3 ? new Date(parts[0], parts[1] - 1, parts[2], 23, 59, 59, 999) : new Date(endDate);
+        if (parts.length !== 3) eDate.setHours(23, 59, 59, 999);
+        where.createdAt.lte = eDate;
+      }
+    }
+
+    // 6. Search Query (orderNumber, customerName, customerPhone, storeName)
+    if (search && search.trim()) {
+      const query = search.trim();
+      where.OR = [
+        { orderNumber: { contains: query, mode: 'insensitive' } },
+        { customerName: { contains: query, mode: 'insensitive' } },
+        { customerPhone: { contains: query, mode: 'insensitive' } },
+        { store: { name: { contains: query, mode: 'insensitive' } } }
+      ];
+    }
+
+    // Fast Export All Query for CSV/Excel Downloads matching current filters
+    if (req.query.exportAll === 'true') {
+      const allMatchingOrders = await prisma.order.findMany({
+        where,
+        include: { store: true },
+        orderBy: { createdAt: 'desc' }
+      });
+      return res.json({ 
+        orders: allMatchingOrders.map(normalizeOrder), 
+        total: allMatchingOrders.length 
+      });
+    }
+
+    // Parse pagination values
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 15));
+    const skip = (pageNum - 1) * limitNum;
+
+    // Execute queries
+    const [total, pgOrders] = await Promise.all([
+      prisma.order.count({ where }),
+      prisma.order.findMany({
+        where,
+        include: { store: true },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limitNum
+      })
+    ]);
+
+    const normalizedOrders = pgOrders.map(normalizeOrder);
+
+    // If caller requested simple array (legacy) and not paginated
+    if (paginated !== 'true' && !req.query.page && !req.query.search && status === 'All' && storeId === 'All') {
+      return res.json(normalizedOrders);
+    }
+
+    // Base filter without status constraint to calculate tab badge counts
+    const baseWhere = { ...where };
+    delete baseWhere.status;
+
+    const [allCount, pendingCount, confirmedCount, completedCount, cancelledCount] = await Promise.all([
+      prisma.order.count({ where: baseWhere }),
+      prisma.order.count({ where: { ...baseWhere, status: 'Pending' } }),
+      prisma.order.count({ where: { ...baseWhere, status: 'Confirmed' } }),
+      prisma.order.count({ where: { ...baseWhere, status: 'Completed' } }),
+      prisma.order.count({ where: { ...baseWhere, status: 'Cancelled' } })
+    ]);
+
+    // Financial Metrics for the filtered subset
+    const revenueAgg = await prisma.order.aggregate({
+      where: { ...where, status: 'Completed' },
+      _sum: { totalAmount: true },
+      _count: { id: true }
     });
-    return res.json(pgOrders.map(normalizeOrder));
+    const filteredRevenue = revenueAgg._sum.totalAmount || 0;
+    const completedNum = revenueAgg._count.id || 0;
+    const aov = completedNum > 0 ? Math.round(filteredRevenue / completedNum) : 0;
+
+    return res.json({
+      orders: normalizedOrders,
+      pagination: {
+        total,
+        page: pageNum,
+        limit: limitNum,
+        totalPages: Math.ceil(total / limitNum) || 1
+      },
+      counts: {
+        all: allCount,
+        pending: pendingCount,
+        confirmed: confirmedCount,
+        completed: completedCount,
+        cancelled: cancelledCount
+      },
+      metrics: {
+        totalRevenue: filteredRevenue,
+        aov,
+        completedOrders: completedNum
+      }
+    });
   } catch (err) {
+    console.error('[superAdmin.orders] Error:', err);
     res.status(500).json({ message: err.message });
   }
 });
@@ -635,37 +772,27 @@ router.get('/stores', async (req, res) => {
       orderBy: { createdAt: 'desc' }
     });
 
-    const now = new Date();
     const storesWithRevenue = await Promise.all(stores.map(async (store) => {
       const completedOrders = await prisma.order.findMany({
         where: { storeId: store.id, status: 'Completed' }
       });
       const totalRevenue = completedOrders.reduce((sum, order) => sum + (order.totalAmount || 0), 0);
 
-      let estimatedFees = 0;
-      const trialEnd = store.trialEndDate ? new Date(store.trialEndDate) : null;
-      const isTrialOver = store.isTrialStarted && trialEnd && now > trialEnd;
-
-      if (isTrialOver && trialEnd) {
-        const rate = (store.commissionRate || 5) / 100;
-        const postTrialOrders = completedOrders.filter(o => new Date(o.createdAt) > trialEnd);
-        const postTrialRevenue = postTrialOrders.reduce((sum, order) => sum + (order.totalAmount || 0), 0);
-        estimatedFees = postTrialRevenue * rate;
-      }
+      const rate = (store.commissionRate || 5) / 100;
+      const estimatedFees = totalRevenue * rate;
 
       return {
         ...normalizeStore(store),
         productCount: Array.isArray(store.products) ? store.products.length : 0,
         totalRevenue,
         estimatedFees: estimatedFees.toFixed(2),
-        isTrialOver,
-        daysLeftInTrial: (store.isTrialStarted && trialEnd) ? 
-          Math.max(0, Math.ceil((trialEnd - now) / (1000 * 60 * 60 * 24))) : null
+        commissionRate: store.commissionRate || 5
       };
     }));
 
     res.json(storesWithRevenue);
   } catch (err) {
+    console.error('[superAdmin.stores] Error:', err);
     res.status(500).json({ message: err.message });
   }
 });
@@ -804,6 +931,22 @@ router.get(['/finance', '/finance/summary'], async (req, res) => {
 
       const liveUnsettledRevenue = unsettledOrders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
 
+      const unsettledCancelled = await prisma.order.findMany({
+        where: {
+          storeId: store.id,
+          status: 'Cancelled',
+          paymentStatus: 'Confirmed',
+          isSettled: false
+        }
+      });
+      const liveCancelledVolume = unsettledCancelled.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+
+      // Projected fees on live (unsettled) volume — standard rates + cancellation penalty if any
+      const projectedGatewayFee = parseFloat((liveUnsettledRevenue * 0.02).toFixed(2));
+      const projectedPlatformProfit = parseFloat((liveUnsettledRevenue * 0.03).toFixed(2));
+      const projectedCancellationPenalty = parseFloat((liveCancelledVolume * 0.04).toFixed(2));
+      const projectedNetPayable = parseFloat((liveUnsettledRevenue - projectedGatewayFee - projectedPlatformProfit - projectedCancellationPenalty).toFixed(2));
+
       let relevantSettlements = pendingSettlements;
       if (pendingSettlements.length === 0 && latestSettlement) {
         relevantSettlements = [latestSettlement];
@@ -818,15 +961,18 @@ router.get(['/finance', '/finance/summary'], async (req, res) => {
         const fees = s.feesBreakdown && typeof s.feesBreakdown === 'object' ? s.feesBreakdown : {};
         return sum + (fees.platformProfit || 0);
       }, 0);
+      // Distinguish historical settled-at-zero (trial era) from genuinely zero
+      const wasSettledUnderTrial = relevantSettlements.length > 0 && platformProfit === 0 &&
+        relevantSettlements.every(s => {
+          const fees = s.feesBreakdown && typeof s.feesBreakdown === 'object' ? s.feesBreakdown : {};
+          return (fees.platformProfit === 0 || fees.platformProfit === undefined);
+        });
       const cancellationPenalty = relevantSettlements.reduce((sum, s) => {
         const fees = s.feesBreakdown && typeof s.feesBreakdown === 'object' ? s.feesBreakdown : {};
         return sum + (fees.cancellationPenalty || 0);
       }, 0);
       const netPayable = relevantSettlements.reduce((sum, s) => sum + (s.netPayable || 0), 0);
       const totalDeduction = gatewayFee + platformProfit + cancellationPenalty;
-
-      const trialEnd = store.trialEndDate ? new Date(store.trialEndDate) : null;
-      const isTrialActive = store.isTrialStarted && trialEnd && now < trialEnd;
 
       let settlementStatus = 'paid';
       if (pendingSettlements.length > 0) {
@@ -844,13 +990,17 @@ router.get(['/finance', '/finance/summary'], async (req, res) => {
         totalRevenue,
         gatewayFee,
         platformProfit,
+        wasSettledUnderTrial,
         cancellationPenalty,
         totalDeduction,
         netPayable,
         liveUnsettledRevenue,
-        isTrialActive,
+        projectedGatewayFee,
+        projectedPlatformProfit,
+        projectedCancellationPenalty,
+        projectedNetPayable,
+        isTrialActive: false, // Trial concept removed — always standard commission
         settlementStatus,
-        trialEndDate: store.trialEndDate,
         pendingCount: pendingSettlements.length
       };
     }));
@@ -1098,7 +1248,8 @@ router.put('/refunds/:id/utr', async (req, res) => {
     const result = await refundService.updateRefundUtr({
       refundId: id,
       utr,
-      updatedBy: adminIdentifier
+      updatedBy: adminIdentifier,
+      io: req.app.get('io')
     });
 
     if (!result.success) {
