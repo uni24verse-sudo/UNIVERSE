@@ -12,6 +12,10 @@ module.exports = function (req, res, next) {
     req.admin = verified;
     next();
   } catch (err) {
-    res.status(400).json({ message: 'Invalid Token.' });
+    if (err.name === 'TokenExpiredError') {
+      return res.status(401).json({ message: 'Session expired. Please login again.', code: 'TOKEN_EXPIRED' });
+    }
+    res.status(401).json({ message: 'Invalid or expired token.', code: 'INVALID_TOKEN' });
   }
 };
+

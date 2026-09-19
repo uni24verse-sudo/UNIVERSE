@@ -6,12 +6,26 @@
 
 function normalizeStore(store) {
   if (!store) return null;
+  const loc = store.location ? {
+    ...store.location,
+    dietaryType: store.location.dietaryType || (
+      (store.location.name && (store.location.name.toLowerCase().includes('lpu') || store.location.name.toLowerCase().includes('lovely'))) 
+        ? 'veg' 
+        : 'both'
+    ),
+    markets: store.location.markets || (
+      (store.location.name && (store.location.name.toLowerCase().includes('lpu') || store.location.name.toLowerCase().includes('lovely')))
+        ? 'BH1 Market, Block34 Market, LIT Market, Mall Market, BH6 Market, Apartment Market'
+        : ''
+    )
+  } : null;
+
   return {
     ...store,
     _id: store.id,
     admin: store.admin ? normalizeAdmin(store.admin) : store.adminId,
     adminId: store.adminId,
-    location: store.location || null,
+    location: loc,
     locationId: store.locationId || null,
     products: Array.isArray(store.products) ? store.products : [],
     categoryImages: Array.isArray(store.categoryImages) ? store.categoryImages : []

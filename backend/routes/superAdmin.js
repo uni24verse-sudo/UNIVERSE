@@ -9,13 +9,24 @@ const telegramService = require('../services/telegramService');
 const refundService = require('../services/refundService');
 const whatsappMultiDeviceService = require('../services/whatsappMultiDeviceService');
 
+const formatLocation = (loc) => {
+  if (!loc) return null;
+  const isLpu = loc.name && (loc.name.toLowerCase().includes('lpu') || loc.name.toLowerCase().includes('lovely'));
+  return {
+    ...loc,
+    _id: loc.id,
+    dietaryType: loc.dietaryType || (isLpu ? 'veg' : 'both'),
+    markets: (loc.markets !== null && loc.markets !== undefined && loc.markets !== '') 
+      ? loc.markets 
+      : (isLpu ? 'BH1 Market, Block34 Market, LIT Market, Mall Market, BH6 Market, Apartment Market' : '')
+  };
+};
+
 // Public route for landing portal to fetch locations
 router.get('/locations/public', async (req, res) => {
   try {
-    const locations = await prisma.location.findMany({
-      orderBy: [{ type: 'asc' }, { name: 'asc' }]
-    });
-    res.json(locations.map(l => ({ ...l, _id: l.id })));
+    const locations = await prisma.$queryRawUnsafe(`SELECT * FROM "locations" ORDER BY type ASC, name ASC`);
+    res.json(locations.map(formatLocation));
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -772,12 +783,18 @@ router.get('/stores', async (req, res) => {
       orderBy: { createdAt: 'desc' }
     });
 
-    const storesWithRevenue = await Promise.all(stores.map(async (store) => {
-      const completedOrders = await prisma.order.findMany({
-        where: { storeId: store.id, status: 'Completed' }
-      });
-      const totalRevenue = completedOrders.reduce((sum, order) => sum + (order.totalAmount || 0), 0);
+    // Single aggregated query instead of firing dozens of parallel queries that exhaust the connection pool
+    const completedOrdersAgg = await prisma.order.groupBy({
+      by: ['storeId'],
+      where: { status: 'Completed' },
+      _sum: { totalAmount: true }
+    });
+    const revenueByStore = new Map(
+      completedOrdersAgg.map(item => [item.storeId, Number(item._sum.totalAmount) || 0])
+    );
 
+    const storesWithRevenue = stores.map(store => {
+      const totalRevenue = revenueByStore.get(store.id) || 0;
       const rate = (store.commissionRate || 5) / 100;
       const estimatedFees = totalRevenue * rate;
 
@@ -788,7 +805,7 @@ router.get('/stores', async (req, res) => {
         estimatedFees: estimatedFees.toFixed(2),
         commissionRate: store.commissionRate || 5
       };
-    }));
+    });
 
     res.json(storesWithRevenue);
   } catch (err) {
@@ -1063,15 +1080,22 @@ router.post('/finance/settle', async (req, res) => {
 // 12. Create a new Location
 router.post('/locations', async (req, res) => {
   try {
-    const { name, type, city } = req.body;
-    const location = await prisma.location.create({
-      data: {
-        id: crypto.randomUUID(),
-        name,
-        type: type || 'College',
-        city: city || ''
-      }
-    });
+    const { name, type, city, dietaryType, markets } = req.body;
+    const newId = crypto.randomUUID();
+    const locType = type || 'College';
+    const locCity = city || '';
+    const locDietary = dietaryType || 'both';
+    const locMarkets = markets !== undefined ? markets : (
+      (name && (name.toLowerCase().includes('lpu') || name.toLowerCase().includes('lovely')))
+        ? 'BH1 Market, Block34 Market, LIT Market, Mall Market, BH6 Market, Apartment Market'
+        : ''
+    );
+    await prisma.$executeRawUnsafe(
+      `INSERT INTO "locations" ("id", "name", "type", "city", "dietaryType", "markets", "createdAt", "updatedAt") 
+       VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())`,
+      newId, name, locType, locCity, locDietary, locMarkets
+    );
+    const [location] = await prisma.$queryRawUnsafe(`SELECT * FROM "locations" WHERE id = $1`, newId);
     res.status(201).json({ ...location, _id: location.id });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -1081,10 +1105,8 @@ router.post('/locations', async (req, res) => {
 // 13. Get all Locations
 router.get('/locations', async (req, res) => {
   try {
-    const locations = await prisma.location.findMany({
-      orderBy: [{ type: 'asc' }, { name: 'asc' }]
-    });
-    res.json(locations.map(l => ({ ...l, _id: l.id })));
+    const locations = await prisma.$queryRawUnsafe(`SELECT * FROM "locations" ORDER BY type ASC, name ASC`);
+    res.json(locations.map(formatLocation));
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -1093,12 +1115,26 @@ router.get('/locations', async (req, res) => {
 // 14. Update location details
 router.put('/locations/:id', async (req, res) => {
   try {
-    const { name, type, city } = req.body;
-    const location = await prisma.location.update({
-      where: { id: req.params.id },
-      data: { name, type, city }
-    });
-    res.json({ ...location, _id: location.id });
+    const { name, type, city, dietaryType, markets } = req.body;
+    const existing = await prisma.$queryRawUnsafe(`SELECT * FROM "locations" WHERE id = $1`, req.params.id);
+    if (!existing || existing.length === 0) {
+      return res.status(404).json({ message: 'Location not found' });
+    }
+    const current = existing[0];
+    const updatedName = name !== undefined ? name : current.name;
+    const updatedType = type !== undefined ? type : current.type;
+    const updatedCity = city !== undefined ? city : current.city;
+    const updatedDietary = dietaryType !== undefined ? dietaryType : current.dietaryType;
+    const updatedMarkets = markets !== undefined ? markets : current.markets;
+
+    await prisma.$executeRawUnsafe(
+      `UPDATE "locations" 
+       SET "name" = $1, "type" = $2, "city" = $3, "dietaryType" = $4, "markets" = $5, "updatedAt" = NOW() 
+       WHERE "id" = $6`,
+      updatedName, updatedType, updatedCity, updatedDietary, updatedMarkets, req.params.id
+    );
+    const [location] = await prisma.$queryRawUnsafe(`SELECT * FROM "locations" WHERE id = $1`, req.params.id);
+    res.json(formatLocation(location));
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -1118,13 +1154,30 @@ router.delete('/locations/:id', async (req, res) => {
   }
 });
 
-// 16. Update store location assignment
+// 16. Update store location & market assignment
 router.put('/store/:storeId/assign-location', async (req, res) => {
   try {
-    const { locationId } = req.body;
+    const { locationId, market } = req.body;
+    const updateData = {};
+    if (locationId !== undefined) updateData.locationId = locationId || null;
+    if (market !== undefined) updateData.market = market || null;
     const store = await prisma.store.update({
       where: { id: req.params.storeId },
-      data: { locationId: locationId || null }
+      data: updateData
+    });
+    res.json(normalizeStore(store));
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 17. Update store market assignment
+router.put('/store/:storeId/assign-market', async (req, res) => {
+  try {
+    const { market } = req.body;
+    const store = await prisma.store.update({
+      where: { id: req.params.storeId },
+      data: { market: market || null }
     });
     res.json(normalizeStore(store));
   } catch (err) {

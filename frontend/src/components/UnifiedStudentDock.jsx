@@ -23,7 +23,7 @@ import axios from 'axios';
 import { CartContext } from '../context/CartContext';
 
 const UnifiedStudentDock = () => {
-  const { cart, total, reorder } = useContext(CartContext);
+  const { cart, total, reorder, cartLocationId } = useContext(CartContext);
   const [isOpen, setIsOpen] = useState(false);
   const [activeOrders, setActiveOrders] = useState([]);
   const [pastOrders, setPastOrders] = useState([]);
@@ -39,9 +39,11 @@ const UnifiedStudentDock = () => {
   const hidePaths = ['/vendor', '/super-admin', '/vendor-app-download'];
   const shouldHide = hidePaths.some(path => location.pathname.startsWith(path));
 
-  // Hide the floating cart portion when on the /cart page itself
+  // Hide the floating cart portion when on the /cart page itself or when browsing a different campus
   const isCartPage = location.pathname.startsWith('/cart');
-  const totalCartItems = cart.reduce((acc, item) => acc + item.quantity, 0);
+  const activeLocationId = localStorage.getItem('universe_location_id');
+  const isCartForCurrentLocation = !cartLocationId || !activeLocationId || cartLocationId === activeLocationId;
+  const totalCartItems = isCartForCurrentLocation ? cart.reduce((acc, item) => acc + item.quantity, 0) : 0;
 
   // Fetch full 24/7 Customer History & Active Orders (Silent sync without jarring flicker)
   const loadCustomerOrders = useCallback(async (silent = true) => {
