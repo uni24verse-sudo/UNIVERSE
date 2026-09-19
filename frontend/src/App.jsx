@@ -24,6 +24,7 @@ import Navbar from './components/Navbar';
 import UnifiedStudentDock from './components/UnifiedStudentDock';
 import Footer from './components/Footer';
 import NotificationsToast from './components/NotificationsToast';
+import ToastFeedback from './components/ToastFeedback';
 import LocationPortal from './components/LocationPortal';
 import SplashScreen from './components/SplashScreen';
 import ScrollToTop from './components/ScrollToTop';
@@ -121,6 +122,7 @@ const AppLayout = () => {
         }} />
       )}
       <NotificationsToast />
+      <ToastFeedback />
       <UnifiedStudentDock />
       <div style={{ flex: 1 }}>
         <React.Suspense fallback={

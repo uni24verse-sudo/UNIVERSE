@@ -40,12 +40,9 @@ const QuantitySelector = ({ product, storeId, onVariantClick, storeClosed }) => 
   const isUnavailable = product.isAvailable === false;
 
   if (storeClosed) {
-    return (
-      <button className="btn btn-primary quantity-btn-disabled" disabled>
-        CLOSED
-      </button>
-    );
+    return null;
   }
+
 
   if (isUnavailable) {
     return (

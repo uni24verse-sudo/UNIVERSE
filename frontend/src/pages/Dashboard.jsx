@@ -134,12 +134,13 @@ const KDS_KEY = 'v1.1_kds';
 const INSIGHTS_KEY = 'v1.1_insights';
 
 const Dashboard = () => {
-  const { token, vendor, logout, updateVendor } = useContext(AuthContext);
+  const { token, vendor, logout, updateVendor, triggerSessionExpired, isSessionExpired } = useContext(AuthContext);
   const navigate = useNavigate();
   const [stores, setStores] = useState([]);
   const [store, setStore] = useState(null);
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [storeFetchFailed, setStoreFetchFailed] = useState(false);
   const { socket, connected } = useSocket();
   const [orderFilter, setOrderFilter] = useState('Active');
   const [soundEnabled, setSoundEnabled] = useState(localStorage.getItem('orderSoundEnabled') !== 'false');
@@ -247,6 +248,7 @@ const Dashboard = () => {
 
     const fetchDashboardData = async () => {
       try {
+        setStoreFetchFailed(false);
         const storesRes = await axios.get((import.meta.env.VITE_API_URL || 'http://localhost:5000') + '/api/store/my-stores', {
           headers: { Authorization: `Bearer ${token}` }
         });
@@ -261,14 +263,17 @@ const Dashboard = () => {
         }
       } catch (err) {
         console.error('Failed to fetch stores', err);
-        setStore(null);
+        setStoreFetchFailed(true);
+        if (err?.response?.status === 401 || err?.response?.data?.code === 'TOKEN_EXPIRED') {
+          triggerSessionExpired?.();
+        }
       } finally {
         setLoading(false);
       }
     };
 
     fetchDashboardData();
-  }, [token, navigate]);
+  }, [token, navigate, triggerSessionExpired]);
 
   useEffect(() => {
     if (!store) return;
@@ -1099,7 +1104,32 @@ const Dashboard = () => {
           </div>
         )}
 
-        {!store ? (
+        {storeFetchFailed ? (
+          <div className="glass-card" style={{ padding: '4.5rem 2rem', textAlign: 'center', borderRadius: '32px', border: '1px solid rgba(239, 65, 35, 0.15)' }}>
+            <div style={{ width: '80px', height: '80px', background: 'rgba(239, 65, 35, 0.08)', borderRadius: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem auto' }}>
+              <AlertCircle size={40} color="var(--primary)" />
+            </div>
+            <h2 style={{ fontSize: '1.75rem', fontWeight: '900', marginBottom: '0.75rem', color: 'var(--text-primary)' }}>
+              {isSessionExpired ? 'Session Expired' : 'Unable to Load Stall Data'}
+            </h2>
+            <p style={{ color: 'var(--text-secondary)', maxWidth: '460px', margin: '0 auto 2rem auto', lineHeight: '1.6' }}>
+              {isSessionExpired 
+                ? 'Your vendor session has ended for security. Please log in again to continue managing your stalls.' 
+                : 'There was a temporary issue syncing your stall information. Please refresh the dashboard.'}
+            </p>
+            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+              {isSessionExpired ? (
+                <button onClick={() => triggerSessionExpired?.()} className="btn btn-primary" style={{ width: 'auto', padding: '0.85rem 2.5rem', borderRadius: '14px' }}>
+                  Log In Again
+                </button>
+              ) : (
+                <button onClick={() => window.location.reload()} className="btn btn-primary" style={{ width: 'auto', padding: '0.85rem 2.5rem', borderRadius: '14px' }}>
+                  Refresh Dashboard
+                </button>
+              )}
+            </div>
+          </div>
+        ) : !store ? (
           <div className="glass-card" style={{ padding: '5rem 2rem', textAlign: 'center', borderRadius: '40px' }}>
             <div style={{ width: '100px', height: '100px', background: 'rgba(99, 102, 241, 0.1)', borderRadius: '30px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 2.5rem auto' }}>
               <Plus size={48} color="var(--primary)" />

@@ -30,7 +30,8 @@ import {
   Sliders,
   RotateCcw,
   Search,
-  Database
+  Database,
+  AlertCircle
 } from 'lucide-react';
 import SuperAdmin3DAnalytics from '../components/superadmin/SuperAdmin3DAnalytics';
 import SuperAdminMasterTemplates from '../components/superadmin/SuperAdminMasterTemplates';
@@ -72,6 +73,8 @@ const SuperAdminPanel = () => {
   const [locationName, setLocationName] = useState('');
   const [locationType, setLocationType] = useState('College');
   const [locationCity, setLocationCity] = useState('');
+  const [locationDietaryType, setLocationDietaryType] = useState('both');
+  const [locationMarkets, setLocationMarkets] = useState('');
 
   useEffect(() => {
     if (!token) return navigate('/super-admin/login');
@@ -168,7 +171,13 @@ const SuperAdminPanel = () => {
     try {
       const url = import.meta.env.VITE_API_URL || 'http://localhost:5000';
       const headers = { Authorization: `Bearer ${token}` };
-      const payload = { name: locationName, type: locationType, city: locationCity };
+      const payload = { 
+        name: locationName, 
+        type: locationType, 
+        city: locationCity,
+        dietaryType: locationDietaryType,
+        markets: locationMarkets
+      };
 
       if (editingLocation) {
         await axios.put(`${url}/api/super-admin/locations/${editingLocation._id}`, payload, { headers });
@@ -180,9 +189,86 @@ const SuperAdminPanel = () => {
       setEditingLocation(null);
       setLocationName('');
       setLocationCity('');
+      setLocationDietaryType('both');
+      setLocationMarkets('');
       fetchDashboardData(true);
     } catch (err) {
       alert('Action failed: ' + (err.response?.data?.message || err.message));
+    }
+  };
+
+  const handleAssignMarket = async (storeId, market, addToLocation = false, locationId = null) => {
+    try {
+      const url = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      await axios.put(`${url}/api/super-admin/store/${storeId}/assign-market`, 
+        { market: market || null }, 
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      // If user typed a custom zone and requested adding it to the campus hub
+      if (addToLocation && locationId && market && market.trim()) {
+        const targetLoc = locations.find(l => (l._id || l.id) === locationId);
+        if (targetLoc) {
+          const currentList = targetLoc.markets ? targetLoc.markets.split(',').map(m => m.trim()).filter(Boolean) : [];
+          if (!currentList.includes(market.trim())) {
+            currentList.push(market.trim());
+            await axios.put(`${url}/api/super-admin/locations/${targetLoc._id}`, {
+              name: targetLoc.name,
+              type: targetLoc.type,
+              city: targetLoc.city,
+              dietaryType: targetLoc.dietaryType,
+              markets: currentList.join(', ')
+            }, { headers: { Authorization: `Bearer ${token}` } });
+          }
+        }
+      }
+
+      fetchDashboardData(true);
+    } catch (err) {
+      alert('Market update failed: ' + (err.response?.data?.message || err.message));
+    }
+  };
+
+  const handleQuickAddZone = async (loc) => {
+    const newZone = window.prompt(`Add new campus market / zone to "${loc.name}":\n(e.g. Food Court 1, Block B, Main Gate)`);
+    if (!newZone || !newZone.trim()) return;
+    const currentMarkets = loc.markets ? loc.markets.split(',').map(m => m.trim()).filter(Boolean) : [];
+    if (currentMarkets.includes(newZone.trim())) {
+      alert('This market zone is already configured for this location.');
+      return;
+    }
+    currentMarkets.push(newZone.trim());
+    try {
+      const url = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      await axios.put(`${url}/api/super-admin/locations/${loc._id}`, {
+        name: loc.name,
+        type: loc.type,
+        city: loc.city,
+        dietaryType: loc.dietaryType,
+        markets: currentMarkets.join(', ')
+      }, { headers: { Authorization: `Bearer ${token}` } });
+      fetchDashboardData(true);
+    } catch (err) {
+      alert('Failed to add zone: ' + (err.response?.data?.message || err.message));
+    }
+  };
+
+  const handleQuickRemoveZone = async (loc, zoneToRemove) => {
+    if (!window.confirm(`Remove zone "${zoneToRemove}" from ${loc.name}?`)) return;
+    const currentMarkets = loc.markets ? loc.markets.split(',').map(m => m.trim()).filter(Boolean) : [];
+    const updated = currentMarkets.filter(m => m !== zoneToRemove);
+    try {
+      const url = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      await axios.put(`${url}/api/super-admin/locations/${loc._id}`, {
+        name: loc.name,
+        type: loc.type,
+        city: loc.city,
+        dietaryType: loc.dietaryType,
+        markets: updated.join(', ')
+      }, { headers: { Authorization: `Bearer ${token}` } });
+      fetchDashboardData(true);
+    } catch (err) {
+      alert('Failed to remove zone: ' + (err.response?.data?.message || err.message));
     }
   };
 
@@ -202,8 +288,19 @@ const SuperAdminPanel = () => {
   const handleAssignLocation = async (storeId, locationId) => {
     try {
       const url = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      const targetStore = stores.find(s => (s._id === storeId || s.id === storeId));
+      const targetLoc = locations.find(l => (l._id === locationId || l.id === locationId));
+      const locMarkets = targetLoc?.markets 
+        ? targetLoc.markets.split(',').map(m => m.trim()).filter(Boolean)
+        : (targetLoc?.name?.toLowerCase().includes('lpu') || targetLoc?.name?.toLowerCase().includes('lovely'))
+          ? ['BH1 Market', 'Block34 Market', 'LIT Market', 'Mall Market', 'BH6 Market', 'Apartment Market']
+          : [];
+      
+      const shouldKeepMarket = targetStore?.market && locMarkets.includes(targetStore.market);
+      const newMarket = shouldKeepMarket ? targetStore.market : '';
+
       await axios.put(`${url}/api/super-admin/store/${storeId}/assign-location`, 
-        { locationId }, 
+        { locationId: locationId || null, market: newMarket }, 
         { headers: { Authorization: `Bearer ${token}` } }
       );
       fetchDashboardData(true);
@@ -639,7 +736,45 @@ const SuperAdminPanel = () => {
                   
                   <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                     <span style={{ fontSize: '0.75rem', padding: '0.2rem 0.6rem', background: 'rgba(239, 65, 35, 0.1)', color: 'var(--primary)', borderRadius: '6px', fontWeight: '700' }}>{store.category}</span>
-                    <span style={{ fontSize: '0.75rem', padding: '0.2rem 0.6rem', background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', borderRadius: '6px', fontWeight: '700' }}>{store.market || 'BH1 Market'}</span>
+                    {(() => {
+                      const storeLoc = locations.find(l => (l._id === store.locationId || l.id === store.locationId));
+                      const isExternal = storeLoc?.type === 'External';
+                      const locMarkets = storeLoc?.markets 
+                        ? storeLoc.markets.split(',').map(m => m.trim()).filter(Boolean)
+                        : (storeLoc?.name?.toLowerCase().includes('lpu') || storeLoc?.name?.toLowerCase().includes('lovely'))
+                          ? ['BH1 Market', 'Block34 Market', 'LIT Market', 'Mall Market', 'BH6 Market', 'Apartment Market']
+                          : [];
+                      
+                      if (isExternal) {
+                        return (
+                          <span style={{ fontSize: '0.75rem', padding: '0.2rem 0.6rem', background: 'rgba(14, 165, 233, 0.1)', color: '#0ea5e9', borderRadius: '6px', fontWeight: '700' }}>
+                            Commercial Hub
+                          </span>
+                        );
+                      }
+
+                      if (!store.market) {
+                        return (
+                          <span style={{ fontSize: '0.75rem', padding: '0.2rem 0.6rem', background: '#f1f5f9', color: 'var(--text-secondary)', borderRadius: '6px', fontWeight: '600' }}>
+                            General Campus
+                          </span>
+                        );
+                      }
+
+                      const isInvalid = !locMarkets.includes(store.market);
+                      return (
+                        <span style={{ 
+                          fontSize: '0.75rem', 
+                          padding: '0.2rem 0.6rem', 
+                          background: isInvalid ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)', 
+                          color: isInvalid ? '#dc2626' : '#10b981', 
+                          borderRadius: '6px', 
+                          fontWeight: '700' 
+                        }}>
+                          {isInvalid ? `⚠️ ${store.market} (Invalid)` : `📍 ${store.market}`}
+                        </span>
+                      );
+                    })()}
                     <span style={{ fontSize: '0.75rem', padding: '0.2rem 0.6rem', background: '#f1f5f9', color: 'var(--text-secondary)', borderRadius: '6px', fontWeight: '600' }}>{store.productCount} SKUs</span>
                     {store.telegramChatId ? (
                       <span style={{ fontSize: '0.75rem', padding: '0.2rem 0.6rem', background: 'rgba(0, 136, 204, 0.1)', color: '#0088cc', borderRadius: '6px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
@@ -669,6 +804,158 @@ const SuperAdminPanel = () => {
                       ))}
                     </select>
                   </div>
+
+                  {/* Market / Zone Assignment (Strictly Scoped to Assigned Campus) */}
+                  {(() => {
+                    const storeLoc = locations.find(l => l._id === store.locationId || l.id === store.locationId);
+                    const isExternal = storeLoc?.type === 'External';
+                    const locMarkets = storeLoc?.markets 
+                      ? storeLoc.markets.split(',').map(m => m.trim()).filter(Boolean)
+                      : (storeLoc?.name?.toLowerCase().includes('lpu') || storeLoc?.name?.toLowerCase().includes('lovely'))
+                        ? ['BH1 Market', 'Block34 Market', 'LIT Market', 'Mall Market', 'BH6 Market', 'Apartment Market']
+                        : [];
+
+                    if (!store.locationId || !storeLoc) {
+                      return (
+                        <div style={{ padding: '1rem', marginTop: '0.75rem', background: '#f8fafc', borderRadius: '16px', border: '1px solid var(--surface-border)' }}>
+                          <p style={{ margin: 0, fontWeight: '800', fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>Market / Campus Zone</p>
+                          <p style={{ margin: '0.4rem 0 0 0', fontSize: '0.8rem', color: '#94a3b8', fontStyle: 'italic' }}>
+                            Please assign a Hub / Location first to configure market zones.
+                          </p>
+                        </div>
+                      );
+                    }
+
+                    if (isExternal) {
+                      return (
+                        <div style={{ padding: '1rem', marginTop: '0.75rem', background: 'rgba(14, 165, 233, 0.05)', borderRadius: '16px', border: '1px solid rgba(14, 165, 233, 0.15)' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                            <Building2 size={16} color="#0284c7" />
+                            <p style={{ margin: 0, fontWeight: '800', fontSize: '0.75rem', textTransform: 'uppercase', color: '#0284c7' }}>External Hub Area</p>
+                          </div>
+                          <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                            Campus hostel/block zones do not apply to external locations like {storeLoc.name}.
+                          </p>
+                        </div>
+                      );
+                    }
+
+                    const hasInvalidMarket = store.market && !locMarkets.includes(store.market);
+
+                    return (
+                      <div style={{ padding: '1rem', marginTop: '0.75rem', background: 'rgba(249, 115, 22, 0.04)', borderRadius: '16px', border: '1px solid rgba(249, 115, 22, 0.15)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.65rem' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                            <Store size={15} color="#ea580c" />
+                            <p style={{ margin: 0, fontWeight: '800', fontSize: '0.75rem', textTransform: 'uppercase', color: '#ea580c' }}>
+                              Campus Zone
+                            </p>
+                          </div>
+                          <button 
+                            type="button"
+                            onClick={async () => {
+                              const custom = window.prompt(`Enter new custom zone for "${storeLoc.name}":\n(e.g. Food Court 1, Block B, Main Gate)`);
+                              if (custom && custom.trim()) {
+                                await handleAssignMarket(store._id, custom.trim(), true, store.locationId);
+                              }
+                            }}
+                            style={{ 
+                              background: 'rgba(234, 88, 12, 0.1)', 
+                              border: 'none', 
+                              color: '#ea580c', 
+                              fontSize: '0.72rem', 
+                              fontWeight: '800', 
+                              cursor: 'pointer', 
+                              padding: '0.25rem 0.6rem',
+                              borderRadius: '8px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.25rem'
+                            }}
+                          >
+                            <Plus size={12} /> Add New Zone
+                          </button>
+                        </div>
+
+                        {/* If no zones exist at all for this campus */}
+                        {locMarkets.length === 0 ? (
+                          <div style={{ background: '#ffffff', padding: '0.85rem', borderRadius: '12px', border: '1px dashed rgba(234, 88, 12, 0.3)', textAlign: 'center' }}>
+                            <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                              No campus zones configured for <strong>{storeLoc.name}</strong> yet.
+                            </p>
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                const custom = window.prompt(`Add the first zone for "${storeLoc.name}":\n(e.g. Food Court 1, Block B, Main Gate)`);
+                                if (custom && custom.trim()) {
+                                  await handleAssignMarket(store._id, custom.trim(), true, store.locationId);
+                                }
+                              }}
+                              style={{ padding: '0.4rem 0.85rem', background: '#ea580c', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '0.75rem', fontWeight: '800', cursor: 'pointer' }}
+                            >
+                              + Create First Zone
+                            </button>
+                          </div>
+                        ) : (
+                          <div style={{ position: 'relative' }}>
+                            <select 
+                              value={store.market || ''}
+                              onChange={(e) => {
+                                if (e.target.value === '__add_custom__') {
+                                  const custom = window.prompt(`Enter new custom zone for "${storeLoc.name}":\n(e.g. Food Court 1, Block B, Main Gate)`);
+                                  if (custom && custom.trim()) {
+                                    handleAssignMarket(store._id, custom.trim(), true, store.locationId);
+                                  }
+                                } else {
+                                  handleAssignMarket(store._id, e.target.value);
+                                }
+                              }}
+                              style={{ 
+                                width: '100%', 
+                                padding: '0.65rem 0.85rem', 
+                                borderRadius: '12px', 
+                                border: '1.5px solid rgba(234, 88, 12, 0.25)', 
+                                fontSize: '0.85rem', 
+                                fontWeight: '700',
+                                background: '#ffffff',
+                                color: store.market && !hasInvalidMarket ? '#ea580c' : 'var(--text-primary)',
+                                outline: 'none',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              <option value="">🏫 General Campus (No Specific Zone)</option>
+                              {locMarkets.map(m => (
+                                <option key={m} value={m}>📍 {m}</option>
+                              ))}
+                              {hasInvalidMarket && (
+                                <option value={store.market}>⚠️ {store.market} (Out of campus)</option>
+                              )}
+                              <option value="__add_custom__">+ Create New Zone for {storeLoc.name}...</option>
+                            </select>
+                          </div>
+                        )}
+
+                        {/* Clear Warning for Out-of-Campus Market */}
+                        {hasInvalidMarket && (
+                          <div style={{ marginTop: '0.65rem', padding: '0.6rem 0.75rem', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                              <AlertCircle size={14} color="#dc2626" />
+                              <span style={{ fontSize: '0.72rem', color: '#b91c1c', fontWeight: '700' }}>
+                                Currently set to "{store.market}" from another campus!
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleAssignMarket(store._id, '')}
+                              style={{ background: '#ef4444', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '0.25rem 0.5rem', fontSize: '0.7rem', fontWeight: '800', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                            >
+                              Clear Zone
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
 
                   {/* Stall Hours & Automation */}
                   <div style={{ padding: '1rem', background: 'rgba(99, 102, 241, 0.05)', borderRadius: '16px', border: '1px solid rgba(99, 102, 241, 0.1)' }}>
@@ -840,7 +1127,7 @@ const SuperAdminPanel = () => {
                 <p style={{ color: 'var(--text-secondary)' }}>Manage Colleges and External expansion regions.</p>
               </div>
               <button 
-                onClick={() => { setShowLocationForm(true); setEditingLocation(null); setLocationName(''); setLocationCity(''); }}
+                onClick={() => { setShowLocationForm(true); setEditingLocation(null); setLocationName(''); setLocationCity(''); setLocationDietaryType('both'); setLocationMarkets(''); }}
                 style={{ padding: '0.75rem 1.5rem', background: 'var(--primary)', color: 'white', border: 'none', borderRadius: '12px', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
               >
                 <Plus size={18} /> Add New Location
@@ -848,17 +1135,18 @@ const SuperAdminPanel = () => {
             </header>
 
             {showLocationForm && (
-              <div style={{ marginBottom: '2rem', background: '#f8fafc', padding: '2rem', borderRadius: '24px', border: '1px solid var(--surface-border)' }}>
-                <h3 style={{ marginBottom: '1.5rem' }}>{editingLocation ? 'Edit Location' : 'Register New Hub'}</h3>
-                <form onSubmit={handleLocationSubmit} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem', alignItems: 'flex-end' }}>
+              <div style={{ padding: '2rem', background: '#ffffff', borderRadius: '24px', border: '1px solid var(--surface-border)', marginBottom: '2rem' }}>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: '900', marginBottom: '1.5rem' }}>{editingLocation ? 'Edit Hub / Location' : 'Add New Hub / Location'}</h3>
+                <form onSubmit={handleLocationSubmit} style={{ display: 'grid', gap: '1rem', maxWidth: '500px' }}>
                   <div>
-                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '800', marginBottom: '0.5rem', textTransform: 'uppercase' }}>Hub Name (e.g. LPU)</label>
+                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '800', marginBottom: '0.5rem', textTransform: 'uppercase' }}>Name</label>
                     <input 
                       type="text" 
                       required 
                       value={locationName} 
                       onChange={e => setLocationName(e.target.value)} 
                       style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', border: '1px solid var(--surface-border)' }} 
+                      placeholder="e.g. Chandigarh University"
                     />
                   </div>
                   <div>
@@ -873,6 +1161,18 @@ const SuperAdminPanel = () => {
                     </select>
                   </div>
                   <div>
+                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '800', marginBottom: '0.5rem', textTransform: 'uppercase' }}>Dietary Policy</label>
+                    <select 
+                      value={locationDietaryType} 
+                      onChange={e => setLocationDietaryType(e.target.value)} 
+                      style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', border: '1px solid var(--surface-border)' }}
+                    >
+                      <option value="both">Both (Veg & Non-Veg)</option>
+                      <option value="veg">Pure Veg Only (Hides non-veg filters & veg badges)</option>
+                      <option value="non-veg">Non-Veg Only</option>
+                    </select>
+                  </div>
+                  <div>
                     <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '800', marginBottom: '0.5rem', textTransform: 'uppercase' }}>City (Optional)</label>
                     <input 
                       type="text" 
@@ -880,6 +1180,19 @@ const SuperAdminPanel = () => {
                       onChange={e => setLocationCity(e.target.value)} 
                       style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', border: '1px solid var(--surface-border)' }} 
                     />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '800', marginBottom: '0.5rem', textTransform: 'uppercase' }}>Campus Markets / Zones (Comma-separated)</label>
+                    <input 
+                      type="text" 
+                      placeholder="e.g. Food Court 1, Block B, Main Gate, Hostel 3"
+                      value={locationMarkets} 
+                      onChange={e => setLocationMarkets(e.target.value)} 
+                      style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', border: '1px solid var(--surface-border)' }} 
+                    />
+                    <p style={{ margin: '0.35rem 0 0 0', fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
+                      Configured market zones for this campus. Can be added or edited anytime.
+                    </p>
                   </div>
                   <div style={{ display: 'flex', gap: '0.75rem' }}>
                     <button type="submit" style={{ flex: 1, padding: '0.75rem', background: 'var(--secondary)', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '800', cursor: 'pointer' }}>
@@ -909,6 +1222,8 @@ const SuperAdminPanel = () => {
                             setLocationName(loc.name);
                             setLocationType(loc.type);
                             setLocationCity(loc.city || '');
+                            setLocationDietaryType(loc.dietaryType || (loc.name?.toLowerCase().includes('lpu') || loc.name?.toLowerCase().includes('lovely') ? 'veg' : 'both'));
+                            setLocationMarkets(loc.markets || '');
                             setShowLocationForm(true);
                           }}
                           style={{ p: '0.4rem', background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}
@@ -924,9 +1239,63 @@ const SuperAdminPanel = () => {
                       </div>
                     </div>
                     <h3 style={{ fontSize: '1.125rem', fontWeight: '800', margin: '0 0 0.25rem 0' }}>{loc.name}</h3>
-                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.8125rem', fontWeight: '600' }}>{loc.city || 'No City Specified'}</p>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.8125rem', fontWeight: '600', margin: '0 0 0.5rem 0' }}>{loc.city || 'No City Specified'}</p>
                     
-                    <div style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid var(--surface-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '0.5rem' }}>
+                      {loc.dietaryType === 'veg' || (!loc.dietaryType && (loc.name?.toLowerCase().includes('lpu') || loc.name?.toLowerCase().includes('lovely'))) ? (
+                        <span style={{ fontSize: '0.6875rem', fontWeight: '800', color: '#059669', background: 'rgba(16, 185, 129, 0.1)', padding: '0.2rem 0.6rem', borderRadius: '100px', border: '1px solid rgba(16, 185, 129, 0.25)' }}>
+                          🌿 Pure Veg Only
+                        </span>
+                      ) : loc.dietaryType === 'non-veg' ? (
+                        <span style={{ fontSize: '0.6875rem', fontWeight: '800', color: '#dc2626', background: 'rgba(239, 68, 68, 0.1)', padding: '0.2rem 0.6rem', borderRadius: '100px', border: '1px solid rgba(239, 68, 68, 0.25)' }}>
+                          🍗 Non-Veg Only
+                        </span>
+                      ) : (
+                        <span style={{ fontSize: '0.6875rem', fontWeight: '800', color: '#d97706', background: 'rgba(245, 158, 11, 0.1)', padding: '0.2rem 0.6rem', borderRadius: '100px', border: '1px solid rgba(245, 158, 11, 0.25)' }}>
+                          🌿🍗 Both (Veg & Non-Veg)
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Configured Market Zones Display */}
+                    <div style={{ marginTop: '0.75rem', marginBottom: '0.5rem', background: '#f8fafc', padding: '0.75rem', borderRadius: '14px', border: '1px solid rgba(0,0,0,0.05)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                        <span style={{ fontSize: '0.7rem', fontWeight: '800', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                          Campus Market Zones
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleQuickAddZone(loc)}
+                          style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: '0.7rem', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.2rem' }}
+                        >
+                          <Plus size={12} /> Add Zone
+                        </button>
+                      </div>
+
+                      {loc.markets && loc.markets.trim() ? (
+                        <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+                          {loc.markets.split(',').map(m => m.trim()).filter(Boolean).map(m => (
+                            <span key={m} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.6875rem', background: '#ffffff', color: '#475569', border: '1px solid rgba(0,0,0,0.08)', padding: '0.2rem 0.5rem', borderRadius: '6px', fontWeight: '600' }}>
+                              📍 {m}
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); handleQuickRemoveZone(loc, m); }}
+                                style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', lineHeight: 1, fontSize: '0.8rem' }}
+                                title="Remove zone"
+                              >
+                                ×
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span style={{ fontSize: '0.7rem', color: '#94a3b8', fontStyle: 'italic' }}>
+                          No specific market zones configured yet. Click "+ Add Zone" to create one.
+                        </span>
+                      )}
+                    </div>
+
+                    <div style={{ marginTop: '1rem', paddingTop: '0.85rem', borderTop: '1px solid var(--surface-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-secondary)' }}>{storeCount} STORES LINKED</span>
                       <span style={{ fontSize: '0.625rem', background: loc.isHidden ? '#ef4444' : '#10b981', color: 'white', padding: '0.2rem 0.5rem', borderRadius: '4px', fontWeight: '900' }}>
                         {loc.isHidden ? 'HIDDEN' : 'ACTIVE'}

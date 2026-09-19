@@ -1,104 +1,203 @@
-import React from 'react';
-import { ArrowLeft, Clock, Search, X } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ArrowLeft, Clock, MapPin, CheckCircle2, Share2 } from 'lucide-react';
+import { shareContent } from '../../utils/shareHelper';
 
 const StoreSubHeader = ({ 
   store, 
   navigate, 
   isExternal, 
-  searchQuery, 
-  setSearchQuery,
   dietaryFilter,
   setDietaryFilter,
-  activeCategory,
-  setActiveCategory
+  showDietaryFilter = false
 }) => {
+  const isStoreOpen = store.isOpen !== false;
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  const handleShareStall = () => {
+    shareContent({
+      title: `${store?.name || 'Stall'} - UniVerse`,
+      text: `Order fresh food from ${store?.name || 'this stall'} on UniVerse!`,
+      url: window.location.href
+    });
+  };
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 140);
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
   return (
     <>
-      <div className="store-header-sticky" style={{ 
-        top: `calc(var(--nav-actual-height, 72px) + ${(!isExternal && localStorage.getItem('universe_location_type') === 'College') ? 'var(--promo-height, 38px)' : '0px'})`,
-        background: 'rgba(255, 255, 255, 0.95)',
-        backdropFilter: 'blur(20px)',
-        zIndex: 999,
-        borderBottom: '1px solid var(--surface-border)',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.03)'
-      }}>
-        <div style={{ maxWidth: '800px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem 1rem' }}>
-          <button onClick={() => navigate(-1)} style={{ background: '#ffffff', border: '1px solid var(--surface-border)', color: 'var(--text-primary)', padding: '0.5rem', borderRadius: '12px', cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,0.04)', display: 'flex', alignItems: 'center' }}>
+      {/* Sticky Top Bar with Back Button & Mini Stall Identity (Slides down ONLY when scrolled) */}
+      <div 
+        className="store-header-sticky" 
+        style={{ 
+          position: 'fixed',
+          top: `calc(var(--nav-actual-height, 72px) + ${(!isExternal && localStorage.getItem('universe_location_type') === 'College') ? 'var(--promo-height, 38px)' : '0px'})`,
+          left: 0,
+          right: 0,
+          background: 'rgba(255, 255, 255, 0.95)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          zIndex: 999,
+          borderBottom: '1px solid var(--surface-border)',
+          boxShadow: '0 4px 16px rgba(0,0,0,0.04)',
+          transform: isScrolled ? 'translateY(0)' : 'translateY(-100%)',
+          opacity: isScrolled ? 1 : 0,
+          pointerEvents: isScrolled ? 'auto' : 'none',
+          transition: 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
+          visibility: isScrolled ? 'visible' : 'hidden'
+        }}
+      >
+        <div style={{ maxWidth: '800px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.65rem 1rem' }}>
+          <button 
+            onClick={() => navigate(-1)} 
+            style={{ 
+              background: '#ffffff', 
+              border: '1px solid var(--surface-border)', 
+              color: 'var(--text-primary)', 
+              padding: '0.45rem', 
+              borderRadius: '12px', 
+              cursor: 'pointer', 
+              boxShadow: '0 2px 8px rgba(0,0,0,0.04)', 
+              display: 'flex', 
+              alignItems: 'center'
+            }}
+            aria-label="Go Back"
+          >
             <ArrowLeft size={18} />
           </button>
           
-          <div style={{ textAlign: 'center', flex: 1 }}>
-            <h1 style={{ fontSize: '1.125rem', margin: 0, fontWeight: '800', color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>{store.name}</h1>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', justifyContent: 'center', fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.25rem', fontWeight: '600' }}>
-              <span><Clock size={12} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px' }} />20-30 mins</span>
+          <div style={{ textAlign: 'center', flex: 1, padding: '0 0.5rem' }}>
+            <h1 style={{ fontSize: '1.05rem', margin: 0, fontWeight: '900', color: 'var(--text-primary)', letterSpacing: '-0.015em' }}>
+              {store.name}
+            </h1>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'center', fontSize: '0.725rem', color: 'var(--text-secondary)', marginTop: '0.15rem', fontWeight: '600' }}>
+              <span><Clock size={11} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '3px' }} />20-30 mins</span>
               <span style={{ opacity: 0.3 }}>•</span>
               <span style={{ color: 'var(--primary)', fontWeight: '800' }}>{store.market || 'BH1 Market'}</span>
             </div>
           </div>
-          <div style={{ width: '38px' }}></div> 
+          
+          <button 
+            onClick={handleShareStall}
+            style={{ 
+              background: '#ffffff', 
+              border: '1px solid var(--surface-border)', 
+              color: 'var(--primary)', 
+              padding: '0.45rem', 
+              borderRadius: '12px', 
+              cursor: 'pointer', 
+              boxShadow: '0 2px 8px rgba(0,0,0,0.04)', 
+              display: 'flex', 
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+            aria-label="Share Stall"
+            title="Share Stall"
+          >
+            <Share2 size={16} />
+          </button>
         </div>
       </div>
 
-      <div style={{ padding: '2rem 1rem 0 1rem', maxWidth: '800px', margin: '0 auto' }}>
-        <div className="glass-card animate-fade-in-up" style={{ padding: '1.5rem', marginBottom: '2rem', borderRadius: '24px' }}>
-           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <div>
-                <h2 style={{ margin: '0 0 0.5rem 0', fontSize: '1.5rem', letterSpacing: '-0.02em' }}>Menu</h2>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '0.8125rem', margin: 0 }}>Fresh from {store.name}</p>
+      <div style={{ padding: '1.25rem 1rem 0.5rem 1rem', maxWidth: '800px', margin: '0 auto' }}>
+        {/* Compact, Premium Stall Hero Card with Elevated Depth */}
+        <div 
+          className="glass-card animate-fade-in-up" 
+          style={{ 
+            padding: '1.25rem 1.5rem', 
+            marginBottom: '1rem', 
+            borderRadius: '26px',
+            background: 'rgba(255, 255, 255, 0.94)',
+            border: '1px solid rgba(0, 0, 0, 0.06)',
+            boxShadow: '0 16px 38px -8px rgba(15, 23, 42, 0.08), 0 4px 12px rgba(0, 0, 0, 0.03), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
+            transform: 'translateY(-10px)'
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <h2 style={{ margin: 0, fontSize: '1.45rem', fontWeight: '900', letterSpacing: '-0.02em', color: 'var(--text-primary)' }}>
+                  {store.name}
+                </h2>
+                <CheckCircle2 size={18} color="var(--primary)" />
               </div>
-              {store.isOpen === false && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '0.35rem', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                  <MapPin size={12} color="var(--primary)" /> {store.market || 'BH1 Market'}
+                </span>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                  <Clock size={12} color="var(--primary)" /> 20-30 mins
+                </span>
+              </div>
+            </div>
+
+            {/* Operating Status & Share Stall Pills */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <button 
+                onClick={handleShareStall}
+                className="stall-hero-share-btn"
+                title="Share this stall with friends"
+                aria-label="Share this stall"
+              >
+                <Share2 size={14} />
+                <span>Share</span>
+              </button>
+
+              {isStoreOpen ? (
                 <div style={{ 
+                  display: 'inline-flex', 
+                  alignItems: 'center', 
+                  gap: '0.45rem', 
+                  background: 'rgba(16, 185, 129, 0.08)', 
+                  color: '#059669', 
+                  padding: '0.35rem 0.85rem', 
+                  borderRadius: '100px', 
+                  fontSize: '0.75rem', 
+                  fontWeight: '800',
+                  border: '1px solid rgba(16, 185, 129, 0.2)',
+                  letterSpacing: '0.04em'
+                }}>
+                  <span className="pulse-live-dot" /> LIVE & OPEN
+                </div>
+              ) : (
+                <div style={{ 
+                  display: 'inline-flex', 
+                  alignItems: 'center', 
+                  gap: '0.4rem', 
                   background: 'rgba(239, 68, 68, 0.08)', 
                   color: 'var(--error)', 
-                  fontSize: '0.625rem', 
-                  padding: '0.4rem 0.8rem', 
-                  borderRadius: '99px', 
-                  fontWeight: '800',
-                  border: '1px solid rgba(239, 68, 68, 0.15)',
-                  letterSpacing: '0.05em'
-                }}>OFFLINE</div>
+                  fontSize: '0.75rem', 
+                  padding: '0.35rem 0.85rem', 
+                  borderRadius: '100px', 
+                  fontWeight: '800', 
+                  border: '1px solid rgba(239, 68, 68, 0.2)', 
+                  letterSpacing: '0.04em' 
+                }}>
+                  <Clock size={12} /> CURRENTLY CLOSED
+                </div>
               )}
-           </div>
-        </div>
-
-        <div style={{ marginBottom: '1.5rem', position: 'relative' }} className="animate-fade-in-up">
-          <div style={{ position: 'absolute', top: '50%', left: '1.25rem', transform: 'translateY(-50%)', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', opacity: 0.6 }}>
-            <Search size={18} />
+            </div>
           </div>
-          <input 
-            type="text" 
-            placeholder={`Search menu...`} 
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="form-input"
-            style={{ 
-              borderRadius: '100px',
-              paddingLeft: '3.25rem',
-              height: '52px',
-              background: '#ffffff',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.02)'
-            }} 
-          />
-          {searchQuery && (
-            <button 
-              onClick={() => setSearchQuery('')}
-              style={{ position: 'absolute', top: '50%', right: '1.25rem', transform: 'translateY(-50%)', background: '#f1f5f9', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', padding: '0.4rem', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-            >
-              <X size={14} strokeWidth={3} />
-            </button>
-          )}
         </div>
 
-        {/* Global Dietary Filter */}
-        {isExternal && activeCategory === 'All' && !searchQuery && (
+        {/* Dynamic Dietary Filter - ONLY displayed if location/store has mixed offerings (e.g. Law Gate) */}
+        {showDietaryFilter && (
           <div className="dietary-filter-container animate-fade-in-up" style={{ 
-            display: 'flex', gap: '0.4rem', marginBottom: '1.75rem', 
+            display: 'flex', 
+            gap: '0.4rem', 
+            marginBottom: '1rem', 
             background: '#ffffff', 
-            padding: '4px', borderRadius: '16px', 
-            boxShadow: '0 4px 20px rgba(0,0,0,0.04)',
+            padding: '4px', 
+            borderRadius: '16px', 
+            boxShadow: '0 4px 16px rgba(0,0,0,0.03)',
             border: '1px solid var(--surface-border)',
-            maxWidth: '400px',
-            margin: '0 auto 2rem auto'
+            maxWidth: '380px',
+            margin: '0 auto 1rem auto'
           }}>
             {[
               { id: 'all', label: 'All' },
@@ -110,7 +209,7 @@ const StoreSubHeader = ({
                 onClick={() => setDietaryFilter(filter.id)}
                 style={{
                   flex: 1,
-                  padding: '0.6rem 0.75rem',
+                  padding: '0.55rem 0.75rem',
                   borderRadius: '12px',
                   border: 'none',
                   background: dietaryFilter === filter.id ? 'var(--primary)' : 'transparent',
@@ -118,16 +217,16 @@ const StoreSubHeader = ({
                   fontWeight: '800',
                   fontSize: '0.8125rem',
                   cursor: 'pointer',
-                  transition: 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+                  transition: 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '0.35rem',
-                  boxShadow: dietaryFilter === filter.id ? '0 8px 20px rgba(239, 65, 35, 0.15)' : 'none'
+                  boxShadow: dietaryFilter === filter.id ? '0 6px 16px rgba(239, 65, 35, 0.2)' : 'none'
                 }}
               >
-                {filter.id === 'veg' && <span style={{ width: '8px', height: '8px', background: dietaryFilter === 'veg' ? 'white' : '#10b981', borderRadius: '50%', border: '1px solid #10b981' }}></span>}
-                {filter.id === 'non-veg' && <span style={{ width: '8px', height: '8px', background: dietaryFilter === 'non-veg' ? 'white' : '#ef4444', borderRadius: '50%', border: '1px solid #ef4444' }}></span>}
+                {filter.id === 'veg' && <span style={{ width: '8px', height: '8px', background: dietaryFilter === 'veg' ? 'white' : '#10b981', borderRadius: '50%' }}></span>}
+                {filter.id === 'non-veg' && <span style={{ width: '8px', height: '8px', background: dietaryFilter === 'non-veg' ? 'white' : '#ef4444', borderRadius: '50%' }}></span>}
                 {filter.label}
               </button>
             ))}
@@ -139,3 +238,5 @@ const StoreSubHeader = ({
 };
 
 export default React.memo(StoreSubHeader);
+
+

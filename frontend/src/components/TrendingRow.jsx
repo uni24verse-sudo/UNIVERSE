@@ -92,7 +92,7 @@ const TrendingRow = () => {
         <h2 className="trending-title">
           <Flame color="#ef4444" size={24} /> Trending Cravings
         </h2>
-        <span className="trending-subtitle">Most ordered near you right now</span>
+        <p className="trending-subtitle">Most ordered & loved picks near you right now ❤️</p>
       </div>
 
       <div className="trending-carousel-wrapper">
@@ -111,7 +111,9 @@ const TrendingRow = () => {
               </div>
               <div className="trending-info">
                 <h3 className="trending-item-name">{item.name}</h3>
-                <p className="trending-store-name">{item.storeName} &bull; {item.market.replace(' Market', '')}</p>
+                <p className="trending-store-name">
+                  {item.storeName} {item.market ? `• ${item.market.replace(' Market', '')}` : ''}
+                </p>
                 
                 <div className="trending-footer">
                   <span className="trending-price">₹{item.price}</span>

@@ -56,10 +56,10 @@ async function ensureTableExists() {
         "endDate" TIMESTAMP WITH TIME ZONE,
         "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-      );
-      CREATE INDEX IF NOT EXISTS idx_herobanners_hub_status ON herobanners("locationHub", status);
-      CREATE INDEX IF NOT EXISTS idx_herobanners_stall ON herobanners("stallId");
+      )
     `);
+    await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS idx_herobanners_hub_status ON herobanners("locationHub", status)`);
+    await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS idx_herobanners_stall ON herobanners("stallId")`);
     tableInitialized = true;
   } catch (err) {
     console.error('[HeroBanners] Table init error:', err.message);

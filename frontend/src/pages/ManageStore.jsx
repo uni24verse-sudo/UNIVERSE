@@ -22,6 +22,8 @@ const ManageStore = () => {
   const [storeTelegramBotToken, setStoreTelegramBotToken] = useState('');
   const [isEditingStore, setIsEditingStore] = useState(false);
   const [updatingStore, setUpdatingStore] = useState(false);
+  const [locations, setLocations] = useState([]);
+  const [isCustomMarket, setIsCustomMarket] = useState(false);
   const [storeOpeningTime, setStoreOpeningTime] = useState('10:00');
   const [storeClosingTime, setStoreClosingTime] = useState('22:00');
   const [storeIsAutomated, setStoreIsAutomated] = useState(true);
@@ -78,6 +80,29 @@ const ManageStore = () => {
   }, [productForm.name]);
 
   useEffect(() => {
+    axios.get((import.meta.env.VITE_API_URL || 'http://localhost:5000') + '/api/super-admin/locations/public')
+      .then(res => setLocations(res.data || []))
+      .catch(err => console.error('Failed to load locations in ManageStore', err));
+  }, []);
+
+  const storeLocation = locations.find(l => (l._id || l.id) === (store?.locationId || store?.location?.id));
+  const locationMarkets = React.useMemo(() => {
+    if (!storeLocation) {
+      if (store?.name && (localStorage.getItem('universe_campus_name')?.toLowerCase().includes('lpu'))) {
+        return ['BH1 Market', 'Block34 Market', 'LIT Market', 'Mall Market', 'BH6 Market', 'Apartment Market'];
+      }
+      return [];
+    }
+    if (storeLocation.markets && storeLocation.markets.trim()) {
+      return storeLocation.markets.split(',').map(m => m.trim()).filter(Boolean);
+    }
+    if (storeLocation.name?.toLowerCase().includes('lpu') || storeLocation.name?.toLowerCase().includes('lovely')) {
+      return ['BH1 Market', 'Block34 Market', 'LIT Market', 'Mall Market', 'BH6 Market', 'Apartment Market'];
+    }
+    return [];
+  }, [storeLocation, store]);
+
+  useEffect(() => {
     if (!token) {
       navigate('/vendor/login');
       return;
@@ -95,7 +120,7 @@ const ManageStore = () => {
           setStore(defaultStore);
           setStoreName(defaultStore.name);
           setStoreCategory(defaultStore.category || 'General');
-          setStoreMarket(defaultStore.market || 'BH1 Market');
+          setStoreMarket(defaultStore.market || '');
           setStoreUpi(defaultStore.upiId || '');
           setStoreTelegramChatId(defaultStore.telegramChatId || '');
           setStoreTelegramBotToken(defaultStore.telegramBotToken || '');
@@ -129,7 +154,7 @@ const ManageStore = () => {
       setStore(selected);
       setStoreName(selected.name);
       setStoreCategory(selected.category || 'General');
-      setStoreMarket(selected.market || 'BH1 Market');
+      setStoreMarket(selected.market || '');
       setStorePackagingCharge(selected.packagingCharge || 0);
       setStoreUpi(selected.upiId || '');
       setStoreTelegramChatId(selected.telegramChatId || '');
@@ -856,22 +881,56 @@ const ManageStore = () => {
                       )}
                     </select>
                   </div>
-                  {localStorage.getItem('universe_location_type') !== 'External' && (
+                  {storeLocation?.type !== 'External' && (
                     <div className="form-group">
-                      <label className="form-label" style={{ fontSize: '0.75rem' }}>Market Location</label>
-                      <select 
-                        className="form-input" 
-                        value={storeMarket} 
-                        onChange={e => setStoreMarket(e.target.value)}
-                        style={{ height: '40px', borderRadius: '10px', fontSize: '0.875rem', background: '#f8fafc', color: 'var(--text-primary)' }}
-                      >
-                        <option value="BH1 Market">BH1 Market</option>
-                        <option value="Block34 Market">Block34 Market</option>
-                        <option value="LIT Market">LIT Market</option>
-                        <option value="Mall Market">Mall Market</option>
-                        <option value="BH6 Market">BH6 Market</option>
-                        <option value="Apartment Market">Apartment Market</option>
-                      </select>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
+                        <label className="form-label" style={{ fontSize: '0.75rem', margin: 0 }}>
+                          Campus Market / Zone (Optional)
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => setIsCustomMarket(!isCustomMarket)}
+                          style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: '0.7rem', fontWeight: '700', cursor: 'pointer' }}
+                        >
+                          {isCustomMarket ? 'Pick from List' : '+ Custom Zone'}
+                        </button>
+                      </div>
+
+                      {isCustomMarket ? (
+                        <input
+                          type="text"
+                          className="form-input"
+                          placeholder="e.g. Food Court 1 / Block B"
+                          value={storeMarket}
+                          onChange={e => setStoreMarket(e.target.value)}
+                          style={{ height: '40px', borderRadius: '10px', fontSize: '0.875rem' }}
+                        />
+                      ) : (
+                        <select 
+                          className="form-input" 
+                          value={storeMarket || ''} 
+                          onChange={e => {
+                            if (e.target.value === '__custom__') {
+                              setIsCustomMarket(true);
+                            } else {
+                              setStoreMarket(e.target.value);
+                            }
+                          }}
+                          style={{ height: '40px', borderRadius: '10px', fontSize: '0.875rem', background: '#f8fafc', color: 'var(--text-primary)' }}
+                        >
+                          <option value="">General Campus (No specific zone)</option>
+                          {locationMarkets.map(m => (
+                            <option key={m} value={m}>{m}</option>
+                          ))}
+                          {storeMarket && !locationMarkets.includes(storeMarket) && storeMarket !== '' && (
+                            <option value={storeMarket}>{storeMarket} (Custom Zone)</option>
+                          )}
+                          <option value="__custom__">+ Enter Custom Zone</option>
+                        </select>
+                      )}
+                      <p style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', margin: '0.25rem 0 0 0' }}>
+                        Optional zone/building. Can be left empty for general campus.
+                      </p>
                     </div>
                   )}
                   <div className="form-group" style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1rem' }}>
