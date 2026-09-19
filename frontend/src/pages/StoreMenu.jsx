@@ -115,22 +115,41 @@ const StoreMenu = () => {
   const [viewMode, setViewMode] = useState('list');
   const [showMenuSheet, setShowMenuSheet] = useState(false);
   const [showSearchModal, setShowSearchModal] = useState(false);
+  const searchAnchorRef = useRef(null);
   const searchInputRef = useRef(null);
+
+  const isExternal = localStorage.getItem('universe_location_type') === 'External' || store?.hubId?.type === 'External';
 
   const handleToggleSearch = useCallback(() => {
     setShowSearchModal(true);
-    setTimeout(() => {
-      if (searchInputRef.current) {
-        const rect = searchInputRef.current.getBoundingClientRect();
-        const absoluteTop = window.pageYOffset + rect.top;
-        window.scrollTo({
-          top: Math.max(0, absoluteTop - 110),
-          behavior: 'smooth'
-        });
-        searchInputRef.current.focus({ preventScroll: true });
-      }
-    }, 60);
-  }, []);
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        if (searchAnchorRef.current) {
+          // Accurately calculate sticky top elements (Navbar + Promo + Sticky Store bar + breathing room)
+          const isCollege = !isExternal && localStorage.getItem('universe_location_type') === 'College';
+          const navHeight = window.innerWidth <= 600 ? 64 : 72;
+          const promoHeight = isCollege ? 38 : 0;
+          const stickyStoreHeight = 55;
+          const totalHeaderOffset = navHeight + promoHeight + stickyStoreHeight + 15;
+
+          const rect = searchAnchorRef.current.getBoundingClientRect();
+          const targetY = window.pageYOffset + rect.top - totalHeaderOffset;
+
+          window.scrollTo({
+            top: Math.max(0, targetY),
+            behavior: 'smooth'
+          });
+
+          // Focus after smooth scroll completes so virtual keyboard does not cancel smooth scroll
+          setTimeout(() => {
+            if (searchInputRef.current) {
+              searchInputRef.current.focus({ preventScroll: true });
+            }
+          }, 350);
+        }
+      }, 50);
+    });
+  }, [isExternal]);
 
   useEffect(() => {
     const handleNavbarSearch = () => {
@@ -299,7 +318,6 @@ const StoreMenu = () => {
   }, [store]);
 
   const storeClosed = store?.isOpen === false;
-  const isExternal = localStorage.getItem('universe_location_type') === 'External' || store?.hubId?.type === 'External';
 
   // Performance Optimization: Memoize handlers
   const handleVariantClick = useCallback((product) => {
@@ -345,7 +363,10 @@ const StoreMenu = () => {
         showDietaryFilter={effectiveDietaryMode === 'both'}
       />
 
-      <div style={{ padding: '0 1rem', maxWidth: '800px', margin: '0 auto' }}>
+      <div className="store-menu-content-container">
+        {/* Anchor for precision auto-scrolling when search is triggered */}
+        <div ref={searchAnchorRef} id="store-search-anchor" style={{ scrollMarginTop: '180px' }} />
+
         {/* Connected Inline Search Bar directly above dishes */}
         {showSearchModal && (
           <div className="connected-search-container animate-fade-in-up">

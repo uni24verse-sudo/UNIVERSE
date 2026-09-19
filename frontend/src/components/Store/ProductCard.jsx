@@ -47,19 +47,19 @@ const ProductCard = ({
         {/* Left: Dish Information */}
         <div className="product-list-info">
           {/* Tag row with Share Action */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.35rem', gap: '0.5rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.35rem', gap: '0.45rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap', minWidth: 0, flex: 1 }}>
               {showDietaryBadge && (
-                <div className={`dietary-symbol ${dietaryPref}`}>
+                <div className={`dietary-symbol ${dietaryPref}`} style={{ flexShrink: 0 }}>
                   <div className="dietary-dot" />
                 </div>
               )}
               {isComboItem ? (
-                <span className="stall-combo-badge">
+                <span className="stall-combo-badge" style={{ whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden', maxWidth: '100%' }}>
                   COMBO
                 </span>
               ) : (
-                <span className="stall-category-badge">
+                <span className="stall-category-badge" style={{ whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden', maxWidth: '100%' }}>
                   {product.category || 'Specialty'}
                 </span>
               )}
@@ -72,7 +72,7 @@ const ProductCard = ({
               aria-label={`Share ${product.name}`}
             >
               <Share2 size={12} />
-              <span>Share</span>
+              <span className="dish-share-text">Share</span>
             </button>
           </div>
 
@@ -197,27 +197,27 @@ const ProductCard = ({
       </div>
 
       <div className="product-card-content">
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.4rem', gap: '0.5rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.4rem', gap: '0.35rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', minWidth: 0, flex: 1, overflow: 'hidden' }}>
             {isComboItem ? (
-              <span className="stall-combo-badge">
+              <span className="stall-combo-badge" style={{ whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden', maxWidth: '100%' }}>
                 COMBO
               </span>
             ) : (
-              <span className="stall-category-badge">
+              <span className="stall-category-badge" style={{ whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden', maxWidth: '100%' }}>
                 {product.category || 'Specialty'}
               </span>
             )}
           </div>
 
           <button 
-            className="dish-share-btn"
+            className="dish-share-btn dish-share-btn-compact"
             onClick={handleShareDish}
             title={`Share ${product.name}`}
             aria-label={`Share ${product.name}`}
           >
             <Share2 size={12} />
-            <span>Share</span>
+            <span className="dish-share-text">Share</span>
           </button>
         </div>
 
