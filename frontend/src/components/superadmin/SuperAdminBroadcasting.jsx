@@ -26,7 +26,10 @@ import {
   Calendar,
   Radio,
   Sliders,
-  Database
+  Database,
+  Filter,
+  Search,
+  Hash
 } from 'lucide-react';
 
 const SuperAdminBroadcasting = ({ token, socket }) => {
@@ -53,11 +56,16 @@ const SuperAdminBroadcasting = ({ token, socket }) => {
   const [selectedWhatsAppAccountId, setSelectedWhatsAppAccountId] = useState('');
   const [selectedEmailAccountId, setSelectedEmailAccountId] = useState('');
 
-  // Step 4: Target Audience
-  const [audienceSource, setAudienceSource] = useState('customer360'); // 'customer360' or 'upload'
-  const [c360Segment, setC360Segment] = useState('all_students');
-  const [c360Campus, setC360Campus] = useState('All');
-  const [c360MinSpend, setC360MinSpend] = useState('');
+  // Step 4: Target Audience (Master Data & Upload)
+  const [audienceSource, setAudienceSource] = useState('master_data'); // 'master_data' or 'upload'
+  const [mdSource, setMdSource] = useState('all'); // 'all', 'Customer 360', 'Upload', 'Manual'
+  const [mdReachability, setMdReachability] = useState('all'); // 'all', 'whatsapp', 'email', 'both'
+  const [mdCampus, setMdCampus] = useState('All');
+  const [mdSearch, setMdSearch] = useState('');
+  const [mdLimit, setMdLimit] = useState(''); // Record count/limit: '', '50', '100', '250', '500'
+  const [campusList, setCampusList] = useState([]);
+  const [mdPreviewContacts, setMdPreviewContacts] = useState([]);
+  const [loadingAudience, setLoadingAudience] = useState(false);
   
   // Upload audience state
   const [uploadedFile, setUploadedFile] = useState(null);
@@ -102,6 +110,13 @@ const SuperAdminBroadcasting = ({ token, socket }) => {
       const emTpl = templRes.data.find(t => t.channel === 'email');
       if (emTpl) setSelectedEmailTemplateId(emTpl._id);
 
+      // Load campuses for filter
+      axios.get(`${apiUrl}/api/super-admin/locations/public`)
+        .then(locRes => {
+          if (Array.isArray(locRes.data)) setCampusList(locRes.data);
+        })
+        .catch(() => {});
+
     } catch (err) {
       console.error('Failed to load broadcasting data:', err);
     } finally {
@@ -113,20 +128,35 @@ const SuperAdminBroadcasting = ({ token, socket }) => {
     fetchData();
   }, [token]);
 
-  // Estimate audience count when customer360 is selected
+  // Estimate audience count & sample records from Master Data
   useEffect(() => {
-    if (audienceSource === 'customer360') {
-      axios.get(`${apiUrl}/api/super-admin/master-data`, { headers, params: { limit: 1 } })
+    if (audienceSource === 'master_data') {
+      setLoadingAudience(true);
+      const params = {
+        limit: mdLimit ? parseInt(mdLimit) : 5,
+        source: mdSource,
+        reachability: mdReachability,
+        search: mdSearch
+      };
+      if (mdCampus !== 'All') params.campus = mdCampus;
+
+      axios.get(`${apiUrl}/api/super-admin/master-data`, { headers, params })
         .then(res => {
-          if (res.data.summary) {
-            setEstimatedAudienceCount(res.data.summary.totalContacts || 0);
+          if (res.data.success) {
+            const totalMatching = res.data.total || 0;
+            const cappedCount = mdLimit ? Math.min(totalMatching, parseInt(mdLimit)) : totalMatching;
+            setEstimatedAudienceCount(cappedCount);
+            setMdPreviewContacts(res.data.contacts ? res.data.contacts.slice(0, 5) : []);
           }
         })
-        .catch(() => {});
+        .catch(err => {
+          console.warn('[Broadcast] Audience estimate error:', err);
+        })
+        .finally(() => setLoadingAudience(false));
     } else {
       setEstimatedAudienceCount(parsedContacts.length);
     }
-  }, [audienceSource, parsedContacts.length, token]);
+  }, [audienceSource, mdSource, mdReachability, mdCampus, mdSearch, mdLimit, parsedContacts.length, token]);
 
   // Socket listener for live broadcast progress
   useEffect(() => {
@@ -177,13 +207,25 @@ const SuperAdminBroadcasting = ({ token, socket }) => {
     return () => clearInterval(pollInterval);
   }, [dispatching, liveProgress?.campaignId]);
 
-  // Helper to render WhatsApp Markdown (*bold*, _italic_, links)
+  // Helper to render WhatsApp Markdown (*bold*, _italic_, dynamic tags {{1}}, {{2}}, {{3}}, links)
   const renderWhatsAppFormattedText = (rawText) => {
     if (!rawText) return null;
     return rawText.split('\n').map((line, lineIdx) => {
-      const parts = line.split(/(\*[^*]+\*|_[^_]+_|https?:\/\/[^\s]+)/g);
+      // Substitute dynamic variable tags with sample values for realistic preview
+      let displayLine = line
+        .replace(/\{\{1\}\}/g, 'Aman Kumar')
+        .replace(/\{\{name\}\}/gi, 'Aman Kumar')
+        .replace(/\{\{2\}\}/g, 'Lovely Professional University')
+        .replace(/\{\{detail\}\}/gi, 'Lovely Professional University')
+        .replace(/\{\{campus\}\}/gi, 'Lovely Professional University')
+        .replace(/\{\{3\}\}/g, 'https://universeorder.co.in')
+        .replace(/\{\{link\}\}/gi, 'https://universeorder.co.in')
+        .replace(/\{\{code\}\}/gi, 'UNIVERSE20')
+        .replace(/\{\{discount_code\}\}/gi, 'UNIVERSE20');
+
+      const parts = displayLine.split(/(\*[^*]+\*|_[^_]+_|https?:\/\/[^\s]+)/g);
       return (
-        <div key={lineIdx} style={{ minHeight: '1.3em', marginBottom: line === '' ? '0.5em' : '0' }}>
+        <div key={lineIdx} style={{ minHeight: '1.3em', marginBottom: displayLine === '' ? '0.5em' : '0' }}>
           {parts.map((part, pIdx) => {
             if (part.startsWith('*') && part.endsWith('*')) {
               return <strong key={pIdx} style={{ color: '#111b21', fontWeight: '800' }}>{part.slice(1, -1)}</strong>;
@@ -210,7 +252,7 @@ const SuperAdminBroadcasting = ({ token, socket }) => {
   const selectedWaTemplate = templates.find(t => t._id === selectedWhatsAppTemplateId);
   const selectedEmTemplate = templates.find(t => t._id === selectedEmailTemplateId);
 
-  // Parse document upload (CSV/TXT)
+  // Parse document upload (CSV/TXT/TSV)
   const handleAudienceFileUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -232,6 +274,7 @@ const SuperAdminBroadcasting = ({ token, socket }) => {
         const nameIdx = headersArr.findIndex(h => h.includes('name'));
         const emailIdx = headersArr.findIndex(h => h.includes('email') || h.includes('mail'));
         const campusIdx = headersArr.findIndex(h => h.includes('campus') || h.includes('college'));
+        const notesIdx = headersArr.findIndex(h => h.includes('note') || h.includes('detail') || h.includes('remark') || h.includes('tag'));
 
         if (phoneIdx === -1) {
           setUploadError('Document must contain a "phone" or "mobile" column.');
@@ -254,7 +297,8 @@ const SuperAdminBroadcasting = ({ token, socket }) => {
               phone: cleanPhone,
               name: nameIdx !== -1 ? (cols[nameIdx] || 'Recipient') : 'Recipient',
               email: emailIdx !== -1 ? (cols[emailIdx] || '') : '',
-              campus: campusIdx !== -1 ? (cols[campusIdx] || 'UniVerse Campus') : 'UniVerse Campus'
+              campus: campusIdx !== -1 ? (cols[campusIdx] || 'UniVerse Campus') : 'UniVerse Campus',
+              notes: notesIdx !== -1 ? (cols[notesIdx] || '') : ''
             });
           }
         }
@@ -271,9 +315,29 @@ const SuperAdminBroadcasting = ({ token, socket }) => {
     reader.readAsText(file);
   };
 
-  // Download Sample Template
+  // Download Sample Template (Direct blob generation & server fallback)
   const handleDownloadSampleTemplate = () => {
-    window.open(`${apiUrl}/api/super-admin/master-data/sample-template`, '_blank');
+    try {
+      const csvData = [
+        'name,phone,email,campus,notes',
+        'Arjun Mehta,9876543210,arjun.mehta@example.com,Lovely Professional University,Food Court Regular',
+        'Priya Sharma,9812345678,priya.sharma@example.com,Lovely Professional University,Hostel Block 4',
+        'Sneha Kapoor,9123456789,,Lovely Professional University,Veg Only',
+        'Rohan Verma,9988776655,rohan.v@example.com,Lovely Professional University,Pre-Order Member'
+      ].join('\n');
+
+      const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.setAttribute('download', 'universe_broadcast_audience_sample.csv');
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err) {
+      window.open(`${apiUrl}/api/super-admin/master-data/sample-template`, '_blank');
+    }
   };
 
   // Submit & Trigger Broadcast
@@ -312,7 +376,7 @@ const SuperAdminBroadcasting = ({ token, socket }) => {
     }
 
     if (audienceSource === 'upload' && parsedContacts.length === 0) {
-      alert('Please upload a document with valid contacts or choose Customer 360 in Step 4.');
+      alert('Please upload a document with valid contacts or choose Master Data in Step 4.');
       setWizardStep(4);
       return;
     }
@@ -331,9 +395,17 @@ const SuperAdminBroadcasting = ({ token, socket }) => {
         emailAccountId: selectedEmailAccountId,
         whatsappTemplateId: selectedWhatsAppTemplateId,
         emailTemplateId: selectedEmailTemplateId,
-        targetAudience: audienceSource === 'upload' ? `Uploaded Document (${parsedContacts.length} recipients)` : `Customer 360 (${c360Segment})`,
+        targetAudience: audienceSource === 'upload' 
+          ? `Uploaded Document (${parsedContacts.length} recipients)` 
+          : `Master Data (${mdSource === 'all' ? 'All Sources' : mdSource} • ${mdReachability.toUpperCase()})`,
         uploadedAudience: audienceSource === 'upload' ? parsedContacts : null,
-        audienceFilters: audienceSource === 'customer360' ? { segment: c360Segment, campus: c360Campus, minSpend: c360MinSpend } : null,
+        audienceFilters: audienceSource === 'master_data' ? { 
+          source: mdSource, 
+          reachability: mdReachability, 
+          campus: mdCampus, 
+          search: mdSearch,
+          limit: mdLimit 
+        } : null,
         pacing: pacingMode
       };
 
@@ -866,16 +938,16 @@ const SuperAdminBroadcasting = ({ token, socket }) => {
                   <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem' }}>
                     <button
                       type="button"
-                      onClick={() => setAudienceSource('customer360')}
+                      onClick={() => setAudienceSource('master_data')}
                       style={{
                         flex: 1, padding: '1rem', borderRadius: '14px', border: '2px solid',
-                        borderColor: audienceSource === 'customer360' ? 'var(--primary)' : '#e2e8f0',
-                        background: audienceSource === 'customer360' ? 'rgba(239, 65, 35, 0.06)' : '#ffffff',
-                        color: audienceSource === 'customer360' ? 'var(--primary)' : '#64748b',
+                        borderColor: audienceSource === 'master_data' ? 'var(--primary)' : '#e2e8f0',
+                        background: audienceSource === 'master_data' ? 'rgba(239, 65, 35, 0.06)' : '#ffffff',
+                        color: audienceSource === 'master_data' ? 'var(--primary)' : '#64748b',
                         fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
                       }}
                     >
-                      <Database size={18} /> Customer 360 / Database
+                      <Database size={18} /> Master Data Contacts
                     </button>
 
                     <button
@@ -893,40 +965,141 @@ const SuperAdminBroadcasting = ({ token, socket }) => {
                     </button>
                   </div>
 
-                  {audienceSource === 'customer360' ? (
+                  {audienceSource === 'master_data' ? (
                     <div style={{ background: '#f8fafc', padding: '1.5rem', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginBottom: '1.25rem' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1.25rem' }}>
+                        {/* 1. Source Filter */}
                         <div>
-                          <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: '800', color: '#475569', marginBottom: '4px' }}>Audience Segment</label>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.78rem', fontWeight: '800', color: '#475569', marginBottom: '4px' }}>
+                            <Database size={13} /> Data Source Filter
+                          </label>
                           <select
-                            value={c360Segment}
-                            onChange={e => setC360Segment(e.target.value)}
+                            value={mdSource}
+                            onChange={e => setMdSource(e.target.value)}
                             style={{ width: '100%', padding: '0.7rem', borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '0.85rem', background: '#fff' }}
                           >
-                            <option value="all_students">All Registered Students</option>
-                            <option value="active_buyers">Active Buyers (Last 14 Days)</option>
-                            <option value="high_spenders">High Spenders (VIP)</option>
-                            <option value="all_vendors">All Campus Food Vendors</option>
+                            <option value="all">All Sources (Complete Master Data)</option>
+                            <option value="Customer 360">Customer 360 (App Users & Orders)</option>
+                            <option value="Upload">Uploaded Data (CSV & Ingestion Batches)</option>
+                            <option value="Manual">Manual Entry</option>
                           </select>
                         </div>
 
+                        {/* 2. Contact & Mail Filter (Reachability) */}
                         <div>
-                          <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: '800', color: '#475569', marginBottom: '4px' }}>Target Campus</label>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.78rem', fontWeight: '800', color: '#475569', marginBottom: '4px' }}>
+                            <Filter size={13} /> Contact & Mail Filter
+                          </label>
                           <select
-                            value={c360Campus}
-                            onChange={e => setC360Campus(e.target.value)}
+                            value={mdReachability}
+                            onChange={e => setMdReachability(e.target.value)}
+                            style={{ width: '100%', padding: '0.7rem', borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '0.85rem', background: '#fff' }}
+                          >
+                            <option value="all">All Contacts</option>
+                            <option value="whatsapp">💬 WhatsApp / Contact Phone Ready</option>
+                            <option value="email">📧 Email / Mail Ready</option>
+                            <option value="both">⚡ Both Phone & Mail Ready</option>
+                          </select>
+                        </div>
+
+                        {/* 3. Campus Location Filter */}
+                        <div>
+                          <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: '800', color: '#475569', marginBottom: '4px' }}>
+                            Target Campus
+                          </label>
+                          <select
+                            value={mdCampus}
+                            onChange={e => setMdCampus(e.target.value)}
                             style={{ width: '100%', padding: '0.7rem', borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '0.85rem', background: '#fff' }}
                           >
                             <option value="All">All Campuses</option>
-                            <option value="Lovely Professional University">Lovely Professional University</option>
+                            {campusList.map(c => (
+                              <option key={c._id || c.id} value={c.name}>{c.name}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        {/* 4. Sr.No / Recipient Count Filter */}
+                        <div>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.78rem', fontWeight: '800', color: '#475569', marginBottom: '4px' }}>
+                            <Hash size={13} /> Sr.No / Volume Limit
+                          </label>
+                          <select
+                            value={mdLimit}
+                            onChange={e => setMdLimit(e.target.value)}
+                            style={{ width: '100%', padding: '0.7rem', borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '0.85rem', background: '#fff' }}
+                          >
+                            <option value="">All Matching Contacts</option>
+                            <option value="25">First 25 Contacts (Sr.No 1-25)</option>
+                            <option value="50">First 50 Contacts (Sr.No 1-50)</option>
+                            <option value="100">First 100 Contacts (Sr.No 1-100)</option>
+                            <option value="250">First 250 Contacts (Sr.No 1-250)</option>
+                            <option value="500">First 500 Contacts (Sr.No 1-500)</option>
+                            <option value="1000">First 1000 Contacts (Sr.No 1-1000)</option>
                           </select>
                         </div>
                       </div>
 
-                      <div style={{ padding: '0.85rem 1rem', background: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <span style={{ fontSize: '0.85rem', color: '#475569', fontWeight: '700' }}>Estimated Eligible Recipients:</span>
-                        <span style={{ fontSize: '1.1rem', fontWeight: '900', color: '#10b981' }}>~{estimatedAudienceCount} recipients</span>
+                      {/* Search / Contact & Mail Keyword Filter */}
+                      <div style={{ marginBottom: '1.25rem' }}>
+                        <div style={{ position: 'relative' }}>
+                          <Search size={15} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                          <input 
+                            type="text"
+                            placeholder="Filter by contact name, phone, or mail keyword..."
+                            value={mdSearch}
+                            onChange={e => setMdSearch(e.target.value)}
+                            style={{ width: '100%', padding: '0.7rem 0.75rem 0.7rem 2.25rem', borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '0.85rem', boxSizing: 'border-box', background: '#fff' }}
+                          />
+                        </div>
                       </div>
+
+                      {/* Recipient Count Bar */}
+                      <div style={{ padding: '0.85rem 1rem', background: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                        <span style={{ fontSize: '0.85rem', color: '#475569', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <Database size={15} color="var(--primary)" /> Target Master Data Audience:
+                        </span>
+                        <span style={{ fontSize: '1.15rem', fontWeight: '900', color: '#10b981' }}>
+                          {loadingAudience ? 'Calculating...' : `~${estimatedAudienceCount} recipients`}
+                        </span>
+                      </div>
+
+                      {/* Sample Contacts Live Preview */}
+                      {mdPreviewContacts.length > 0 && (
+                        <div>
+                          <div style={{ fontSize: '0.75rem', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', marginBottom: '6px' }}>
+                            Sample Target Contacts Preview (First {mdPreviewContacts.length} recipients):
+                          </div>
+                          <div style={{ background: '#ffffff', borderRadius: '10px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
+                              <thead>
+                                <tr style={{ background: '#f1f5f9', color: '#475569', textAlign: 'left' }}>
+                                  <th style={{ padding: '6px 10px' }}>Sr.No</th>
+                                  <th style={{ padding: '6px 10px' }}>Name</th>
+                                  <th style={{ padding: '6px 10px' }}>Contact</th>
+                                  <th style={{ padding: '6px 10px' }}>Mail</th>
+                                  <th style={{ padding: '6px 10px' }}>Source</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {mdPreviewContacts.map((c, cIdx) => (
+                                  <tr key={c._id || c.id || cIdx} style={{ borderTop: '1px solid #f1f5f9' }}>
+                                    <td style={{ padding: '6px 10px', color: '#94a3b8', fontWeight: '700' }}>#{cIdx + 1}</td>
+                                    <td style={{ padding: '6px 10px', fontWeight: '700', color: '#0f172a' }}>{c.name}</td>
+                                    <td style={{ padding: '6px 10px', color: '#25D366', fontWeight: '800' }}>+{c.phone}</td>
+                                    <td style={{ padding: '6px 10px', color: '#64748b' }}>{c.email || '—'}</td>
+                                    <td style={{ padding: '6px 10px' }}>
+                                      <span style={{ fontSize: '0.7rem', padding: '2px 6px', borderRadius: '4px', background: c.source?.includes('Upload') ? 'rgba(99, 102, 241, 0.1)' : 'rgba(239, 65, 35, 0.1)', color: c.source?.includes('Upload') ? '#6366f1' : 'var(--primary)', fontWeight: '700' }}>
+                                        {c.source || 'Master Data'}
+                                      </span>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <div>
@@ -1110,6 +1283,35 @@ const SuperAdminBroadcasting = ({ token, socket }) => {
                               <span style={{ fontSize: '0.65rem', color: '#8696a0' }}>12:45 PM</span>
                             </div>
                           </div>
+
+                          {/* WhatsApp Interactive Action Buttons Preview */}
+                          {selectedWaTemplate?.buttons && selectedWaTemplate.buttons.length > 0 && (
+                            <div style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                              {selectedWaTemplate.buttons.map((btn, bIdx) => (
+                                <div key={bIdx} style={{
+                                  background: '#ffffff',
+                                  border: '1px solid #d1d7db',
+                                  borderRadius: '8px',
+                                  padding: '8px',
+                                  textAlign: 'center',
+                                  color: '#00a884',
+                                  fontWeight: '700',
+                                  fontSize: '0.8rem',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: '6px',
+                                  boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                                }}>
+                                  {btn.type === 'URL' && '🔗'}
+                                  {btn.type === 'PHONE_NUMBER' && '📞'}
+                                  {btn.type === 'OTP' && '🔑'}
+                                  {(btn.type === 'QUICK_REPLY' || !btn.type) && '💬'}
+                                  {btn.text}
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       </div>
                     )}
@@ -1166,7 +1368,9 @@ const SuperAdminBroadcasting = ({ token, socket }) => {
                     <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.5rem' }}>
                       <span style={{ color: '#64748b', fontSize: '0.85rem' }}>Target Audience:</span>
                       <strong style={{ color: '#0f172a', fontSize: '0.85rem' }}>
-                        {audienceSource === 'upload' ? `Uploaded Document (${parsedContacts.length} contacts)` : `Customer 360 (${c360Segment})`}
+                        {audienceSource === 'upload' 
+                          ? `Uploaded Document (${parsedContacts.length} contacts)` 
+                          : `Master Data (${mdSource === 'all' ? 'All Sources' : mdSource} • ${mdReachability.toUpperCase()})`}
                       </strong>
                     </div>
 

@@ -462,31 +462,38 @@ class WhatsAppMultiDeviceService {
       };
     }
 
-    // Only include actual URL links if explicitly provided with a web destination.
-    if (messagePayload.buttons && messagePayload.buttons.length > 0) {
-      const linkLines = messagePayload.buttons
-        .filter(b => (b.type === 'URL' || b.url) && (b.value || b.url))
-        .map(b => {
-          const text = b.text || b.buttonText?.displayText || 'Link';
-          return `🔗 ${text}: ${b.value || b.url}`;
-        })
-        .join('\n');
-
-      if (linkLines) {
-        if (messageContent.caption) {
-          messageContent.caption += `\n\n${linkLines}`;
-        } else {
-          messageContent.text += `\n\n${linkLines}`;
-        }
-      }
-    }
-
     if (messagePayload.footer) {
       const footerLine = `\n\n_${messagePayload.footer}_`;
       if (messageContent.caption) {
         messageContent.caption += footerLine;
       } else {
         messageContent.text += footerLine;
+      }
+    }
+
+    // Format interactive buttons (URL/CTA, Quick Reply, Phone Call, OTP)
+    if (messagePayload.buttons && messagePayload.buttons.length > 0) {
+      const buttonLines = messagePayload.buttons.map(b => {
+        const text = b.text || b.buttonText?.displayText || 'Action';
+        const val = b.value || b.url || b.phoneNumber || '';
+        if (b.type === 'URL' || b.url || b.type === 'CTA') {
+          return `🔗 ${text}: ${val}`;
+        } else if (b.type === 'PHONE_NUMBER' || b.type === 'CALL') {
+          return `📞 ${text}: ${val}`;
+        } else if (b.type === 'OTP') {
+          return `🔑 ${text}: ${val || 'CODE'}`;
+        } else {
+          return `💬 [ ${text} ]`;
+        }
+      }).filter(Boolean).join('\n');
+
+      if (buttonLines) {
+        const block = `\n\n${buttonLines}`;
+        if (messageContent.caption) {
+          messageContent.caption += block;
+        } else {
+          messageContent.text += block;
+        }
       }
     }
 

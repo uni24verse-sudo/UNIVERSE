@@ -168,40 +168,82 @@ router.post('/dispatch', async (req, res) => {
         }
       });
     } else {
-      // Customer 360 / Database Audience
-      // Prefer pulling from Master Data or Customer model
-      const customers = await prisma.customer.findMany({
-        orderBy: { updatedAt: 'desc' }
-      });
+      // Master Data Contacts Audience Selection
+      const conditions = [];
+      const filters = audienceFilters || {};
 
-      for (const c of customers) {
-        const p = cleanPhone(c.phone);
-        if (p && p.length >= 7 && !phoneMap.has(p)) {
-          phoneMap.set(p, {
-            phone: p,
-            name: c.currentName || 'UniVerse Student',
-            email: c.email || '',
-            campus: c.campus || 'Lovely Professional University'
-          });
-        }
+      // Filter by Source (Customer 360, Uploaded Data, Manual, All)
+      if (filters.source && filters.source !== 'all') {
+        conditions.push(`source ILIKE '%${String(filters.source).replace(/'/g, "''")}%'`);
       }
 
-      // Also blend from orders
-      const orders = await prisma.order.findMany({
-        where: { customerPhone: { not: '' } },
-        select: { customerPhone: true, customerName: true, customerEmail: true },
-        take: 2000,
-        orderBy: { createdAt: 'desc' }
-      });
-      for (const o of orders) {
-        const p = cleanPhone(o.customerPhone);
-        if (p && p.length >= 7 && !phoneMap.has(p)) {
-          phoneMap.set(p, {
-            phone: p,
-            name: o.customerName || 'Campus Member',
-            email: o.customerEmail || '',
-            campus: 'Lovely Professional University'
-          });
+      // Filter by Reachability / Contact & Mail filters
+      if (filters.reachability === 'whatsapp') {
+        conditions.push(`phone IS NOT NULL AND phone != ''`);
+      } else if (filters.reachability === 'email') {
+        conditions.push(`email IS NOT NULL AND email != '' AND email LIKE '%@%'`);
+      } else if (filters.reachability === 'both') {
+        conditions.push(`phone IS NOT NULL AND phone != '' AND email IS NOT NULL AND email != '' AND email LIKE '%@%'`);
+      }
+
+      // Filter by Campus
+      if (filters.campus && filters.campus !== 'All') {
+        conditions.push(`campus ILIKE '%${String(filters.campus).replace(/'/g, "''")}%'`);
+      }
+
+      // Search keyword filter (Name, Contact phone, Email)
+      if (filters.search && String(filters.search).trim()) {
+        const q = String(filters.search).trim().replace(/'/g, "''");
+        conditions.push(`(name ILIKE '%${q}%' OR phone ILIKE '%${q}%' OR email ILIKE '%${q}%' OR campus ILIKE '%${q}%')`);
+      }
+
+      const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+      let limitClause = '';
+      if (filters.limit && parseInt(filters.limit) > 0) {
+        limitClause = `LIMIT ${parseInt(filters.limit)}`;
+      }
+
+      let masterRows = [];
+      try {
+        masterRows = await prisma.$queryRawUnsafe(`
+          SELECT * FROM mastercontacts 
+          ${whereClause} 
+          ORDER BY "updatedAt" DESC 
+          ${limitClause}
+        `);
+      } catch (err) {
+        console.warn('[Broadcast] Error querying mastercontacts table:', err.message);
+      }
+
+      if (masterRows && masterRows.length > 0) {
+        for (const m of masterRows) {
+          const p = cleanPhone(m.phone);
+          if (p && p.length >= 7 && !phoneMap.has(p)) {
+            phoneMap.set(p, {
+              phone: p,
+              name: m.name || 'UniVerse Student',
+              email: m.email || '',
+              campus: m.campus || 'Lovely Professional University',
+              notes: m.notes || ''
+            });
+          }
+        }
+      } else {
+        // Fallback to customer model if table is empty
+        const customers = await prisma.customer.findMany({
+          orderBy: { updatedAt: 'desc' }
+        });
+
+        for (const c of customers) {
+          const p = cleanPhone(c.phone);
+          if (p && p.length >= 7 && !phoneMap.has(p)) {
+            phoneMap.set(p, {
+              phone: p,
+              name: c.currentName || 'UniVerse Student',
+              email: c.email || '',
+              campus: c.campus || 'Lovely Professional University'
+            });
+          }
         }
       }
     }
@@ -278,11 +320,17 @@ async function executeBroadcastAsync(campaignId, config, recipients, io, pacing)
       // 1. Send WhatsApp if channel is whatsapp or both
       if ((channel === 'whatsapp' || channel === 'both') && waAccount && waTemplate && recipient.phone) {
         let body = waTemplate.body
-          .replace(/{{name}}/gi, recipient.name || 'Campus Member')
-          .replace(/{{campus}}/gi, recipient.campus || 'UniVerse Campus')
-          .replace(/{{discount_code}}/gi, recipient.discountCode || '')
-          .replace(/{{phone}}/gi, recipient.phone || '')
-          .replace(/{{email}}/gi, recipient.email || '');
+          .replace(/\{\{1\}\}/g, recipient.name || 'Campus Member')
+          .replace(/\{\{name\}\}/gi, recipient.name || 'Campus Member')
+          .replace(/\{\{2\}\}/g, recipient.campus || recipient.notes || 'UniVerse Campus')
+          .replace(/\{\{detail\}\}/gi, recipient.campus || recipient.notes || 'UniVerse Campus')
+          .replace(/\{\{campus\}\}/gi, recipient.campus || 'UniVerse Campus')
+          .replace(/\{\{3\}\}/g, recipient.link || recipient.discountCode || 'https://www.universeorder.co.in')
+          .replace(/\{\{link\}\}/gi, recipient.link || 'https://www.universeorder.co.in')
+          .replace(/\{\{code\}\}/gi, recipient.discountCode || 'UNIVERSE')
+          .replace(/\{\{discount_code\}\}/gi, recipient.discountCode || 'UNIVERSE')
+          .replace(/\{\{phone\}\}/gi, recipient.phone || '')
+          .replace(/\{\{email\}\}/gi, recipient.email || '');
 
         let slotIndex = waAccount.slotIndex || 1;
         if (whatsappMultiDeviceService.status.get(slotIndex) !== 'connected') {
@@ -323,11 +371,17 @@ async function executeBroadcastAsync(campaignId, config, recipients, io, pacing)
       // 2. Send Email if channel is email or both
       if ((channel === 'email' || channel === 'both') && emAccount && emTemplate && recipient.email) {
         let emailBody = emTemplate.body
-          .replace(/{{name}}/gi, recipient.name || 'Campus Member')
-          .replace(/{{campus}}/gi, recipient.campus || 'UniVerse Campus')
-          .replace(/{{discount_code}}/gi, recipient.discountCode || '')
-          .replace(/{{phone}}/gi, recipient.phone || '')
-          .replace(/{{email}}/gi, recipient.email || '');
+          .replace(/\{\{1\}\}/g, recipient.name || 'Campus Member')
+          .replace(/\{\{name\}\}/gi, recipient.name || 'Campus Member')
+          .replace(/\{\{2\}\}/g, recipient.campus || recipient.notes || 'UniVerse Campus')
+          .replace(/\{\{detail\}\}/gi, recipient.campus || recipient.notes || 'UniVerse Campus')
+          .replace(/\{\{campus\}\}/gi, recipient.campus || 'UniVerse Campus')
+          .replace(/\{\{3\}\}/g, recipient.link || recipient.discountCode || 'https://www.universeorder.co.in')
+          .replace(/\{\{link\}\}/gi, recipient.link || 'https://www.universeorder.co.in')
+          .replace(/\{\{code\}\}/gi, recipient.discountCode || 'UNIVERSE')
+          .replace(/\{\{discount_code\}\}/gi, recipient.discountCode || 'UNIVERSE')
+          .replace(/\{\{phone\}\}/gi, recipient.phone || '')
+          .replace(/\{\{email\}\}/gi, recipient.email || '');
 
         const html = `
           <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 1.5rem; background: #0f172a; color: #f8fafc; border-radius: 16px;">
