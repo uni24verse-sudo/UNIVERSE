@@ -14,8 +14,14 @@ export const SocketProvider = ({ children }) => {
   const { vendor, token } = useContext(AuthContext);
 
   useEffect(() => {
+    const socketBaseUrl = (typeof window !== 'undefined' && window.location.hostname && 
+        window.location.hostname !== 'localhost' && 
+        window.location.hostname !== '127.0.0.1')
+      ? window.location.origin
+      : (import.meta.env.VITE_API_URL || 'http://localhost:5000');
+
     // Initialize socket connection universally for all users (customers & vendors)
-    const newSocket = io(import.meta.env.VITE_API_URL || 'http://localhost:5000', {
+    const newSocket = io(socketBaseUrl, {
       auth: {
         token: token || ''
       },
