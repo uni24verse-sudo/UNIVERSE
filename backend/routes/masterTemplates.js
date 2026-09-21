@@ -1,10 +1,63 @@
 const express = require('express');
 const router = express.Router();
 const crypto = require('crypto');
+const multer = require('multer');
+const { Readable } = require('stream');
+const cloudinary = require('cloudinary').v2;
 const superAdminAuth = require('../middleware/superAdminAuth');
 const prisma = require('../config/prisma');
 
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
+});
+
+const upload = multer({ 
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 25 * 1024 * 1024 } // 25MB max
+});
+
+function bufferToStream(buffer) {
+  const readable = new Readable();
+  readable._read = () => {};
+  readable.push(buffer);
+  readable.push(null);
+  return readable;
+}
+
 router.use(superAdminAuth);
+
+/**
+ * UPLOAD TEMPLATE IMAGE (Cloudinary)
+ */
+router.post('/upload-image', upload.single('image'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'No image file uploaded' });
+    }
+
+    const uploadResult = await new Promise((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream(
+        { folder: 'universe_templates' },
+        (error, result) => {
+          if (result) resolve(result);
+          else reject(error);
+        }
+      );
+      bufferToStream(req.file.buffer).pipe(stream);
+    });
+
+    res.json({
+      success: true,
+      imageUrl: uploadResult.secure_url,
+      url: uploadResult.secure_url
+    });
+  } catch (err) {
+    console.error('Template image upload error:', err);
+    res.status(500).json({ message: 'Failed to upload image: ' + err.message });
+  }
+});
 
 /**
  * 1. GET ALL MASTER TEMPLATES
