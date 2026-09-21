@@ -14,7 +14,10 @@ const LocationPortal = ({ onLocationSelect }) => {
     // 1. Fetch all locations
     const fetchLocations = async () => {
       try {
-        const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/super-admin/locations/public`);
+        const baseUrl = (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1')
+          ? window.location.origin
+          : (import.meta.env.VITE_API_URL || 'http://localhost:5000');
+        const res = await axios.get(`${baseUrl}/api/super-admin/locations/public`);
         setLocations(res.data);
       } catch (err) {
         console.error('Failed to fetch locations', err);
