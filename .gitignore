@@ -1,5 +1,7 @@
 node_modules/
 .env
+env-production
+env-uat
 dist/
 uploads/
 .DS_Store
