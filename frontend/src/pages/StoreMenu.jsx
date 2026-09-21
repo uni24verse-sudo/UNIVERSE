@@ -167,10 +167,16 @@ const StoreMenu = () => {
   // Apply Dynamic Brand Theme
   useStoreTheme(store);
 
+  const baseUrl = (typeof window !== 'undefined' && window.location.hostname && 
+      window.location.hostname !== 'localhost' && 
+      window.location.hostname !== '127.0.0.1')
+    ? window.location.origin
+    : (import.meta.env.VITE_API_URL || 'http://localhost:5000');
+
   useEffect(() => {
     const fetchStore = async () => {
       try {
-        const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/store/${id}`);
+        const res = await axios.get(`${baseUrl}/api/store/${id}`);
         const fetchedStore = res.data;
         setStore(fetchedStore);
         
@@ -202,7 +208,7 @@ const StoreMenu = () => {
     // Listen for global sync events from SessionGuard
     window.addEventListener('universe_sync_data', fetchStore);
     return () => window.removeEventListener('universe_sync_data', fetchStore);
-  }, [id]);
+  }, [id, baseUrl]);
 
   // Robust Wakeup Mechanism: Refetch data when returning from inactivity/sleep
   useEffect(() => {
@@ -210,7 +216,7 @@ const StoreMenu = () => {
       if (document.visibilityState === 'visible') {
         console.log('[StoreMenu] Device woke up, syncing fresh store data...');
         // Silent fetch to ensure store open/close status and menu are fresh
-        axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/store/${id}`)
+        axios.get(`${baseUrl}/api/store/${id}`)
           .then(res => setStore(res.data))
           .catch(console.error);
       }

@@ -1,0 +1,54 @@
+name: Deploy Production
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy to Production Server
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to Production EC2 via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          port: 22
+          script_stop: true
+          script: |
+            set -e
+            echo "=========================================="
+            echo "🚀 Deploying UniVerse Production..."
+            echo "=========================================="
+
+            cd /home/ubuntu/UNIVERSE
+            git fetch origin main
+            git reset --hard origin/main
+
+            echo "📦 Installing backend dependencies & generating Prisma client..."
+            cd /home/ubuntu/UNIVERSE/backend
+            npm install --production=false
+            npx prisma generate
+
+            echo "🗄️ Executing AWS RDS database migrations..."
+            node scripts/deploy-migrations.js
+
+            echo "🎨 Building frontend for Production..."
+            cd /home/ubuntu/UNIVERSE/frontend
+            npm install
+            VITE_API_URL="" npm run build
+
+            echo "🔄 Reloading PM2 backend service..."
+            pm2 reload universe-backend || pm2 restart universe-backend || pm2 restart all
+
+            echo "🌐 Verifying and reloading Nginx..."
+            sudo nginx -t && sudo systemctl reload nginx
+
+            echo "=========================================="
+            echo "✅ UniVerse Production Deployment Completed!"
+            echo "🌐 URLs: https://food.universeorder.co.in / https://universeorder.co.in"
+            echo "=========================================="
