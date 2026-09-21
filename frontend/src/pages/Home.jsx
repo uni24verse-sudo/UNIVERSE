@@ -96,10 +96,13 @@ const Home = () => {
   useEffect(() => {
     const fetchStoresAndLocation = async () => {
       try {
+        const baseUrl = (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1')
+          ? window.location.origin
+          : (import.meta.env.VITE_API_URL || 'http://localhost:5000');
         const locationId = localStorage.getItem('universe_location_id');
         const [storesRes, locsRes] = await Promise.all([
-          axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/store/all/list`, { params: { locationId } }),
-          axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/super-admin/locations/public`)
+          axios.get(`${baseUrl}/api/store/all/list`, { params: { locationId } }),
+          axios.get(`${baseUrl}/api/super-admin/locations/public`)
         ]);
         setStores(storesRes.data);
         const loc = locsRes.data.find(l => (l._id || l.id) === locationId);
