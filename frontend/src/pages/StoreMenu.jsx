@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useContext, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useContext, useMemo, useCallback, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { CartContext } from '../context/CartContext';
 import { useSocket } from '../context/SocketContext';
-import { ArrowLeft, Clock, Search, X } from 'lucide-react';
+import { ArrowLeft, Clock, Search, X, LayoutList, LayoutGrid, UtensilsCrossed, ChevronRight } from 'lucide-react';
 import { useStoreTheme } from '../hooks/useStoreTheme';
 
 // Import Modularized Components
@@ -99,12 +99,65 @@ const StoreMenu = () => {
       localStorage.setItem('universe_order_source', 'qr');
       console.log('[StoreMenu] Physical QR Visit Identified');
     }
+
+    // Check for shared dish parameter in URL
+    const dishParam = params.get('dish');
+    if (dishParam) {
+      setSearchQuery(dishParam);
+      setShowSearchModal(true);
+    }
   }, [location.search]);
-  
+
   // Menu State
   const [activeCategory, setActiveCategory] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [dietaryFilter, setDietaryFilter] = useState('all');
+  const [viewMode, setViewMode] = useState('list');
+  const [showMenuSheet, setShowMenuSheet] = useState(false);
+  const [showSearchModal, setShowSearchModal] = useState(false);
+  const searchAnchorRef = useRef(null);
+  const searchInputRef = useRef(null);
+
+  const isExternal = localStorage.getItem('universe_location_type') === 'External' || store?.hubId?.type === 'External';
+
+  const handleToggleSearch = useCallback(() => {
+    setShowSearchModal(true);
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        if (searchAnchorRef.current) {
+          // Accurately calculate sticky top elements (Navbar + Promo + Sticky Store bar + breathing room)
+          const isCollege = !isExternal && localStorage.getItem('universe_location_type') === 'College';
+          const navHeight = window.innerWidth <= 600 ? 64 : 72;
+          const promoHeight = isCollege ? 38 : 0;
+          const stickyStoreHeight = 55;
+          const totalHeaderOffset = navHeight + promoHeight + stickyStoreHeight + 15;
+
+          const rect = searchAnchorRef.current.getBoundingClientRect();
+          const targetY = window.pageYOffset + rect.top - totalHeaderOffset;
+
+          window.scrollTo({
+            top: Math.max(0, targetY),
+            behavior: 'smooth'
+          });
+
+          // Focus after smooth scroll completes so virtual keyboard does not cancel smooth scroll
+          setTimeout(() => {
+            if (searchInputRef.current) {
+              searchInputRef.current.focus({ preventScroll: true });
+            }
+          }, 350);
+        }
+      }, 50);
+    });
+  }, [isExternal]);
+
+  useEffect(() => {
+    const handleNavbarSearch = () => {
+      handleToggleSearch();
+    };
+    window.addEventListener('universe_toggle_store_search', handleNavbarSearch);
+    return () => window.removeEventListener('universe_toggle_store_search', handleNavbarSearch);
+  }, [handleToggleSearch]);
 
   // Modal State
   const [selectedProduct, setSelectedProduct] = useState(null);
@@ -172,11 +225,42 @@ const StoreMenu = () => {
     };
   }, [id]);
 
-  // Performance Optimization: Memoize category and product calculations
+  // Performance Optimization: Normalize and memoize category and product calculations
   const categories = useMemo(() => {
-    if (!store) return [];
-    const comboExists = store.products.some(p => p.isCombo);
-    return ['All', ...(comboExists ? ['Combos'] : []), ...new Set(store.products.map(p => p.category || 'Uncategorized'))];
+    if (!store || !store.products) return [];
+    
+    const otherCats = [];
+    let hasCombos = false;
+
+    store.products.forEach(p => {
+      const rawCat = (p.category || 'Specialty').trim();
+      if (p.isCombo || rawCat.toLowerCase() === 'combo' || rawCat.toLowerCase() === 'combos') {
+        hasCombos = true;
+      } else {
+        const formatted = rawCat.charAt(0).toUpperCase() + rawCat.slice(1);
+        if (!otherCats.includes(formatted)) {
+          otherCats.push(formatted);
+        }
+      }
+    });
+
+    return ['All', ...(hasCombos ? ['Combos'] : []), ...otherCats];
+  }, [store]);
+
+  const categoryCounts = useMemo(() => {
+    if (!store || !store.products) return {};
+    const counts = { All: store.products.length };
+    store.products.forEach(p => {
+      const isThisCombo = p.isCombo || (p.category || '').toLowerCase().includes('combo');
+      if (isThisCombo) {
+        counts['Combos'] = (counts['Combos'] || 0) + 1;
+      } else {
+        const rawCat = (p.category || 'Specialty').trim();
+        const formatted = rawCat.charAt(0).toUpperCase() + rawCat.slice(1);
+        counts[formatted] = (counts[formatted] || 0) + 1;
+      }
+    });
+    return counts;
   }, [store]);
 
   const filteredProducts = useMemo(() => {
@@ -187,9 +271,14 @@ const StoreMenu = () => {
       if (dietaryFilter === 'veg') matchesDietary = p.dietaryPreference === 'veg';
       else if (dietaryFilter === 'non-veg') matchesDietary = ['non-veg', 'egg'].includes(p.dietaryPreference);
       
-      if (activeCategory === 'All') return matchesSearch && matchesDietary;
-      if (activeCategory === 'Combos') return p.isCombo && matchesSearch && matchesDietary;
-      return (p.category || 'Uncategorized') === activeCategory && matchesSearch && matchesDietary;
+      if (!matchesSearch || !matchesDietary) return false;
+      if (activeCategory === 'All') return true;
+      
+      const isThisCombo = p.isCombo || (p.category || '').toLowerCase().includes('combo');
+      if (activeCategory === 'Combos') return isThisCombo;
+      
+      const pCat = (p.category || 'Specialty').trim();
+      return pCat.toLowerCase() === activeCategory.toLowerCase();
     });
   }, [store, searchQuery, dietaryFilter, activeCategory]);
 
@@ -202,13 +291,33 @@ const StoreMenu = () => {
         if (dietaryFilter === 'veg') matchesDietary = p.dietaryPreference === 'veg';
         else if (dietaryFilter === 'non-veg') matchesDietary = ['non-veg', 'egg'].includes(p.dietaryPreference);
         if (!matchesDietary) return false;
-        return cat === 'Combos' ? p.isCombo : (p.category || 'Uncategorized') === cat;
+        const isThisCombo = p.isCombo || (p.category || '').toLowerCase().includes('combo');
+        return cat === 'Combos' ? isThisCombo : (p.category || 'Specialty').toLowerCase() === cat.toLowerCase();
       });
     });
   }, [store, categories, dietaryFilter]);
 
+  const effectiveDietaryMode = useMemo(() => {
+    if (!store) return 'veg';
+    const loc = store.location || {};
+    const locName = (loc.name || localStorage.getItem('universe_location_name') || '').toLowerCase();
+    
+    // Explicit setting on location
+    if (loc.dietaryType === 'veg') return 'veg';
+    if (loc.dietaryType === 'non-veg') return 'non-veg';
+    if (loc.dietaryType === 'both') return 'both';
+
+    // Heuristics for Lovely Professional University
+    if (locName.includes('lovely') || locName.includes('lpu')) {
+      return 'veg';
+    }
+
+    // Check store products: if store has non-veg or egg items, allow 'both', otherwise 'veg'
+    const hasNonVeg = (store.products || []).some(p => ['non-veg', 'egg'].includes(p.dietaryPreference));
+    return hasNonVeg ? 'both' : 'veg';
+  }, [store]);
+
   const storeClosed = store?.isOpen === false;
-  const isExternal = localStorage.getItem('universe_location_type') === 'External';
 
   // Performance Optimization: Memoize handlers
   const handleVariantClick = useCallback((product) => {
@@ -231,55 +340,86 @@ const StoreMenu = () => {
   if (!store) return <div className="auth-wrapper"><h3>Store not found.</h3></div>;
 
   return (
-    <div style={{ minHeight: '100vh', paddingBottom: '120px' }}>
-      <div className="store-banner-wrapper">
+    <div style={{ minHeight: '100vh', paddingBottom: '160px' }}>
+      {/* Full-Width Edge-to-Edge Hero Banner with Bottom-Only Rounded Corners */}
+      <div className="store-banner-fullwidth animate-fade-in-up">
         <OptimizedImage src={store.image} alt={store.name} className="store-banner-img" />
-        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(249, 250, 251, 0) 0%, rgba(251, 251, 251, 1) 100%)' }}></div>
+        <button 
+          onClick={() => navigate(-1)} 
+          className="store-banner-back-btn"
+          aria-label="Back"
+          title="Back"
+        >
+          <ArrowLeft size={18} />
+        </button>
       </div>
 
       <StoreSubHeader 
         store={store}
         navigate={navigate}
         isExternal={isExternal}
-        searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
         dietaryFilter={dietaryFilter}
         setDietaryFilter={setDietaryFilter}
-        activeCategory={activeCategory}
-        setActiveCategory={setActiveCategory}
+        showDietaryFilter={effectiveDietaryMode === 'both'}
       />
 
-      <div style={{ padding: '0 1rem', maxWidth: '800px', margin: '0 auto' }}>
-        {/* Campus Category Nav Bar */}
-        {!isExternal && (
-          <div className="category-nav-wrapper animate-fade-in-up" style={{ 
-            position: 'sticky',
-            top: `calc(var(--nav-actual-height, 72px) + ${(!isExternal && localStorage.getItem('universe_location_type') === 'College') ? 'var(--promo-height, 38px)' : '0px'} + 68px)`,
-            zIndex: 998,
-            background: 'rgba(251, 251, 251, 0.98)',
-            backdropFilter: 'blur(10px)',
-            margin: '1rem -1rem',
-            padding: '0.75rem 1rem',
-            borderBottom: '1px solid var(--surface-border)'
-          }}>
-            {categories.map(cat => (
-              <button key={cat} onClick={() => setActiveCategory(cat)} className={`category-btn ${activeCategory === cat ? 'active' : ''}`}>{cat}</button>
-            ))}
+      <div className="store-menu-content-container">
+        {/* Anchor for precision auto-scrolling when search is triggered */}
+        <div ref={searchAnchorRef} id="store-search-anchor" style={{ scrollMarginTop: '180px' }} />
+
+        {/* Connected Inline Search Bar directly above dishes */}
+        {showSearchModal && (
+          <div className="connected-search-container animate-fade-in-up">
+            <div className="connected-search-bar">
+              <Search size={18} color="#ef4123" />
+              <input 
+                ref={searchInputRef}
+                type="text"
+                autoFocus
+                placeholder={`Search dishes in ${store.name}...`}
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="connected-search-input"
+              />
+              {searchQuery && (
+                <button 
+                  onClick={() => setSearchQuery('')} 
+                  className="search-modal-clear-btn"
+                  aria-label="Clear search"
+                >
+                  <X size={13} />
+                </button>
+              )}
+              <button onClick={() => setShowSearchModal(false)} className="connected-search-close-btn">
+                Done
+              </button>
+            </div>
           </div>
         )}
 
-        {storeClosed && (
-          <div style={{ textAlign: 'center', padding: '3rem 2rem', background: 'rgba(239, 68, 68, 0.03)', borderRadius: '24px', border: '1px dashed rgba(239, 68, 68, 0.2)', marginBottom: '2rem' }}>
-            <Clock size={40} color="var(--error)" style={{ marginBottom: '1rem', opacity: 0.5 }} />
-            <h3 style={{ color: 'var(--error)', margin: '0 0 0.5rem 0' }}>Currently Closed</h3>
+        {/* Active Filter / Search Banner */}
+        {(activeCategory !== 'All' || searchQuery) && (
+          <div className="active-filter-banner animate-fade-in-up">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Filtered by:</span>
+              <span style={{ fontWeight: '800', color: '#ef4123', fontSize: '0.85rem' }}>
+                {activeCategory !== 'All' ? activeCategory : `"${searchQuery}"`}
+              </span>
+              <span style={{ fontSize: '0.7rem', background: 'rgba(0,0,0,0.06)', padding: '0.1rem 0.45rem', borderRadius: '100px', fontWeight: '700' }}>
+                {filteredProducts.length} items
+              </span>
+            </div>
+            <button 
+              onClick={() => { setActiveCategory('All'); setSearchQuery(''); }} 
+              className="clear-filter-btn"
+            >
+              <X size={12} strokeWidth={2.5} /> Clear
+            </button>
           </div>
         )}
 
-        <div className="store-menu-grid" style={{ 
-          display: 'grid',
-          gridTemplateColumns: isExternal && activeCategory === 'All' && !searchQuery ? 'repeat(auto-fill, minmax(130px, 1fr))' : 'repeat(auto-fill, minmax(140px, 1fr))',
-          gap: '1rem'
-        }}>
+        {/* Product Cards Container (Dynamic: List or Grid) */}
+        <div className={viewMode === 'list' ? 'store-menu-list' : 'store-menu-grid'}>
           {isExternal && activeCategory === 'All' && !searchQuery && (
             <CategoryOverview 
               categories={visibleCategories} 
@@ -299,16 +439,121 @@ const StoreMenu = () => {
 
           {(!isExternal || activeCategory !== 'All' || searchQuery) && filteredProducts.map((product, idx) => (
             <ProductCard 
-              key={product._id} 
+              key={product._id || product.id || idx} 
               product={product} 
               storeId={id} 
               index={idx}
               onVariantClick={() => handleAddToCartClick(product)}
               storeClosed={storeClosed}
+              showDietaryBadge={effectiveDietaryMode === 'both'}
+              viewMode={viewMode}
             />
           ))}
         </div>
+
+        {/* Friendly Empty State */}
+        {(!isExternal || activeCategory !== 'All' || searchQuery) && filteredProducts.length === 0 && (
+          <div style={{ textAlign: 'center', padding: '3.5rem 1rem', color: 'var(--text-secondary)' }} className="animate-fade-in-up">
+            <UtensilsCrossed size={40} style={{ opacity: 0.3, marginBottom: '0.75rem' }} />
+            <h4 style={{ fontSize: '1.1rem', fontWeight: '800', margin: '0 0 0.35rem 0', color: 'var(--text-primary)' }}>No dishes found</h4>
+            <p style={{ fontSize: '0.85rem', margin: '0 0 1.25rem 0' }}>
+              {searchQuery ? `No results matching "${searchQuery}"` : `No items in ${activeCategory}`}
+            </p>
+            <button 
+              onClick={() => { setSearchQuery(''); setActiveCategory('All'); }} 
+              className="category-pill-btn active"
+              style={{ display: 'inline-block' }}
+            >
+              Show All Dishes ({categoryCounts['All'] || 0})
+            </button>
+          </div>
+        )}
       </div>
+
+      {/* Sleek Precision-Machined Controller Docked to Extreme Right (Campus Stalls Only) */}
+      {!isExternal && (
+        <div className="stall-controller-rail">
+          <div className="controller-rail-inner-content">
+            {/* 1. Search Action */}
+            <button 
+              className={`controller-rail-btn ${showSearchModal || searchQuery ? 'active-filter' : ''}`}
+              onClick={handleToggleSearch}
+              title="Search dishes"
+              aria-label="Search dishes"
+            >
+              <Search size={18} />
+            </button>
+
+            <div className="controller-rail-divider" />
+
+            {/* 2. Menu Categories Drawer Action */}
+            <button 
+              className={`controller-rail-btn ${activeCategory !== 'All' ? 'active-filter' : ''}`}
+              onClick={() => setShowMenuSheet(true)}
+              title="Browse Menu Categories"
+              aria-label="Browse Menu Categories"
+            >
+              <UtensilsCrossed size={18} />
+              <span className="controller-rail-badge">{categories.length}</span>
+            </button>
+
+            <div className="controller-rail-divider" />
+
+            {/* 3. Layout Switcher (List ☰ / Grid ⊞) */}
+            <button 
+              className="controller-rail-btn"
+              onClick={() => setViewMode(prev => prev === 'list' ? 'grid' : 'list')}
+              title={`Switch to ${viewMode === 'list' ? 'Grid' : 'List'} View`}
+              aria-label={`Switch to ${viewMode === 'list' ? 'Grid' : 'List'} View`}
+            >
+              {viewMode === 'list' ? <LayoutGrid size={18} /> : <LayoutList size={18} />}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Slide-Up Browse Menu Category Drawer */}
+      {showMenuSheet && (
+        <div className="menu-sheet-overlay" onClick={() => setShowMenuSheet(false)}>
+          <div className="menu-sheet-container" onClick={e => e.stopPropagation()}>
+            <div className="menu-sheet-handle" />
+            <div className="menu-sheet-header">
+              <h3>
+                <UtensilsCrossed size={20} color="var(--primary)" />
+                Browse Menu
+              </h3>
+              <button 
+                className="menu-sheet-close-btn"
+                onClick={() => setShowMenuSheet(false)}
+                aria-label="Close"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="menu-sheet-list">
+              {categories.map(cat => (
+                <button
+                  key={cat}
+                  className={`menu-sheet-item ${activeCategory === cat ? 'active' : ''}`}
+                  onClick={() => {
+                    setActiveCategory(cat);
+                    setShowMenuSheet(false);
+                    window.scrollTo({ top: 180, behavior: 'smooth' });
+                  }}
+                >
+                  <span>{cat}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <span className="menu-sheet-item-count">
+                      {categoryCounts[cat] || 0}
+                    </span>
+                    <ChevronRight size={16} color="#94a3b8" />
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {showVariantModal && (
         <VariantModal 

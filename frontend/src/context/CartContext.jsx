@@ -16,9 +16,13 @@ export const CartProvider = ({ children }) => {
     return localStorage.getItem('universe_storeId') || null;
   });
 
+  const [cartLocationId, setCartLocationId] = useState(() => {
+    return localStorage.getItem('universe_cart_location_id') || null;
+  });
+
   const [isStoreClosed, setIsStoreClosed] = useState(false);
 
-  // Persist to localStorage whenever cart or storeId changes
+  // Persist to localStorage whenever cart, storeId, or cartLocationId changes
   useEffect(() => {
     localStorage.setItem('universe_cart', JSON.stringify(cart));
     if (storeId) {
@@ -26,7 +30,12 @@ export const CartProvider = ({ children }) => {
     } else {
       localStorage.removeItem('universe_storeId');
     }
-  }, [cart, storeId]);
+    if (cartLocationId) {
+      localStorage.setItem('universe_cart_location_id', cartLocationId);
+    } else {
+      localStorage.removeItem('universe_cart_location_id');
+    }
+  }, [cart, storeId, cartLocationId]);
 
   // Real-time synchronization of stock and menu changes for items currently in cart
   useEffect(() => {
@@ -90,10 +99,12 @@ export const CartProvider = ({ children }) => {
     };
   }, [socket, connected, storeId]);
 
-  const addToCart = (product, currentStoreId, variant = null) => {
-    // If adding from a different store, clear cart
-    if (storeId && String(storeId) !== String(currentStoreId)) {
-      if (window.confirm("Adding items from another store will clear your current cart. Continue?")) {
+  const addToCart = (product, currentStoreId, variant = null, storeLocationId = null) => {
+    const activeLocId = storeLocationId || localStorage.getItem('universe_location_id');
+    
+    // If adding from a different store or different campus location, prompt to clear cart
+    if (storeId && (String(storeId) !== String(currentStoreId) || (cartLocationId && activeLocId && String(cartLocationId) !== String(activeLocId)))) {
+      if (window.confirm("Adding items from another store or campus will clear your current cart. Continue?")) {
         const newCartItemId = `${product._id}${variant ? '-' + variant.name : ''}`;
         setCart([{ 
           ...product, 
@@ -104,11 +115,14 @@ export const CartProvider = ({ children }) => {
           isAvailable: product.isAvailable !== false 
         }]);
         setStoreId(currentStoreId);
+        if (activeLocId) setCartLocationId(activeLocId);
       }
       return;
     }
 
     setStoreId(currentStoreId);
+    if (activeLocId) setCartLocationId(activeLocId);
+
     setCart((prev) => {
       const targetId = `${product._id}${variant ? '-' + variant.name : ''}`;
       const existing = prev.find(item => (item.cartItemId || item._id) === targetId || (item._id === product._id && !item.variant && !variant));
@@ -131,7 +145,10 @@ export const CartProvider = ({ children }) => {
   const removeFromCart = (targetId) => {
     setCart((prev) => {
       const newCart = prev.filter(item => (item.cartItemId || item._id) !== targetId);
-      if (newCart.length === 0) setStoreId(null);
+      if (newCart.length === 0) {
+        setStoreId(null);
+        setCartLocationId(null);
+      }
       return newCart;
     });
   };
@@ -139,7 +156,10 @@ export const CartProvider = ({ children }) => {
   const removeOutOfStockItems = () => {
     setCart((prev) => {
       const remaining = prev.filter(item => item.isAvailable !== false);
-      if (remaining.length === 0) setStoreId(null);
+      if (remaining.length === 0) {
+        setStoreId(null);
+        setCartLocationId(null);
+      }
       return remaining;
     });
   };
@@ -159,11 +179,13 @@ export const CartProvider = ({ children }) => {
   const clearCart = () => {
     setCart([]);
     setStoreId(null);
+    setCartLocationId(null);
     localStorage.removeItem('universe_cart');
     localStorage.removeItem('universe_storeId');
+    localStorage.removeItem('universe_cart_location_id');
   };
 
-  const reorder = (items, targetStoreId) => {
+  const reorder = (items, targetStoreId, targetLocationId = null) => {
     const newCart = (items || []).map(item => ({
       _id: item.productId || item._id,
       name: item.name,
@@ -177,6 +199,10 @@ export const CartProvider = ({ children }) => {
     if (targetStoreId) {
       setStoreId(targetStoreId);
     }
+    const activeLocId = targetLocationId || localStorage.getItem('universe_location_id');
+    if (activeLocId) {
+      setCartLocationId(activeLocId);
+    }
   };
 
   const hasOutOfStockItems = cart.some(item => item.isAvailable === false);
@@ -188,6 +214,7 @@ export const CartProvider = ({ children }) => {
     <CartContext.Provider value={{ 
       cart, 
       storeId, 
+      cartLocationId,
       addToCart, 
       removeFromCart, 
       updateQuantity, 

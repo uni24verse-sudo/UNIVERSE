@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import axios from 'axios';
 import { Link, useNavigate } from 'react-router-dom';
 import { useSocket } from '../context/SocketContext';
@@ -21,7 +21,9 @@ import {
   IceCream,
   Beef,
   Sparkles,
-  Zap
+  Zap,
+  Lock,
+  ArrowRight
 } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import HeroCarousel from '../components/HeroCarousel';
@@ -81,6 +83,7 @@ const StoreCardSkeleton = () => (
 const Home = () => {
   const [stores, setStores] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [currentLocation, setCurrentLocation] = useState(null);
   const [selectedMarket, setSelectedMarket] = useState('All');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [localSearchQuery, setLocalSearchQuery] = useState('');
@@ -91,19 +94,27 @@ const Home = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const fetchStores = async () => {
+    const fetchStoresAndLocation = async () => {
       try {
         const locationId = localStorage.getItem('universe_location_id');
-        const url = `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/store/all/list`;
-        const res = await axios.get(url, { params: { locationId } });
-        setStores(res.data);
+        const [storesRes, locsRes] = await Promise.all([
+          axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/store/all/list`, { params: { locationId } }),
+          axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/super-admin/locations/public`)
+        ]);
+        setStores(storesRes.data);
+        const loc = locsRes.data.find(l => (l._id || l.id) === locationId);
+        if (loc) {
+          setCurrentLocation(loc);
+        } else if (locsRes.data.length > 0) {
+          setCurrentLocation(locsRes.data[0]);
+        }
       } catch (err) {
-        console.error('Failed to fetch stores');
+        console.error('Failed to fetch stores or location info', err);
       } finally {
         setLoading(false);
       }
     };
-    fetchStores();
+    fetchStoresAndLocation();
   }, []);
 
   const { socket, connected } = useSocket();
@@ -116,6 +127,34 @@ const Home = () => {
       return () => socket.off('store_status_update', handleStoreStatus);
     }
   }, [socket, connected]);
+
+  // Dynamic markets for the active location: Configured markets + distinct live store markets
+  const availableMarkets = useMemo(() => {
+    if (hubType !== 'College') return [];
+    
+    let configured = [];
+    if (currentLocation?.markets && currentLocation.markets.trim()) {
+      configured = currentLocation.markets.split(',').map(m => m.trim()).filter(Boolean);
+    } else if (currentLocation?.name?.toLowerCase().includes('lpu') || currentLocation?.name?.toLowerCase().includes('lovely')) {
+      configured = ['BH1 Market', 'Block34 Market', 'LIT Market', 'Mall Market', 'BH6 Market', 'Apartment Market'];
+    }
+
+    const liveStoreMarkets = stores.map(s => s.market).filter(Boolean);
+    return Array.from(new Set([...configured, ...liveStoreMarkets]));
+  }, [currentLocation, stores, hubType]);
+
+  const marketCounts = useMemo(() => {
+    const counts = { All: stores.length };
+    stores.forEach(s => {
+      const m = s.market || 'General Campus';
+      counts[m] = (counts[m] || 0) + 1;
+    });
+    return counts;
+  }, [stores]);
+
+  const openStoresCount = useMemo(() => {
+    return stores.filter(s => s.isOpen !== false).length;
+  }, [stores]);
 
   const categories = ['All', 'Snacks', 'Meals', 'Beverages', 'Desserts', 'Other'];
 
@@ -236,55 +275,74 @@ const Home = () => {
 
       <main style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 2rem 6rem 2rem' }}>
         
-        {/* Dynamic Trending Row */}
-        <TrendingRow />
-
-        {/* Navigation Filters */}
+        {/* Navigation & Cravings Flow */}
         {hubType === 'College' ? (
-          <div className="market-btn-container animate-fade-in-up">
-            {['All', 'BH1 Market', 'Block34 Market', 'LIT Market', 'Mall Market', 'BH6 Market', 'Apartment Market'].map(market => (
-              <button
-                key={market}
-                onClick={() => setSelectedMarket(market)}
-                className={`market-btn ${selectedMarket === market ? 'active' : ''}`}
-              >
-                {market === 'All' ? 'All Areas' : market.replace(' Market', '')}
-              </button>
-            ))}
-          </div>
-        ) : (
-          <div className="category-grid-premium animate-fade-in-up">
-            {[
-              { id: 'All', name: 'All Cravings', img: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=400&q=80' },
-              { id: 'Biryani', name: 'Biryani & Rice', img: 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?auto=format&fit=crop&w=400&q=80' },
-              { id: 'Pizza', name: 'Hand-tossed Pizzas', img: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=400&q=80' },
-              { id: 'Burger', name: 'Juicy Burgers', img: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=400&q=80' },
-              { id: 'Chinese', name: 'Asian Wok', img: 'https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?auto=format&fit=crop&w=400&q=80' },
-              { id: 'Dessert', name: 'Sweet Delights', img: 'https://images.unsplash.com/photo-1551024601-bec78aea704b?auto=format&fit=crop&w=400&q=80' },
-              { id: 'Healthy', name: 'Healthy Eats', img: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=400&q=80' },
-              { id: 'Beverages', name: 'Cold Sips', img: 'https://images.unsplash.com/photo-1544145945-f90425340c7e?auto=format&fit=crop&w=400&q=80' }
-            ].map(cat => (
-              <div 
-                key={cat.id} 
-                className={`premium-bento-cat ${selectedCategory === cat.id ? 'active' : ''}`}
-                onClick={() => setSelectedCategory(cat.id)}
-              >
-                <img src={cat.img} alt={cat.name} className="bento-cat-bg" loading="lazy" />
-                <div className="bento-cat-overlay"></div>
-                <div className="bento-cat-content">
-                  {selectedCategory === cat.id && <div className="live-pulse-dot" style={{ position: 'absolute', top: '12px', right: '12px' }}></div>}
-                  <span className="bento-cat-text">{cat.name}</span>
+          <>
+            {/* Dynamic Trending Row */}
+            <TrendingRow />
+
+            {/* Campus Market Navigation Filters (Only rendered if campus has configured zones or multiple stalls) */}
+            {availableMarkets.length > 0 && (
+              <div className="market-filter-wrapper animate-fade-in-up">
+                <div className="market-filter-scroll">
+                  {['All', ...availableMarkets].map(market => {
+                    const isActive = selectedMarket === market;
+                    return (
+                      <button
+                        key={market}
+                        onClick={() => setSelectedMarket(market)}
+                        className={`market-filter-pill ${isActive ? 'active' : ''}`}
+                      >
+                        {isActive && <span className="market-pill-dot" />}
+                        <span className="market-pill-label">
+                          {market === 'All' ? 'All Areas' : market.replace(' Market', '')}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
-            ))}
-          </div>
+            )}
+          </>
+        ) : (
+          <>
+            {/* External Hub: Category Cravings Bento Grid First */}
+            <div className="category-grid-premium animate-fade-in-up" style={{ marginBottom: '2.5rem' }}>
+              {[
+                { id: 'All', name: 'All Cravings', img: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=400&q=80' },
+                { id: 'Biryani', name: 'Biryani & Rice', img: 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?auto=format&fit=crop&w=400&q=80' },
+                { id: 'Pizza', name: 'Hand-tossed Pizzas', img: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=400&q=80' },
+                { id: 'Burger', name: 'Juicy Burgers', img: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=400&q=80' },
+                { id: 'Chinese', name: 'Asian Wok', img: 'https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?auto=format&fit=crop&w=400&q=80' },
+                { id: 'Dessert', name: 'Sweet Delights', img: 'https://images.unsplash.com/photo-1551024601-bec78aea704b?auto=format&fit=crop&w=400&q=80' },
+                { id: 'Healthy', name: 'Healthy Eats', img: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=400&q=80' },
+                { id: 'Beverages', name: 'Cold Sips', img: 'https://images.unsplash.com/photo-1544145945-f90425340c7e?auto=format&fit=crop&w=400&q=80' }
+              ].map(cat => (
+                <div 
+                  key={cat.id} 
+                  className={`premium-bento-cat ${selectedCategory === cat.id ? 'active' : ''}`}
+                  onClick={() => setSelectedCategory(cat.id)}
+                >
+                  <img src={cat.img} alt={cat.name} className="bento-cat-bg" loading="lazy" />
+                  <div className="bento-cat-overlay"></div>
+                  <div className="bento-cat-content">
+                    {selectedCategory === cat.id && <div className="live-pulse-dot" style={{ position: 'absolute', top: '12px', right: '12px' }}></div>}
+                    <span className="bento-cat-text">{cat.name}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Dynamic Trending Row for External Hubs (Below Category Cards) */}
+            <TrendingRow />
+          </>
         )}
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3rem', marginTop: '2rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2.5rem', marginTop: '1.5rem' }}>
           <div className="animate-fade-in-up">
-            <h2 style={{ fontSize: '1.75rem', fontWeight: '900', margin: 0, letterSpacing: '-0.02em' }}>
+            <h2 style={{ fontSize: '1.75rem', fontWeight: '900', margin: 0, letterSpacing: '-0.02em', color: 'var(--text-primary)' }}>
               {hubType === 'College' 
-                ? (selectedMarket === 'All' ? 'Campus Stalls' : `${selectedMarket} Stalls`)
+                ? (selectedMarket === 'All' ? 'Campus Stalls' : `${selectedMarket.replace(' Market', '')} Stalls`)
                 : (selectedCategory === 'All' ? 'Featured Places' : `Best in ${selectedCategory}`)
               }
             </h2>
@@ -294,81 +352,126 @@ const Home = () => {
           </div>
         </div>
 
-        {filteredStores.length === 0 ? (
-          <div className="glass-card animate-fade-in-up" style={{ padding: '6rem 2rem', textAlign: 'center', borderRadius: '40px' }}>
-             <Store size={48} color="var(--text-secondary)" style={{ opacity: 0.2, marginBottom: '1.5rem' }} />
-             <p style={{ color: 'var(--text-secondary)', fontSize: '1rem', fontWeight: '500' }}>No stalls found matching your criteria.</p>
-             <button onClick={() => { setSelectedMarket('All'); }} style={{ background: 'transparent', border: 'none', color: 'var(--primary)', fontWeight: '700', marginTop: '1rem', cursor: 'pointer' }}>Clear all filters</button>
+        {stores.length === 0 ? (
+          <div className="glass-card animate-fade-in-up" style={{ padding: '4.5rem 2rem', textAlign: 'center', borderRadius: '32px', margin: '2rem 0' }}>
+             <Store size={54} color="var(--primary)" style={{ opacity: 0.35, margin: '0 auto 1.25rem' }} />
+             <h3 style={{ fontSize: '1.45rem', fontWeight: '900', color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
+               No Stalls Live at {currentLocation?.name || 'this Campus'} Yet
+             </h3>
+             <p style={{ color: 'var(--text-secondary)', maxWidth: '480px', margin: '0 auto 1.75rem auto', fontSize: '0.95rem', lineHeight: '1.5' }}>
+               We are expanding rapidly! If you operate a campus stall, tuck shop, or food joint here, you can launch your digital storefront in minutes.
+             </p>
+             <button 
+               onClick={() => navigate('/vendor/register')} 
+               style={{ 
+                 padding: '0.9rem 2rem', 
+                 background: 'linear-gradient(135deg, #ef4123 0%, #ff5722 100%)', 
+                 color: 'white', 
+                 border: 'none', 
+                 borderRadius: '16px', 
+                 fontWeight: '800', 
+                 fontSize: '1rem',
+                 cursor: 'pointer', 
+                 display: 'inline-flex', 
+                 alignItems: 'center', 
+                 gap: '0.6rem',
+                 boxShadow: '0 10px 25px rgba(239, 65, 35, 0.3)'
+               }}
+             >
+               Launch Your Stall Here <ArrowRight size={18} />
+             </button>
+          </div>
+        ) : filteredStores.length === 0 ? (
+          <div className="glass-card animate-fade-in-up" style={{ padding: '5rem 2rem', textAlign: 'center', borderRadius: '32px' }}>
+             <Store size={48} color="var(--text-secondary)" style={{ opacity: 0.2, marginBottom: '1.25rem' }} />
+             <p style={{ color: 'var(--text-secondary)', fontSize: '1rem', fontWeight: '600' }}>No stalls found matching your filter.</p>
+             <button onClick={() => { setSelectedMarket('All'); setFilterOpen(false); }} style={{ background: 'transparent', border: 'none', color: 'var(--primary)', fontWeight: '700', marginTop: '0.75rem', cursor: 'pointer' }}>Clear all filters</button>
           </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '2rem' }}>
+          <div className="campus-stalls-grid">
             {filteredStores.map((store, idx) => {
               const isOpen = store.isOpen !== false;
               return (
                 <Link 
-                  key={store._id} 
-                  to={`/store/${store._id}`}
+                  key={store._id || store.id || idx} 
+                  to={`/store/${store._id || store.id}`}
                   className="animate-fade-in-up"
-                  style={{ textDecoration: 'none', color: 'inherit', animationDelay: `${idx * 0.05}s` }}
+                  style={{ textDecoration: 'none', color: 'inherit', animationDelay: `${idx * 0.04}s` }}
                 >
-                    <div className="glass-card store-card">
-                      <div className="store-img-wrapper">
-                        <img 
-                          src={getImageUrl(store.image)}
-                          alt={store.name}
-                          className="store-img"
-                          style={{ opacity: isOpen ? 1 : 0.6 }}
-                          loading="lazy"
-                          onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=500&q=60'; }}
-                        />
-                        {!isOpen && (
-                          <div className="store-closed-overlay">
-                            <span className="store-closed-text">CLOSED</span>
+                  <div className={`campus-stall-card ${!isOpen ? 'is-closed' : ''}`}>
+                    {/* Visual Media Wrapper */}
+                    <div className="campus-stall-media">
+                      <img 
+                        src={getImageUrl(store.image)}
+                        alt={store.name}
+                        className="campus-stall-img"
+                        loading="lazy"
+                        onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=500&q=60'; }}
+                      />
+                      <div className="campus-stall-img-scrim" />
+
+                      {/* Top Overlay Badges */}
+                      <div className="campus-stall-top-bar">
+                        <div className="campus-stall-rating-badge">
+                          <Star size={11} color="#f59e0b" fill="#f59e0b" />
+                          <span>{store.rating || '4.5'}</span>
+                        </div>
+
+                        {isOpen ? (
+                          <div className="campus-stall-status-badge live">
+                            <span className="live-pulse-beacon" /> OPEN NOW
+                          </div>
+                        ) : (
+                          <div className="campus-stall-status-badge closed">
+                            <Lock size={10} style={{ marginRight: '2px' }} /> CLOSED
                           </div>
                         )}
-                      
-                        <div className="store-rating-badge">
-                           <Star size={12} color="#f59e0b" fill="#f59e0b" />
-                           <span>{store.rating || '5.0'}</span>
-                        </div>
-                        
-                        <div className="store-market-badge">
-                          <MapPin size={10} color="var(--primary)" />
-                          <span>{store.market || 'Campus'}</span>
-                        </div>
+                      </div>
+
+                      {/* Bottom Market Pill Over Photo */}
+                      <div className="campus-stall-market-chip">
+                        <MapPin size={10} />
+                        <span>{store.market || 'Campus'}</span>
+                      </div>
                     </div>
 
-                    <div className="store-info-wrapper" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                        <h3 style={{ fontSize: '1.125rem', fontWeight: '800', margin: 0, color: 'var(--text-primary)' }}>{store.name}</h3>
-                        <div className="store-desktop-status" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                          <div className={`status-dot ${isOpen ? 'live' : 'offline'}`}></div>
-                          <span style={{ fontSize: '0.625rem', fontWeight: '800', letterSpacing: '0.05em', color: isOpen ? '#10b981' : '#ef4444', textTransform: 'uppercase', whiteSpace: 'nowrap', flexShrink: 0 }}>
-                            {isOpen ? 'Live' : 'Closed'}
-                          </span>
-                        </div>
-                      </div>
-                      
-                      <div className="store-mobile-meta">
-                        <Star size={12} color="#f59e0b" fill="#f59e0b" />
-                        <span className="rating-text">{store.rating || '5.0'}</span>
-                        <MapPin size={10} color="var(--primary)" />
-                        <span className="market-text">{store.market || 'Campus'}</span>
+                    {/* Content Area */}
+                    <div className="campus-stall-details">
+                      <div className="campus-stall-title-row">
+                        <h3 className="campus-stall-name">{store.name}</h3>
+                        <CheckCircle2 size={16} color="var(--primary)" className="stall-verified-icon" />
                       </div>
 
-                      <p className="store-category-text" style={{ fontSize: '0.75rem', fontWeight: '500', color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>
-                        {store.category || 'General'}
+                      <p className="campus-stall-cuisine">
+                        {store.category || 'Specialty Campus Kitchen'}
                       </p>
-                      
-                       <div className="store-footer-row" style={{ marginTop: 'auto', paddingTop: '0.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <div style={{ display: 'flex', gap: '1rem', color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: '600' }}>
-                               <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><ShoppingBag size={14} /> {store.products?.length || 0}</span>
-                               <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><Clock size={14} /> 15m</span>
-                            </div>
-                            <div className="btn-circle" style={{ width: '28px', height: '28px', borderRadius: '8px', background: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                               <ChevronRight size={14} />
-                            </div>
-                       </div>
+
+                      {/* Footer Row */}
+                      <div className="campus-stall-footer-row">
+                        <div className="campus-stall-meta-stats">
+                          <span className="meta-stat-pill">
+                            <ShoppingBag size={13} color={isOpen ? "var(--primary)" : "#94a3b8"} />
+                            <strong>{store.products?.length || 0}</strong> items
+                          </span>
+                          <span className="meta-stat-divider">•</span>
+                          <span className="meta-stat-pill">
+                            <Clock size={13} color={isOpen ? "var(--text-secondary)" : "#94a3b8"} />
+                            {isOpen ? '15m prep' : 'Offline'}
+                          </span>
+                        </div>
+
+                        {isOpen ? (
+                          <div className="campus-stall-cta live-cta">
+                            <span>Order Now</span>
+                            <ChevronRight size={14} />
+                          </div>
+                        ) : (
+                          <div className="campus-stall-cta closed-cta">
+                            <span>View Menu</span>
+                            <ChevronRight size={14} />
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </Link>
@@ -377,11 +480,10 @@ const Home = () => {
           </div>
         )}
       </main>
-
-
     </div>
   );
 };
 
 export default Home;
+
 
