@@ -67,7 +67,9 @@ const TopPromoBanner = () => {
 const AppLayout = () => {
   const location = useLocation();
   const [selectedLocationId, setSelectedLocationId] = React.useState(localStorage.getItem('universe_location_id'));
-  const [isSessionStarted, setIsSessionStarted] = React.useState(false);
+  const [isSessionStarted, setIsSessionStarted] = React.useState(() => {
+    return sessionStorage.getItem('universe_splash_seen') === 'true';
+  });
   const isAdminPath = location.pathname.startsWith('/vendor') || location.pathname.startsWith('/super-admin') || location.pathname.startsWith('/superadmin');
 
   React.useEffect(() => {
@@ -86,7 +88,13 @@ const AppLayout = () => {
   }, []);
 
   const handleLocationSelect = (loc) => {
+    sessionStorage.setItem('universe_splash_seen', 'true');
     setSelectedLocationId(loc._id);
+  };
+
+  const handleSplashComplete = () => {
+    sessionStorage.setItem('universe_splash_seen', 'true');
+    setIsSessionStarted(true);
   };
 
   const isDirectBypass = location.pathname.startsWith('/order-tracker') || 
@@ -99,7 +107,7 @@ const AppLayout = () => {
                          location.pathname.startsWith('/vendor-app-download');
 
   if (!isSessionStarted && !isAdminPath && !isDirectBypass) {
-    return <SplashScreen onComplete={() => setIsSessionStarted(true)} />;
+    return <SplashScreen onComplete={handleSplashComplete} />;
   }
 
   // If no location is selected and we are NOT on an admin path or a direct bypass path, show the portal
