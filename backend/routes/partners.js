@@ -3,9 +3,43 @@ const router = express.Router();
 const crypto = require('crypto');
 const superAdminAuth = require('../middleware/superAdminAuth');
 const prisma = require('../config/prisma');
+const {
+  AUTHORIZED_EQUITY_EMAIL,
+  sendEquityVerificationOtp,
+  verifyEquityOtp,
+  requireEquityAuth
+} = require('../services/equityAuthService');
 
 // Enforce Super Admin authentication for all partner routes
 router.use(superAdminAuth);
+
+/**
+ * 0. 2FA Security Endpoints for Equity & Cap Table Changes
+ */
+router.post('/auth/request-otp', async (req, res) => {
+  try {
+    const result = await sendEquityVerificationOtp();
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+router.post('/auth/verify-otp', async (req, res) => {
+  try {
+    const { code } = req.body;
+    if (!code) {
+      return res.status(400).json({ success: false, error: 'Verification code is required.' });
+    }
+    const result = verifyEquityOtp(code);
+    if (!result.success) {
+      return res.status(400).json(result);
+    }
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
 
 /**
  * Helper: Calculate current cumulative platform profit from the authoritative ledger
@@ -150,7 +184,7 @@ router.get('/', async (req, res) => {
  * 2. POST /api/super-admin/partners
  * Add a new equity partner with cap table guardrail (<= 100%)
  */
-router.post('/', async (req, res) => {
+router.post('/', requireEquityAuth, async (req, res) => {
   try {
     const { name, email, phone, role, equityShare, upiId, bankAccount } = req.body;
 
@@ -198,7 +232,7 @@ router.post('/', async (req, res) => {
  * 3. PUT /api/super-admin/partners/:id
  * Update partner details and/or equity share with cap table validation
  */
-router.put('/:id', async (req, res) => {
+router.put('/:id', requireEquityAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const { name, email, phone, role, equityShare, upiId, bankAccount, status } = req.body;
@@ -252,7 +286,7 @@ router.put('/:id', async (req, res) => {
  * 4. DELETE /api/super-admin/partners/:id
  * Safe deletion: Permanently delete if no payouts exist, or soft-deactivate if payouts exist
  */
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', requireEquityAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const partner = await prisma.partner.findUnique({
@@ -336,7 +370,7 @@ router.get('/distribution/preview', async (req, res) => {
  * 6. POST /api/super-admin/partners/distribution/execute
  * Commit an immutable distribution run with UTRs and snapshotting
  */
-router.post('/distribution/execute', async (req, res) => {
+router.post('/distribution/execute', requireEquityAuth, async (req, res) => {
   try {
     const { title, reservePercentage = 0, poolMode = 'net_profit', notes = '', partnerPayouts = [] } = req.body;
 

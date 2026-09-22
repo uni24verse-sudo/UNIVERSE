@@ -52,7 +52,7 @@ const SuperAdminPartnerEquity = ({ token }) => {
   // Distribution wizard state
   const [distributeConfig, setDistributeConfig] = useState({
     title: '',
-    poolMode: 'total_deductions', // 'total_deductions' (₹98.16) | 'net_profit' (₹34.90)
+    poolMode: 'net_profit', // Default strictly to pure platform profit (₹34.90)
     reservePercentage: 0,
     notes: '',
     partnerPayouts: []
@@ -60,6 +60,15 @@ const SuperAdminPartnerEquity = ({ token }) => {
   const [previewData, setPreviewData] = useState(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [executing, setExecuting] = useState(false);
+
+  // 2FA Equity Security Gate State (parthsharma240404@gmail.com)
+  const [equityToken, setEquityToken] = useState(() => sessionStorage.getItem('universe_equity_token') || '');
+  const [showOtpModal, setShowOtpModal] = useState(false);
+  const [otpCode, setOtpCode] = useState('');
+  const [otpLoading, setOtpLoading] = useState(false);
+  const [otpError, setOtpError] = useState('');
+  const [otpSentMessage, setOtpSentMessage] = useState('');
+  const [pendingAction, setPendingAction] = useState(null);
 
   // Copy feedback
   const [copiedId, setCopiedId] = useState(null);
@@ -126,39 +135,133 @@ const SuperAdminPartnerEquity = ({ token }) => {
     setShowEditModal(true);
   };
 
-  // Handle Save (Add or Edit)
-  const handleSavePartner = async (e) => {
-    e.preventDefault();
+  // Request 2FA OTP
+  const requestEquityOtp = async (actionToPerform = null) => {
+    setOtpLoading(true);
+    setOtpError('');
+    if (actionToPerform) {
+      setPendingAction(() => actionToPerform);
+    }
+    try {
+      const res = await axios.post(`${API_URL}/api/super-admin/partners/auth/request-otp`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setOtpSentMessage(res.data.message || 'Verification code sent to parthsharma240404@gmail.com');
+      setShowOtpModal(true);
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to send verification code.');
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
+  // Verify 2FA OTP
+  const handleVerifyOtp = async (e) => {
+    if (e) e.preventDefault();
+    if (!otpCode || otpCode.trim().length !== 6) {
+      setOtpError('Please enter the 6-digit verification code.');
+      return;
+    }
+    setOtpLoading(true);
+    setOtpError('');
+    try {
+      const res = await axios.post(`${API_URL}/api/super-admin/partners/auth/verify-otp`, {
+        code: otpCode.trim()
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (res.data.verified && res.data.token) {
+        setEquityToken(res.data.token);
+        sessionStorage.setItem('universe_equity_token', res.data.token);
+        setShowOtpModal(false);
+        setOtpCode('');
+        
+        if (pendingAction) {
+          const action = pendingAction;
+          setPendingAction(null);
+          action(res.data.token);
+        }
+      }
+    } catch (err) {
+      setOtpError(err.response?.data?.error || err.response?.data?.message || 'Invalid verification code.');
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
+  // Execute Save Partner with token
+  const executeSavePartner = async (authToken) => {
     try {
       if (editingPartner) {
         await axios.put(`${API_URL}/api/super-admin/partners/${editingPartner.id}`, formData, {
-          headers: { Authorization: `Bearer ${token}` }
+          headers: { 
+            Authorization: `Bearer ${token}`,
+            'x-equity-auth': authToken
+          }
         });
         setShowEditModal(false);
       } else {
         await axios.post(`${API_URL}/api/super-admin/partners`, formData, {
-          headers: { Authorization: `Bearer ${token}` }
+          headers: { 
+            Authorization: `Bearer ${token}`,
+            'x-equity-auth': authToken
+          }
         });
         setShowAddModal(false);
       }
       fetchData(true);
     } catch (err) {
+      if (err.response?.data?.require2FA) {
+        setEquityToken('');
+        sessionStorage.removeItem('universe_equity_token');
+        requestEquityOtp((validToken) => executeSavePartner(validToken));
+        return;
+      }
       alert(err.response?.data?.message || 'Failed to save partner');
+    }
+  };
+
+  // Handle Save (Add or Edit)
+  const handleSavePartner = async (e) => {
+    e.preventDefault();
+    if (!equityToken) {
+      requestEquityOtp((validToken) => executeSavePartner(validToken));
+      return;
+    }
+    executeSavePartner(equityToken);
+  };
+
+  // Execute Delete Partner with token
+  const executeDeletePartner = async (partner, authToken) => {
+    try {
+      const res = await axios.delete(`${API_URL}/api/super-admin/partners/${partner.id}`, {
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'x-equity-auth': authToken
+        }
+      });
+      alert(res.data.message || 'Partner removed successfully');
+      fetchData(true);
+    } catch (err) {
+      if (err.response?.data?.require2FA) {
+        setEquityToken('');
+        sessionStorage.removeItem('universe_equity_token');
+        requestEquityOtp((validToken) => executeDeletePartner(partner, validToken));
+        return;
+      }
+      alert(err.response?.data?.message || 'Failed to delete partner');
     }
   };
 
   // Handle Delete / Deactivate Partner
   const handleDeletePartner = async (partner) => {
     if (!window.confirm(`Are you sure you want to remove partner "${partner.name}"?`)) return;
-    try {
-      const res = await axios.delete(`${API_URL}/api/super-admin/partners/${partner.id}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      alert(res.data.message || 'Partner removed successfully');
-      fetchData(true);
-    } catch (err) {
-      alert(err.response?.data?.message || 'Failed to delete partner');
+    if (!equityToken) {
+      requestEquityOtp((validToken) => executeDeletePartner(partner, validToken));
+      return;
     }
+    executeDeletePartner(partner, equityToken);
   };
 
   // Open Distribution Run Modal
@@ -171,13 +274,13 @@ const SuperAdminPartnerEquity = ({ token }) => {
     const defaultTitle = `Profit Distribution - ${new Date().toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}`;
     setDistributeConfig({
       title: defaultTitle,
-      poolMode: 'total_deductions',
+      poolMode: 'net_profit',
       reservePercentage: 0,
       notes: '',
       partnerPayouts: []
     });
     setShowDistributeModal(true);
-    fetchPreview('total_deductions', 0);
+    fetchPreview('net_profit', 0);
   };
 
   // Fetch Preview Math
@@ -202,27 +305,46 @@ const SuperAdminPartnerEquity = ({ token }) => {
     }
   };
 
-  // Execute Distribution Run
-  const handleExecuteDistribution = async () => {
-    if (!window.confirm(`Confirm execution of this profit distribution run?\n\nThis will lock the profit snapshot into the immutable ledger and mark partner payouts as completed.`)) {
-      return;
-    }
+  // Execute Distribution Run with token
+  const executeDistributionRun = async (authToken) => {
     setExecuting(true);
     try {
       const res = await axios.post(
         `${API_URL}/api/super-admin/partners/distribution/execute`,
         distributeConfig,
-        { headers: { Authorization: `Bearer ${token}` } }
+        { 
+          headers: { 
+            Authorization: `Bearer ${token}`,
+            'x-equity-auth': authToken
+          } 
+        }
       );
       alert('✅ Profit distribution run executed and locked into the ledger!');
       setShowDistributeModal(false);
       fetchData(true);
       setActiveSubTab('history');
     } catch (err) {
+      if (err.response?.data?.require2FA) {
+        setEquityToken('');
+        sessionStorage.removeItem('universe_equity_token');
+        requestEquityOtp((validToken) => executeDistributionRun(validToken));
+        return;
+      }
       alert(err.response?.data?.message || 'Execution failed');
     } finally {
       setExecuting(false);
     }
+  };
+
+  const handleExecuteDistribution = async () => {
+    if (!window.confirm(`Confirm execution of this profit distribution run?\n\nThis will lock the profit snapshot into the immutable ledger and mark partner payouts as completed.`)) {
+      return;
+    }
+    if (!equityToken) {
+      requestEquityOtp((validToken) => executeDistributionRun(validToken));
+      return;
+    }
+    executeDistributionRun(equityToken);
   };
 
   if (loading) {
@@ -261,13 +383,37 @@ const SuperAdminPartnerEquity = ({ token }) => {
             onClick={() => fetchData(true)}
             disabled={refreshing}
             style={{
-              padding: '0.65rem 1rem', borderRadius: '12px', border: '1px solid var(--surface-border)',
-              background: '#ffffff', color: 'var(--text-primary)', fontWeight: '700', fontSize: '0.85rem',
+              padding: '0.65rem 1.1rem', borderRadius: '12px', border: '1px solid var(--surface-border)',
+              background: '#ffffff', color: 'var(--text-secondary)', fontWeight: '700', fontSize: '0.85rem',
               display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer'
             }}
           >
             <RefreshCw size={15} className={refreshing ? 'spin' : ''} /> Refresh
           </button>
+
+          {/* 2FA Security Status Pill */}
+          {equityToken ? (
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: '0.4rem',
+              background: '#ecfdf5', color: '#059669', border: '1px solid #a7f3d0',
+              padding: '0.65rem 1rem', borderRadius: '12px', fontSize: '0.8rem', fontWeight: '800'
+            }}>
+              <Shield size={15} /> Authorized
+            </div>
+          ) : (
+            <button
+              onClick={() => requestEquityOtp()}
+              type="button"
+              style={{
+                display: 'flex', alignItems: 'center', gap: '0.4rem',
+                background: '#fff1f2', color: '#e11d48', border: '1px solid #fecdd3',
+                padding: '0.65rem 1rem', borderRadius: '12px', fontSize: '0.8rem', fontWeight: '800',
+                cursor: 'pointer'
+              }}
+            >
+              <Lock size={15} /> 2FA Protected
+            </button>
+          )}
           <button
             onClick={openAddModal}
             style={{
@@ -994,6 +1140,125 @@ const SuperAdminPartnerEquity = ({ token }) => {
               >
                 {executing ? <RefreshCw size={16} className="spin" /> : <Lock size={16} />}
                 {executing ? 'Freezing & Locking Run...' : 'Execute & Lock Payout Run'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 2FA EQUITY SECURITY AUTHORIZATION MODAL */}
+      {showOtpModal && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(15, 23, 42, 0.75)', backdropFilter: 'blur(6px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 2000, padding: '1rem'
+        }}>
+          <div style={{
+            background: '#ffffff', borderRadius: '24px', width: '100%', maxWidth: '460px',
+            padding: '2rem', boxShadow: '0 25px 60px rgba(0,0,0,0.3)', textAlign: 'center',
+            border: '1px solid var(--surface-border)'
+          }}>
+            <div style={{
+              width: '64px', height: '64px', borderRadius: '50%',
+              background: 'rgba(239, 65, 35, 0.1)', color: '#ef4123',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              margin: '0 auto 1.25rem'
+            }}>
+              <Shield size={32} />
+            </div>
+
+            <h2 style={{ fontSize: '1.4rem', fontWeight: '900', margin: '0 0 0.5rem 0', color: 'var(--text-primary)' }}>
+              Cap Table Security Verification
+            </h2>
+
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', lineHeight: '1.5', margin: '0 0 1.25rem 0' }}>
+              Modifying partner equity, shares, or profit distributions requires 2FA authorization.
+              A 6-digit verification code has been dispatched to:
+              <br />
+              <strong style={{ color: 'var(--text-primary)', wordBreak: 'break-all' }}>parthsharma240404@gmail.com</strong>
+            </p>
+
+            {otpSentMessage && (
+              <div style={{
+                background: '#ecfdf5', color: '#059669', border: '1px solid #a7f3d0',
+                borderRadius: '10px', padding: '0.6rem 0.8rem', fontSize: '0.8rem', fontWeight: '600',
+                marginBottom: '1.25rem'
+              }}>
+                ✓ {otpSentMessage}
+              </div>
+            )}
+
+            {otpError && (
+              <div style={{
+                background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca',
+                borderRadius: '10px', padding: '0.6rem 0.8rem', fontSize: '0.8rem', fontWeight: '600',
+                marginBottom: '1.25rem'
+              }}>
+                ⚠️ {otpError}
+              </div>
+            )}
+
+            <form onSubmit={handleVerifyOtp}>
+              <div style={{ marginBottom: '1.5rem' }}>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
+                  Enter 6-Digit Authorization Code
+                </label>
+                <input
+                  type="text"
+                  maxLength={6}
+                  autoFocus
+                  value={otpCode}
+                  onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
+                  placeholder="• • • • • •"
+                  style={{
+                    width: '100%', textAlign: 'center', fontSize: '1.8rem', fontWeight: '900',
+                    letterSpacing: '0.3em', padding: '0.75rem', borderRadius: '12px',
+                    border: '2px solid var(--primary)', outline: 'none', background: '#f8fafc',
+                    fontFamily: 'monospace'
+                  }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '0.75rem' }}>
+                <button
+                  type="button"
+                  onClick={() => { setShowOtpModal(false); setPendingAction(null); }}
+                  style={{
+                    flex: 1, padding: '0.85rem', borderRadius: '12px',
+                    border: '1px solid var(--surface-border)', background: '#fff',
+                    fontWeight: '700', cursor: 'pointer', color: 'var(--text-secondary)'
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={otpLoading || otpCode.length !== 6}
+                  style={{
+                    flex: 2, padding: '0.85rem', borderRadius: '12px',
+                    border: 'none', background: 'var(--primary)', color: '#fff',
+                    fontWeight: '800', cursor: (otpLoading || otpCode.length !== 6) ? 'not-allowed' : 'pointer',
+                    opacity: (otpLoading || otpCode.length !== 6) ? 0.6 : 1
+                  }}
+                >
+                  {otpLoading ? 'Verifying...' : 'Verify & Unlock'}
+                </button>
+              </div>
+            </form>
+
+            <div style={{ marginTop: '1.25rem' }}>
+              <button
+                type="button"
+                disabled={otpLoading}
+                onClick={() => requestEquityOtp()}
+                style={{
+                  background: 'none', border: 'none', color: 'var(--primary)',
+                  fontSize: '0.8rem', fontWeight: '700', cursor: 'pointer',
+                  textDecoration: 'underline'
+                }}
+              >
+                Resend verification code
               </button>
             </div>
           </div>

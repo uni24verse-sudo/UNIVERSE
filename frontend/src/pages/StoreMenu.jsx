@@ -233,19 +233,24 @@ const StoreMenu = () => {
         setStore(fetchedStore);
         
         // Automatic Location Synchronization
-        if (fetchedStore.locationId) {
+        const locObj = fetchedStore.location || (typeof fetchedStore.locationId === 'object' ? fetchedStore.locationId : null);
+        const targetId = locObj?._id || locObj?.id || (typeof fetchedStore.locationId === 'string' ? fetchedStore.locationId : null);
+        const targetName = locObj?.name;
+        const targetType = locObj?.type || 'College';
+        
+        if (targetId) {
           const currentLocId = localStorage.getItem('universe_location_id');
-          const targetLoc = fetchedStore.locationId;
-          const targetId = targetLoc._id || targetLoc;
+          const currentLocName = localStorage.getItem('universe_location_name');
           
-          if (currentLocId !== targetId) {
+          if (currentLocId !== targetId || !currentLocName) {
             localStorage.setItem('universe_location_id', targetId);
-            if (targetLoc.name) {
-              localStorage.setItem('universe_location_name', targetLoc.name);
-              localStorage.setItem('universe_location_type', targetLoc.type || 'College');
+            if (targetName) {
+              localStorage.setItem('universe_location_name', targetName);
+              localStorage.setItem('universe_location_type', targetType);
             }
             // Trigger smooth global sync without reload
-            window.dispatchEvent(new CustomEvent('universe_set_location', { detail: targetLoc }));
+            const syncPayload = locObj || { _id: targetId, id: targetId, name: targetName, type: targetType };
+            window.dispatchEvent(new CustomEvent('universe_set_location', { detail: syncPayload }));
           }
         }
       } catch (err) {
