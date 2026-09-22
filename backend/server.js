@@ -82,6 +82,15 @@ app.use('/api/employees', require('./routes/employees'));
 app.use('/api/banners', require('./routes/banners'));
 app.use(require('./routes/share'));
 
+// Direct fallback for client SPA store route on backend port (prevents 'Cannot GET /store/...')
+app.get('/store/:storeId', (req, res) => {
+  const host = req.get('host') || '';
+  const isLocal = host.includes('localhost') || host.includes('127.0.0.1');
+  const frontendBase = isLocal ? 'http://localhost:5173' : (process.env.FRONTEND_URL || 'https://food.universeorder.co.in');
+  const query = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
+  res.redirect(`${frontendBase}/store/${req.params.storeId}${query}`);
+});
+
 // Socket.io connection handling
 io.on('connection', (socket) => {
   console.log(`User Connected: ${socket.id}`);

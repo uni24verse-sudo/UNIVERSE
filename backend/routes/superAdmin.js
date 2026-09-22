@@ -89,7 +89,8 @@ router.get('/stats', async (req, res) => {
     const totalGatewayFee = parseFloat((settledGateway + projectedGateway).toFixed(2));
     const totalPlatformProfit = parseFloat((settledPlatformProfit + projectedPlatformProfit).toFixed(2));
     const totalCancellationPenalty = parseFloat((settledCancellationPenalty + projectedCancellationPenalty).toFixed(2));
-    const totalPlatformDeductions = parseFloat((totalGatewayFee + totalPlatformProfit + totalCancellationPenalty).toFixed(2));
+    const totalUniVerseNetTake = parseFloat((totalPlatformProfit + totalCancellationPenalty).toFixed(2));
+    const totalPlatformDeductions = parseFloat((totalGatewayFee + totalUniVerseNetTake).toFixed(2));
 
     res.json({
       totalVendors,
@@ -98,11 +99,12 @@ router.get('/stats', async (req, res) => {
       activeOrders,
       totalRevenue,
       todayRevenue,
-      totalProfit: totalPlatformDeductions,
-      totalPlatformDeductions,
-      totalPlatformProfit,
-      totalGatewayFee,
-      totalCancellationPenalty
+      totalProfit: totalUniVerseNetTake, // Pure UniVerse Net Take (3% take + 4% protection = ₹34.90)
+      totalUniVerseNetTake,
+      totalPlatformDeductions, // Full deductions from vendors including 2% PG fee (₹98.16)
+      totalPlatformProfit, // 3% commission (₹1.50)
+      totalGatewayFee, // 2% Razorpay fee (₹63.26)
+      totalCancellationPenalty // 4% cancellation penalty (₹33.40)
     });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -181,10 +183,12 @@ router.get('/realtime-analytics', async (req, res) => {
     const projectedPlatformProfit = liveCompletedVolume * 0.03;
     const projectedCancellationPenalty = liveCancelledVolume * 0.04;
 
-    const totalPlatformProfit = parseFloat((
-      settledGateway + settledPlatformProfit + settledCancellationPenalty +
-      projectedGateway + projectedPlatformProfit + projectedCancellationPenalty
-    ).toFixed(2));
+    const totalGatewayFee = parseFloat((settledGateway + projectedGateway).toFixed(2));
+    const totalPlatformCommission = parseFloat((settledPlatformProfit + projectedPlatformProfit).toFixed(2));
+    const totalCancellationPenalty = parseFloat((settledCancellationPenalty + projectedCancellationPenalty).toFixed(2));
+    // UniVerse Net Take = 3% Take + 4% Cancellation Protection (excludes 2% Razorpay fee)
+    const totalPlatformProfit = parseFloat((totalPlatformCommission + totalCancellationPenalty).toFixed(2));
+    const totalPlatformDeductions = parseFloat((totalGatewayFee + totalPlatformProfit).toFixed(2));
 
     // Hourly Distribution for 24 hours of today (Real-Time Current Date)
     const hourlyVelocity = Array.from({ length: 24 }, (_, h) => {
@@ -470,7 +474,10 @@ router.get('/realtime-analytics', async (req, res) => {
       avgOrderValue,
       todayAvgOrderValue,
       ordersVelocityPerHour,
-      totalProfit: Math.round(totalPlatformProfit),
+      totalProfit: parseFloat(totalPlatformProfit.toFixed(2)),
+      totalPlatformProfit: parseFloat(totalPlatformProfit.toFixed(2)),
+      totalPlatformDeductions: parseFloat(totalPlatformDeductions.toFixed(2)),
+      totalGatewayFee: parseFloat(totalGatewayFee.toFixed(2)),
       vendorCount: allVendors.length,
       storeCount: allStores.length,
       openStoresCount: allStores.filter(s => s.isOpen).length,

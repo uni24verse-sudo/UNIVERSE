@@ -309,7 +309,7 @@ const SuperAdminPartnerEquity = ({ token }) => {
             ₹{availablePoolAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </h2>
           <p style={{ margin: '0.4rem 0 0 0', fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: '600' }}>
-            Available to divide among active equity partners
+            Net Platform Profit (3% Take + 4% Penalty • Excludes 2% Razorpay Fee)
           </p>
         </div>
 

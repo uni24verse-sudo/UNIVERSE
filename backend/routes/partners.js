@@ -59,8 +59,9 @@ async function calculateAuthoritativePlatformProfit() {
   const availableTotalDeductionsPool = Math.max(0, parseFloat((totalPlatformDeductions - previouslyDistributed).toFixed(2)));
   const availableNetProfitPool = Math.max(0, parseFloat((totalUniVerseProfit - previouslyDistributed).toFixed(2)));
   
-  // Default to total deductions (₹98.16) as tracked in finance tracker, or pure profit
-  const availableDistributablePool = availableTotalDeductionsPool;
+  // Partner distributable pool MUST strictly be net profit (3% commission + 4% penalty = ₹34.90).
+  // Payment gateway fees (2% Razorpay = ₹63.26) belong to the payment processor, NOT equity partners.
+  const availableDistributablePool = availableNetProfitPool;
 
   return {
     totalPlatformProfit,
@@ -286,7 +287,7 @@ router.delete('/:id', async (req, res) => {
 router.get('/distribution/preview', async (req, res) => {
   try {
     const reservePct = parseFloat(req.query.reservePercentage) || 0;
-    const poolMode = req.query.poolMode || 'total_deductions';
+    const poolMode = req.query.poolMode || 'net_profit';
     const poolInfo = await calculateAuthoritativePlatformProfit();
 
     const activePartners = await prisma.partner.findMany({
@@ -337,7 +338,7 @@ router.get('/distribution/preview', async (req, res) => {
  */
 router.post('/distribution/execute', async (req, res) => {
   try {
-    const { title, reservePercentage = 0, poolMode = 'total_deductions', notes = '', partnerPayouts = [] } = req.body;
+    const { title, reservePercentage = 0, poolMode = 'net_profit', notes = '', partnerPayouts = [] } = req.body;
 
     const poolInfo = await calculateAuthoritativePlatformProfit();
     const availablePool = poolMode === 'net_profit' ? poolInfo.availableNetProfitPool : poolInfo.availableTotalDeductionsPool;

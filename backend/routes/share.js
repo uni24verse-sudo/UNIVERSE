@@ -12,19 +12,33 @@ function escapeHtml(str = '') {
     .replace(/'/g, '&#039;');
 }
 
+// Helper to determine the client application and public metadata origins
+function getAppOrigins(req) {
+  const host = req.get('host') || '';
+  const proto = req.get('x-forwarded-proto') || req.protocol || 'https';
+  const isLocal = host.includes('localhost') || host.includes('127.0.0.1');
+
+  // In local dev, frontend runs on Vite (port 5173) while Express is on 5000
+  const frontendOrigin = isLocal
+    ? 'http://localhost:5173'
+    : (process.env.FRONTEND_URL || `${proto}://${host}`);
+
+  // Public origin for Open Graph metadata
+  const publicOrigin = isLocal ? 'http://localhost:5000' : `${proto}://${host}`;
+
+  return { frontendOrigin, publicOrigin };
+}
+
 // 1. Food Dish Share Controller (/d/:storeId & /api/share/dish)
 const handleDishShare = async (req, res) => {
   try {
     const storeIdParam = req.params.storeId || req.query.s || req.query.storeId;
     const dishParam = req.query.dish || req.query.d || req.query.p || req.query.name;
 
-    const defaultHost = process.env.FRONTEND_URL ? new URL(process.env.FRONTEND_URL).host : 'uat.food.universeorder.co.in';
-    const host = req.get('host') || defaultHost;
-    const proto = req.get('x-forwarded-proto') || req.protocol || 'https';
-    const origin = `${proto}://${host}`;
+    const { frontendOrigin, publicOrigin } = getAppOrigins(req);
 
     if (!storeIdParam) {
-      return res.redirect(origin);
+      return res.redirect(frontendOrigin);
     }
 
     const cleanStoreId = String(storeIdParam).trim();
@@ -75,14 +89,14 @@ const handleDishShare = async (req, res) => {
       ogTitle = `🔥 ${matchedProduct.name} — ₹${minPrice} • ${store.name}`;
       ogDesc = `Hungry? Fresh ${matchedProduct.name} from ${store.name} (${store.market || 'Campus'}), ready to order on UNIVERSE!`;
       // User requirement: if sharing food then food image should be shown, fallback to stall image
-      ogImage = matchedProduct.image || store.image || `${origin}/favicon.png`;
-      targetUrl = `${origin}/store/${store.id}?dish=${encodeURIComponent(matchedProduct.name)}`;
+      ogImage = matchedProduct.image || store.image || `${publicOrigin}/favicon.png`;
+      targetUrl = `${frontendOrigin}/store/${store.id}?dish=${encodeURIComponent(matchedProduct.name)}`;
     } else {
       pageTitle = `${store.name} | UNIVERSE Campus Dining`;
       ogTitle = `🏪 ${store.name} • UNIVERSE Campus Dining`;
       ogDesc = `Looking for good food? Explore the live menu at ${store.name} (${store.market || 'Campus'}) on UNIVERSE!`;
-      ogImage = store.image || `${origin}/favicon.png`;
-      targetUrl = `${origin}/store/${store.id}`;
+      ogImage = store.image || `${publicOrigin}/favicon.png`;
+      targetUrl = `${frontendOrigin}/store/${store.id}`;
     }
 
     // Render lightweight Open Graph HTML with instant client-side redirection
@@ -142,13 +156,10 @@ const handleStallShare = async (req, res) => {
   try {
     const storeIdParam = req.params.storeId || req.query.s || req.query.storeId;
 
-    const defaultHost = process.env.FRONTEND_URL ? new URL(process.env.FRONTEND_URL).host : 'uat.food.universeorder.co.in';
-    const host = req.get('host') || defaultHost;
-    const proto = req.get('x-forwarded-proto') || req.protocol || 'https';
-    const origin = `${proto}://${host}`;
+    const { frontendOrigin, publicOrigin } = getAppOrigins(req);
 
     if (!storeIdParam) {
-      return res.redirect(origin);
+      return res.redirect(frontendOrigin);
     }
 
     const cleanStoreId = String(storeIdParam).trim();
@@ -163,7 +174,7 @@ const handleStallShare = async (req, res) => {
     });
 
     if (!store) {
-      return res.redirect(origin);
+      return res.redirect(frontendOrigin);
     }
 
     const productCount = Array.isArray(store.products) ? store.products.length : 0;
@@ -171,8 +182,8 @@ const handleStallShare = async (req, res) => {
     const ogTitle = `🏪 ${store.name} • UNIVERSE Campus Dining`;
     const ogDesc = `Looking for good food? Explore ${productCount > 0 ? `${productCount} fresh dishes` : 'the live menu'} at ${store.name} (${store.market || 'Campus'}). Ready to order on UNIVERSE!`;
     // User requirement: if sharing stall then stall image should be shown
-    const ogImage = store.image || `${origin}/favicon.png`;
-    const targetUrl = `${origin}/store/${store.id}`;
+    const ogImage = store.image || `${publicOrigin}/favicon.png`;
+    const targetUrl = `${frontendOrigin}/store/${store.id}`;
 
     const html = `<!DOCTYPE html>
 <html lang="en">
