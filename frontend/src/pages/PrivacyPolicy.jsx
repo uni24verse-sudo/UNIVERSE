@@ -23,7 +23,7 @@ const PrivacyPolicy = () => {
         {/* Header */}
         <div style={{ marginBottom: '3rem', textAlign: 'center' }}>
           <button 
-            onClick={() => navigate(-1)}
+            onClick={() => (window.history.state && window.history.state.idx > 0 ? navigate(-1) : navigate('/'))}
             style={{
               display: 'flex',
               alignItems: 'center',

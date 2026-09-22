@@ -399,6 +399,14 @@ const StoreMenu = () => {
     }
   }, [storeClosed, id, addToCart, handleVariantClick]);
 
+  const handleBack = () => {
+    if (window.history.state && window.history.state.idx > 0) {
+      navigate(-1);
+    } else {
+      navigate('/');
+    }
+  };
+
   if (loading) return <MenuSkeleton />;
   if (!store) return <div className="auth-wrapper"><h3>Store not found.</h3></div>;
 
@@ -408,7 +416,7 @@ const StoreMenu = () => {
       <div className="store-banner-fullwidth animate-fade-in-up">
         <OptimizedImage src={store.image} alt={store.name} className="store-banner-img" />
         <button 
-          onClick={() => navigate(-1)} 
+          onClick={handleBack} 
           className="store-banner-back-btn"
           aria-label="Back"
           title="Back"
@@ -420,6 +428,7 @@ const StoreMenu = () => {
       <StoreSubHeader 
         store={store}
         navigate={navigate}
+        onBack={handleBack}
         isExternal={isExternal}
         dietaryFilter={dietaryFilter}
         setDietaryFilter={setDietaryFilter}
