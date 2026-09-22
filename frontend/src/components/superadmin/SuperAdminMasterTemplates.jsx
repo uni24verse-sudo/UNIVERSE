@@ -42,7 +42,7 @@ const SuperAdminMasterTemplates = ({ token }) => {
     emailPreheader: '',
     emailHeroImageUrl: '',
     emailCtaText: 'Open UniVerse',
-    emailCtaUrl: 'https://www.universeorder.co.in'
+    emailCtaUrl: typeof window !== 'undefined' ? window.location.origin : 'https://uat.food.universeorder.co.in'
   });
   const [submitting, setSubmitting] = useState(false);
 
@@ -133,7 +133,7 @@ const SuperAdminMasterTemplates = ({ token }) => {
       emailPreheader: '',
       emailHeroImageUrl: '',
       emailCtaText: 'Open UniVerse',
-      emailCtaUrl: 'https://www.universeorder.co.in'
+      emailCtaUrl: typeof window !== 'undefined' ? window.location.origin : 'https://uat.food.universeorder.co.in'
     });
     setModalOpen(true);
   };
@@ -153,7 +153,7 @@ const SuperAdminMasterTemplates = ({ token }) => {
       emailPreheader: t.emailPreheader || '',
       emailHeroImageUrl: t.emailHeroImageUrl || '',
       emailCtaText: t.emailCtaText || 'Open UniVerse',
-      emailCtaUrl: t.emailCtaUrl || 'https://www.universeorder.co.in'
+      emailCtaUrl: t.emailCtaUrl || (typeof window !== 'undefined' ? window.location.origin : 'https://uat.food.universeorder.co.in')
     });
     setModalOpen(true);
   };

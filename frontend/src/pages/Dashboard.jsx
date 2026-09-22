@@ -149,6 +149,9 @@ const Dashboard = () => {
   const [showScanner, setShowScanner] = useState(false);
   const [verifyingScan, setVerifyingScan] = useState(false);
   const [scanResult, setScanResult] = useState(null);
+  const [scannerMode, setScannerMode] = useState('camera');
+  const [manualOrderId, setManualOrderId] = useState('');
+  const [manualHandoverCode, setManualHandoverCode] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [analyticsTimeframe, setAnalyticsTimeframe] = useState('today'); // 'today', 'week', 'month', 'custom'
   const [customStartDate, setCustomStartDate] = useState(() => {
@@ -345,14 +348,23 @@ const Dashboard = () => {
         }
       };
 
+      const handleStoreAutoAccept = ({ storeId, autoAcceptOrders }) => {
+        if (storeId === store._id || storeId === store.id) {
+          setStore(prev => ({ ...prev, autoAcceptOrders }));
+          setStores(prev => prev.map(s => (s._id === storeId || s.id === storeId) ? { ...s, autoAcceptOrders } : s));
+        }
+      };
+
       socket.on('new_order', handleNewOrder);
       socket.on('order_status_update', handleNewOrder);
       socket.on('store_status_update', handleStoreStatus);
+      socket.on('store_auto_accept_update', handleStoreAutoAccept);
       
       return () => {
         socket.off('new_order', handleNewOrder);
         socket.off('order_status_update', handleNewOrder);
         socket.off('store_status_update', handleStoreStatus);
+        socket.off('store_auto_accept_update', handleStoreAutoAccept);
       };
     }
   }, [store, socket, connected]);
@@ -377,7 +389,7 @@ const Dashboard = () => {
     return () => clearInterval(interval);
   }, [soundEnabled, orders]);
 
-  const updateOrderStatus = async (orderId, newStatus) => {
+  const updateOrderStatus = async (orderId, newStatus, reason) => {
     // 1. Snapshot previous state for rollback
     const previousOrders = [...orders];
     
@@ -386,7 +398,7 @@ const Dashboard = () => {
 
     try {
       await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/orders/${orderId}/status`, 
-        { status: newStatus },
+        { status: newStatus, reason },
         { headers: { Authorization: `Bearer ${token}` }}
       );
     } catch (err) {
@@ -399,33 +411,42 @@ const Dashboard = () => {
 
   useEffect(() => {
     let scanner;
-    if (showScanner) {
+    if (showScanner && scannerMode === 'camera') {
       // Small delay to ensure the container is rendered
       const timeoutId = setTimeout(() => {
-        scanner = new Html5QrcodeScanner("reader", { 
-          fps: 10, 
-          qrbox: { width: 250, height: 250 },
-          rememberLastUsedCamera: true,
-          aspectRatio: 1.0
-        });
+        try {
+          scanner = new Html5QrcodeScanner("reader", { 
+            fps: 10, 
+            qrbox: { width: 250, height: 250 },
+            rememberLastUsedCamera: true,
+            aspectRatio: 1.0
+          });
 
-        const onScanSuccess = async (decodedText) => {
-          try {
-            const data = JSON.parse(decodedText);
-            if (data.orderId && data.token) {
-              scanner.clear().catch(e => console.error(e));
-              handleVerifyHandover(data.orderId, data.token);
+          const onScanSuccess = async (decodedText) => {
+            try {
+              const data = JSON.parse(decodedText);
+              const targetOrderId = data.orderId || data.id || data.orderNumber;
+              const targetToken = data.handoverToken || data.token;
+              if (targetOrderId && targetToken) {
+                scanner.clear().catch(e => console.error(e));
+                handleVerifyHandover(targetOrderId, targetToken);
+              } else {
+                setScanResult({ success: false, message: 'Invalid QR Code: Missing Order ID or Handover Token' });
+              }
+            } catch (e) {
+              console.error("Invalid QR Code content", e);
+              setScanResult({ success: false, message: 'Could not read QR code. Ensure it is a valid UniVerse customer QR.' });
             }
-          } catch (e) {
-            console.error("Invalid QR Code content", e);
-          }
-        };
+          };
 
-        const onScanFailure = (error) => {
-          // Silent failure - common during scanning
-        };
+          const onScanFailure = (error) => {
+            // Silent failure - common during scanning
+          };
 
-        scanner.render(onScanSuccess, onScanFailure);
+          scanner.render(onScanSuccess, onScanFailure);
+        } catch (e) {
+          console.error("Failed to initialize scanner:", e);
+        }
       }, 300);
 
       return () => {
@@ -435,21 +456,22 @@ const Dashboard = () => {
         }
       };
     }
-  }, [showScanner]);
+  }, [showScanner, scannerMode]);
 
   const handleVerifyHandover = async (orderId, handoverToken) => {
     setVerifyingScan(true);
     setScanResult(null);
     try {
       const response = await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/orders/verify-handover`, 
-        { orderId, token: handoverToken },
+        { orderId, handoverToken, token: handoverToken },
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
       if (response.data.success) {
-        setScanResult({ success: true, message: `Order #${response.data.order.orderNumber} Verified!` });
+        setScanResult({ success: true, message: `Order #${response.data.order?.orderNumber || ''} Verified & Handed Over!` });
         // Update local state
-        setOrders(prev => prev.map(o => o._id === orderId ? response.data.order : o));
+        const completedOrder = response.data.order;
+        setOrders(prev => prev.map(o => (o._id === orderId || o.id === orderId) ? (completedOrder || { ...o, status: 'Completed' }) : o));
         
         // Play success sound
         new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3').play().catch(() => {});
@@ -458,7 +480,9 @@ const Dashboard = () => {
         setTimeout(() => {
           setShowScanner(false);
           setScanResult(null);
-        }, 2000);
+          setManualOrderId('');
+          setManualHandoverCode('');
+        }, 1800);
       }
     } catch (err) {
       setScanResult({ success: false, message: err.response?.data?.message || 'Verification failed' });
@@ -475,8 +499,9 @@ const Dashboard = () => {
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      if (res.data?.success && res.data?.order) {
-        setOrders(prev => prev.map(o => (o._id === orderId || o.id === orderId) ? res.data.order : o));
+      if (res.data?.success) {
+        const completedOrder = res.data.order;
+        setOrders(prev => prev.map(o => (o._id === orderId || o.id === orderId) ? (completedOrder || { ...o, status: 'Completed' }) : o));
         new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3').play().catch(() => {});
       }
     } catch (err) {
@@ -542,6 +567,29 @@ const Dashboard = () => {
       alert('Failed to toggle status');
       setStore(prev => ({ ...prev, isOpen: !nextStatus }));
       setStores(prev => prev.map(s => (s._id === targetId || s.id === targetId) ? { ...s, isOpen: !nextStatus } : s));
+    }
+  };
+
+  const toggleAutoAccept = async () => {
+    if (!store) return;
+    const targetId = store._id || store.id;
+    const nextStatus = !store.autoAcceptOrders;
+    // Instant optimistic update
+    setStore(prev => ({ ...prev, autoAcceptOrders: nextStatus }));
+    setStores(prev => prev.map(s => (s._id === targetId || s.id === targetId) ? { ...s, autoAcceptOrders: nextStatus } : s));
+
+    try {
+      const res = await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/store/${targetId}/toggle-auto-accept`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.data && res.data.autoAcceptOrders !== undefined) {
+        setStore(prev => ({ ...prev, autoAcceptOrders: res.data.autoAcceptOrders }));
+        setStores(prev => prev.map(s => (s._id === targetId || s.id === targetId) ? { ...s, autoAcceptOrders: res.data.autoAcceptOrders } : s));
+      }
+    } catch (err) {
+      alert('Failed to update Auto-Accept setting');
+      setStore(prev => ({ ...prev, autoAcceptOrders: !nextStatus }));
+      setStores(prev => prev.map(s => (s._id === targetId || s.id === targetId) ? { ...s, autoAcceptOrders: !nextStatus } : s));
     }
   };
 
@@ -995,6 +1043,29 @@ const Dashboard = () => {
                 </span>
               </div>
             )}
+
+            {store && !isMobile && (
+              <div 
+                onClick={toggleAutoAccept}
+                title={store.autoAcceptOrders ? "Auto-Accept Orders is ON. Click to turn OFF." : "Auto-Accept Orders is OFF. Click to turn ON."}
+                style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '0.45rem', 
+                  padding: '0.5rem 1rem', 
+                  background: store.autoAcceptOrders ? 'rgba(239, 65, 35, 0.12)' : 'rgba(100, 116, 139, 0.08)', 
+                  borderRadius: '100px',
+                  cursor: 'pointer',
+                  border: `1px solid ${store.autoAcceptOrders ? 'rgba(239, 65, 35, 0.35)' : 'rgba(100, 116, 139, 0.2)'}`,
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                <Zap size={14} color={store.autoAcceptOrders ? '#ef4123' : '#64748b'} fill={store.autoAcceptOrders ? '#ef4123' : 'none'} />
+                <span style={{ fontSize: '0.8rem', fontWeight: '800', color: store.autoAcceptOrders ? '#ef4123' : '#64748b' }}>
+                   Auto-Accept: {store.autoAcceptOrders ? 'ON' : 'OFF'}
+                </span>
+              </div>
+            )}
             
             {!isMobile && (
               <>
@@ -1056,13 +1127,41 @@ const Dashboard = () => {
               width: '100%', maxWidth: '500px', padding: '2rem', 
               borderRadius: '32px', textAlign: 'center', background: '#111' 
             }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-                <h3 style={{ margin: 0, color: 'white' }}>Scan Handover QR</h3>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+                <h3 style={{ margin: 0, color: 'white' }}>Verify Handover</h3>
                 <button 
-                  onClick={() => setShowScanner(false)}
+                  onClick={() => {
+                    setShowScanner(false);
+                    setScanResult(null);
+                  }}
                   style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', padding: '0.5rem', borderRadius: '50%', cursor: 'pointer' }}
                 >
                   <X size={24} />
+                </button>
+              </div>
+
+              <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', background: 'rgba(255,255,255,0.06)', padding: '4px', borderRadius: '14px' }}>
+                <button 
+                  onClick={() => { setScannerMode('camera'); setScanResult(null); }}
+                  style={{
+                    flex: 1, padding: '0.6rem', borderRadius: '10px', border: 'none',
+                    background: scannerMode === 'camera' ? 'var(--primary)' : 'transparent',
+                    color: 'white', fontWeight: '800', fontSize: '0.85rem', cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem'
+                  }}
+                >
+                  <QrCode size={16} /> Camera Scanner
+                </button>
+                <button 
+                  onClick={() => { setScannerMode('manual'); setScanResult(null); }}
+                  style={{
+                    flex: 1, padding: '0.6rem', borderRadius: '10px', border: 'none',
+                    background: scannerMode === 'manual' ? 'var(--primary)' : 'transparent',
+                    color: 'white', fontWeight: '800', fontSize: '0.85rem', cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem'
+                  }}
+                >
+                  <Sparkles size={16} /> Enter Code
                 </button>
               </div>
 
@@ -1087,11 +1186,14 @@ const Dashboard = () => {
                     </button>
                   )}
                 </div>
-              ) : (
+              ) : scannerMode === 'camera' ? (
                 <>
                   <div id="reader" style={{ overflow: 'hidden', borderRadius: '24px', background: '#000', border: 'none' }}></div>
-                  <p style={{ color: 'var(--text-secondary)', marginTop: '2rem', fontSize: '0.875rem' }}>
+                  <p style={{ color: 'var(--text-secondary)', marginTop: '1.5rem', fontSize: '0.875rem' }}>
                     Position the customer's QR code within the frame to verify handover.
+                  </p>
+                  <p style={{ color: '#94a3b8', fontSize: '0.75rem', marginTop: '0.5rem' }}>
+                    Camera blocked or on desktop? Switch to <strong>Enter Code</strong> above.
                   </p>
                   {verifyingScan && (
                     <div style={{ marginTop: '1rem', color: 'var(--secondary)', fontWeight: '700' }}>
@@ -1099,6 +1201,78 @@ const Dashboard = () => {
                     </div>
                   )}
                 </>
+              ) : (
+                <div style={{ textAlign: 'left', padding: '0.5rem 0' }}>
+                  <label style={{ display: 'block', color: 'var(--text-secondary)', fontSize: '0.8rem', fontWeight: '700', marginBottom: '0.4rem' }}>
+                    Select Ready Order
+                  </label>
+                  <select 
+                    value={manualOrderId} 
+                    onChange={e => setManualOrderId(e.target.value)}
+                    style={{
+                      width: '100%', padding: '0.85rem', borderRadius: '12px',
+                      background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)',
+                      color: 'white', fontSize: '0.9rem', marginBottom: '1.25rem', outline: 'none'
+                    }}
+                  >
+                    <option value="" style={{ background: '#1e293b' }}>-- Select Ready Order --</option>
+                    {orders.filter(o => o.status === 'Ready').map(o => (
+                      <option key={o._id} value={o._id} style={{ background: '#1e293b' }}>
+                        Order #{o.orderNumber} - {o.customerName || 'Customer'} (₹{o.totalAmount})
+                      </option>
+                    ))}
+                  </select>
+
+                  <label style={{ display: 'block', color: 'var(--text-secondary)', fontSize: '0.8rem', fontWeight: '700', marginBottom: '0.4rem' }}>
+                    6-Character Pickup Code
+                  </label>
+                  <input 
+                    type="text"
+                    placeholder="e.g. 9B2X4A"
+                    maxLength={10}
+                    value={manualHandoverCode}
+                    onChange={e => setManualHandoverCode(e.target.value.toUpperCase())}
+                    style={{
+                      width: '100%', padding: '0.85rem', borderRadius: '12px',
+                      background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)',
+                      color: 'white', fontSize: '1.1rem', fontWeight: '800', letterSpacing: '2px',
+                      textTransform: 'uppercase', marginBottom: '1.5rem', outline: 'none'
+                    }}
+                  />
+
+                  <div style={{ display: 'flex', gap: '0.75rem' }}>
+                    <button
+                      disabled={verifyingScan || !manualOrderId || !manualHandoverCode.trim()}
+                      onClick={() => handleVerifyHandover(manualOrderId, manualHandoverCode.trim())}
+                      className="btn btn-primary"
+                      style={{
+                        flex: 1, padding: '0.9rem', borderRadius: '12px',
+                        fontWeight: '800', fontSize: '0.95rem',
+                        cursor: (!manualOrderId || !manualHandoverCode.trim() || verifyingScan) ? 'not-allowed' : 'pointer',
+                        opacity: (!manualOrderId || !manualHandoverCode.trim() || verifyingScan) ? 0.6 : 1
+                      }}
+                    >
+                      {verifyingScan ? 'Verifying...' : 'Verify & Handover'}
+                    </button>
+                    {manualOrderId && (
+                      <button
+                        onClick={() => {
+                          handleDirectHandover(manualOrderId);
+                          setShowScanner(false);
+                        }}
+                        style={{
+                          padding: '0.9rem 1.25rem', borderRadius: '12px',
+                          background: 'linear-gradient(135deg, #10b981, #059669)',
+                          color: 'white', fontWeight: '800', border: 'none',
+                          cursor: 'pointer', fontSize: '0.9rem'
+                        }}
+                        title="Bypass code verification and complete order directly"
+                      >
+                        1-Click Complete
+                      </button>
+                    )}
+                  </div>
+                </div>
               )}
             </div>
           </div>
@@ -1237,14 +1411,73 @@ const Dashboard = () => {
                           </div>
                         )}
                         {order.status === 'Confirmed' && (
-                          <button onClick={() => updateOrderStatus(order._id, 'Ready')} style={{ flex: 1, padding: '1rem', borderRadius: '12px', background: '#10b981', color: 'white', fontWeight: '800', border: 'none', fontSize: '1rem' }}>
-                            Mark Ready
-                          </button>
+                          <div style={{ display: 'flex', gap: '0.5rem', width: '100%' }}>
+                            <button onClick={() => updateOrderStatus(order._id, 'Ready')} style={{ flex: 1, padding: '1rem', borderRadius: '12px', background: '#10b981', color: 'white', fontWeight: '800', border: 'none', fontSize: '1rem', cursor: 'pointer' }}>
+                              Mark Ready
+                            </button>
+                            {store?.autoAcceptOrders && (
+                              <button 
+                                onClick={() => {
+                                  if (window.confirm(`Item out of stock? This will cancel Order #${order.orderNumber} and trigger an instant refund of ₹${order.totalAmount} to the student.`)) {
+                                    updateOrderStatus(order._id, 'Cancelled', 'Item out of stock');
+                                  }
+                                }} 
+                                style={{ padding: '0.85rem 1rem', borderRadius: '12px', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', fontWeight: '800', border: '1px solid rgba(239, 68, 68, 0.3)', cursor: 'pointer', fontSize: '0.85rem' }}
+                                title="Cancel and refund if item unexpectedly ran out"
+                              >
+                                Cancel & Refund
+                              </button>
+                            )}
+                          </div>
                         )}
                         {order.status === 'Ready' && (
-                          <button onClick={() => setShowScanner(true)} style={{ flex: 1, padding: '1rem', borderRadius: '12px', background: 'var(--primary)', color: 'white', fontWeight: '800', border: 'none', fontSize: '1rem', display:'flex', justifyContent:'center', alignItems:'center', gap:'0.5rem' }}>
-                            <QrCode size={18} /> Scan to Handover
-                          </button>
+                          <div style={{ display: 'flex', gap: '0.5rem', width: '100%' }}>
+                            <button 
+                              onClick={() => handleDirectHandover(order._id || order.id)}
+                              disabled={completingOrderId === (order._id || order.id)}
+                              style={{ 
+                                flex: 1.2, 
+                                padding: '1rem', 
+                                borderRadius: '12px', 
+                                background: 'linear-gradient(135deg, #10b981, #059669)', 
+                                color: 'white', 
+                                fontWeight: '800', 
+                                border: 'none', 
+                                fontSize: '0.95rem', 
+                                display: 'flex', 
+                                justifyContent: 'center', 
+                                alignItems: 'center', 
+                                gap: '0.5rem',
+                                cursor: completingOrderId === (order._id || order.id) ? 'wait' : 'pointer',
+                                boxShadow: '0 2px 8px rgba(16, 185, 129, 0.25)'
+                              }}
+                            >
+                              <Zap size={18} /> {completingOrderId === (order._id || order.id) ? 'Completing...' : 'Complete Handover'}
+                            </button>
+                            <button 
+                              onClick={() => {
+                                setManualOrderId(order._id || order.id);
+                                setShowScanner(true);
+                              }} 
+                              style={{ 
+                                flex: 0.8, 
+                                padding: '1rem', 
+                                borderRadius: '12px', 
+                                background: 'rgba(255, 255, 255, 0.08)', 
+                                color: 'white', 
+                                fontWeight: '800', 
+                                border: '1px solid rgba(255, 255, 255, 0.15)', 
+                                fontSize: '0.95rem', 
+                                display: 'flex', 
+                                justifyContent: 'center', 
+                                alignItems: 'center', 
+                                gap: '0.5rem',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              <QrCode size={18} /> Scan / Code
+                            </button>
+                          </div>
                         )}
                       </div>
                     </div>
@@ -1278,6 +1511,52 @@ const Dashboard = () => {
                   </h3>
                 </div>
                 
+                {/* Mobile Quick Control Strip */}
+                {isMobile && store && (
+                  <div style={{ display: 'flex', gap: '0.6rem', marginBottom: '1.25rem' }}>
+                    <div 
+                      onClick={toggleStoreStatus}
+                      style={{ 
+                        flex: 1,
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center',
+                        gap: '0.45rem', 
+                        padding: '0.55rem 0.75rem', 
+                        background: store.isOpen ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)', 
+                        borderRadius: '12px',
+                        cursor: 'pointer',
+                        border: `1px solid ${store.isOpen ? 'rgba(16, 185, 129, 0.25)' : 'rgba(239, 68, 68, 0.25)'}`
+                      }}
+                    >
+                      <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: store.isOpen ? 'var(--secondary)' : 'var(--error)' }}></div>
+                      <span style={{ fontSize: '0.75rem', fontWeight: '800', color: store.isOpen ? 'var(--secondary)' : 'var(--error)' }}>
+                         {store.isOpen ? 'OPEN' : 'CLOSED'}
+                      </span>
+                    </div>
+                    <div 
+                      onClick={toggleAutoAccept}
+                      style={{ 
+                        flex: 1.2,
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center',
+                        gap: '0.4rem', 
+                        padding: '0.55rem 0.75rem', 
+                        background: store.autoAcceptOrders ? 'rgba(239, 65, 35, 0.12)' : 'rgba(100, 116, 139, 0.08)', 
+                        borderRadius: '12px',
+                        cursor: 'pointer',
+                        border: `1px solid ${store.autoAcceptOrders ? 'rgba(239, 65, 35, 0.35)' : 'rgba(100, 116, 139, 0.2)'}`
+                      }}
+                    >
+                      <Zap size={13} color={store.autoAcceptOrders ? '#ef4123' : '#64748b'} fill={store.autoAcceptOrders ? '#ef4123' : 'none'} />
+                      <span style={{ fontSize: '0.75rem', fontWeight: '800', color: store.autoAcceptOrders ? '#ef4123' : '#64748b' }}>
+                         Auto-Accept: {store.autoAcceptOrders ? 'ON' : 'OFF'}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
                 {/* Quick Search Bar */}
                 <div style={{ position: 'relative', marginBottom: '1.5rem', width: '100%' }}>
                   <Search size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)', opacity: 0.5 }} />
@@ -1573,7 +1852,7 @@ const Dashboard = () => {
                                </div>
                              )}
                              {order.status === 'Confirmed' && (
-                                <div style={{ display: 'flex', gap: '0.5rem', flex: 1 }}>
+                                <div style={{ display: 'flex', gap: '0.5rem', flex: 1, flexWrap: 'wrap' }}>
                                   {store?.storeType === 'Restaurant' && (
                                     <button 
                                       onClick={() => updateOrderStatus(order._id, 'Cooking')} 
@@ -1584,6 +1863,31 @@ const Dashboard = () => {
                                     </button>
                                   )}
                                   <button onClick={() => updateOrderStatus(order._id, 'Ready')} className="btn btn-secondary" style={{ flex: 1, padding: '0.75rem', borderRadius: '12px', fontSize: '0.875rem', background: '#3b82f6', color: 'white' }}>{store?.storeType === 'Restaurant' ? 'Ready' : 'Mark Ready'}</button>
+                                  {store?.autoAcceptOrders && (
+                                    <button
+                                      onClick={() => {
+                                        if (window.confirm(`Item out of stock? This will cancel Order #${order.orderNumber} and trigger an instant refund of ₹${order.totalAmount} to the student.`)) {
+                                          updateOrderStatus(order._id, 'Cancelled', 'Item out of stock');
+                                        }
+                                      }}
+                                      style={{
+                                        padding: '0.75rem 1rem',
+                                        borderRadius: '12px',
+                                        fontSize: '0.85rem',
+                                        fontWeight: '800',
+                                        background: 'rgba(239, 68, 68, 0.1)',
+                                        color: '#ef4444',
+                                        border: '1px solid rgba(239, 68, 68, 0.3)',
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.35rem'
+                                      }}
+                                      title="Cancel and refund if item unexpectedly ran out"
+                                    >
+                                      <X size={15} /> Cancel & Refund
+                                    </button>
+                                  )}
                                 </div>
                               )}
                               {order.status === 'Cooking' && (
@@ -1620,7 +1924,10 @@ const Dashboard = () => {
                                     <Zap size={15} /> {completingOrderId === (order._id || order.id) ? 'Completing...' : 'Complete Handover'}
                                   </button>
                                   <button
-                                    onClick={() => setShowScanner(true)}
+                                    onClick={() => {
+                                      setManualOrderId(order._id || order.id);
+                                      setShowScanner(true);
+                                    }}
                                     style={{
                                       flex: 0.8,
                                       padding: '0.75rem 0.85rem',
@@ -1637,7 +1944,7 @@ const Dashboard = () => {
                                       gap: '0.35rem'
                                     }}
                                   >
-                                    <QrCode size={15} /> Scan QR
+                                    <QrCode size={15} /> Scan / Code
                                   </button>
                                 </div>
                               )}

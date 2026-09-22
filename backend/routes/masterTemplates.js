@@ -98,7 +98,7 @@ router.post('/', async (req, res) => {
         emailPreheader: emailPreheader || '',
         emailHeroImageUrl: emailHeroImageUrl || '',
         emailCtaText: emailCtaText || 'Open UniVerse',
-        emailCtaUrl: emailCtaUrl || 'https://www.universeorder.co.in',
+        emailCtaUrl: emailCtaUrl || process.env.FRONTEND_URL || 'https://uat.food.universeorder.co.in',
         variables,
         status: 'Active'
       }

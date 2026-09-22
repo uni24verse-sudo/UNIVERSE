@@ -606,8 +606,10 @@ class WhatsAppMultiDeviceService {
       const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=350x350&data=${encodeURIComponent(upiPayLink)}`;
 
       const refundIdentifier = refund.id || refund._id;
-      const claimPayUrl = `https://api.universeorder.co.in/api/orders/refund/claim-pay/${refundIdentifier}`;
-      const adminDeskUrl = `https://www.universeorder.co.in/super-admin/panel?tab=refunds`;
+      const baseUrl = process.env.BASE_URL || process.env.FRONTEND_URL || 'https://uat.food.universeorder.co.in';
+      const frontendUrl = process.env.FRONTEND_URL || 'https://uat.food.universeorder.co.in';
+      const claimPayUrl = `${baseUrl}/api/orders/refund/claim-pay/${refundIdentifier}`;
+      const adminDeskUrl = `${frontendUrl}/super-admin/panel?tab=refunds`;
 
       const alertMessage = 
         `🚨 *NEW REFUND REQUEST* 💸\n` +

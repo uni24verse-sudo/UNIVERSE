@@ -4,9 +4,9 @@ import { AuthContext } from './AuthContext';
 import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 
-export const SocketContext = createContext();
+import { getSocketUrl } from '../api/client';
 
-const SOCKET_URL = 'https://api.universeorder.co.in';
+export const SocketContext = createContext();
 
 export const SocketProvider = ({ children }) => {
   const { user } = useContext(AuthContext);
@@ -29,9 +29,12 @@ export const SocketProvider = ({ children }) => {
 
       if (!token) return;
 
-      newSocket = io(SOCKET_URL, {
+      const socketUrl = getSocketUrl();
+      const isSecure = socketUrl.startsWith('https://');
+
+      newSocket = io(socketUrl, {
         auth: { token }, // Pass JWT for server-side verification
-        secure: true,
+        secure: isSecure,
         reconnection: true,
         reconnectionDelay: 1000,
         reconnectionAttempts: 10

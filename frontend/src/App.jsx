@@ -19,6 +19,7 @@ const SuperAdminPanel = lazy(() => import('./pages/SuperAdminPanel'));
 const TermsAndConditions = lazy(() => import('./pages/TermsAndConditions'));
 const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
 const VendorAppDownload = lazy(() => import('./pages/VendorAppDownload'));
+const ShareRedirect = lazy(() => import('./pages/ShareRedirect'));
 
 import Navbar from './components/Navbar';
 import UnifiedStudentDock from './components/UnifiedStudentDock';
@@ -91,6 +92,8 @@ const AppLayout = () => {
   const isDirectBypass = location.pathname.startsWith('/order-tracker') || 
                          location.pathname.startsWith('/orders') || 
                          location.pathname.startsWith('/store/') ||
+                         location.pathname.startsWith('/d/') ||
+                         location.pathname.startsWith('/s/') ||
                          location.pathname.startsWith('/terms') ||
                          location.pathname.startsWith('/privacy') ||
                          location.pathname.startsWith('/vendor-app-download');
@@ -163,6 +166,8 @@ const AppLayout = () => {
             <Route path="/superadmin" element={<Navigate to="/super-admin/login" replace />} />
             <Route path="/superadmin/login" element={<Navigate to="/super-admin/login" replace />} />
             <Route path="/superadmin/panel" element={<Navigate to="/super-admin/panel" replace />} />
+            <Route path="/d/:id" element={<ShareRedirect type="dish" />} />
+            <Route path="/s/:id" element={<ShareRedirect type="stall" />} />
             <Route path="/store/:id" element={<StoreMenu />} />
             <Route path="/cart" element={<Cart />} />
             <Route path="/order-tracker/:id" element={<OrderTracker />} />

@@ -30,8 +30,8 @@ messaging.onBackgroundMessage(function(payload) {
 
   const options = {
     body: body,
-    icon: "https://www.universeorder.co.in/icons.svg",
-    badge: "https://www.universeorder.co.in/favicon.svg",
+    icon: "/icons.svg",
+    badge: "/favicon.svg",
     vibrate: [200, 100, 200, 100, 200],
     requireInteraction: true,
     tag: "order-" + orderId,

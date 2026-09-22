@@ -85,8 +85,13 @@ class StoreRepository {
   }
 
   async getStoreById(id) {
-    const store = await prisma.store.findUnique({
-      where: { id },
+    const store = await prisma.store.findFirst({
+      where: {
+        OR: [
+          { id: id },
+          { id: { startsWith: id } }
+        ]
+      },
       include: {
         admin: { select: { id: true, name: true, email: true, telegramChatId: true } },
         location: { select: { id: true, name: true, type: true, city: true } }
@@ -171,6 +176,7 @@ class StoreRepository {
     if (details.openingTime) data.openingTime = details.openingTime;
     if (details.closingTime) data.closingTime = details.closingTime;
     if (details.isAutomated !== undefined) data.isAutomated = Boolean(details.isAutomated);
+    if (details.autoAcceptOrders !== undefined) data.autoAcceptOrders = Boolean(details.autoAcceptOrders);
     if (details.accentColor !== undefined) data.accentColor = details.accentColor;
     if (details.image) data.image = details.image;
     if (details.isOpen !== undefined) data.isOpen = Boolean(details.isOpen);
@@ -197,6 +203,21 @@ class StoreRepository {
       data: {
         isOpen: !store.isOpen,
         isAutomated: false
+      }
+    });
+    return normalizeStore(updated);
+  }
+
+  async toggleAutoAccept(storeId, adminId) {
+    const store = await prisma.store.findFirst({
+      where: { id: storeId, ...(adminId ? { adminId } : {}) }
+    });
+    if (!store) return null;
+
+    const updated = await prisma.store.update({
+      where: { id: storeId },
+      data: {
+        autoAcceptOrders: !store.autoAcceptOrders
       }
     });
     return normalizeStore(updated);
@@ -229,6 +250,37 @@ class StoreRepository {
     const updated = await prisma.store.update({
       where: { id: storeId },
       data: { products }
+    });
+    return normalizeStore(updated);
+  }
+
+  async addProductsBatch(storeId, adminId, productsList) {
+    const store = await prisma.store.findFirst({
+      where: { id: storeId, ...(adminId ? { adminId } : {}) }
+    });
+    if (!store) return null;
+
+    const currentProducts = Array.isArray(store.products) ? [...store.products] : [];
+    const newItems = productsList.map(item => ({
+      _id: generateId(),
+      name: item.name,
+      description: item.description || '',
+      price: Number(item.price) || 0,
+      category: item.category || 'Uncategorized',
+      image: item.image || '',
+      dietaryPreference: item.dietaryPreference || 'none',
+      variants: item.variants || [],
+      isCombo: Boolean(item.isCombo),
+      comboItems: item.comboItems || [],
+      freeItems: item.freeItems || [],
+      isAvailable: item.isAvailable !== false
+    }));
+
+    const updatedProducts = [...currentProducts, ...newItems];
+
+    const updated = await prisma.store.update({
+      where: { id: storeId },
+      data: { products: updatedProducts }
     });
     return normalizeStore(updated);
   }

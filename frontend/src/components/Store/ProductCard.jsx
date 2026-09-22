@@ -7,11 +7,14 @@ import { shareContent } from '../../utils/shareHelper';
 const ProductCard = ({ 
   product, 
   storeId, 
+  storeName,
+  market,
   onVariantClick, 
   storeClosed, 
   index, 
   showDietaryBadge = true,
-  viewMode = 'list'
+  viewMode = 'list',
+  isHighlighted = false
 }) => {
   const isUnavailable = product.isAvailable === false;
   const dietaryPref = product.dietaryPreference || 'veg';
@@ -22,10 +25,13 @@ const ProductCard = ({
   const handleShareDish = (e) => {
     e.stopPropagation();
     e.preventDefault();
-    const dishUrl = `${window.location.origin}/store/${storeId}?dish=${encodeURIComponent(product.name)}`;
+    const shortStoreId = storeId ? (storeId.length > 8 ? storeId.slice(0, 8) : storeId) : '';
+    const dishUrl = `${window.location.origin}/d/${shortStoreId}?dish=${encodeURIComponent(product.name)}`;
+    const locationTag = market ? `${storeName || 'UniVerse'} • ${market}` : (storeName || 'UniVerse');
+
     shareContent({
-      title: `${product.name} on UniVerse`,
-      text: `Craving this? Check out ${product.name} (₹${minPrice}) on UniVerse!`,
+      title: `${product.name} — ₹${minPrice}`,
+      text: `🔥 *${product.name}* — *₹${minPrice}*\n📍 _${locationTag}_\n\nHungry? *This one's calling you.* 😋\nFresh *${product.name}*, ready to order.\n\n🛒 *Order now on UNIVERSE:*\n${dishUrl}`,
       url: dishUrl
     });
   };
@@ -36,7 +42,9 @@ const ProductCard = ({
   if (viewMode === 'list') {
     return (
       <div 
-        className="product-list-card animate-fade-in-up"
+        id={`dish-${encodeURIComponent(product.name)}`}
+        data-dish-name={(product.name || '').toLowerCase()}
+        className={`product-list-card animate-fade-in-up ${isHighlighted ? 'dish-highlight-pulse' : ''}`}
         style={{
           animationDelay: `${index * 0.03}s`,
           opacity: isUnavailable ? 0.6 : 1,
@@ -147,7 +155,9 @@ const ProductCard = ({
   // ----------------------------------------------------
   return (
     <div 
-      className="product-card animate-fade-in-up"
+      id={`dish-${encodeURIComponent(product.name)}`}
+      data-dish-name={(product.name || '').toLowerCase()}
+      className={`product-card animate-fade-in-up ${isHighlighted ? 'dish-highlight-pulse' : ''}`}
       style={{ 
         animationDelay: `${index * 0.03}s`,
         opacity: isUnavailable ? 0.65 : 1,

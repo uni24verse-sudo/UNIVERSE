@@ -61,20 +61,29 @@ const FloatingBackground = () => {
   );
 };
 
-const StoreCardSkeleton = () => (
-  <div className="glass-card store-card">
-    <div className="store-img-wrapper skeleton skeleton-img"></div>
-    <div className="store-info-wrapper" style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div className="skeleton skeleton-text" style={{ width: '80%', height: '1.25rem' }}></div>
+const CampusStallCardSkeleton = () => (
+  <div className="campus-stall-card" style={{ pointerEvents: 'none' }}>
+    <div className="campus-stall-media skeleton" style={{ height: '195px', position: 'relative' }}>
+      <div className="campus-stall-top-bar" style={{ position: 'absolute', top: '12px', left: '12px', right: '12px', display: 'flex', justifyContent: 'space-between', zIndex: 2 }}>
+        <div className="skeleton" style={{ width: '48px', height: '22px', borderRadius: '100px', background: 'rgba(255, 255, 255, 0.75)' }}></div>
+        <div className="skeleton" style={{ width: '84px', height: '22px', borderRadius: '100px', background: 'rgba(255, 255, 255, 0.75)' }}></div>
       </div>
-      <div className="skeleton skeleton-text store-category-text" style={{ width: '40%', height: '0.75rem' }}></div>
-      <div className="store-footer-row" style={{ marginTop: 'auto', paddingTop: '0.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ display: 'flex', gap: '1rem' }}>
-          <div className="skeleton skeleton-text" style={{ width: '40px', height: '0.75rem' }}></div>
-          <div className="skeleton skeleton-text" style={{ width: '40px', height: '0.75rem' }}></div>
+      <div style={{ position: 'absolute', bottom: '12px', left: '12px', zIndex: 2 }}>
+        <div className="skeleton" style={{ width: '88px', height: '22px', borderRadius: '100px', background: 'rgba(255, 255, 255, 0.75)' }}></div>
+      </div>
+    </div>
+    <div className="campus-stall-details" style={{ padding: '1.25rem' }}>
+      <div className="campus-stall-title-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+        <div className="skeleton" style={{ width: '65%', height: '1.35rem', borderRadius: '6px' }}></div>
+        <div className="skeleton" style={{ width: '18px', height: '18px', borderRadius: '50%' }}></div>
+      </div>
+      <div className="skeleton" style={{ width: '45%', height: '0.85rem', borderRadius: '4px', marginBottom: '1.25rem' }}></div>
+      <div className="campus-stall-footer-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '0.75rem', borderTop: '1px solid rgba(0, 0, 0, 0.05)' }}>
+        <div style={{ display: 'flex', gap: '0.75rem' }}>
+          <div className="skeleton" style={{ width: '55px', height: '1rem', borderRadius: '4px' }}></div>
+          <div className="skeleton" style={{ width: '45px', height: '1rem', borderRadius: '4px' }}></div>
         </div>
-        <div className="skeleton btn-circle" style={{ width: '28px', height: '28px', borderRadius: '8px' }}></div>
+        <div className="skeleton" style={{ width: '92px', height: '34px', borderRadius: '10px' }}></div>
       </div>
     </div>
   </div>
@@ -230,29 +239,117 @@ const Home = () => {
     <div style={{ minHeight: '100vh', position: 'relative' }}>
       <FloatingBackground />
       
-      <section className="hero-section">
-        <div className="hero-badge skeleton" style={{ width: '180px', height: '28px', margin: '0 auto 2rem auto', borderRadius: '99px' }}></div>
-        <div className="skeleton skeleton-title" style={{ width: '70%', height: '4rem', margin: '0 auto 1.5rem auto' }}></div>
-        <div className="hero-tip-card skeleton" style={{ width: '100%', maxWidth: '540px', height: '80px', margin: '2.5rem auto', borderRadius: '28px' }}></div>
-      </section>
+      {/* Premium Hero Carousel Skeleton */}
+      <div style={{ padding: '2rem 2rem 0 2rem', maxWidth: '1200px', margin: '0 auto' }}>
+        <div className="hero-carousel-container" style={{ borderRadius: '32px', position: 'relative', display: 'flex', alignItems: 'center', background: 'linear-gradient(135deg, #0B1120 0%, #1E293B 100%)' }}>
+          <div className="hero-slide-content" style={{ zIndex: 2, width: '100%', maxWidth: '640px' }}>
+            <div className="skeleton" style={{ width: '150px', height: '26px', borderRadius: '100px', marginBottom: '1.25rem', background: 'rgba(255, 255, 255, 0.12)' }}></div>
+            <div className="skeleton" style={{ width: '85%', height: '3.25rem', borderRadius: '14px', marginBottom: '1rem', background: 'rgba(255, 255, 255, 0.16)' }}></div>
+            <div className="skeleton" style={{ width: '60%', height: '1.25rem', borderRadius: '8px', marginBottom: '2rem', background: 'rgba(255, 255, 255, 0.10)' }}></div>
+            <div className="skeleton" style={{ width: '160px', height: '48px', borderRadius: '12px', background: 'rgba(239, 65, 35, 0.35)' }}></div>
+          </div>
+          <div className="hero-carousel-controls" style={{ position: 'absolute', bottom: '25px', left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: '10px' }}>
+            <div className="skeleton" style={{ width: '24px', height: '8px', borderRadius: '4px', background: 'rgba(255, 255, 255, 0.6)' }}></div>
+            <div className="skeleton" style={{ width: '8px', height: '8px', borderRadius: '4px', background: 'rgba(255, 255, 255, 0.2)' }}></div>
+            <div className="skeleton" style={{ width: '8px', height: '8px', borderRadius: '4px', background: 'rgba(255, 255, 255, 0.2)' }}></div>
+          </div>
+        </div>
+      </div>
 
       <main style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 2rem 6rem 2rem' }}>
-        <div className="market-btn-container" style={{ opacity: 0.5 }}>
-           {[1, 2, 3, 4, 5, 6].map(i => (
-             <div key={i} className="skeleton" style={{ height: '56px', borderRadius: '20px' }}></div>
-           ))}
-        </div>
+        {hubType === 'College' ? (
+          <>
+            {/* Dynamic Trending Row Skeleton */}
+            <div className="trending-section" style={{ marginBottom: '2.5rem' }}>
+              <div className="trending-header" style={{ marginBottom: '1.25rem' }}>
+                <div className="skeleton" style={{ width: '220px', height: '1.75rem', borderRadius: '8px', marginBottom: '0.4rem' }}></div>
+                <div className="skeleton" style={{ width: '280px', height: '0.9rem', borderRadius: '6px' }}></div>
+              </div>
+              <div className="trending-carousel-wrapper">
+                <div className="trending-carousel">
+                  {[1, 2, 3, 4, 5, 6].map(i => (
+                    <div key={i} className="trending-card" style={{ pointerEvents: 'none' }}>
+                      <div className="trending-img-wrapper skeleton"></div>
+                      <div className="trending-info" style={{ padding: '0.75rem' }}>
+                        <div className="skeleton" style={{ height: '1rem', width: '80%', marginBottom: '0.5rem', borderRadius: '4px' }}></div>
+                        <div className="skeleton" style={{ height: '0.75rem', width: '55%', marginBottom: '0.85rem', borderRadius: '4px' }}></div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div className="skeleton" style={{ height: '1.1rem', width: '40px', borderRadius: '4px' }}></div>
+                          <div className="skeleton" style={{ height: '1.75rem', width: '58px', borderRadius: '8px' }}></div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3rem' }}>
+            {/* Campus Market Navigation Filters Skeleton */}
+            <div className="market-filter-wrapper" style={{ marginBottom: '2.5rem' }}>
+              <div className="market-filter-scroll">
+                {['All Areas', 'BH1', 'Block34', 'LIT', 'Mall', 'BH6', 'Apartment'].map((name, i) => (
+                  <div 
+                    key={i} 
+                    className="skeleton" 
+                    style={{ 
+                      height: '42px', 
+                      width: i === 0 ? '96px' : '78px', 
+                      borderRadius: '999px', 
+                      flexShrink: 0 
+                    }} 
+                  />
+                ))}
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
+            {/* Category Grid Bento Cards Skeleton */}
+            <div className="category-grid-premium" style={{ marginBottom: '2.5rem' }}>
+              {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
+                <div key={i} className="premium-bento-cat skeleton" style={{ minHeight: '110px', borderRadius: '20px' }}></div>
+              ))}
+            </div>
+
+            {/* Dynamic Trending Row Skeleton */}
+            <div className="trending-section" style={{ marginBottom: '2.5rem' }}>
+              <div className="trending-header" style={{ marginBottom: '1.25rem' }}>
+                <div className="skeleton" style={{ width: '220px', height: '1.75rem', borderRadius: '8px', marginBottom: '0.4rem' }}></div>
+                <div className="skeleton" style={{ width: '280px', height: '0.9rem', borderRadius: '6px' }}></div>
+              </div>
+              <div className="trending-carousel-wrapper">
+                <div className="trending-carousel">
+                  {[1, 2, 3, 4, 5, 6].map(i => (
+                    <div key={i} className="trending-card" style={{ pointerEvents: 'none' }}>
+                      <div className="trending-img-wrapper skeleton"></div>
+                      <div className="trending-info" style={{ padding: '0.75rem' }}>
+                        <div className="skeleton" style={{ height: '1rem', width: '80%', marginBottom: '0.5rem', borderRadius: '4px' }}></div>
+                        <div className="skeleton" style={{ height: '0.75rem', width: '55%', marginBottom: '0.85rem', borderRadius: '4px' }}></div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div className="skeleton" style={{ height: '1.1rem', width: '40px', borderRadius: '4px' }}></div>
+                          <div className="skeleton" style={{ height: '1.75rem', width: '58px', borderRadius: '8px' }}></div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Section Heading Skeleton */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2.5rem', marginTop: '1.5rem' }}>
           <div>
-            <div className="skeleton skeleton-text" style={{ width: '200px', height: '2rem', marginBottom: '0.5rem' }}></div>
-            <div className="skeleton skeleton-text" style={{ width: '300px', height: '1rem' }}></div>
+            <div className="skeleton" style={{ width: '190px', height: '1.85rem', borderRadius: '8px', marginBottom: '0.4rem' }}></div>
+            <div className="skeleton" style={{ width: '270px', height: '0.9rem', borderRadius: '6px' }}></div>
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '2rem' }}>
+        {/* Campus Stalls Grid Skeleton */}
+        <div className="campus-stalls-grid">
           {[1, 2, 3, 4, 5, 6].map(i => (
-            <StoreCardSkeleton key={i} />
+            <CampusStallCardSkeleton key={i} />
           ))}
         </div>
       </main>

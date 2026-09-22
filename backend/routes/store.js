@@ -409,6 +409,32 @@ router.post('/:storeId/product', auth, upload.single('imageFile'), async (req, r
   }
 });
 
+// Batch Add Products to Store
+router.post('/:storeId/products/batch', auth, async (req, res) => {
+  try {
+    const { products } = req.body;
+    if (!Array.isArray(products) || products.length === 0) {
+      return res.status(400).json({ message: 'Products array is required' });
+    }
+
+    const adminId = req.admin.id || req.admin._id;
+    const store = await storeRepository.addProductsBatch(req.params.storeId, adminId, products);
+    if (!store) return res.status(404).json({ message: 'Store not found or unauthorized' });
+
+    const io = req.app.get('io');
+    if (io) {
+      const sId = String(req.params.storeId || store._id || store.id);
+      const payload = { storeId: sId, _id: sId, products: store.products, store };
+      io.emit('store_menu_update', payload);
+      io.to(sId).emit('store_menu_update', payload);
+    }
+
+    res.status(201).json(store);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 // Delete a Product (Protected)
 router.delete('/:storeId/product/:productId', auth, async (req, res) => {
   try {
@@ -585,6 +611,34 @@ router.put('/:storeId/toggle-status', auth, async (req, res) => {
       isOpen: store.isOpen, 
       isAutomated: store.isAutomated,
       requiresConfirmation: false 
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// Toggle Auto-Accept Orders Status
+router.put('/:storeId/toggle-auto-accept', auth, async (req, res) => {
+  try {
+    const adminId = req.admin.id || req.admin._id;
+    const storeId = req.params.storeId;
+
+    const store = await storeRepository.toggleAutoAccept(storeId, adminId);
+    if (!store) return res.status(404).json({ message: 'Store not found' });
+
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('store_auto_accept_update', { 
+        storeId: store._id || store.id, 
+        autoAcceptOrders: Boolean(store.autoAcceptOrders) 
+      });
+      io.to('superadmin_room').emit('superadmin:store_update', store);
+    }
+
+    res.json({
+      message: `Auto-accept orders is now ${store.autoAcceptOrders ? 'ON' : 'OFF'}`,
+      autoAcceptOrders: Boolean(store.autoAcceptOrders),
+      store
     });
   } catch (err) {
     res.status(500).json({ message: err.message });

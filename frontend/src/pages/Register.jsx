@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { User, Mail, Lock, UserPlus } from 'lucide-react';
+import { User, Mail, Lock, UserPlus, Store, Phone } from 'lucide-react';
 
 const Register = () => {
   const [formData, setFormData] = useState({
     name: '',
+    stallName: '',
+    phone: '',
     email: '',
     password: ''
   });
@@ -25,9 +27,9 @@ const Register = () => {
     setIsLoading(true);
 
     try {
-      await axios.post((import.meta.env.VITE_API_URL || 'http://localhost:5000') + '/api/auth/register', formData);
-      setSuccess('Account created successfully! Redirecting...');
-      setTimeout(() => navigate('/vendor/login'), 2000);
+      const res = await axios.post((import.meta.env.VITE_API_URL || 'http://localhost:5000') + '/api/auth/register', formData);
+      setSuccess(res.data?.message || 'Registration submitted! Your account is pending Super Admin approval. Redirecting...');
+      setTimeout(() => navigate('/vendor/login?pending=true'), 2500);
     } catch (err) {
       setError(err.response?.data?.message || 'An error occurred during registration.');
     } finally {
@@ -59,7 +61,7 @@ const Register = () => {
         <div className="glass-card" style={{ padding: '2.5rem', borderRadius: '32px' }}>
           <form onSubmit={handleSubmit}>
             <div className="form-group" style={{ marginBottom: '1.25rem' }}>
-              <label className="form-label">Full Name</label>
+              <label className="form-label">Full Name *</label>
               <div style={{ position: 'relative' }}>
                 <div style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }}>
                   <User size={18} />
@@ -70,6 +72,44 @@ const Register = () => {
                   className="form-input" 
                   placeholder="John Doe"
                   value={formData.name}
+                  onChange={handleChange}
+                  style={{ paddingLeft: '3rem', borderRadius: '14px', height: '54px' }}
+                  required 
+                />
+              </div>
+            </div>
+
+            <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+              <label className="form-label">Proposed Stall / Brand Name *</label>
+              <div style={{ position: 'relative' }}>
+                <div style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }}>
+                  <Store size={18} />
+                </div>
+                <input 
+                  type="text" 
+                  name="stallName"
+                  className="form-input" 
+                  placeholder="e.g. Punjabi Tadka"
+                  value={formData.stallName}
+                  onChange={handleChange}
+                  style={{ paddingLeft: '3rem', borderRadius: '14px', height: '54px' }}
+                  required 
+                />
+              </div>
+            </div>
+
+            <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+              <label className="form-label">Mobile Number *</label>
+              <div style={{ position: 'relative' }}>
+                <div style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }}>
+                  <Phone size={18} />
+                </div>
+                <input 
+                  type="tel" 
+                  name="phone"
+                  className="form-input" 
+                  placeholder="9876543210"
+                  value={formData.phone}
                   onChange={handleChange}
                   style={{ paddingLeft: '3rem', borderRadius: '14px', height: '54px' }}
                   required 
