@@ -82,31 +82,31 @@ async function sendEquityVerificationOtp() {
   // Attempt real email dispatch via ChannelAccount or SMTP config
   try {
     let transporter = null;
-    let fromEmail = 'noreply@universeorder.co.in';
+    let fromEmail = 'parthsharma240404@gmail.com';
 
     // 1. Check if DB has an email ChannelAccount
-    const emailAccount = await prisma.channelAccount.findFirst({
-      where: { type: 'email', status: 'connected' }
-    });
-
-    if (emailAccount && emailAccount.emailConfig?.smtpPass) {
-      const ec = emailAccount.emailConfig;
-      fromEmail = ec.fromEmail || ec.smtpUser;
-      transporter = nodemailer.createTransport({
-        host: ec.smtpHost || 'smtp.gmail.com',
-        port: ec.smtpPort || 587,
-        secure: ec.smtpPort === 465,
-        auth: { user: ec.smtpUser || ec.fromEmail, pass: ec.smtpPass },
-        tls: { rejectUnauthorized: false }
+    let emailAccount = null;
+    try {
+      emailAccount = await prisma.channelAccount.findFirst({
+        where: { type: 'email', status: 'connected' }
       });
-    } else if (process.env.SMTP_USER && process.env.SMTP_PASS) {
-      // 2. Check process.env SMTP
-      fromEmail = process.env.SMTP_USER;
+    } catch (e) {
+      // ignore DB read error if offline
+    }
+
+    const rawPass = (process.env.SMTP_PASS || emailAccount?.emailConfig?.smtpPass || '').trim();
+    const cleanPass = rawPass.replace(/\s+/g, '');
+    const user = (process.env.SMTP_USER || emailAccount?.emailConfig?.smtpUser || emailAccount?.emailConfig?.fromEmail || AUTHORIZED_EQUITY_EMAIL).trim();
+    fromEmail = user;
+
+    if (user && cleanPass) {
+      // Use service: 'gmail' for optimal configuration and port handling
       transporter = nodemailer.createTransport({
-        host: process.env.SMTP_HOST || 'smtp.gmail.com',
-        port: Number(process.env.SMTP_PORT) || 587,
-        secure: process.env.SMTP_PORT === '465',
-        auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+        service: 'gmail',
+        auth: {
+          user,
+          pass: cleanPass
+        },
         tls: { rejectUnauthorized: false }
       });
     }

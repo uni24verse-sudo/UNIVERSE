@@ -127,6 +127,43 @@ async function migrate() {
     console.log('  ℹ️ Partner equity tables already configured or skipped:', err.message);
   }
 
+  // 6. ChannelAccount: Ensure email channel configured for 2FA security
+  console.log('📦 Ensuring Email ChannelAccount for 2FA is active...');
+  try {
+    const existingEmail = await prisma.channelAccount.findFirst({ where: { type: 'email' } });
+    const emailConfig = {
+      senderLabel: 'UniVerse Security',
+      fromEmail: 'parthsharma240404@gmail.com',
+      smtpHost: 'smtp.gmail.com',
+      smtpPort: 587,
+      smtpUser: 'parthsharma240404@gmail.com',
+      smtpPass: 'kvoeeuighrczbanv',
+      isVerified: true
+    };
+    if (existingEmail) {
+      await prisma.channelAccount.update({
+        where: { id: existingEmail.id },
+        data: { status: 'connected', emailConfig, lastActive: new Date() }
+      });
+      console.log('  ✅ Updated Email ChannelAccount in DB.');
+    } else {
+      const crypto = require('crypto');
+      await prisma.channelAccount.create({
+        data: {
+          id: crypto.randomUUID(),
+          type: 'email',
+          nickname: 'UniVerse Security',
+          status: 'connected',
+          emailConfig,
+          lastActive: new Date()
+        }
+      });
+      console.log('  ✅ Created Email ChannelAccount in DB.');
+    }
+  } catch (err) {
+    console.log('  ℹ️ Email ChannelAccount update note:', err.message);
+  }
+
   console.log('✅ Database migration completed successfully! All tables & columns are in sync.');
 }
 
