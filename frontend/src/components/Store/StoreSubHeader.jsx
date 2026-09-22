@@ -14,10 +14,16 @@ const StoreSubHeader = ({
   const [isScrolled, setIsScrolled] = useState(false);
 
   const handleShareStall = () => {
+    const rawId = store?.id || store?._id || '';
+    const shortStoreId = rawId.length > 8 ? rawId.slice(0, 8) : rawId;
+    const stallUrl = `${window.location.origin}/s/${shortStoreId}`;
+    const productCount = Array.isArray(store?.products) ? store.products.length : 0;
+    const locationTag = store?.market ? `${store.name} • ${store.market}` : (store?.name || 'Campus Dining');
+
     shareContent({
-      title: `${store?.name || 'Stall'} - UniVerse`,
-      text: `Order fresh food from ${store?.name || 'this stall'} on UniVerse!`,
-      url: window.location.href
+      title: `${store?.name || 'Stall'} on UNIVERSE`,
+      text: `🏪 *${store?.name || 'Stall'}*\n📍 _${locationTag}_\n\nLooking for good food? *Check out their live menu.* 🍽️\n${productCount > 0 ? `${productCount} fresh dishes ready to order.` : 'Ready to order fresh food.'}\n\n🛒 *Explore menu on UNIVERSE:*\n${stallUrl}`,
+      url: stallUrl
     });
   };
 
@@ -85,13 +91,13 @@ const StoreSubHeader = ({
           <button 
             onClick={handleShareStall}
             style={{ 
-              background: '#ffffff', 
-              border: '1px solid var(--surface-border)', 
+              background: 'rgba(239, 65, 35, 0.04)', 
+              border: '1.2px solid rgba(239, 65, 35, 0.4)', 
               color: 'var(--primary)', 
               padding: '0.45rem', 
               borderRadius: '12px', 
               cursor: 'pointer', 
-              boxShadow: '0 2px 8px rgba(0,0,0,0.04)', 
+              boxShadow: '0 2px 8px rgba(239, 65, 35, 0.1)', 
               display: 'flex', 
               alignItems: 'center',
               justifyContent: 'center'

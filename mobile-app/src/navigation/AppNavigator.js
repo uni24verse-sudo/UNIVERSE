@@ -24,7 +24,7 @@ function MainTabNavigator() {
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarStyle: { backgroundColor: '#FFFFFF', borderTopColor: '#E2E8F0' },
-        tabBarActiveTintColor: '#3B82F6',
+        tabBarActiveTintColor: '#EF4123',
         tabBarInactiveTintColor: '#94A3B8',
         tabBarIcon: ({ focused, color, size }) => {
           let iconName;

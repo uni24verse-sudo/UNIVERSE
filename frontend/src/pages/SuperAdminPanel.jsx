@@ -31,7 +31,11 @@ import {
   RotateCcw,
   Search,
   Database,
-  AlertCircle
+  AlertCircle,
+  PieChart,
+  Clock,
+  Phone,
+  Mail
 } from 'lucide-react';
 import SuperAdmin3DAnalytics from '../components/superadmin/SuperAdmin3DAnalytics';
 import SuperAdminMasterTemplates from '../components/superadmin/SuperAdminMasterTemplates';
@@ -43,6 +47,7 @@ import SuperAdminMasterData from '../components/superadmin/SuperAdminMasterData'
 import SuperAdminRefunds from '../components/superadmin/SuperAdminRefunds';
 import SuperAdminHeroPromotions from '../components/superadmin/SuperAdminHeroPromotions';
 import SuperAdminOrdersFeed from '../components/superadmin/SuperAdminOrdersFeed';
+import SuperAdminPartnerEquity from '../components/superadmin/SuperAdminPartnerEquity';
 import { useSocket } from '../context/SocketContext';
 
 const SuperAdminPanel = () => {
@@ -66,8 +71,38 @@ const SuperAdminPanel = () => {
   const [pendingRefundCount, setPendingRefundCount] = useState(0);
   const [storeSearch, setStoreSearch] = useState('');
   const [storeStatusFilter, setStoreStatusFilter] = useState('all');
+  const [vendorSubTab, setVendorSubTab] = useState('active');
+
+  const pendingVendors = React.useMemo(() => (vendors || []).filter(v => v.status === 'PENDING_APPROVAL'), [vendors]);
+  const activeVendors = React.useMemo(() => (vendors || []).filter(v => v.status !== 'PENDING_APPROVAL'), [vendors]);
   
-  // New Location Form State
+  // Aggregate Finance Totals directly from table data for 100% mathematical integrity
+  const financeTotals = React.useMemo(() => {
+    let gross = 0;
+    let live = 0;
+    let gateway = 0;
+    let platform = 0;
+    let cancel = 0;
+    let transfer = 0;
+    (financeData || []).forEach(f => {
+      const isAcc = f.settlementStatus === 'accumulating';
+      gross += Number(f.totalRevenue || 0);
+      live += Number(f.liveUnsettledRevenue || 0);
+      gateway += Number(isAcc ? (f.projectedGatewayFee || 0) : (f.gatewayFee || 0));
+      platform += Number(isAcc ? (f.projectedPlatformProfit || 0) : (f.platformProfit || 0));
+      cancel += Number(isAcc ? (f.projectedCancellationPenalty || 0) : (f.cancellationPenalty || 0));
+      transfer += Number(isAcc ? (f.projectedNetPayable || 0) : (f.netPayable || 0));
+    });
+    return {
+      gross,
+      live,
+      gateway,
+      platform,
+      cancel,
+      transfer,
+      totalDeductions: gateway + platform + cancel
+    };
+  }, [financeData]);
   const [showLocationForm, setShowLocationForm] = useState(false);
   const [editingLocation, setEditingLocation] = useState(null);
   const [locationName, setLocationName] = useState('');
@@ -322,6 +357,32 @@ const SuperAdminPanel = () => {
     }
   };
 
+  const approveVendor = async (vendorId, vendorName) => {
+    try {
+      await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/super-admin/vendor/${vendorId}/approve`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      alert(`Vendor "${vendorName}" has been successfully approved! They can now log in and manage their stall.`);
+      fetchDashboardData(true);
+    } catch (err) {
+      alert('Failed to approve vendor: ' + (err.response?.data?.message || err.message));
+    }
+  };
+
+  const rejectVendor = async (vendorId, vendorName) => {
+    if (!window.confirm(`REJECT & PERMANENTLY PURGE:\n\nAre you sure you want to REJECT and PERMANENTLY PURGE applicant "${vendorName}"?\n\nThis will completely eradicate their login credentials and draft stall from the database so no fake/spam account remains.`)) return;
+
+    try {
+      await axios.delete(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/super-admin/vendor/${vendorId}/reject`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      alert(`Applicant "${vendorName}" rejected and credentials permanently purged.`);
+      fetchDashboardData(true);
+    } catch (err) {
+      alert('Failed to reject vendor: ' + (err.response?.data?.message || err.message));
+    }
+  };
+
   if (loading) return (
     <div className="auth-wrapper" style={{ background: 'var(--background)' }}>
       <div className="pulse-container"><div className="pulse-dot"></div></div>
@@ -366,10 +427,11 @@ const SuperAdminPanel = () => {
             { id: 'hero_promotions', icon: Sparkles, label: 'Hero Promotions', badge: '5 SLOTS' },
             { id: 'channel_settings', icon: Sliders, label: 'Channels & Devices', badge: '5 SLOTS' },
             { id: 'overview', icon: Activity, label: 'Platform Overview' },
-            { id: 'vendors', icon: Users, label: 'Vendor Registry' },
+            { id: 'vendors', icon: Users, label: 'Vendor Registry', badge: pendingVendors.length > 0 ? `${pendingVendors.length} PENDING` : null },
             { id: 'stores', icon: Store, label: 'Store Directory' },
             { id: 'locations', icon: MapPin, label: 'Location Manager' },
             { id: 'finance', icon: Banknote, label: 'Finance Tracker' },
+            { id: 'partner_equity', icon: PieChart, label: 'Partner Profit & Equity', badge: 'PRO' },
             { id: 'orders', icon: ShoppingBag, label: 'Global Orders' }
           ].map(tab => (
             <button 
@@ -495,9 +557,9 @@ const SuperAdminPanel = () => {
               </div>
 
               <div style={{ padding: '1.5rem', background: '#ffffff', borderRadius: '24px', border: '1px solid var(--surface-border)', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', background: 'linear-gradient(135deg, #ffffff 0%, rgba(252, 175, 23, 0.05) 100%)' }}>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Activity size={16} color="var(--secondary)" /> Total Platform Profit</p>
-                <h3 style={{ fontSize: '2.5rem', fontWeight: '900', margin: 0, color: 'var(--primary)' }}>₹{stats.totalProfit || 0}</h3>
-                <p style={{ marginTop: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: '600' }}>Net platform fee (3% commission)</p>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Activity size={16} color="var(--secondary)" /> Total Platform Deductions</p>
+                <h3 style={{ fontSize: '2.5rem', fontWeight: '900', margin: 0, color: 'var(--primary)' }}>₹{typeof stats.totalProfit === 'number' ? stats.totalProfit.toFixed(2) : (stats.totalProfit || '0.00')}</h3>
+                <p style={{ marginTop: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: '600' }}>Platform Take (5% Fees + 4% Protection)</p>
               </div>
             </div>
             
@@ -512,86 +574,277 @@ const SuperAdminPanel = () => {
         {/* VENDORS TAB */}
         {activeTab === 'vendors' && (
           <div>
-            <header style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h1 style={{ fontSize: '2rem', fontWeight: '900' }}>Vendor Registry</h1>
-              <span style={{ padding: '0.5rem 1rem', background: '#ffffff', border: '1px solid var(--surface-border)', borderRadius: '100px', fontSize: '0.875rem', fontWeight: '600', color: 'var(--text-primary)' }}>{vendors.length} Total Vendors</span>
-            </header>
-            
-            <div style={{ background: '#ffffff', borderRadius: '24px', border: '1px solid var(--surface-border)', overflow: 'hidden' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-                <thead>
-                  <tr style={{ background: '#f8fafc', borderBottom: '1px solid var(--surface-border)' }}>
-                    <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Vendor Details</th>
-                    <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Associated Store</th>
-                    <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Performance</th>
-                    <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Platform Profit</th>
-                    <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem', textAlign: 'right' }}>Destructive Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {vendors.map(v => (
-                    <tr key={v._id} style={{ borderBottom: '1px solid var(--surface-border)' }}>
-                      <td style={{ padding: '1.25rem' }}>
-                        <div style={{ fontWeight: '700', fontSize: '1rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                          {v.name}
-                          {v.isBanned && <span style={{ fontSize: '0.65rem', padding: '0.1rem 0.4rem', background: '#ef4444', color: 'white', borderRadius: '4px', fontWeight: '900', letterSpacing: '0.05em' }}>SUSPENDED</span>}
-                        </div>
-                        <div style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: '0.25rem' }}>{v.email}</div>
-                        {v.upiId && <div style={{ color: '#3b82f6', fontSize: '0.75rem', marginTop: '0.25rem', padding: '0.1rem 0.4rem', background: 'rgba(59, 130, 246, 0.1)', borderRadius: '4px', display: 'inline-block' }}>{v.upiId}</div>}
-                      </td>
-                      <td style={{ padding: '1.25rem' }}>
-                        {v.store ? (
-                          <>
-                            <div style={{ fontWeight: '600' }}>{v.store.name}</div>
-                            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
-                              <span style={{ fontSize: '0.75rem', background: 'rgba(239, 65, 35, 0.1)', color: 'var(--primary)', padding: '0.1rem 0.4rem', borderRadius: '4px', fontWeight: '700' }}>{v.store.market || 'BH1 Market'}</span>
-                              <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{v.store.productCount} Items</span>
-                              <span style={{ fontSize: '0.75rem', color: v.store.isOpen ? '#10b981' : '#ef4444' }}>• {v.store.isOpen ? 'ONLINE' : 'OFFLINE'}</span>
-                            </div>
-                          </>
-                        ) : (
-                          <span style={{ color: 'var(--text-secondary)', fontStyle: 'italic', fontSize: '0.875rem' }}>No store created</span>
-                        )}
-                      </td>
-                      <td style={{ padding: '1.25rem' }}>
-                        <div style={{ fontWeight: '800', color: 'var(--secondary)' }}>₹{v.stats?.revenue || 0} generated</div>
-                        <div style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: '0.25rem' }}>Across {v.stats?.orderCount || 0} total orders</div>
-                      </td>
-                      <td style={{ padding: '1.25rem' }}>
-                        <div style={{ fontWeight: '900', color: 'var(--primary)', fontSize: '1.1rem' }}>₹{v.stats?.profitGenerated || 0}</div>
-                        <div style={{ color: '#6366f1', fontSize: '0.7rem', marginTop: '0.25rem', fontWeight: '700' }}>Standard (3% Platform)</div>
-                      </td>
-                      <td style={{ padding: '1.25rem', textAlign: 'right' }}>
-                        <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
-                          <button 
-                            onClick={async () => {
-                              try {
-                                await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/super-admin/vendor/${v._id}/suspend`, {}, { headers: { Authorization: `Bearer ${token}` } });
-                                fetchDashboardData(true);
-                              } catch(err) { alert('Action failed'); }
-                            }}
-                            style={{ padding: '0.5rem 1rem', background: v.isBanned ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)', color: v.isBanned ? '#10b981' : '#f59e0b', border: `1px solid ${v.isBanned ? 'rgba(16, 185, 129, 0.2)' : 'rgba(245, 158, 11, 0.2)'}`, borderRadius: '8px', cursor: 'pointer', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
-                          >
-                            <Ban size={16} /> {v.isBanned ? 'Unban' : 'Suspend'}
-                          </button>
-                          <button 
-                            onClick={() => deleteVendor(v._id, v.name)}
-                            style={{ padding: '0.5rem 1rem', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.2)', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', transition: 'all 0.2s' }}
-                            onMouseEnter={(e) => { e.target.style.background = '#ef4444'; e.target.style.color = 'white'; }}
-                            onMouseLeave={(e) => { e.target.style.background = 'rgba(239, 68, 68, 0.1)'; e.target.style.color = '#ef4444'; }}
-                          >
-                            <Trash2 size={16} /> Terminate
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                  {vendors.length === 0 && (
-                    <tr><td colSpan="4" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>No vendors registered yet.</td></tr>
+            <header style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+              <div>
+                <h1 style={{ fontSize: '2rem', fontWeight: '900', margin: 0 }}>Vendor Registry</h1>
+                <p style={{ color: 'var(--text-secondary)', margin: '0.25rem 0 0 0', fontSize: '0.875rem' }}>
+                  Manage verified campus vendors and review new merchant applications.
+                </p>
+              </div>
+
+              {/* Sub-Tabs: Active Vendors vs Pending Approvals */}
+              <div style={{ display: 'flex', gap: '0.5rem', background: '#f1f5f9', padding: '0.35rem', borderRadius: '14px', border: '1px solid var(--surface-border)' }}>
+                <button
+                  type="button"
+                  onClick={() => setVendorSubTab('active')}
+                  style={{
+                    padding: '0.5rem 1.25rem',
+                    borderRadius: '10px',
+                    border: 'none',
+                    background: vendorSubTab === 'active' ? '#ffffff' : 'transparent',
+                    color: vendorSubTab === 'active' ? 'var(--text-primary)' : 'var(--text-secondary)',
+                    fontWeight: '700',
+                    fontSize: '0.875rem',
+                    cursor: 'pointer',
+                    boxShadow: vendorSubTab === 'active' ? '0 2px 8px rgba(0,0,0,0.06)' : 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  <Users size={16} />
+                  Active Vendors ({activeVendors.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setVendorSubTab('pending')}
+                  style={{
+                    padding: '0.5rem 1.25rem',
+                    borderRadius: '10px',
+                    border: 'none',
+                    background: vendorSubTab === 'pending' ? '#ef4123' : (pendingVendors.length > 0 ? 'rgba(239, 65, 35, 0.1)' : 'transparent'),
+                    color: vendorSubTab === 'pending' ? '#ffffff' : (pendingVendors.length > 0 ? '#ef4123' : 'var(--text-secondary)'),
+                    fontWeight: '700',
+                    fontSize: '0.875rem',
+                    cursor: 'pointer',
+                    boxShadow: vendorSubTab === 'pending' ? '0 2px 8px rgba(239, 65, 35, 0.3)' : 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  <Clock size={16} />
+                  Pending Approvals
+                  {pendingVendors.length > 0 && (
+                    <span style={{
+                      background: vendorSubTab === 'pending' ? 'rgba(255,255,255,0.3)' : '#ef4123',
+                      color: '#ffffff',
+                      padding: '2px 8px',
+                      borderRadius: '100px',
+                      fontSize: '0.75rem',
+                      fontWeight: '800'
+                    }}>
+                      {pendingVendors.length}
+                    </span>
                   )}
-                </tbody>
-              </table>
-            </div>
+                </button>
+              </div>
+            </header>
+
+            {/* PENDING APPROVALS QUEUE */}
+            {vendorSubTab === 'pending' && (
+              <div>
+                {pendingVendors.length === 0 ? (
+                  <div style={{ background: '#ffffff', borderRadius: '24px', border: '1px solid var(--surface-border)', padding: '4rem 2rem', textAlign: 'center' }}>
+                    <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem auto' }}>
+                      <CheckCircle size={32} />
+                    </div>
+                    <h3 style={{ fontSize: '1.25rem', fontWeight: '800', margin: '0 0 0.5rem 0' }}>All Caught Up!</h3>
+                    <p style={{ color: 'var(--text-secondary)', maxWidth: '450px', margin: '0 auto', fontSize: '0.9rem', lineHeight: '1.5' }}>
+                      There are currently no new vendor applications awaiting review. All registered merchant accounts have been verified.
+                    </p>
+                  </div>
+                ) : (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: '1.5rem' }}>
+                    {pendingVendors.map(v => (
+                      <div 
+                        key={v._id || v.id}
+                        style={{
+                          background: '#ffffff',
+                          borderRadius: '20px',
+                          border: '2px solid rgba(239, 65, 35, 0.2)',
+                          padding: '1.75rem',
+                          boxShadow: '0 10px 25px -5px rgba(239, 65, 35, 0.05)',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          justifyContent: 'space-between',
+                          position: 'relative'
+                        }}
+                      >
+                        <div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+                            <div>
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.7rem', fontWeight: '800', padding: '0.2rem 0.6rem', borderRadius: '100px', background: 'rgba(245, 158, 11, 0.15)', color: '#b45309', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>
+                                <Clock size={12} /> Awaiting Verification
+                              </span>
+                              <h3 style={{ fontSize: '1.25rem', fontWeight: '800', margin: '0.25rem 0 0 0', color: 'var(--text-primary)' }}>
+                                {v.name}
+                              </h3>
+                            </div>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                              {v.createdAt ? new Date(v.createdAt).toLocaleDateString() : 'Recent'}
+                            </span>
+                          </div>
+
+                          <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '12px', border: '1px solid var(--surface-border)', marginBottom: '1.25rem' }}>
+                            <div style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.35rem' }}>
+                              Proposed Stall / Brand Name
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: '800', fontSize: '1.1rem', color: 'var(--primary)' }}>
+                              <Store size={18} />
+                              {v.store?.name || 'Unassigned / Not Specified'}
+                            </div>
+                          </div>
+
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              <Mail size={15} style={{ color: 'var(--text-secondary)' }} />
+                              <span style={{ color: 'var(--text-primary)', fontWeight: '600' }}>{v.email}</span>
+                            </div>
+                            {v.phone && (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <Phone size={15} style={{ color: 'var(--text-secondary)' }} />
+                                <span style={{ color: 'var(--text-primary)', fontWeight: '600' }}>{v.phone}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '0.75rem', paddingTop: '1rem', borderTop: '1px solid var(--surface-border)' }}>
+                          <button
+                            type="button"
+                            onClick={() => approveVendor(v._id || v.id, v.name)}
+                            style={{
+                              flex: 1,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '0.5rem',
+                              padding: '0.75rem 1rem',
+                              background: '#10b981',
+                              color: '#ffffff',
+                              border: 'none',
+                              borderRadius: '10px',
+                              fontWeight: '700',
+                              fontSize: '0.875rem',
+                              cursor: 'pointer',
+                              boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)',
+                              transition: 'all 0.2s'
+                            }}
+                          >
+                            <CheckCircle size={16} /> Approve
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => rejectVendor(v._id || v.id, v.name)}
+                            style={{
+                              flex: 1,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '0.5rem',
+                              padding: '0.75rem 1rem',
+                              background: 'rgba(239, 68, 68, 0.1)',
+                              color: '#ef4444',
+                              border: '1px solid rgba(239, 68, 68, 0.3)',
+                              borderRadius: '10px',
+                              fontWeight: '700',
+                              fontSize: '0.875rem',
+                              cursor: 'pointer',
+                              transition: 'all 0.2s'
+                            }}
+                          >
+                            <Trash2 size={16} /> Reject & Purge
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ACTIVE VENDORS TABLE */}
+            {vendorSubTab === 'active' && (
+              <div style={{ background: '#ffffff', borderRadius: '24px', border: '1px solid var(--surface-border)', overflow: 'hidden' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                  <thead>
+                    <tr style={{ background: '#f8fafc', borderBottom: '1px solid var(--surface-border)' }}>
+                      <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Vendor Details</th>
+                      <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Associated Store</th>
+                      <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Performance</th>
+                      <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Platform Profit</th>
+                      <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem', textAlign: 'right' }}>Destructive Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {activeVendors.map(v => (
+                      <tr key={v._id || v.id} style={{ borderBottom: '1px solid var(--surface-border)' }}>
+                        <td style={{ padding: '1.25rem' }}>
+                          <div style={{ fontWeight: '700', fontSize: '1rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            {v.name}
+                            {v.isBanned && <span style={{ fontSize: '0.65rem', padding: '0.1rem 0.4rem', background: '#ef4444', color: 'white', borderRadius: '4px', fontWeight: '900', letterSpacing: '0.05em' }}>SUSPENDED</span>}
+                          </div>
+                          <div style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: '0.25rem' }}>{v.email}</div>
+                          {v.phone && <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', marginTop: '0.2rem' }}>📞 {v.phone}</div>}
+                          {v.upiId && <div style={{ color: '#3b82f6', fontSize: '0.75rem', marginTop: '0.25rem', padding: '0.1rem 0.4rem', background: 'rgba(59, 130, 246, 0.1)', borderRadius: '4px', display: 'inline-block' }}>{v.upiId}</div>}
+                        </td>
+                        <td style={{ padding: '1.25rem' }}>
+                          {v.store ? (
+                            <>
+                              <div style={{ fontWeight: '600' }}>{v.store.name}</div>
+                              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
+                                <span style={{ fontSize: '0.75rem', background: 'rgba(239, 65, 35, 0.1)', color: 'var(--primary)', padding: '0.1rem 0.4rem', borderRadius: '4px', fontWeight: '700' }}>{v.store.market || 'BH1 Market'}</span>
+                                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{v.store.productCount} Items</span>
+                                <span style={{ fontSize: '0.75rem', color: v.store.isOpen ? '#10b981' : '#ef4444' }}>• {v.store.isOpen ? 'ONLINE' : 'OFFLINE'}</span>
+                              </div>
+                            </>
+                          ) : (
+                            <span style={{ color: 'var(--text-secondary)', fontStyle: 'italic', fontSize: '0.875rem' }}>No store created</span>
+                          )}
+                        </td>
+                        <td style={{ padding: '1.25rem' }}>
+                          <div style={{ fontWeight: '800', color: 'var(--secondary)' }}>₹{v.stats?.revenue || 0} generated</div>
+                          <div style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: '0.25rem' }}>Across {v.stats?.orderCount || 0} total orders</div>
+                        </td>
+                        <td style={{ padding: '1.25rem' }}>
+                          <div style={{ fontWeight: '900', color: 'var(--primary)', fontSize: '1.1rem' }}>₹{v.stats?.profitGenerated || 0}</div>
+                          <div style={{ color: '#6366f1', fontSize: '0.7rem', marginTop: '0.25rem', fontWeight: '700' }}>Standard (3% Platform)</div>
+                        </td>
+                        <td style={{ padding: '1.25rem', textAlign: 'right' }}>
+                          <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                            <button 
+                              onClick={async () => {
+                                try {
+                                  await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/super-admin/vendor/${v._id || v.id}/suspend`, {}, { headers: { Authorization: `Bearer ${token}` } });
+                                  fetchDashboardData(true);
+                                } catch(err) { alert('Action failed'); }
+                              }}
+                              style={{ padding: '0.5rem 1rem', background: v.isBanned ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)', color: v.isBanned ? '#10b981' : '#f59e0b', border: `1px solid ${v.isBanned ? 'rgba(16, 185, 129, 0.2)' : 'rgba(245, 158, 11, 0.2)'}`, borderRadius: '8px', cursor: 'pointer', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                            >
+                              <Ban size={16} /> {v.isBanned ? 'Unban' : 'Suspend'}
+                            </button>
+                            <button 
+                              onClick={() => deleteVendor(v._id || v.id, v.name)}
+                              style={{ padding: '0.5rem 1rem', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.2)', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', transition: 'all 0.2s' }}
+                              onMouseEnter={(e) => { e.target.style.background = '#ef4444'; e.target.style.color = 'white'; }}
+                              onMouseLeave={(e) => { e.target.style.background = 'rgba(239, 68, 68, 0.1)'; e.target.style.color = '#ef4444'; }}
+                            >
+                              <Trash2 size={16} /> Terminate
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                    {activeVendors.length === 0 && (
+                      <tr><td colSpan="5" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>No active vendors registered yet.</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         )}
 
@@ -1354,127 +1607,191 @@ const SuperAdminPanel = () => {
             </header>
 
             {financeSubTab === 'dues' ? (
-              <div style={{ background: '#ffffff', borderRadius: '24px', border: '1px solid var(--surface-border)', overflow: 'hidden' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-                  <thead>
-                    <tr style={{ background: '#f8fafc', borderBottom: '1px solid var(--surface-border)' }}>
-                      <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Stall & UPI</th>
-                      <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Monthly Gross</th>
-                      <th style={{ padding: '1.25rem', color: '#10b981', fontWeight: '800', fontSize: '0.875rem' }}>Live Volume</th>
-                      <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Gateway Fee (2%)</th>
-                      <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Platform Profit (3%)</th>
-                      <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Cancel Penalty (4%)</th>
-                      <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Transfer Amount</th>
-                      <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem', textAlign: 'right' }}>Settlement</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {financeData
-                      .map(f => {
-                        // For ACCUMULATING rows: show projected (live) fees not stale settled history
-                        const isAccumulating = f.settlementStatus === 'accumulating';
-                        const displayGatewayFee = isAccumulating ? f.projectedGatewayFee : f.gatewayFee;
-                        const displayPlatformProfit = isAccumulating ? f.projectedPlatformProfit : f.platformProfit;
-                        const displayCancellationPenalty = isAccumulating ? (f.projectedCancellationPenalty || 0) : f.cancellationPenalty;
-                        const displayNetPayable = isAccumulating ? f.projectedNetPayable : f.netPayable;
+              <>
+                {/* Executive Finance Summary Cards */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.25rem', marginBottom: '1.75rem' }}>
+                  <div style={{ padding: '1.25rem 1.5rem', background: '#ffffff', borderRadius: '20px', border: '1px solid var(--surface-border)', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 0.5rem 0' }}>Total Gross Volume</p>
+                    <h3 style={{ fontSize: '1.85rem', fontWeight: '900', margin: 0, color: 'var(--text-primary)' }}>
+                      ₹{(financeTotals.gross + financeTotals.live).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </h3>
+                    <p style={{ margin: '0.35rem 0 0 0', fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: '600' }}>
+                      Settled ₹{financeTotals.gross.toLocaleString(undefined, { minimumFractionDigits: 2 })} + Live ₹{financeTotals.live.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    </p>
+                  </div>
 
-                        // Platform profit label: settled-at-zero (trial era) vs genuinely zero vs positive
-                        let platformProfitLabel;
-                        let platformProfitColor;
-                        if (displayPlatformProfit > 0) {
-                          platformProfitLabel = `₹${displayPlatformProfit.toLocaleString()}${isAccumulating ? ' (Projected)' : ''}`;
-                          platformProfitColor = '#f59e0b';
-                        } else if (f.wasSettledUnderTrial && !isAccumulating) {
-                          platformProfitLabel = '₹0 (Settled under Trial)';
-                          platformProfitColor = 'var(--text-secondary)';
-                        } else {
-                          platformProfitLabel = '₹0';
-                          platformProfitColor = '#333';
-                        }
+                  <div style={{ padding: '1.25rem 1.5rem', background: 'linear-gradient(135deg, rgba(239, 65, 35, 0.06) 0%, rgba(245, 158, 11, 0.08) 100%)', borderRadius: '20px', border: '1.5px solid rgba(239, 65, 35, 0.25)', boxShadow: '0 4px 14px rgba(239, 65, 35, 0.06)' }}>
+                    <p style={{ color: 'var(--primary)', fontSize: '0.75rem', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 0.5rem 0', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      <Activity size={15} /> Total Platform Deductions
+                    </p>
+                    <h3 style={{ fontSize: '1.85rem', fontWeight: '900', margin: 0, color: 'var(--primary)' }}>
+                      ₹{financeTotals.totalDeductions.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </h3>
+                    <p style={{ margin: '0.35rem 0 0 0', fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: '600' }}>
+                      2% PG (₹{financeTotals.gateway.toFixed(2)}) + 3% Profit (₹{financeTotals.platform.toFixed(2)}) + 4% Penalty (₹{financeTotals.cancel.toFixed(2)})
+                    </p>
+                  </div>
 
-                        return (
-                        <tr key={f.storeId} style={{ borderBottom: '1px solid var(--surface-border)' }}>
-                          <td style={{ padding: '1.25rem' }}>
-                            <div style={{ fontWeight: '700', color: 'var(--text-primary)' }}>{f.storeName}</div>
-                            <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>{f.ownerName}</div>
-                            <div style={{ color: '#3b82f6', fontSize: '0.75rem', fontWeight: '700', marginTop: '0.25rem', background: 'rgba(59, 130, 246, 0.1)', padding: '0.1rem 0.4rem', borderRadius: '4px', display: 'inline-block' }}>{f.upiId}</div>
-                            <div style={{ marginTop: '0.25rem', display: 'block', fontSize: '0.65rem', color: '#6366f1', fontWeight: '700' }}>• Standard (3% Platform + 2% PG)</div>
-                          </td>
-                          <td style={{ padding: '1.25rem' }}>
-                            <div style={{ fontWeight: '600' }}>₹{f.totalRevenue.toLocaleString()}</div>
-                          </td>
-                          <td style={{ padding: '1.25rem' }}>
-                            <div style={{ fontWeight: '800', color: '#10b981' }}>₹{f.liveUnsettledRevenue?.toLocaleString() || '0'}</div>
-                          </td>
-                          <td style={{ padding: '1.25rem', color: 'var(--text-secondary)' }}>
-                            <div style={{ fontWeight: '600' }}>
-                              ₹{displayGatewayFee?.toLocaleString()}
-                              {isAccumulating && <span style={{ fontSize: '0.65rem', color: '#10b981', display: 'block', fontWeight: '700' }}>projected</span>}
-                            </div>
-                          </td>
-                          <td style={{ padding: '1.25rem', color: platformProfitColor }}>
-                            <div style={{ fontWeight: '800' }}>{platformProfitLabel}</div>
-                          </td>
-                          <td style={{ padding: '1.25rem' }}>
-                            {displayCancellationPenalty > 0 ? (
-                              <div>
-                                <div style={{ fontWeight: '800', color: '#ef4444' }}>
-                                  ₹{displayCancellationPenalty.toLocaleString()}
-                                  {isAccumulating && <span style={{ fontSize: '0.65rem', color: '#ef4444', display: 'block', fontWeight: '700' }}>projected</span>}
-                                </div>
+                  <div style={{ padding: '1.25rem 1.5rem', background: '#ffffff', borderRadius: '20px', border: '1px solid var(--surface-border)', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 0.5rem 0' }}>Total Net to Vendors</p>
+                    <h3 style={{ fontSize: '1.85rem', fontWeight: '900', margin: 0, color: '#10b981' }}>
+                      ₹{financeTotals.transfer.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </h3>
+                    <p style={{ margin: '0.35rem 0 0 0', fontSize: '0.75rem', color: '#10b981', fontWeight: '600' }}>
+                      Cleared & Scheduled Vendor Transfers
+                    </p>
+                  </div>
+                </div>
+
+                <div style={{ background: '#ffffff', borderRadius: '24px', border: '1px solid var(--surface-border)', overflow: 'hidden' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                    <thead>
+                      <tr style={{ background: '#f8fafc', borderBottom: '1px solid var(--surface-border)' }}>
+                        <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Stall & UPI</th>
+                        <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Monthly Gross</th>
+                        <th style={{ padding: '1.25rem', color: '#10b981', fontWeight: '800', fontSize: '0.875rem' }}>Live Volume</th>
+                        <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Gateway Fee (2%)</th>
+                        <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Platform Profit (3%)</th>
+                        <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Cancel Penalty (4%)</th>
+                        <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Transfer Amount</th>
+                        <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem', textAlign: 'right' }}>Settlement</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {financeData
+                        .map(f => {
+                          // For ACCUMULATING rows: show projected (live) fees not stale settled history
+                          const isAccumulating = f.settlementStatus === 'accumulating';
+                          const displayGatewayFee = isAccumulating ? f.projectedGatewayFee : f.gatewayFee;
+                          const displayPlatformProfit = isAccumulating ? f.projectedPlatformProfit : f.platformProfit;
+                          const displayCancellationPenalty = isAccumulating ? (f.projectedCancellationPenalty || 0) : f.cancellationPenalty;
+                          const displayNetPayable = isAccumulating ? f.projectedNetPayable : f.netPayable;
+
+                          // Platform profit label: settled-at-zero (trial era) vs genuinely zero vs positive
+                          let platformProfitLabel;
+                          let platformProfitColor;
+                          if (displayPlatformProfit > 0) {
+                            platformProfitLabel = `₹${displayPlatformProfit.toLocaleString()}${isAccumulating ? ' (Projected)' : ''}`;
+                            platformProfitColor = '#f59e0b';
+                          } else if (f.wasSettledUnderTrial && !isAccumulating) {
+                            platformProfitLabel = '₹0 (Settled under Trial)';
+                            platformProfitColor = 'var(--text-secondary)';
+                          } else {
+                            platformProfitLabel = '₹0';
+                            platformProfitColor = '#333';
+                          }
+
+                          return (
+                          <tr key={f.storeId} style={{ borderBottom: '1px solid var(--surface-border)' }}>
+                            <td style={{ padding: '1.25rem' }}>
+                              <div style={{ fontWeight: '700', color: 'var(--text-primary)' }}>{f.storeName}</div>
+                              <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>{f.ownerName}</div>
+                              <div style={{ color: '#3b82f6', fontSize: '0.75rem', fontWeight: '700', marginTop: '0.25rem', background: 'rgba(59, 130, 246, 0.1)', padding: '0.1rem 0.4rem', borderRadius: '4px', display: 'inline-block' }}>{f.upiId}</div>
+                              <div style={{ marginTop: '0.25rem', display: 'block', fontSize: '0.65rem', color: '#6366f1', fontWeight: '700' }}>• Standard (3% Platform + 2% PG)</div>
+                            </td>
+                            <td style={{ padding: '1.25rem' }}>
+                              <div style={{ fontWeight: '600' }}>₹{f.totalRevenue.toLocaleString()}</div>
+                            </td>
+                            <td style={{ padding: '1.25rem' }}>
+                              <div style={{ fontWeight: '800', color: '#10b981' }}>₹{f.liveUnsettledRevenue?.toLocaleString() || '0'}</div>
+                            </td>
+                            <td style={{ padding: '1.25rem', color: 'var(--text-secondary)' }}>
+                              <div style={{ fontWeight: '600' }}>
+                                ₹{displayGatewayFee?.toLocaleString()}
+                                {isAccumulating && <span style={{ fontSize: '0.65rem', color: '#10b981', display: 'block', fontWeight: '700' }}>projected</span>}
                               </div>
-                            ) : (
-                              <div style={{ fontWeight: '600', color: '#333' }}>₹0</div>
-                            )}
+                            </td>
+                            <td style={{ padding: '1.25rem', color: platformProfitColor }}>
+                              <div style={{ fontWeight: '800' }}>{platformProfitLabel}</div>
+                            </td>
+                            <td style={{ padding: '1.25rem' }}>
+                              {displayCancellationPenalty > 0 ? (
+                                <div>
+                                  <div style={{ fontWeight: '800', color: '#ef4444' }}>
+                                    ₹{displayCancellationPenalty.toLocaleString()}
+                                    {isAccumulating && <span style={{ fontSize: '0.65rem', color: '#ef4444', display: 'block', fontWeight: '700' }}>projected</span>}
+                                  </div>
+                                </div>
+                              ) : (
+                                <div style={{ fontWeight: '600', color: '#333' }}>₹0</div>
+                              )}
+                            </td>
+                            <td style={{ padding: '1.25rem', color: '#10b981' }}>
+                              <div style={{ fontWeight: '900', fontSize: '1.1rem' }}>
+                                ₹{displayNetPayable?.toLocaleString()}
+                                {isAccumulating && <span style={{ fontSize: '0.65rem', color: '#10b981', display: 'block', fontWeight: '700' }}>projected</span>}
+                              </div>
+                            </td>
+                            <td style={{ padding: '1.25rem', textAlign: 'right' }}>
+                              {f.settlementStatus === 'paid' ? (
+                                <span style={{ color: '#10b981', fontWeight: '800', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.5rem' }}>
+                                  <CheckCircle size={16} /> SETTLED
+                                </span>
+                              ) : f.settlementStatus === 'accumulating' ? (
+                                <span style={{ color: '#f59e0b', fontWeight: '800', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.5rem' }}>
+                                  <Activity size={16} /> ACCUMULATING
+                                </span>
+                              ) : (
+                                <button
+                                  onClick={async () => {
+                                    const utrNumber = window.prompt(`Enter UTR/Reference Number for settling ₹${f.netPayable.toLocaleString()} to ${f.storeName}:`);
+                                    if (utrNumber && utrNumber.trim() !== '') {
+                                      try {
+                                        const url = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+                                        await axios.post(`${url}/api/super-admin/finance/settle/${f.storeId}`, { utr: utrNumber.trim() }, {
+                                          headers: { Authorization: `Bearer ${token}` }
+                                        });
+                                        alert('Settlement processed successfully!');
+                                        fetchDashboardData();
+                                      } catch (err) {
+                                        alert(err.response?.data?.message || 'Settlement failed');
+                                      }
+                                    } else if (utrNumber !== null) {
+                                      alert('UTR Number is required to complete settlement.');
+                                    }
+                                  }}
+                                  style={{ padding: '0.5rem 1rem', background: 'transparent', border: '1px solid var(--primary)', color: 'var(--primary)', borderRadius: '8px', cursor: 'pointer', fontWeight: '700', fontSize: '0.75rem' }}
+                                >
+                                  SETTLE DUES ({f.pendingCount})
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                      {financeData.length === 0 && (
+                        <tr><td colSpan="8" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>No financial data available for this month.</td></tr>
+                      )}
+                    </tbody>
+                    {financeData.length > 0 && (
+                      <tfoot>
+                        <tr style={{ background: '#f8fafc', borderTop: '2px solid var(--surface-border)', fontWeight: '800' }}>
+                          <td style={{ padding: '1.25rem', color: 'var(--text-primary)', fontSize: '0.85rem', fontWeight: '900' }}>TOTAL (ALL STALLS)</td>
+                          <td style={{ padding: '1.25rem', color: 'var(--text-primary)', fontSize: '0.9rem', fontWeight: '900' }}>
+                            ₹{financeTotals.gross.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </td>
-                          <td style={{ padding: '1.25rem', color: '#10b981' }}>
-                            <div style={{ fontWeight: '900', fontSize: '1.1rem' }}>
-                              ₹{displayNetPayable?.toLocaleString()}
-                              {isAccumulating && <span style={{ fontSize: '0.65rem', color: '#10b981', display: 'block', fontWeight: '700' }}>projected</span>}
-                            </div>
+                          <td style={{ padding: '1.25rem', color: '#10b981', fontSize: '0.9rem', fontWeight: '900' }}>
+                            ₹{financeTotals.live.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </td>
-                          <td style={{ padding: '1.25rem', textAlign: 'right' }}>
-                            {f.settlementStatus === 'paid' ? (
-                              <span style={{ color: '#10b981', fontWeight: '800', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.5rem' }}>
-                                <CheckCircle size={16} /> SETTLED
-                              </span>
-                            ) : f.settlementStatus === 'accumulating' ? (
-                              <span style={{ color: '#f59e0b', fontWeight: '800', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.5rem' }}>
-                                <Activity size={16} /> ACCUMULATING
-                              </span>
-                            ) : (
-                              <button
-                                onClick={async () => {
-                                  const utrNumber = window.prompt(`Enter UTR/Reference Number for settling ₹${f.netPayable.toLocaleString()} to ${f.storeName}:`);
-                                  if (utrNumber && utrNumber.trim() !== '') {
-                                    try {
-                                      const url = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-                                      await axios.post(`${url}/api/super-admin/finance/settle`, {
-                                        storeId: f.storeId,
-                                        utrNumber: utrNumber.trim()
-                                      }, { headers: { Authorization: `Bearer ${token}` } });
-                                      fetchDashboardData(true);
-                                      alert('Successfully marked as settled and UTR recorded.');
-                                    } catch (err) { alert('Settlement failed: ' + (err.response?.data?.message || err.message)); }
-                                  } else if (utrNumber !== null) {
-                                    alert('UTR Number is required to complete settlement.');
-                                  }
-                                }}
-                                style={{ padding: '0.5rem 1rem', background: 'transparent', border: '1px solid var(--primary)', color: 'var(--primary)', borderRadius: '8px', cursor: 'pointer', fontWeight: '700', fontSize: '0.75rem' }}
-                              >
-                                SETTLE DUES ({f.pendingCount})
-                              </button>
-                            )}
+                          <td style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontSize: '0.9rem', fontWeight: '800' }}>
+                            ₹{financeTotals.gateway.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </td>
+                          <td style={{ padding: '1.25rem', color: '#f59e0b', fontSize: '0.9rem', fontWeight: '900' }}>
+                            ₹{financeTotals.platform.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </td>
+                          <td style={{ padding: '1.25rem', color: '#ef4444', fontSize: '0.9rem', fontWeight: '900' }}>
+                            ₹{financeTotals.cancel.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </td>
+                          <td style={{ padding: '1.25rem', color: '#10b981', fontSize: '1rem', fontWeight: '900' }}>
+                            ₹{financeTotals.transfer.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </td>
+                          <td style={{ padding: '1.25rem' }}></td>
                         </tr>
-                      );
-                    })}
-                    {financeData.length === 0 && (
-                      <tr><td colSpan="8" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>No financial data available for this month.</td></tr>
+                      </tfoot>
                     )}
-                  </tbody>
-                </table>
-              </div>
+                  </table>
+                </div>
+              </>
             ) : (
               <div>
                 <div style={{ marginBottom: '1.5rem', display: 'flex', gap: '1rem' }}>
@@ -1563,6 +1880,11 @@ const SuperAdminPanel = () => {
               </div>
             )}
           </div>
+        )}
+
+        {/* PARTNER EQUITY & PROFIT DISTRIBUTION TAB */}
+        {activeTab === 'partner_equity' && (
+          <SuperAdminPartnerEquity token={token} />
         )}
       </main>
     </div>

@@ -182,7 +182,8 @@ class JourneyEngineService {
     const storeName = meta.storeName || 'Campus Food Counter';
     const amountStr = meta.amount ? `₹${Number(meta.amount).toFixed(2)}` : '';
     const targetUpi = meta.customerUpi || meta.customerUpiId || 'UPI on file';
-    const trackerUrl = `https://www.universeorder.co.in/order-tracker/${orderNum}`;
+    const frontendUrl = process.env.FRONTEND_URL || 'https://uat.food.universeorder.co.in';
+    const trackerUrl = `${frontendUrl}/order-tracker/${orderNum}`;
     const utrStr = meta.utr ? `\n📌 *Bank Ref / UTR:* \`${meta.utr}\`` : '';
 
     let fallbackMessage = null;
@@ -548,11 +549,12 @@ class JourneyEngineService {
     }
 
     const meta = getMetadata(state);
-    let rawBody = customBody || template?.body || '👋 Hi {{name}}, welcome to UniVerse! Order fresh food easily on campus at https://www.universeorder.co.in 🍔🍕';
+    const frontendUrl = process.env.FRONTEND_URL || 'https://uat.food.universeorder.co.in';
+    let rawBody = customBody || template?.body || `👋 Hi {{name}}, welcome to UniVerse! Order fresh food easily on campus at ${frontendUrl} 🍔🍕`;
 
     const orderNum = meta.orderNumber || meta.orderId || '';
     const cleanAmount = meta.amount ? (typeof meta.amount === 'number' ? meta.amount.toFixed(2) : meta.amount.toString().replace(/₹/g, '')) : '';
-    const trackerUrl = `https://www.universeorder.co.in/order-tracker/${orderNum}`;
+    const trackerUrl = `${frontendUrl}/order-tracker/${orderNum}`;
     const customerUpi = meta.customerUpi || meta.customerUpiId || 'UPI on file';
     const utrVal = meta.utr || 'Logged in Bank Records';
     const reasonVal = meta.reason || 'Kitchen closed or item out of stock';
@@ -642,7 +644,7 @@ class JourneyEngineService {
         .replace(/{{storeName}}/gi, meta.storeName || 'UniVerse Campus');
 
       const ctaText = customCtaText || template?.emailCtaText || 'View in UniVerse';
-      const ctaUrl = customCtaLink || template?.emailCtaUrl || 'https://universe.app';
+      const ctaUrl = customCtaLink || template?.emailCtaUrl || frontendUrl;
       const heroImage = customHeaderMediaUrl || template?.emailHeroImageUrl;
 
       const htmlBody = `

@@ -33,8 +33,8 @@ class NotificationService {
           url: String(notificationData.clickAction || '/vendor/dashboard')
         },
         web_url: String(notificationData.clickAction || '/vendor/dashboard'),
-        chrome_web_icon: 'https://www.universeorder.co.in/icons.svg',
-        chrome_web_badge: 'https://www.universeorder.co.in/favicon.svg'
+        chrome_web_icon: `${process.env.FRONTEND_URL || 'https://uat.food.universeorder.co.in'}/icons.svg`,
+        chrome_web_badge: `${process.env.FRONTEND_URL || 'https://uat.food.universeorder.co.in'}/favicon.svg`
       };
 
       console.log('Sending OneSignal Notification via V2 API to External ID:', userId);

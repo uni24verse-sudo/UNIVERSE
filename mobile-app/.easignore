@@ -1,0 +1,12 @@
+# Ignore dependencies and builds
+node_modules/
+.expo/
+dist/
+web-build/
+
+# Ignore local native folders so EAS builds cleanly in the cloud without 2GB of local gradle cache
+android/
+ios/
+
+# Ignore logs
+*.log

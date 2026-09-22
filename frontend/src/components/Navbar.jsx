@@ -19,8 +19,27 @@ const Navbar = ({ bannerVisible }) => {
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
   const [scrolled, setScrolled] = useState(false);
   const [activeStore, setActiveStore] = useState(null);
+  const [hubName, setHubName] = useState(() => localStorage.getItem('universe_location_name') || '');
   const dropdownRef = useRef(null);
   const searchInputRef = useRef(null);
+
+  // Sync Hub Name on location events
+  useEffect(() => {
+    const handleSetLocation = (e) => {
+      const loc = e.detail;
+      const name = loc?.name || localStorage.getItem('universe_location_name') || '';
+      setHubName(name);
+    };
+    const handleClearLocation = () => {
+      setHubName('');
+    };
+    window.addEventListener('universe_set_location', handleSetLocation);
+    window.addEventListener('universe_clear_location', handleClearLocation);
+    return () => {
+      window.removeEventListener('universe_set_location', handleSetLocation);
+      window.removeEventListener('universe_clear_location', handleClearLocation);
+    };
+  }, []);
 
   // Scroll tracking for premium HUD
   useEffect(() => {
@@ -240,7 +259,7 @@ const Navbar = ({ bannerVisible }) => {
                 <MapPin size={9} />
               </div>
               <span style={{ fontSize: '0.7rem', fontWeight: '800', color: 'var(--text-primary)', maxWidth: isMobile ? '70px' : '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {localStorage.getItem('universe_location_name') || 'Select Hub'}
+                {hubName || localStorage.getItem('universe_location_name') || 'Select Hub'}
               </span>
             </div>
           )}

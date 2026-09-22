@@ -320,7 +320,7 @@ const SuperAdmin3DAnalytics = ({ token }) => {
             <TrendingUp size={18} color="#ef4123" />
           </div>
           <h2 style={{ fontSize: '2.2rem', fontWeight: '900', margin: '0.25rem 0', color: '#ef4123' }}>
-            ₹{(metrics?.totalProfit || 0).toLocaleString()}
+            ₹{(metrics?.totalProfit || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </h2>
           <span style={{ fontSize: '0.85rem', color: '#10b981', fontWeight: '700' }}>
             3% Take Rate + 4% Protection

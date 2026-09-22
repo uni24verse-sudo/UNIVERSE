@@ -19,6 +19,7 @@ const SuperAdminPanel = lazy(() => import('./pages/SuperAdminPanel'));
 const TermsAndConditions = lazy(() => import('./pages/TermsAndConditions'));
 const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
 const VendorAppDownload = lazy(() => import('./pages/VendorAppDownload'));
+const ShareRedirect = lazy(() => import('./pages/ShareRedirect'));
 
 import Navbar from './components/Navbar';
 import UnifiedStudentDock from './components/UnifiedStudentDock';
@@ -28,7 +29,6 @@ import ToastFeedback from './components/ToastFeedback';
 import LocationPortal from './components/LocationPortal';
 import SplashScreen from './components/SplashScreen';
 import ScrollToTop from './components/ScrollToTop';
-import SessionGuard from './components/SessionGuard';
 import { Sparkles, Zap, MapPin } from 'lucide-react';
 
 const TopPromoBanner = () => {
@@ -66,7 +66,9 @@ const TopPromoBanner = () => {
 const AppLayout = () => {
   const location = useLocation();
   const [selectedLocationId, setSelectedLocationId] = React.useState(localStorage.getItem('universe_location_id'));
-  const [isSessionStarted, setIsSessionStarted] = React.useState(false);
+  const [isSessionStarted, setIsSessionStarted] = React.useState(() => {
+    return sessionStorage.getItem('universe_splash_seen') === 'true';
+  });
   const isAdminPath = location.pathname.startsWith('/vendor') || location.pathname.startsWith('/super-admin') || location.pathname.startsWith('/superadmin');
 
   React.useEffect(() => {
@@ -85,18 +87,26 @@ const AppLayout = () => {
   }, []);
 
   const handleLocationSelect = (loc) => {
+    sessionStorage.setItem('universe_splash_seen', 'true');
     setSelectedLocationId(loc._id);
+  };
+
+  const handleSplashComplete = () => {
+    sessionStorage.setItem('universe_splash_seen', 'true');
+    setIsSessionStarted(true);
   };
 
   const isDirectBypass = location.pathname.startsWith('/order-tracker') || 
                          location.pathname.startsWith('/orders') || 
                          location.pathname.startsWith('/store/') ||
+                         location.pathname.startsWith('/d/') ||
+                         location.pathname.startsWith('/s/') ||
                          location.pathname.startsWith('/terms') ||
                          location.pathname.startsWith('/privacy') ||
                          location.pathname.startsWith('/vendor-app-download');
 
   if (!isSessionStarted && !isAdminPath && !isDirectBypass) {
-    return <SplashScreen onComplete={() => setIsSessionStarted(true)} />;
+    return <SplashScreen onComplete={handleSplashComplete} />;
   }
 
   // If no location is selected and we are NOT on an admin path or a direct bypass path, show the portal
@@ -110,7 +120,6 @@ const AppLayout = () => {
 
   return (
     <div className={`app-container ${hasPromo ? 'has-promo' : ''}`} style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-      <SessionGuard />
       {hasPromo && <TopPromoBanner />}
       <Navbar bannerVisible={!isAdminPath && hubType === 'College'} />
       
@@ -163,6 +172,8 @@ const AppLayout = () => {
             <Route path="/superadmin" element={<Navigate to="/super-admin/login" replace />} />
             <Route path="/superadmin/login" element={<Navigate to="/super-admin/login" replace />} />
             <Route path="/superadmin/panel" element={<Navigate to="/super-admin/panel" replace />} />
+            <Route path="/d/:id" element={<ShareRedirect type="dish" />} />
+            <Route path="/s/:id" element={<ShareRedirect type="stall" />} />
             <Route path="/store/:id" element={<StoreMenu />} />
             <Route path="/cart" element={<Cart />} />
             <Route path="/order-tracker/:id" element={<OrderTracker />} />

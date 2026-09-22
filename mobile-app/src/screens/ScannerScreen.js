@@ -32,7 +32,7 @@ export default function ScannerScreen({ navigation }) {
           <Text style={styles.permissionTitle}>Camera Access Required</Text>
           <Text style={styles.permissionText}>We need your permission to use the camera for scanning handover QR codes.</Text>
           <TouchableOpacity onPress={requestPermission}>
-            <LinearGradient colors={['#3B82F6', '#2563EB']} style={styles.grantBtn} start={{x: 0, y: 0}} end={{x: 1, y: 0}}>
+            <LinearGradient colors={['#FF6B00', '#EF4123']} style={styles.grantBtn} start={{x: 0, y: 0}} end={{x: 1, y: 0}}>
               <Text style={styles.grantBtnText}>Grant Permission</Text>
             </LinearGradient>
           </TouchableOpacity>
@@ -94,7 +94,7 @@ export default function ScannerScreen({ navigation }) {
           />
           {processing && !showSuccess && (
             <View style={styles.processingOverlay}>
-              <ActivityIndicator size="large" color="#3B82F6" />
+              <ActivityIndicator size="large" color="#EF4123" />
               <Text style={styles.processingText}>Verifying...</Text>
             </View>
           )}

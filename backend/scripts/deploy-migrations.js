@@ -32,8 +32,9 @@ async function migrate() {
     await prisma.$executeRawUnsafe(`ALTER TABLE "stores" ALTER COLUMN "market" DROP DEFAULT;`);
     await prisma.$executeRawUnsafe(`ALTER TABLE "stores" ALTER COLUMN "market" SET DEFAULT '';`);
     await prisma.$executeRawUnsafe(`ALTER TABLE "stores" ALTER COLUMN "market" DROP NOT NULL;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "stores" ADD COLUMN IF NOT EXISTS "autoAcceptOrders" BOOLEAN DEFAULT false;`);
   } catch (err) {
-    console.log('  ℹ️ Store market column already altered or compatible.');
+    console.log('  ℹ️ Store market/autoAcceptOrders column already altered or compatible.');
   }
 
   // 3. Hero Banners: Create table and indexes
@@ -70,6 +71,98 @@ async function migrate() {
   await prisma.$executeRawUnsafe(`
     CREATE INDEX IF NOT EXISTS idx_herobanners_stall ON herobanners("stallId");
   `);
+
+  // 4. Partner Equity Tables
+  try {
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS partners (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        email TEXT DEFAULT '',
+        phone TEXT DEFAULT '',
+        role TEXT DEFAULT 'Co-Founder',
+        "equityShare" DOUBLE PRECISION DEFAULT 0,
+        "upiId" TEXT DEFAULT '',
+        "bankAccount" JSONB DEFAULT '{}',
+        status TEXT DEFAULT 'ACTIVE',
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS distributionruns (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        "periodStart" TIMESTAMP(3),
+        "periodEnd" TIMESTAMP(3),
+        "grossPlatformProfit" DOUBLE PRECISION DEFAULT 0,
+        "cancellationPenaltyIncluded" DOUBLE PRECISION DEFAULT 0,
+        "netCommissionIncluded" DOUBLE PRECISION DEFAULT 0,
+        "reservePercentage" DOUBLE PRECISION DEFAULT 0,
+        "reserveAmount" DOUBLE PRECISION DEFAULT 0,
+        "netDistributableAmount" DOUBLE PRECISION DEFAULT 0,
+        status TEXT DEFAULT 'PAID',
+        notes TEXT DEFAULT '',
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS partnerpayouts (
+        id TEXT PRIMARY KEY,
+        "runId" TEXT NOT NULL REFERENCES distributionruns(id) ON DELETE CASCADE,
+        "partnerId" TEXT NOT NULL REFERENCES partners(id) ON DELETE CASCADE,
+        "partnerName" TEXT NOT NULL,
+        "sharePercentage" DOUBLE PRECISION NOT NULL,
+        amount DOUBLE PRECISION NOT NULL,
+        status TEXT DEFAULT 'PAID',
+        "utrNumber" TEXT DEFAULT '',
+        "paidAt" TIMESTAMP(3) DEFAULT CURRENT_TIMESTAMP,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    console.log('  ✅ Partner equity tables verified and ready in Supabase.');
+  } catch (err) {
+    console.log('  ℹ️ Partner equity tables already configured or skipped:', err.message);
+  }
+
+  // 6. ChannelAccount: Ensure email channel configured for 2FA security
+  console.log('📦 Ensuring Email ChannelAccount for 2FA is active...');
+  try {
+    const existingEmail = await prisma.channelAccount.findFirst({ where: { type: 'email' } });
+    const emailConfig = {
+      senderLabel: 'UniVerse Security',
+      fromEmail: 'parthsharma240404@gmail.com',
+      smtpHost: 'smtp.gmail.com',
+      smtpPort: 587,
+      smtpUser: 'parthsharma240404@gmail.com',
+      smtpPass: 'kvoeeuighrczbanv',
+      isVerified: true
+    };
+    if (existingEmail) {
+      await prisma.channelAccount.update({
+        where: { id: existingEmail.id },
+        data: { status: 'connected', emailConfig, lastActive: new Date() }
+      });
+      console.log('  ✅ Updated Email ChannelAccount in DB.');
+    } else {
+      const crypto = require('crypto');
+      await prisma.channelAccount.create({
+        data: {
+          id: crypto.randomUUID(),
+          type: 'email',
+          nickname: 'UniVerse Security',
+          status: 'connected',
+          emailConfig,
+          lastActive: new Date()
+        }
+      });
+      console.log('  ✅ Created Email ChannelAccount in DB.');
+    }
+  } catch (err) {
+    console.log('  ℹ️ Email ChannelAccount update note:', err.message);
+  }
 
   console.log('✅ Database migration completed successfully! All tables & columns are in sync.');
 }

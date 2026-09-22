@@ -58,6 +58,7 @@ model Store {
   openingTime        String       @default("10:00")
   closingTime        String       @default("22:00")
   isAutomated        Boolean      @default(true)
+  autoAcceptOrders   Boolean      @default(false)
   isHidden           Boolean      @default(false)
   packagingCharge    Float        @default(0)
   priority           Int          @default(0)
@@ -452,5 +453,63 @@ model MasterContact {
   @@index([phone])
   @@index([source])
   @@map("mastercontacts")
+}
+
+model Partner {
+  id          String          @id
+  name        String
+  email       String?         @default("")
+  phone       String?         @default("")
+  role        String          @default("Co-Founder")
+  equityShare Float           @default(0)
+  upiId       String?         @default("")
+  bankAccount Json?           @default("{}")
+  status      String          @default("ACTIVE")
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  payouts     PartnerPayout[]
+
+  @@map("partners")
+}
+
+model DistributionRun {
+  id                         String          @id
+  title                      String
+  periodStart                DateTime?
+  periodEnd                  DateTime?
+  grossPlatformProfit        Float           @default(0)
+  cancellationPenaltyIncluded Float           @default(0)
+  netCommissionIncluded      Float           @default(0)
+  reservePercentage          Float           @default(0)
+  reserveAmount              Float           @default(0)
+  netDistributableAmount     Float           @default(0)
+  status                     String          @default("PAID")
+  notes                      String?         @default("")
+  createdAt                  DateTime        @default(now())
+  updatedAt                  DateTime        @updatedAt
+
+  payouts                    PartnerPayout[]
+
+  @@map("distributionruns")
+}
+
+model PartnerPayout {
+  id              String          @id
+  runId           String
+  partnerId       String
+  partnerName     String
+  sharePercentage Float
+  amount          Float
+  status          String          @default("PAID")
+  utrNumber       String?         @default("")
+  paidAt          DateTime?       @default(now())
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  run             DistributionRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  partner         Partner         @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+
+  @@map("partnerpayouts")
 }
 

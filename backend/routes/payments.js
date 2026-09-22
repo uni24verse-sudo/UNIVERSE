@@ -91,7 +91,10 @@ router.post('/razorpay/verify', async (req, res) => {
     });
     if (!store) return res.status(404).json({ message: 'Store not found' });
 
-    let deadlineMinutes = isPreOrder ? 15 : (isQRScan ? null : 5);
+    const isAutoAccept = Boolean(store?.autoAcceptOrders);
+    const initialStatus = isAutoAccept ? 'Confirmed' : 'Pending';
+
+    let deadlineMinutes = isAutoAccept ? null : (isPreOrder ? 15 : (isQRScan ? null : 5));
     const acceptDeadline = deadlineMinutes ? new Date(Date.now() + deadlineMinutes * 60 * 1000) : null;
 
     const campusName = store.location?.name 
@@ -136,7 +139,7 @@ router.post('/razorpay/verify', async (req, res) => {
         orderType: orderType || 'Dine In',
         packagingChargeApplied: Number(packagingChargeApplied) || 0,
         paymentStatus: 'Confirmed',
-        status: 'Pending',
+        status: initialStatus,
         transactionId: razorpay_payment_id,
         paymentProvider: 'Razorpay',
         razorpayOrderId: razorpay_order_id,
@@ -173,15 +176,16 @@ router.post('/razorpay/verify', async (req, res) => {
       orderId: savedOrder.id,
       orderNumber: savedOrder.orderNumber,
       userId: customer ? customer.userId : 'GUEST',
-      actorType: 'CUSTOMER',
-      actorId: customer ? customer.userId : customerPhone,
-      eventType: 'PAYMENT_CAPTURED',
+      actorType: isAutoAccept ? 'SYSTEM' : 'CUSTOMER',
+      actorId: isAutoAccept ? 'AUTO_ACCEPT' : (customer ? customer.userId : customerPhone),
+      eventType: isAutoAccept ? 'ORDER_AUTO_ACCEPTED' : 'PAYMENT_CAPTURED',
       oldStatus: 'Payment Pending',
-      newStatus: 'Pending',
+      newStatus: initialStatus,
       metadata: {
         paymentId: razorpay_payment_id,
         amount: totalAmount,
-        storeName: store?.name || 'Campus Outlet'
+        storeName: store?.name || 'Campus Outlet',
+        autoAccepted: isAutoAccept
       }
     });
 
@@ -202,6 +206,11 @@ router.post('/razorpay/verify', async (req, res) => {
       // 1. Trigger Order Placed Journey
       journeyEngineService.triggerEvent('Order Placed', userPayload)
         .catch(e => console.error('[JourneyEngine] Order Placed trigger error:', e.message));
+
+      if (isAutoAccept) {
+        journeyEngineService.triggerEvent('Order Accepted', userPayload)
+          .catch(e => console.error('[JourneyEngine] Auto-accept trigger error:', e.message));
+      }
 
       // 2. Trigger First Order or Repeat Order Journey
       prisma.order.count({ where: { customerPhone: savedOrder.customerPhone } }).then(orderCount => {

@@ -139,9 +139,9 @@ router.put('/:id/status', auth, async (req, res) => {
     const validTransitions = {
       'Confirmed': ['Pending'],
       'Cooking': ['Confirmed'],
-      'Ready': ['Cooking'],
+      'Ready': ['Cooking', 'Confirmed'],
       'Completed': ['Ready'],
-      'Cancelled': ['Payment Pending', 'Pending'] 
+      'Cancelled': ['Payment Pending', 'Pending', 'Confirmed'] 
     };
 
     if (!validTransitions[status]) {
@@ -149,7 +149,8 @@ router.put('/:id/status', auth, async (req, res) => {
     }
 
     const expectedCurrentStatuses = validTransitions[status];
-    const authorizedStoreId = req.admin.storeId || req.admin.id || req.admin._id;
+    const adminId = String(req.admin.id || req.admin._id);
+    const storeId = req.admin.storeId ? String(req.admin.storeId) : '';
 
     const existingOrder = await prisma.order.findUnique({
       where: { id: req.params.id },
@@ -158,7 +159,9 @@ router.put('/:id/status', auth, async (req, res) => {
     if (!existingOrder) return res.status(404).json({ message: 'Order not found' });
 
     if (req.admin.role !== 'superadmin') {
-      if (existingOrder.storeId !== authorizedStoreId && existingOrder.store?.adminId !== String(authorizedStoreId)) {
+      const isStoreMatch = (storeId && existingOrder.storeId === storeId) || existingOrder.storeId === adminId;
+      const isAdminMatch = existingOrder.store?.adminId === adminId || (storeId && existingOrder.store?.adminId === storeId);
+      if (!isStoreMatch && !isAdminMatch) {
         return res.status(403).json({ message: 'Unauthorized: Order belongs to another store.' });
       }
     }
@@ -337,13 +340,15 @@ router.get('/:id', async (req, res) => {
 // Verify Order Handover via QR (Protected)
 router.put('/verify-handover', auth, async (req, res) => {
   try {
-    const { orderId, handoverToken } = req.body;
+    const { orderId } = req.body;
+    const handoverToken = req.body.handoverToken || req.body.token;
 
     if (!orderId || !handoverToken) {
       return res.status(400).json({ message: 'Order ID and Handover Token are required' });
     }
 
-    const authorizedStoreId = req.admin.storeId || req.admin.id || req.admin._id;
+    const adminId = String(req.admin.id || req.admin._id);
+    const storeId = String(req.admin.storeId || '');
 
     const existingOrder = await prisma.order.findFirst({
       where: {
@@ -355,7 +360,9 @@ router.put('/verify-handover', auth, async (req, res) => {
     if (!existingOrder) return res.status(404).json({ message: 'Order not found' });
 
     if (req.admin.role !== 'superadmin') {
-      if (existingOrder.storeId !== authorizedStoreId && existingOrder.store?.adminId !== String(authorizedStoreId)) {
+      const isStoreMatch = (storeId && existingOrder.storeId === storeId) || existingOrder.storeId === adminId;
+      const isAdminMatch = existingOrder.store?.adminId === adminId || (storeId && existingOrder.store?.adminId === storeId);
+      if (!isStoreMatch && !isAdminMatch) {
         return res.status(403).json({ message: 'Unauthorized: Order belongs to another store' });
       }
     }
@@ -368,7 +375,10 @@ router.put('/verify-handover', auth, async (req, res) => {
       return res.status(409).json({ message: `Cannot handover. Order is currently in ${existingOrder.status} state.` });
     }
 
-    if (existingOrder.handoverToken !== handoverToken) {
+    const expectedToken = String(existingOrder.handoverToken || '').trim().toUpperCase();
+    const providedToken = String(handoverToken).trim().toUpperCase();
+
+    if (expectedToken !== providedToken) {
       return res.status(400).json({ message: 'Invalid or expired handover token.' });
     }
 
@@ -488,7 +498,8 @@ async function completeSingleOrder(existingOrder, admin, io, handoverMethod = 'D
 router.put('/:id/handover-direct', auth, async (req, res) => {
   try {
     const orderId = req.params.id;
-    const authorizedStoreId = req.admin.storeId || req.admin.id || req.admin._id;
+    const adminId = String(req.admin.id || req.admin._id);
+    const storeId = String(req.admin.storeId || '');
 
     const existingOrder = await prisma.order.findFirst({
       where: {
@@ -500,7 +511,9 @@ router.put('/:id/handover-direct', auth, async (req, res) => {
     if (!existingOrder) return res.status(404).json({ message: 'Order not found' });
 
     if (req.admin.role !== 'superadmin') {
-      if (existingOrder.storeId !== authorizedStoreId && existingOrder.store?.adminId !== String(authorizedStoreId)) {
+      const isStoreMatch = (storeId && existingOrder.storeId === storeId) || existingOrder.storeId === adminId;
+      const isAdminMatch = existingOrder.store?.adminId === adminId || (storeId && existingOrder.store?.adminId === storeId);
+      if (!isStoreMatch && !isAdminMatch) {
         return res.status(403).json({ message: 'Unauthorized: Order belongs to another store' });
       }
     }
@@ -719,7 +732,7 @@ router.get('/refund/claim-pay/:refundId', async (req, res) => {
               </div>
             </div>
 
-            <a href="https://www.universeorder.co.in/super-admin/panel?tab=refunds" style="display: block; background: #334155; color: white; text-decoration: none; padding: 0.85rem; border-radius: 12px; font-weight: 800; font-size: 0.85rem;">
+            <a href="${process.env.FRONTEND_URL || 'https://uat.food.universeorder.co.in'}/super-admin/panel?tab=refunds" style="display: block; background: #334155; color: white; text-decoration: none; padding: 0.85rem; border-radius: 12px; font-weight: 800; font-size: 0.85rem;">
               Open Super Admin Panel
             </a>
           </div>
@@ -852,7 +865,7 @@ router.all('/refund/mobile-settle/:refundId', async (req, res) => {
             <div style="width: 55px; height: 55px; border-radius: 50%; background: #451a03; color: #f59e0b; display: flex; align-items: center; justify-content: center; font-size: 2rem; margin: 0 auto 1rem;">ℹ️</div>
             <h2 style="margin: 0 0 0.5rem 0;">${result.message}</h2>
             <p style="color: #94a3b8; font-size: 0.9rem; margin-top: 1rem;">This refund may have already been settled by another admin.</p>
-            <a href="https://www.universeorder.co.in/super-admin/panel?tab=refunds" style="display:inline-block; margin-top: 1.5rem; background: #334155; color: white; text-decoration: none; padding: 0.8rem 1.5rem; border-radius: 12px; font-weight: 700; font-size: 0.85rem;">Open Super Admin Portal</a>
+            <a href="${process.env.FRONTEND_URL || 'https://uat.food.universeorder.co.in'}/super-admin/panel?tab=refunds" style="display:inline-block; margin-top: 1.5rem; background: #334155; color: white; text-decoration: none; padding: 0.8rem 1.5rem; border-radius: 12px; font-weight: 700; font-size: 0.85rem;">Open Super Admin Portal</a>
           </div>
         </body>
         </html>

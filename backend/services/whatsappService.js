@@ -75,7 +75,7 @@ class WhatsAppService {
       `📦 *Items Ordered:*\n${itemList}\n\n` +
       `💰 Amount: ₹${order.totalAmount}\n` +
       `🏪 Store: ${order.store?.name || 'Your Store'}\n\n` +
-      `👉 View: https://www.universeorder.co.in/vendor/dashboard`;
+      `👉 View: ${process.env.FRONTEND_URL || 'https://uat.food.universeorder.co.in'}/vendor/dashboard`;
 
     return this.sendMessage(admin.whatsappNumber, admin.whatsappApiKey, message);
   }

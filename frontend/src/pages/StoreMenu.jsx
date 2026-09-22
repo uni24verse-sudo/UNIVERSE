@@ -103,8 +103,10 @@ const StoreMenu = () => {
     // Check for shared dish parameter in URL
     const dishParam = params.get('dish');
     if (dishParam) {
-      setSearchQuery(dishParam);
-      setShowSearchModal(true);
+      const cleanDish = decodeURIComponent(dishParam).trim().toLowerCase();
+      setHighlightedDish(cleanDish);
+      setActiveCategory('All');
+      setSearchQuery('');
     }
   }, [location.search]);
 
@@ -115,39 +117,89 @@ const StoreMenu = () => {
   const [viewMode, setViewMode] = useState('list');
   const [showMenuSheet, setShowMenuSheet] = useState(false);
   const [showSearchModal, setShowSearchModal] = useState(false);
+  const [highlightedDish, setHighlightedDish] = useState('');
   const searchAnchorRef = useRef(null);
   const searchInputRef = useRef(null);
 
   const isExternal = localStorage.getItem('universe_location_type') === 'External' || store?.hubId?.type === 'External';
 
-  const handleToggleSearch = useCallback(() => {
-    setShowSearchModal(true);
-    requestAnimationFrame(() => {
-      setTimeout(() => {
-        if (searchAnchorRef.current) {
-          // Accurately calculate sticky top elements (Navbar + Promo + Sticky Store bar + breathing room)
-          const isCollege = !isExternal && localStorage.getItem('universe_location_type') === 'College';
-          const navHeight = window.innerWidth <= 600 ? 64 : 72;
-          const promoHeight = isCollege ? 38 : 0;
-          const stickyStoreHeight = 55;
-          const totalHeaderOffset = navHeight + promoHeight + stickyStoreHeight + 15;
+  // Automatic smooth scroll and 5-second spotlight for shared dish
+  useEffect(() => {
+    if (!highlightedDish || !store) return;
 
-          const rect = searchAnchorRef.current.getBoundingClientRect();
-          const targetY = window.pageYOffset + rect.top - totalHeaderOffset;
+    const scrollTimer = setTimeout(() => {
+      const allDishElements = document.querySelectorAll('[data-dish-name]');
+      let targetElement = null;
 
-          window.scrollTo({
-            top: Math.max(0, targetY),
-            behavior: 'smooth'
-          });
-
-          // Focus after smooth scroll completes so virtual keyboard does not cancel smooth scroll
-          setTimeout(() => {
-            if (searchInputRef.current) {
-              searchInputRef.current.focus({ preventScroll: true });
-            }
-          }, 350);
+      for (const el of allDishElements) {
+        const dName = (el.getAttribute('data-dish-name') || '').trim().toLowerCase();
+        if (dName === highlightedDish || dName.includes(highlightedDish) || highlightedDish.includes(dName)) {
+          targetElement = el;
+          break;
         }
-      }, 50);
+      }
+
+      if (targetElement) {
+        const isCollege = !isExternal && localStorage.getItem('universe_location_type') === 'College';
+        const navHeight = window.innerWidth <= 600 ? 64 : 72;
+        const promoHeight = isCollege ? 38 : 0;
+        const stickyHeaderOffset = navHeight + promoHeight + 75;
+
+        const elementRect = targetElement.getBoundingClientRect();
+        const absoluteElementTop = elementRect.top + window.pageYOffset;
+        const scrollTarget = Math.max(0, absoluteElementTop - stickyHeaderOffset);
+
+        window.scrollTo({
+          top: scrollTarget,
+          behavior: 'smooth'
+        });
+      }
+    }, 300);
+
+    // Fade out / remove orange highlight border after 5 seconds exactly
+    const highlightTimer = setTimeout(() => {
+      setHighlightedDish('');
+    }, 5000);
+
+    return () => {
+      clearTimeout(scrollTimer);
+      clearTimeout(highlightTimer);
+    };
+  }, [highlightedDish, store, isExternal]);
+
+  const handleToggleSearch = useCallback(() => {
+    setShowSearchModal(prev => {
+      if (prev) {
+        return false;
+      }
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+          if (searchAnchorRef.current) {
+            // Accurately calculate sticky top elements (Navbar + Promo + Sticky Store bar + breathing room)
+            const isCollege = !isExternal && localStorage.getItem('universe_location_type') === 'College';
+            const navHeight = window.innerWidth <= 600 ? 64 : 72;
+            const promoHeight = isCollege ? 38 : 0;
+            const stickyStoreHeight = 55;
+            const totalHeaderOffset = navHeight + promoHeight + stickyStoreHeight + 15;
+
+            const rect = searchAnchorRef.current.getBoundingClientRect();
+            const targetY = window.pageYOffset + rect.top - totalHeaderOffset;
+
+            window.scrollTo({
+              top: Math.max(0, targetY),
+              behavior: 'smooth'
+            });
+
+            // Focus after smooth scroll completes so virtual keyboard does not cancel smooth scroll
+            setTimeout(() => {
+              if (searchInputRef.current) {
+                searchInputRef.current.focus({ preventScroll: true });
+              }
+            }, 350);
+          }
+        }, 50);
+      });
+      return true;
     });
   }, [isExternal]);
 
@@ -181,19 +233,24 @@ const StoreMenu = () => {
         setStore(fetchedStore);
         
         // Automatic Location Synchronization
-        if (fetchedStore.locationId) {
+        const locObj = fetchedStore.location || (typeof fetchedStore.locationId === 'object' ? fetchedStore.locationId : null);
+        const targetId = locObj?._id || locObj?.id || (typeof fetchedStore.locationId === 'string' ? fetchedStore.locationId : null);
+        const targetName = locObj?.name;
+        const targetType = locObj?.type || 'College';
+        
+        if (targetId) {
           const currentLocId = localStorage.getItem('universe_location_id');
-          const targetLoc = fetchedStore.locationId;
-          const targetId = targetLoc._id || targetLoc;
+          const currentLocName = localStorage.getItem('universe_location_name');
           
-          if (currentLocId !== targetId) {
+          if (currentLocId !== targetId || !currentLocName) {
             localStorage.setItem('universe_location_id', targetId);
-            if (targetLoc.name) {
-              localStorage.setItem('universe_location_name', targetLoc.name);
-              localStorage.setItem('universe_location_type', targetLoc.type || 'College');
+            if (targetName) {
+              localStorage.setItem('universe_location_name', targetName);
+              localStorage.setItem('universe_location_type', targetType);
             }
             // Trigger smooth global sync without reload
-            window.dispatchEvent(new CustomEvent('universe_set_location', { detail: targetLoc }));
+            const syncPayload = locObj || { _id: targetId, id: targetId, name: targetName, type: targetType };
+            window.dispatchEvent(new CustomEvent('universe_set_location', { detail: syncPayload }));
           }
         }
       } catch (err) {
@@ -443,18 +500,31 @@ const StoreMenu = () => {
              </div>
           )}
 
-          {(!isExternal || activeCategory !== 'All' || searchQuery) && filteredProducts.map((product, idx) => (
-            <ProductCard 
-              key={product._id || product.id || idx} 
-              product={product} 
-              storeId={id} 
-              index={idx}
-              onVariantClick={() => handleAddToCartClick(product)}
-              storeClosed={storeClosed}
-              showDietaryBadge={effectiveDietaryMode === 'both'}
-              viewMode={viewMode}
-            />
-          ))}
+          {(!isExternal || activeCategory !== 'All' || searchQuery) && filteredProducts.map((product, idx) => {
+            const isThisHighlighted = Boolean(
+              highlightedDish && (
+                (product.name || '').toLowerCase() === highlightedDish ||
+                (product.name || '').toLowerCase().includes(highlightedDish) ||
+                highlightedDish.includes((product.name || '').toLowerCase())
+              )
+            );
+
+            return (
+              <ProductCard 
+                key={product._id || product.id || idx} 
+                product={product} 
+                storeId={id} 
+                storeName={store?.name}
+                market={store?.market}
+                index={idx}
+                onVariantClick={() => handleAddToCartClick(product)}
+                storeClosed={storeClosed}
+                showDietaryBadge={effectiveDietaryMode === 'both'}
+                viewMode={viewMode}
+                isHighlighted={isThisHighlighted}
+              />
+            );
+          })}
         </div>
 
         {/* Friendly Empty State */}
@@ -484,17 +554,17 @@ const StoreMenu = () => {
             <button 
               className={`controller-rail-btn ${showSearchModal || searchQuery ? 'active-filter' : ''}`}
               onClick={handleToggleSearch}
-              title="Search dishes"
-              aria-label="Search dishes"
+              title={showSearchModal ? "Close search" : "Search dishes"}
+              aria-label={showSearchModal ? "Close search" : "Search dishes"}
             >
-              <Search size={18} />
+              {showSearchModal ? <X size={18} /> : <Search size={18} />}
             </button>
 
             <div className="controller-rail-divider" />
 
             {/* 2. Menu Categories Drawer Action */}
             <button 
-              className={`controller-rail-btn ${activeCategory !== 'All' ? 'active-filter' : ''}`}
+              className={`controller-rail-btn controller-rail-btn-menu ${activeCategory !== 'All' ? 'active-filter' : ''}`}
               onClick={() => setShowMenuSheet(true)}
               title="Browse Menu Categories"
               aria-label="Browse Menu Categories"

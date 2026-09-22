@@ -117,7 +117,7 @@ const SuperAdminJourneyBuilder = ({ token }) => {
     btn2Text: '💬 Share Feedback',
     emailSubject: '',
     emailCtaText: 'View in App →',
-    emailCtaLink: 'https://universe.app',
+    emailCtaLink: typeof window !== 'undefined' ? window.location.origin : 'https://uat.food.universeorder.co.in',
     saving: false
   });
   const [quickSaveFeedback, setQuickSaveFeedback] = useState('');
@@ -545,7 +545,7 @@ const SuperAdminJourneyBuilder = ({ token }) => {
         subject: 'Your UniVerse Order Details & Receipt',
         customBody: 'Hi {{name}},\n\nThank you for ordering on UniVerse Campus! We hope you enjoyed your meal from {{storeName}}.',
         ctaText: 'View Order Details →',
-        ctaLink: 'https://universe.app'
+        ctaLink: typeof window !== 'undefined' ? window.location.origin : 'https://uat.food.universeorder.co.in'
       };
     } else if (nodeType === 'condition') {
       defaultLabel = 'Decision: Vendor Accepted?';
@@ -693,7 +693,7 @@ const SuperAdminJourneyBuilder = ({ token }) => {
         ] : [],
         emailSubject: !isWhatsapp ? (activeConfigNode.config?.subject || 'UniVerse Campus Order') : '',
         emailCtaText: !isWhatsapp ? (activeConfigNode.config?.ctaText || 'View in App') : '',
-        emailCtaLink: !isWhatsapp ? (activeConfigNode.config?.ctaLink || 'https://universe.app') : ''
+        emailCtaLink: !isWhatsapp ? (activeConfigNode.config?.ctaLink || (typeof window !== 'undefined' ? window.location.origin : 'https://uat.food.universeorder.co.in')) : ''
       };
 
       const res = await axios.post(`${apiUrl}/api/super-admin/master-templates`, payload, { headers });
@@ -753,7 +753,7 @@ const SuperAdminJourneyBuilder = ({ token }) => {
         btn2Text: '💬 Share Feedback',
         emailSubject: '',
         emailCtaText: 'View in App →',
-        emailCtaLink: 'https://universe.app',
+        emailCtaLink: typeof window !== 'undefined' ? window.location.origin : 'https://uat.food.universeorder.co.in',
         saving: false
       });
       setQuickSaveFeedback('✅ New Master Template created & selected!');
@@ -1767,7 +1767,7 @@ const SuperAdminJourneyBuilder = ({ token }) => {
                         btn2Text: activeConfigNode.config?.btn2Text || '💬 Share Feedback',
                         emailSubject: '',
                         emailCtaText: 'View in App →',
-                        emailCtaLink: 'https://universe.app',
+                        emailCtaLink: typeof window !== 'undefined' ? window.location.origin : 'https://uat.food.universeorder.co.in',
                         saving: false
                       })}
                       style={{
@@ -1934,7 +1934,7 @@ const SuperAdminJourneyBuilder = ({ token }) => {
                         btn2Text: '',
                         emailSubject: activeConfigNode.config?.subject || '',
                         emailCtaText: activeConfigNode.config?.ctaText || 'View in App →',
-                        emailCtaLink: activeConfigNode.config?.ctaLink || 'https://universe.app',
+                        emailCtaLink: activeConfigNode.config?.ctaLink || (typeof window !== 'undefined' ? window.location.origin : 'https://uat.food.universeorder.co.in'),
                         saving: false
                       })}
                       style={{
@@ -2028,7 +2028,7 @@ const SuperAdminJourneyBuilder = ({ token }) => {
                       <label style={{ fontSize: '0.7rem', fontWeight: '700', color: '#9a3412', display: 'block', marginBottom: '2px' }}>CTA Target Link URL</label>
                       <input
                         type="text"
-                        value={activeConfigNode.config?.ctaLink || 'https://universe.app'}
+                        value={activeConfigNode.config?.ctaLink || (typeof window !== 'undefined' ? window.location.origin : 'https://uat.food.universeorder.co.in')}
                         onChange={e => updateConfiguringNode('config.ctaLink', e.target.value)}
                         style={{ width: '100%', padding: '0.55rem', borderRadius: '7px', border: '1px solid #fed7aa', fontSize: '0.78rem', boxSizing: 'border-box' }}
                       />
@@ -2562,7 +2562,7 @@ const SuperAdminJourneyBuilder = ({ token }) => {
                       marginTop: '0.9rem', padding: '0.65rem 0.8rem', background: 'rgba(16, 185, 129, 0.06)',
                       borderRadius: '8px', border: '1px dashed #10b981', fontSize: '0.72rem', color: '#065f46', lineHeight: 1.4
                     }}>
-                      🟢 <strong>24/7 Autonomous Status:</strong> Journey is deployed on AWS RDS. When real students checkout on <code>universeorder.co.in</code>, this entire sequence executes automatically with zero human effort.
+                      🟢 <strong>24/7 Autonomous Status:</strong> Journey is deployed on AWS RDS. When real students checkout on <code>food.universeorder.co.in</code>, this entire sequence executes automatically with zero human effort.
                     </div>
                   </div>
                 )}

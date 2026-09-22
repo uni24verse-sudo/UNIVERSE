@@ -10,7 +10,8 @@ import {
   TextInput,
   RefreshControl,
   ScrollView,
-  Dimensions
+  Dimensions,
+  Switch
 } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -21,8 +22,6 @@ import { useAudioAlerts } from '../hooks/useAudioAlerts';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as Notifications from 'expo-notifications';
-import PagerView from 'react-native-pager-view';
-
 
 // Real-Time Auto-Cancellation Countdown Timer
 function AutoCancelTimer({ order }) {
@@ -103,8 +102,12 @@ export default function LiveOrdersScreen({ navigation }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [tick, setTick] = useState(0);
   const [isStoreOpen, setIsStoreOpen] = useState(true);
+  const [autoAcceptOrders, setAutoAcceptOrders] = useState(false);
+  const [storeData, setStoreData] = useState(null);
+  const [togglingStatus, setTogglingStatus] = useState(false);
+  const [togglingAutoAccept, setTogglingAutoAccept] = useState(false);
   
-  const { isAudioEnabled, toggleAudio, queueAnnouncement, cancelAnnouncement, queuePreOrderReminder } = useAudioAlerts();
+  const { isAudioEnabled, toggleAudio, playTestSound, syncPendingOrders, queueAnnouncement, cancelAnnouncement, queuePreOrderReminder } = useAudioAlerts();
   const alertedPreOrdersRef = useRef(new Set());
 
   // Role check: employees must not see financial/revenue summaries for privacy
@@ -112,16 +115,98 @@ export default function LiveOrdersScreen({ navigation }) {
 
   const isFocused = useIsFocused();
 
+  // Continuously monitor pending orders and repeat single bell ding every 10s until accepted or rejected
+  useEffect(() => {
+    const pendingCount = orders.filter(o => o.status?.toLowerCase() === 'pending').length;
+    syncPendingOrders(isFocused ? pendingCount : 0);
+  }, [orders, isFocused, syncPendingOrders]);
+
   const fetchStoreStatus = useCallback(async () => {
     try {
       const res = await apiClient.get('/store/my-stores');
       if (res.data && res.data.length > 0) {
+        setStoreData(res.data[0]);
         setIsStoreOpen(res.data[0].isOpen !== false);
+        setAutoAcceptOrders(Boolean(res.data[0].autoAcceptOrders));
       }
     } catch (e) {
       console.error('Failed to fetch store status:', e.message);
     }
   }, []);
+
+  const handleToggleStoreStatus = async (forceCancel = false) => {
+    const storeId = storeData?._id || storeData?.id || user?.storeId || user?.id;
+    if (!storeId || togglingStatus) return;
+
+    // Instant optimistic UI update so switch slides over immediately
+    const previousState = isStoreOpen;
+    const nextState = !previousState;
+    setIsStoreOpen(nextState);
+    setTogglingStatus(true);
+
+    try {
+      const res = await apiClient.put(`/store/${storeId}/toggle-status`, {
+        forceCancelPending: forceCancel
+      });
+
+      if (res.data?.requiresConfirmation) {
+        // Revert until vendor confirms cancellation of pending orders
+        setIsStoreOpen(previousState);
+        Alert.alert(
+          '⚠️ Pending Orders Alert',
+          res.data.message || `You have ${res.data.pendingCount} pending order(s) waiting for acceptance.\n\nClosing your stall will automatically cancel these orders and issue instant refunds to students.\n\nOrders already in cooking will remain unaffected.\n\nDo you want to proceed?`,
+          [
+            { 
+              text: 'Keep Stall Open', 
+              style: 'cancel',
+              onPress: () => setTogglingStatus(false)
+            },
+            {
+              text: 'Close Stall & Refund',
+              style: 'destructive',
+              onPress: () => handleToggleStoreStatus(true)
+            }
+          ],
+          { cancelable: true }
+        );
+        return;
+      }
+
+      if (res.data?.isOpen !== undefined) {
+        setIsStoreOpen(res.data.isOpen);
+      }
+    } catch (error) {
+      console.error('Failed to toggle stall status:', error);
+      setIsStoreOpen(previousState);
+      Alert.alert('Error', error.response?.data?.message || 'Failed to update stall status');
+    } finally {
+      setTogglingStatus(false);
+    }
+  };
+
+  const handleToggleAutoAccept = async () => {
+    const storeId = storeData?._id || storeData?.id || user?.storeId || user?.id;
+    if (!storeId || togglingAutoAccept) return;
+
+    // Instant optimistic UI update
+    const previousState = autoAcceptOrders;
+    const nextState = !previousState;
+    setAutoAcceptOrders(nextState);
+    setTogglingAutoAccept(true);
+
+    try {
+      const res = await apiClient.put(`/store/${storeId}/toggle-auto-accept`);
+      if (res.data?.autoAcceptOrders !== undefined) {
+        setAutoAcceptOrders(Boolean(res.data.autoAcceptOrders));
+      }
+    } catch (error) {
+      console.error('Failed to toggle auto-accept:', error);
+      setAutoAcceptOrders(previousState);
+      Alert.alert('Error', error.response?.data?.message || 'Failed to update auto-accept');
+    } finally {
+      setTogglingAutoAccept(false);
+    }
+  };
 
   // Tick every 30 seconds to refresh relative times and pre-order countdowns
   useEffect(() => {
@@ -222,9 +307,16 @@ export default function LiveOrdersScreen({ navigation }) {
     };
 
     const handleStoreStatus = ({ storeId, isOpen }) => {
-      const currentStoreId = user?.storeId || user?.id;
+      const currentStoreId = storeData?._id || storeData?.id || user?.storeId || user?.id;
       if (!currentStoreId || storeId === currentStoreId) {
         setIsStoreOpen(isOpen);
+      }
+    };
+
+    const handleAutoAcceptUpdate = ({ storeId, autoAcceptOrders: newStatus }) => {
+      const currentStoreId = storeData?._id || storeData?.id || user?.storeId || user?.id;
+      if (!currentStoreId || storeId === currentStoreId) {
+        setAutoAcceptOrders(Boolean(newStatus));
       }
     };
 
@@ -232,14 +324,16 @@ export default function LiveOrdersScreen({ navigation }) {
     socket.on('order_status_update', handleStatusUpdate);
     socket.on('order_cancelled', handleCancelled);
     socket.on('store_status_update', handleStoreStatus);
+    socket.on('store_auto_accept_update', handleAutoAcceptUpdate);
 
     return () => {
       socket.off('new_order', handleNewOrder);
       socket.off('order_status_update', handleStatusUpdate);
       socket.off('order_cancelled', handleCancelled);
       socket.off('store_status_update', handleStoreStatus);
+      socket.off('store_auto_accept_update', handleAutoAcceptUpdate);
     };
-  }, [socket, queueAnnouncement, cancelAnnouncement, user]);
+  }, [socket, queueAnnouncement, cancelAnnouncement, user, storeData]);
 
   const updateStatus = async (orderId, currentStatus, newStatus) => {
     try {
@@ -431,8 +525,8 @@ export default function LiveOrdersScreen({ navigation }) {
       case 'Pending': return '#F59E0B';
       case 'Confirmed': return '#3B82F6';
       case 'Cooking': return '#8B5CF6';
-      case 'Ready': return '#10B981';
-      case 'Completed': return '#059669';
+      case 'Ready': return '#EF4123'; // Signature UniVerse logo orange
+      case 'Completed': return '#EA580C'; // Warm deep orange
       case 'Cancelled': return '#EF4444';
       default: return '#64748B';
     }
@@ -492,21 +586,50 @@ export default function LiveOrdersScreen({ navigation }) {
     if (order.status === 'Confirmed') {
       const preOrderInfo = getPreOrderInfo(order);
       return (
-        <TouchableOpacity 
-          onPress={() => updateStatus(order._id, 'Confirmed', 'Cooking')}
-          disabled={preOrderInfo.locked}
-          activeOpacity={0.8}
-        >
-          <LinearGradient 
-            colors={preOrderInfo.locked ? ['#94A3B8', '#64748B'] : ['#8B5CF6', '#7C3AED']} 
-            style={styles.gradientBtn}
+        <View style={autoAcceptOrders ? styles.actionRow : null}>
+          <TouchableOpacity 
+            style={{ flex: autoAcceptOrders ? 1.4 : 1 }}
+            onPress={() => updateStatus(order._id, 'Confirmed', 'Cooking')}
+            disabled={preOrderInfo.locked}
+            activeOpacity={0.8}
           >
-            <Ionicons name="restaurant-outline" size={18} color="white" style={{ marginRight: 6 }} />
-            <Text style={styles.btnText}>
-              {preOrderInfo.locked ? 'Scheduled for Later' : 'Start Cooking'}
-            </Text>
-          </LinearGradient>
-        </TouchableOpacity>
+            <LinearGradient 
+              colors={preOrderInfo.locked ? ['#94A3B8', '#64748B'] : ['#8B5CF6', '#7C3AED']} 
+              style={styles.gradientBtn}
+            >
+              <Ionicons name="restaurant-outline" size={18} color="white" style={{ marginRight: 6 }} />
+              <Text style={styles.btnText}>
+                {preOrderInfo.locked ? 'Scheduled for Later' : 'Start Cooking'}
+              </Text>
+            </LinearGradient>
+          </TouchableOpacity>
+
+          {autoAcceptOrders && (
+            <TouchableOpacity 
+              style={{ flex: 1 }}
+              onPress={() => {
+                Alert.alert(
+                  'Cancel & Refund Order?',
+                  `Cancel Order #${order.orderNumber || ''}?\n\nThis will instantly issue a full refund to the student via UPI.`,
+                  [
+                    { text: 'Keep Order', style: 'cancel' },
+                    { 
+                      text: 'Cancel & Refund', 
+                      style: 'destructive', 
+                      onPress: () => updateStatus(order._id, 'Confirmed', 'Cancelled') 
+                    }
+                  ]
+                );
+              }}
+              activeOpacity={0.8}
+            >
+              <View style={styles.dangerBtn}>
+                <Ionicons name="close-circle-outline" size={16} color="#EF4444" style={{ marginRight: 4 }} />
+                <Text style={styles.dangerBtnText}>Cancel/Refund</Text>
+              </View>
+            </TouchableOpacity>
+          )}
+        </View>
       );
     }
 
@@ -532,7 +655,7 @@ export default function LiveOrdersScreen({ navigation }) {
             onPress={() => handleDirectHandover(order._id, order.orderNumber)}
             activeOpacity={0.8}
           >
-            <LinearGradient colors={['#10B981', '#059669']} style={styles.gradientBtn}>
+            <LinearGradient colors={['#FF6B00', '#EF4123']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.gradientBtn}>
               <Ionicons name="flash" size={17} color="white" style={{ marginRight: 6 }} />
               <Text style={styles.btnText}>Complete Handover</Text>
             </LinearGradient>
@@ -542,9 +665,9 @@ export default function LiveOrdersScreen({ navigation }) {
             onPress={() => navigation.navigate('Scanner')}
             activeOpacity={0.8}
           >
-            <View style={[styles.gradientBtn, { backgroundColor: '#EDE9FE', borderWidth: 1, borderColor: '#DDD6FE' }]}>
-              <Ionicons name="qr-code-outline" size={17} color="#7C3AED" style={{ marginRight: 4 }} />
-              <Text style={[styles.btnText, { color: '#7C3AED' }]}>Scan QR</Text>
+            <View style={[styles.gradientBtn, { backgroundColor: '#FFF7ED', borderWidth: 1, borderColor: '#FED7AA' }]}>
+              <Ionicons name="qr-code-outline" size={17} color="#EA580C" style={{ marginRight: 4 }} />
+              <Text style={[styles.btnText, { color: '#EA580C' }]}>Scan QR</Text>
             </View>
           </TouchableOpacity>
         </View>
@@ -624,16 +747,16 @@ export default function LiveOrdersScreen({ navigation }) {
         {item.isPreOrder && item.status !== 'Completed' && item.status !== 'Cancelled' && (
           <View style={[
             styles.preOrderBanner, 
-            { backgroundColor: preOrderInfo.isWarning ? 'rgba(239, 68, 68, 0.08)' : 'rgba(16, 185, 129, 0.08)',
-              borderColor: preOrderInfo.isWarning ? 'rgba(239, 68, 68, 0.3)' : 'rgba(16, 185, 129, 0.3)' }
+            { backgroundColor: preOrderInfo.isWarning ? 'rgba(239, 68, 68, 0.08)' : 'rgba(239, 65, 35, 0.08)',
+              borderColor: preOrderInfo.isWarning ? 'rgba(239, 68, 68, 0.3)' : 'rgba(239, 65, 35, 0.3)' }
           ]}>
             <Ionicons 
               name={preOrderInfo.isWarning ? 'warning-outline' : 'flame-outline'} 
               size={16} 
-              color={preOrderInfo.isWarning ? '#DC2626' : '#059669'} 
+              color={preOrderInfo.isWarning ? '#DC2626' : '#EF4123'} 
             />
             <Text style={{ 
-              color: preOrderInfo.isWarning ? '#DC2626' : '#059669', 
+              color: preOrderInfo.isWarning ? '#DC2626' : '#EF4123', 
               fontWeight: '700', 
               fontSize: 13,
               flex: 1
@@ -691,47 +814,78 @@ export default function LiveOrdersScreen({ navigation }) {
     <SafeAreaView style={styles.container}>
       {/* Top Header */}
       <View style={styles.header}>
-        <View>
+        <View style={styles.headerTopRow}>
           <Text style={styles.headerTitle}>Kitchen Orders</Text>
+
+          <View style={styles.headerControls}>
+            {/* Audio Speaker Icon Button */}
+            <TouchableOpacity 
+              style={[
+                styles.audioIconBtn,
+                isAudioEnabled && styles.audioIconBtnActive
+              ]}
+              onPress={playTestSound}
+              onLongPress={toggleAudio}
+              activeOpacity={0.7}
+            >
+              <Ionicons 
+                name={isAudioEnabled ? 'volume-high' : 'volume-mute'} 
+                size={19} 
+                color={isAudioEnabled ? '#EF4123' : '#94A3B8'} 
+              />
+            </TouchableOpacity>
+
+            {/* Instant Stall On/Off Switch */}
+            <View style={[
+              styles.stallSwitchCard,
+              isStoreOpen ? styles.stallSwitchCardOpen : styles.stallSwitchCardClosed
+            ]}>
+              <View style={[styles.miniStatusDot, { backgroundColor: isStoreOpen ? '#EF4123' : '#94A3B8' }]} />
+              <Text style={[styles.stallSwitchText, { color: isStoreOpen ? '#EF4123' : '#64748B' }]}>
+                {isStoreOpen ? 'STALL OPEN' : 'CLOSED'}
+              </Text>
+              <Switch
+                value={isStoreOpen}
+                onValueChange={() => handleToggleStoreStatus(false)}
+                disabled={togglingStatus}
+                trackColor={{ false: '#CBD5E1', true: '#FED7AA' }}
+                thumbColor={isStoreOpen ? '#EF4123' : '#F1F5F9'}
+                ios_backgroundColor="#CBD5E1"
+                style={{ transform: [{ scaleX: 0.75 }, { scaleY: 0.75 }], marginLeft: 2, marginRight: -4 }}
+              />
+            </View>
+          </View>
+        </View>
+
+        {/* Sub-Header Row: Live Sync on Left, Quick Auto-Accept on Right */}
+        <View style={styles.subHeaderRow}>
           <View style={styles.connectionStatus}>
             <View style={[styles.dot, { backgroundColor: isConnected ? '#10B981' : '#EF4444' }]} />
             <Text style={styles.connectionText}>
               {isConnected ? 'Live Sync Active' : (socketError ? `Err: ${socketError}` : 'Reconnecting...')}
             </Text>
           </View>
-        </View>
-        
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <TouchableOpacity 
-            style={[
-              styles.audioToggle, 
-              { 
-                backgroundColor: isStoreOpen ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)',
-                borderColor: isStoreOpen ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)',
-                borderWidth: 1
-              }
-            ]}
-            onPress={() => navigation.navigate('Menu')}
-            activeOpacity={0.7}
-          >
-            <View style={[styles.dot, { backgroundColor: isStoreOpen ? '#10B981' : '#EF4444', marginRight: 5 }]} />
-            <Text style={{ fontSize: 12, fontWeight: '800', color: isStoreOpen ? '#10B981' : '#EF4444' }}>
-              {isStoreOpen ? 'OPEN' : 'CLOSED'}
-            </Text>
-          </TouchableOpacity>
 
           <TouchableOpacity 
-            style={[styles.audioToggle, { backgroundColor: isAudioEnabled ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)' }]}
-            onPress={toggleAudio}
-            activeOpacity={0.7}
+            style={[
+              styles.autoAcceptPill,
+              autoAcceptOrders ? styles.autoAcceptPillActive : styles.autoAcceptPillInactive
+            ]}
+            onPress={handleToggleAutoAccept}
+            disabled={togglingAutoAccept}
+            activeOpacity={0.75}
           >
             <Ionicons 
-              name={isAudioEnabled ? 'volume-high' : 'volume-mute'} 
-              size={16} 
-              color={isAudioEnabled ? '#10B981' : '#EF4444'} 
+              name="flash" 
+              size={12} 
+              color={autoAcceptOrders ? '#EF4123' : '#64748B'} 
+              style={{ marginRight: 4 }} 
             />
-            <Text style={{ fontSize: 12, fontWeight: '800', color: isAudioEnabled ? '#10B981' : '#EF4444', marginLeft: 4 }}>
-              {isAudioEnabled ? 'AUDIO' : 'MUTED'}
+            <Text style={[
+              styles.autoAcceptPillText,
+              { color: autoAcceptOrders ? '#EF4123' : '#64748B' }
+            ]}>
+              Auto-Accept {autoAcceptOrders ? 'ON' : 'OFF'}
             </Text>
           </TouchableOpacity>
         </View>
@@ -741,7 +895,7 @@ export default function LiveOrdersScreen({ navigation }) {
       <View style={styles.tabsContainer}>
         {[
           { key: 'Active', label: 'Active', count: counts.active, color: '#3B82F6' },
-          { key: 'Ready', label: 'Ready', count: counts.ready, color: '#10B981' },
+          { key: 'Ready', label: 'Ready', count: counts.ready, color: '#EF4123' },
           { key: 'History', label: 'History', count: counts.history, color: '#64748B' },
         ].map((tab) => {
           const isActive = filter === tab.key;
@@ -860,7 +1014,9 @@ export default function LiveOrdersScreen({ navigation }) {
                     style={{ marginBottom: 14 }}
                   >
                     <LinearGradient
-                      colors={['#10B981', '#059669']}
+                      colors={['#FF6B00', '#EF4123']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
                       style={{
                         paddingVertical: 12,
                         paddingHorizontal: 16,
@@ -868,7 +1024,7 @@ export default function LiveOrdersScreen({ navigation }) {
                         flexDirection: 'row',
                         alignItems: 'center',
                         justifyContent: 'space-between',
-                        shadowColor: '#10B981',
+                        shadowColor: '#EF4123',
                         shadowOffset: { width: 0, height: 4 },
                         shadowOpacity: 0.25,
                         shadowRadius: 8,
@@ -881,7 +1037,7 @@ export default function LiveOrdersScreen({ navigation }) {
                           <Text style={{ color: '#FFFFFF', fontWeight: '900', fontSize: 14 }}>
                             Complete All Ready Orders ({readyOrders.length})
                           </Text>
-                          <Text style={{ color: '#D1FAE5', fontSize: 11, fontWeight: '600', marginTop: 1 }}>
+                          <Text style={{ color: '#FFEDD5', fontSize: 11, fontWeight: '600', marginTop: 1 }}>
                             Rush-hour or closing clear (no QR scan needed)
                           </Text>
                         </View>
@@ -926,7 +1082,7 @@ export default function LiveOrdersScreen({ navigation }) {
           onPress={() => navigation.navigate('Scanner')} 
           activeOpacity={0.85}
         >
-          <LinearGradient colors={['#10B981', '#059669']} style={styles.fab} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+          <LinearGradient colors={['#FF6B00', '#EF4123']} style={styles.fab} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
             <Ionicons name="qr-code-outline" size={22} color="white" style={{ marginRight: 8 }} />
             <Text style={{ fontSize: 16, fontWeight: '800', color: 'white', letterSpacing: 0.5 }}>Scan Handover QR</Text>
           </LinearGradient>
@@ -948,24 +1104,101 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 14,
+  },
+  headerTopRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 16,
+  },
+  headerControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   headerTitle: {
-    fontSize: 26,
+    fontSize: 24,
     fontWeight: '900',
     color: '#0F172A',
     letterSpacing: -0.5,
   },
+  audioIconBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  audioIconBtnActive: {
+    backgroundColor: 'rgba(239, 65, 35, 0.08)',
+    borderColor: 'rgba(239, 65, 35, 0.25)',
+  },
+  stallSwitchCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 3,
+    paddingLeft: 10,
+    paddingRight: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    gap: 5,
+  },
+  stallSwitchCardOpen: {
+    borderColor: 'rgba(239, 65, 35, 0.3)',
+    backgroundColor: 'rgba(239, 65, 35, 0.05)',
+  },
+  stallSwitchCardClosed: {
+    borderColor: '#E2E8F0',
+    backgroundColor: '#F8FAFC',
+  },
+  miniStatusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  stallSwitchText: {
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+  },
   connectionStatus: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 4,
     gap: 6,
+  },
+  subHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  autoAcceptPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+  autoAcceptPillActive: {
+    backgroundColor: 'rgba(239, 65, 35, 0.08)',
+    borderColor: 'rgba(239, 65, 35, 0.3)',
+  },
+  autoAcceptPillInactive: {
+    backgroundColor: '#FFFFFF',
+    borderColor: '#E2E8F0',
+  },
+  autoAcceptPillText: {
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.2,
   },
   dot: {
     width: 8,
@@ -976,15 +1209,6 @@ const styles = StyleSheet.create({
     color: '#64748B',
     fontSize: 12,
     fontWeight: '600',
-  },
-  audioToggle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 100,
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.06)',
   },
   tabsContainer: {
     flexDirection: 'row',
@@ -1095,7 +1319,7 @@ const styles = StyleSheet.create({
   historyStatValueGreen: {
     fontSize: 16,
     fontWeight: '900',
-    color: '#059669',
+    color: '#EF4123',
   },
   list: {
     paddingHorizontal: 20,
@@ -1288,13 +1512,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(16, 185, 129, 0.08)',
+    backgroundColor: 'rgba(239, 65, 35, 0.08)',
     paddingVertical: 10,
     borderRadius: 10,
     gap: 6,
   },
   completedText: {
-    color: '#059669',
+    color: '#EF4123',
     fontWeight: '700',
     fontSize: 13,
   },
@@ -1340,7 +1564,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 24,
     alignSelf: 'center',
-    shadowColor: '#10B981',
+    shadowColor: '#EF4123',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.35,
     shadowRadius: 12,

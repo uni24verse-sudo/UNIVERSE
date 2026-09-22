@@ -69,6 +69,7 @@ app.use('/api/orders', require('./routes/orders'));
 app.use('/api/scan-menu', require('./routes/menuScanner'));
 app.use('/api/super-admin/master-data', require('./routes/superAdminMasterData'));
 app.use('/api/super-admin/master-templates', require('./routes/masterTemplates'));
+app.use('/api/super-admin/partners', require('./routes/partners'));
 app.use('/api/super-admin/channels', require('./routes/channelSettings'));
 app.use('/api/super-admin/broadcasting', require('./routes/broadcasting'));
 app.use('/api/super-admin/customers', require('./routes/superAdminCustomers'));
@@ -79,6 +80,16 @@ app.use('/api/analytics', require('./routes/analytics'));
 app.use('/api/finance', require('./routes/finance'));
 app.use('/api/employees', require('./routes/employees'));
 app.use('/api/banners', require('./routes/banners'));
+app.use(require('./routes/share'));
+
+// Direct fallback for client SPA store route on backend port (prevents 'Cannot GET /store/...')
+app.get('/store/:storeId', (req, res) => {
+  const host = req.get('host') || '';
+  const isLocal = host.includes('localhost') || host.includes('127.0.0.1');
+  const frontendBase = isLocal ? 'http://localhost:5173' : (process.env.FRONTEND_URL || 'https://food.universeorder.co.in');
+  const query = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
+  res.redirect(`${frontendBase}/store/${req.params.storeId}${query}`);
+});
 
 // Socket.io connection handling
 io.on('connection', (socket) => {
