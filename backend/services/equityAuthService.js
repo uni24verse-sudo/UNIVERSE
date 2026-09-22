@@ -1,21 +1,24 @@
 const nodemailer = require('nodemailer');
 const jwt = require('jsonwebtoken');
 const prisma = require('../config/prisma');
+const whatsappMultiDeviceService = require('./whatsappMultiDeviceService');
 
 const AUTHORIZED_EQUITY_EMAIL = 'parthsharma240404@gmail.com';
+const AUTHORIZED_EQUITY_PHONE = '917985397373';
 const OTP_EXPIRY_MS = 10 * 60 * 1000; // 10 minutes
 
 // In-memory OTP storage: { code, expiresAt, attempts }
 let activeOtpRecord = null;
 
 /**
- * Generate a secure 6-digit verification code and send to parthsharma240404@gmail.com
+ * Generate a secure 6-digit verification code and send to parthsharma240404@gmail.com & WhatsApp
  */
 async function sendEquityVerificationOtp() {
   const code = Math.floor(100000 + Math.random() * 900000).toString();
   activeOtpRecord = {
     code,
     email: AUTHORIZED_EQUITY_EMAIL,
+    phone: AUTHORIZED_EQUITY_PHONE,
     expiresAt: Date.now() + OTP_EXPIRY_MS,
     attempts: 0
   };
@@ -49,10 +52,32 @@ async function sendEquityVerificationOtp() {
 
   console.log('\n======================================================');
   console.log(`🔐 [EQUITY 2FA SECURITY GATE]`);
-  console.log(`📧 Recipient: ${AUTHORIZED_EQUITY_EMAIL}`);
+  console.log(`📧 Recipient Email: ${AUTHORIZED_EQUITY_EMAIL}`);
+  console.log(`📱 Recipient WhatsApp: +${AUTHORIZED_EQUITY_PHONE}`);
   console.log(`🔑 Verification Code: ${code}`);
   console.log(`⏱️ Expires in 10 minutes`);
   console.log('======================================================\n');
+
+  // 1. Dispatch directly via WhatsApp to Parth Sharma (+91 7985397373)
+  try {
+    const waText = 
+      `🔐 *UniVerse Security Verification*\n` +
+      `━━━━━━━━━━━━━━━━━━━━\n` +
+      `A request was initiated to modify *Partner Equity Shares or Profit Distributions*.\n\n` +
+      `🔑 *Authorization Code:* *${code}*\n\n` +
+      `⏱️ *Expires:* in 10 minutes.\n` +
+      `🛡️ *Authorized Admin:* Parth Sharma\n` +
+      `━━━━━━━━━━━━━━━━━━━━\n` +
+      `_If you did not initiate this, no changes can be made without this code._`;
+
+    whatsappMultiDeviceService.sendDirectMessage(AUTHORIZED_EQUITY_PHONE, waText).then(success => {
+      if (success) console.log(`✅ Real WhatsApp 2FA code delivered to +${AUTHORIZED_EQUITY_PHONE}`);
+    }).catch(waErr => {
+      console.warn(`[WhatsApp 2FA Alert] Could not send via WhatsApp:`, waErr.message);
+    });
+  } catch (waErr) {
+    console.warn(`[WhatsApp 2FA Dispatch Warning]:`, waErr.message);
+  }
 
   // Attempt real email dispatch via ChannelAccount or SMTP config
   try {

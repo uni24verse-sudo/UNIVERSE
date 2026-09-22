@@ -1177,6 +1177,8 @@ const SuperAdminPartnerEquity = ({ token }) => {
               A 6-digit verification code has been dispatched to:
               <br />
               <strong style={{ color: 'var(--text-primary)', wordBreak: 'break-all' }}>parthsharma240404@gmail.com</strong>
+              <br />
+              <span style={{ fontSize: '0.8rem', color: '#10b981', fontWeight: '700' }}>📱 & WhatsApp (+91 7985397373)</span>
             </p>
 
             {otpSentMessage && (

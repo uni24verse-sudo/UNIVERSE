@@ -102,7 +102,13 @@ const OrderTracker = () => {
 
     fetchOrder();
 
-    const socket = io((import.meta.env.VITE_API_URL || 'http://localhost:5000') + '');
+    const socketBase = (typeof window !== 'undefined' && window.location.hostname && 
+        window.location.hostname !== 'localhost' && 
+        window.location.hostname !== '127.0.0.1')
+      ? window.location.origin
+      : (import.meta.env.VITE_API_URL || 'http://localhost:5000');
+
+    const socket = io(socketBase);
     socket.emit('join_order_room', id);
 
     const handleOrderUpdate = (updatedOrder) => {
@@ -155,7 +161,12 @@ const OrderTracker = () => {
   // Ensure socket joins all room variants when order details are retrieved
   useEffect(() => {
     if (!order) return;
-    const socket = io((import.meta.env.VITE_API_URL || 'http://localhost:5000') + '');
+    const socketBase = (typeof window !== 'undefined' && window.location.hostname && 
+        window.location.hostname !== 'localhost' && 
+        window.location.hostname !== '127.0.0.1')
+      ? window.location.origin
+      : (import.meta.env.VITE_API_URL || 'http://localhost:5000');
+    const socket = io(socketBase);
     if (order._id) socket.emit('join_order_room', order._id.toString());
     if (order.id && order.id !== order._id) socket.emit('join_order_room', order.id.toString());
     if (order.orderNumber) socket.emit('join_order_room', order.orderNumber.toString());
