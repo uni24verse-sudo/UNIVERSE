@@ -11,6 +11,7 @@ const QRCode = require('qrcode');
 const path = require('path');
 const fs = require('fs');
 const prisma = require('../config/prisma');
+const { getFrontendUrl } = require('../config/urls');
 
 class WhatsAppMultiDeviceService {
   constructor() {
@@ -613,8 +614,8 @@ class WhatsAppMultiDeviceService {
       const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=350x350&data=${encodeURIComponent(upiPayLink)}`;
 
       const refundIdentifier = refund.id || refund._id;
-      const baseUrl = process.env.BASE_URL || process.env.FRONTEND_URL || 'https://uat.food.universeorder.co.in';
-      const frontendUrl = process.env.FRONTEND_URL || 'https://uat.food.universeorder.co.in';
+      const frontendUrl = getFrontendUrl();
+      const baseUrl = process.env.BASE_URL || frontendUrl;
       const claimPayUrl = `${baseUrl}/api/orders/refund/claim-pay/${refundIdentifier}`;
       const adminDeskUrl = `${frontendUrl}/super-admin/panel?tab=refunds`;
 

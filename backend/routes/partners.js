@@ -76,12 +76,17 @@ async function calculateAuthoritativePlatformProfit() {
   const projectedPlatformProfit = parseFloat((liveCompletedVolume * 0.03).toFixed(2));
   const projectedCancellationPenalty = parseFloat((liveCancelledVolume * 0.04).toFixed(2));
 
-  const totalGatewayFee = parseFloat((settledGatewayFee + projectedGatewayFee).toFixed(2));
-  const totalPlatformProfit = parseFloat((settledPlatformProfit + projectedPlatformProfit).toFixed(2));
-  const totalCancellationPenalty = parseFloat((settledCancellationPenalty + projectedCancellationPenalty).toFixed(2));
+  const rawCancellation = settledCancellationPenalty + projectedCancellationPenalty;
+  const totalCancellationPenalty = parseFloat(rawCancellation.toFixed(2)); // 4% total vendor cancellation penalty
+  const cancellationGatewayFee = parseFloat((rawCancellation * 0.5).toFixed(2)); // 2% Razorpay gateway fee on cancelled orders
+  const netCancellationPenalty = parseFloat((totalCancellationPenalty - cancellationGatewayFee).toFixed(2)); // 2% UniVerse net penalty take
+
+  // Total Gateway fee includes 2% on completed orders + 2% on cancelled orders
+  const totalGatewayFee = parseFloat((settledGatewayFee + projectedGatewayFee + cancellationGatewayFee).toFixed(2));
+  const totalPlatformProfit = parseFloat((settledPlatformProfit + projectedPlatformProfit).toFixed(2)); // 3% commission
   
-  // Total platform withholdings (UniVerse profit take = 3% commission + 4% cancellation protection)
-  const totalUniVerseProfit = parseFloat((totalPlatformProfit + totalCancellationPenalty).toFixed(2));
+  // UniVerse Real Net Take = 3% commission + 2% net cancellation penalty (excludes all 2% PG fees)
+  const totalUniVerseProfit = parseFloat((totalPlatformProfit + netCancellationPenalty).toFixed(2));
   const totalPlatformDeductions = parseFloat((totalGatewayFee + totalUniVerseProfit).toFixed(2));
 
   // Fetch all settled distribution runs to calculate previously distributed profit
@@ -93,16 +98,18 @@ async function calculateAuthoritativePlatformProfit() {
   const availableTotalDeductionsPool = Math.max(0, parseFloat((totalPlatformDeductions - previouslyDistributed).toFixed(2)));
   const availableNetProfitPool = Math.max(0, parseFloat((totalUniVerseProfit - previouslyDistributed).toFixed(2)));
   
-  // Partner distributable pool MUST strictly be net profit (3% commission + 4% penalty = ₹34.90).
-  // Payment gateway fees (2% Razorpay = ₹63.26) belong to the payment processor, NOT equity partners.
+  // Partner distributable pool MUST strictly be true net profit (3% commission + 2% net penalty).
+  // Payment gateway fees (2% on completed + 2% on cancelled) belong to Razorpay, NOT equity partners.
   const availableDistributablePool = availableNetProfitPool;
 
   return {
-    totalPlatformProfit,
-    totalCancellationPenalty,
-    totalGatewayFee,
-    totalUniVerseProfit,
-    totalPlatformDeductions,
+    totalPlatformProfit, // 3% Commission
+    totalCancellationPenalty, // 4% Total Penalty deducted from vendors
+    cancellationGatewayFee, // 2% Razorpay fee on cancellations
+    netCancellationPenalty, // 2% UniVerse Net Penalty
+    totalGatewayFee, // Total 2% PG Fee (Completed + Cancelled)
+    totalUniVerseProfit, // 3% Commission + 2% Net Penalty
+    totalPlatformDeductions, // Full vendor deductions
     previouslyDistributed: parseFloat(previouslyDistributed.toFixed(2)),
     availableDistributablePool,
     availableTotalDeductionsPool,
@@ -405,7 +412,7 @@ router.post('/distribution/execute', requireEquityAuth, async (req, res) => {
           periodStart: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
           periodEnd: new Date(),
           grossPlatformProfit: availablePool,
-          cancellationPenaltyIncluded: poolInfo.totalCancellationPenalty,
+          cancellationPenaltyIncluded: poolInfo.netCancellationPenalty,
           netCommissionIncluded: poolInfo.totalPlatformProfit,
           reservePercentage: reservePct,
           reserveAmount,

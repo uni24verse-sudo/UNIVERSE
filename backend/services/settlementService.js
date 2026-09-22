@@ -94,12 +94,18 @@ const generateSettlements = async (date = null, specificStoreId = null) => {
                 data: {
                     id: crypto.randomUUID(),
                     storeId: store.id,
+                    adminId: store.adminId || null,
                     settlementType: 'daily',
                     month,
                     year,
                     periodStart: startOfYesterday,
                     periodEnd: endOfYesterday,
+                    totalOrders: completedOrders.length,
                     totalRevenue: Number(dailyRevenue.toFixed(2)),
+                    grossSales: Number(dailyRevenue.toFixed(2)),
+                    gatewayFee: Number(gatewayFee.toFixed(2)),
+                    platformCommission: Number(platformProfit.toFixed(2)),
+                    cancellationPenalties: Number(cancellationPenalty.toFixed(2)),
                     feesBreakdown: {
                         gatewayFee: Number(gatewayFee.toFixed(2)),
                         platformProfit: Number(platformProfit.toFixed(2)),

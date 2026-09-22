@@ -19,8 +19,10 @@ export default function LoginScreen() {
   const { login } = useContext(AuthContext);
 
   const handleSelectServer = async (type) => {
-    let newUrl = 'https://api.universeorder.co.in/api';
-    if (type === 'local') {
+    let newUrl = 'https://food.universeorder.co.in/api';
+    if (type === 'uat') {
+      newUrl = 'https://uat.food.universeorder.co.in/api';
+    } else if (type === 'local') {
       newUrl = `http://${customIp.trim()}:5000/api`;
     }
     await setServerUrl(newUrl);
@@ -117,9 +119,9 @@ export default function LoginScreen() {
               style={styles.serverPill}
               activeOpacity={0.7}
             >
-              <View style={[styles.serverDot, { backgroundColor: currentServer.includes('universeorder.co.in') ? '#10B981' : '#3B82F6' }]} />
+              <View style={[styles.serverDot, { backgroundColor: currentServer.includes('uat.food') ? '#F59E0B' : (currentServer.includes('universeorder.co.in') ? '#10B981' : '#3B82F6') }]} />
               <Text style={styles.serverText}>
-                {currentServer.includes('universeorder.co.in') ? 'Cloud Server (Live)' : 'Local Dev Server'}
+                {currentServer.includes('uat.food') ? 'UAT Staging' : (currentServer.includes('universeorder.co.in') ? 'Production (Live)' : 'Local Dev Server')}
               </Text>
               <Ionicons name={showServerPicker ? "chevron-up" : "settings-outline"} size={13} color="#94A3B8" />
             </TouchableOpacity>
@@ -129,20 +131,30 @@ export default function LoginScreen() {
                 <Text style={styles.serverMenuLabel}>Select Backend Server:</Text>
                 
                 <TouchableOpacity 
-                  style={[styles.serverOption, currentServer.includes('universeorder.co.in') && styles.serverOptionActive]}
+                  style={[styles.serverOption, currentServer === 'https://food.universeorder.co.in/api' && styles.serverOptionActive]}
                   onPress={() => handleSelectServer('cloud')}
                 >
-                  <Text style={[styles.serverOptionTitle, currentServer.includes('universeorder.co.in') && styles.serverOptionTitleActive]}>
+                  <Text style={[styles.serverOptionTitle, currentServer === 'https://food.universeorder.co.in/api' && styles.serverOptionTitleActive]}>
                     🌐 Live Production
                   </Text>
-                  <Text style={styles.serverOptionSub}>api.universeorder.co.in</Text>
+                  <Text style={styles.serverOptionSub}>food.universeorder.co.in</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity 
-                  style={[styles.serverOption, !currentServer.includes('universeorder.co.in') && styles.serverOptionActive]}
+                  style={[styles.serverOption, currentServer.includes('uat.food') && styles.serverOptionActive]}
+                  onPress={() => handleSelectServer('uat')}
+                >
+                  <Text style={[styles.serverOptionTitle, currentServer.includes('uat.food') && styles.serverOptionTitleActive]}>
+                    🧪 UAT Testing
+                  </Text>
+                  <Text style={styles.serverOptionSub}>uat.food.universeorder.co.in</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={[styles.serverOption, (!currentServer.includes('universeorder.co.in')) && styles.serverOptionActive]}
                   onPress={() => handleSelectServer('local')}
                 >
-                  <Text style={[styles.serverOptionTitle, !currentServer.includes('universeorder.co.in') && styles.serverOptionTitleActive]}>
+                  <Text style={[styles.serverOptionTitle, (!currentServer.includes('universeorder.co.in')) && styles.serverOptionTitleActive]}>
                     💻 Local Laptop
                   </Text>
                   <Text style={styles.serverOptionSub}>http://{customIp}:5000</Text>

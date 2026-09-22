@@ -4,7 +4,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export const useAudioAlerts = () => {
   const [isAudioEnabled, setIsAudioEnabled] = useState(true);
-  const player = useAudioPlayer(require('../../assets/chime.mp3'));
+  const player1 = useAudioPlayer(require('../../assets/chime.mp3'));
+  const player2 = useAudioPlayer(require('../../assets/chime.mp3'));
   const pendingIntervalRef = useRef(null);
   const pendingCountRef = useRef(0);
 
@@ -25,16 +26,15 @@ export const useAudioAlerts = () => {
     setupAudio();
   }, []);
 
-  // Ensure player volume is at maximum 100% on load
+  // Ensure player volumes are at maximum 100% on load
   useEffect(() => {
-    if (player) {
-      try {
-        player.volume = 1.0;
-      } catch (e) {
-        // ignore if not supported on platform
-      }
+    try {
+      if (player1) player1.volume = 1.0;
+      if (player2) player2.volume = 1.0;
+    } catch (e) {
+      // ignore if not supported on platform
     }
-  }, [player]);
+  }, [player1, player2]);
 
   // Load saved preference
   useEffect(() => {
@@ -51,41 +51,57 @@ export const useAudioAlerts = () => {
     loadPreference();
   }, []);
 
-  // Plays a single crisp, loud service bell ding
-  const playSingleDing = useCallback(() => {
-    if (!isAudioEnabled || !player) return;
+  // Plays a crisp, urgent restaurant POS double-ding (ding.ding)
+  const playDoubleDing = useCallback(() => {
+    if (!isAudioEnabled) return;
     try {
-      player.volume = 1.0;
-      player.seekTo(0);
-      player.play();
+      if (player1) {
+        player1.volume = 1.0;
+        player1.seekTo(0);
+        player1.play();
+      }
+
+      // Second ding ~250ms later for the classic "ding.ding" double chime
+      setTimeout(() => {
+        if (!isAudioEnabled) return;
+        try {
+          if (player2) {
+            player2.volume = 1.0;
+            player2.seekTo(0);
+            player2.play();
+          }
+        } catch (e) {
+          console.log('Second chime error:', e?.message || e);
+        }
+      }, 250);
     } catch (err) {
       console.log('Audio playback error:', err?.message || err);
     }
-  }, [player, isAudioEnabled]);
+  }, [player1, player2, isAudioEnabled]);
 
-  // Starts or stops the 10-second reminder loop based on pending orders count
+  // Starts or stops the reminder loop based on pending orders count
   const syncPendingOrders = useCallback((count = 0) => {
     const prevCount = pendingCountRef.current;
     pendingCountRef.current = count;
 
     if (count > 0 && isAudioEnabled) {
-      // If loop is not already running, ring immediately and repeat every 10 seconds
+      // If loop is not already running, ring immediately with ding.ding and repeat every 6 seconds
       if (!pendingIntervalRef.current) {
-        playSingleDing();
+        playDoubleDing();
 
         pendingIntervalRef.current = setInterval(() => {
           if (pendingCountRef.current > 0 && isAudioEnabled) {
-            playSingleDing();
+            playDoubleDing();
           } else {
             if (pendingIntervalRef.current) {
               clearInterval(pendingIntervalRef.current);
               pendingIntervalRef.current = null;
             }
           }
-        }, 10000);
+        }, 6500); // 6.5s interval for: ding.ding ........... ding.ding ..........
       } else if (count > prevCount) {
-        // If a new order arrived while already pending, ring immediately
-        playSingleDing();
+        // If a new order arrived while already pending, ring immediately with double-ding
+        playDoubleDing();
       }
     } else {
       // 0 pending orders: stop the reminder loop immediately!
@@ -94,7 +110,7 @@ export const useAudioAlerts = () => {
         pendingIntervalRef.current = null;
       }
     }
-  }, [playSingleDing, isAudioEnabled]);
+  }, [playDoubleDing, isAudioEnabled]);
 
   // Clean up interval on unmount
   useEffect(() => {
@@ -116,9 +132,8 @@ export const useAudioAlerts = () => {
     }
     
     if (!newValue) {
-      if (player && player.playing) {
-        player.pause();
-      }
+      if (player1 && player1.playing) player1.pause();
+      if (player2 && player2.playing) player2.pause();
       if (pendingIntervalRef.current) {
         clearInterval(pendingIntervalRef.current);
         pendingIntervalRef.current = null;
@@ -128,34 +143,35 @@ export const useAudioAlerts = () => {
         syncPendingOrders(pendingCountRef.current);
       }
     }
-  }, [isAudioEnabled, player, syncPendingOrders]);
+  }, [isAudioEnabled, player1, player2, syncPendingOrders]);
 
   // Backward-compatible stubs
   const queueAnnouncement = useCallback(() => {}, []);
   const cancelAnnouncement = useCallback(() => {}, []);
   const queuePreOrderReminder = useCallback(() => {
-    playSingleDing();
-  }, [playSingleDing]);
+    playDoubleDing();
+  }, [playDoubleDing]);
 
-  // Test sound: plays 1 crisp ding
+  // Test sound: plays the new crisp double-ding (ding.ding)
   const playTestSound = useCallback(async () => {
     try {
       if (!isAudioEnabled) {
         setIsAudioEnabled(true);
         await AsyncStorage.setItem('universe_audio_enabled', 'true');
       }
-      playSingleDing();
+      playDoubleDing();
     } catch (err) {
       console.log('Test sound playback error:', err?.message || err);
     }
-  }, [playSingleDing, isAudioEnabled]);
+  }, [playDoubleDing, isAudioEnabled]);
 
   return { 
     isAudioEnabled, 
     toggleAudio, 
     playTestSound,
     syncPendingOrders,
-    playSingleDing,
+    playDoubleDing,
+    playSingleDing: playDoubleDing, // aliased for backwards compatibility
     queueAnnouncement, 
     cancelAnnouncement,
     queuePreOrderReminder

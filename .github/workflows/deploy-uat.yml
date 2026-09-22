@@ -47,6 +47,10 @@ jobs:
             echo "SMTP_PORT=587" >> /home/ubuntu/UNIVERSE/backend/.env
             echo "SMTP_USER=parthsharma240404@gmail.com" >> /home/ubuntu/UNIVERSE/backend/.env
             echo "SMTP_PASS=kvoeeuighrczbanv" >> /home/ubuntu/UNIVERSE/backend/.env
+            sed -i '/^FRONTEND_URL=/d' /home/ubuntu/UNIVERSE/backend/.env 2>/dev/null || true
+            sed -i '/^APP_ENV=/d' /home/ubuntu/UNIVERSE/backend/.env 2>/dev/null || true
+            echo "FRONTEND_URL=https://uat.food.universeorder.co.in" >> /home/ubuntu/UNIVERSE/backend/.env
+            echo "APP_ENV=uat" >> /home/ubuntu/UNIVERSE/backend/.env
 
             echo "🎨 Building frontend for UAT..."
             cd /home/ubuntu/UNIVERSE/frontend
@@ -57,7 +61,8 @@ jobs:
             pm2 reload universe-backend || pm2 restart universe-backend || pm2 restart all
             pm2 logs universe-backend --lines 25 --nostream
 
-            echo "🌐 Verifying and reloading Nginx..."
+            echo "🌐 Updating and reloading Nginx configuration..."
+            sudo cp /home/ubuntu/UNIVERSE/uat.nginx.conf /etc/nginx/sites-available/default
             sudo nginx -t && sudo systemctl reload nginx
 
             echo "=========================================="

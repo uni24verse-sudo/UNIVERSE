@@ -1,4 +1,5 @@
 const axios = require('axios');
+const { getFrontendUrl } = require('../config/urls');
 
 class WhatsAppService {
   constructor() {
@@ -75,7 +76,7 @@ class WhatsAppService {
       `📦 *Items Ordered:*\n${itemList}\n\n` +
       `💰 Amount: ₹${order.totalAmount}\n` +
       `🏪 Store: ${order.store?.name || 'Your Store'}\n\n` +
-      `👉 View: ${process.env.FRONTEND_URL || 'https://uat.food.universeorder.co.in'}/vendor/dashboard`;
+      `👉 View: ${getFrontendUrl()}/vendor/dashboard`;
 
     return this.sendMessage(admin.whatsappNumber, admin.whatsappApiKey, message);
   }

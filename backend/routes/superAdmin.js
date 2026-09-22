@@ -86,11 +86,15 @@ router.get('/stats', async (req, res) => {
     const projectedPlatformProfit = liveCompletedVolume * 0.03;
     const projectedCancellationPenalty = liveCancelledVolume * 0.04;
 
-    const totalGatewayFee = parseFloat((settledGateway + projectedGateway).toFixed(2));
-    const totalPlatformProfit = parseFloat((settledPlatformProfit + projectedPlatformProfit).toFixed(2));
-    const totalCancellationPenalty = parseFloat((settledCancellationPenalty + projectedCancellationPenalty).toFixed(2));
-    const totalUniVerseNetTake = parseFloat((totalPlatformProfit + totalCancellationPenalty).toFixed(2));
-    const totalPlatformDeductions = parseFloat((totalGatewayFee + totalUniVerseNetTake).toFixed(2));
+    const rawCancellation = settledCancellationPenalty + projectedCancellationPenalty;
+    const totalCancellationPenalty = parseFloat(rawCancellation.toFixed(2)); // Total 4% penalty deducted from vendors
+    const cancellationGatewayFee = parseFloat((rawCancellation * 0.5).toFixed(2)); // 2% Razorpay fee on cancelled volume
+    const netCancellationPenalty = parseFloat((totalCancellationPenalty - cancellationGatewayFee).toFixed(2)); // 2% UniVerse Net Penalty
+
+    const totalGatewayFee = parseFloat((settledGateway + projectedGateway + cancellationGatewayFee).toFixed(2)); // All 2% PG fees (completed + cancelled)
+    const totalPlatformProfit = parseFloat((settledPlatformProfit + projectedPlatformProfit).toFixed(2)); // 3% Commission
+    const totalUniVerseNetTake = parseFloat((totalPlatformProfit + netCancellationPenalty).toFixed(2)); // 3% Commission + 2% Net Penalty
+    const totalPlatformDeductions = parseFloat((totalGatewayFee + totalUniVerseNetTake).toFixed(2)); // Total deductions from vendors
 
     res.json({
       totalVendors,
@@ -99,12 +103,14 @@ router.get('/stats', async (req, res) => {
       activeOrders,
       totalRevenue,
       todayRevenue,
-      totalProfit: totalUniVerseNetTake, // Pure UniVerse Net Take (3% take + 4% protection = ₹34.90)
+      totalProfit: totalUniVerseNetTake, // Pure UniVerse Net Take (3% commission + 2% net penalty)
       totalUniVerseNetTake,
-      totalPlatformDeductions, // Full deductions from vendors including 2% PG fee (₹98.16)
-      totalPlatformProfit, // 3% commission (₹1.50)
-      totalGatewayFee, // 2% Razorpay fee (₹63.26)
-      totalCancellationPenalty // 4% cancellation penalty (₹33.40)
+      totalPlatformDeductions, // Full deductions from vendors including 2% PG fee
+      totalPlatformProfit, // 3% commission
+      totalGatewayFee, // Total 2% Razorpay fee (completed + cancelled)
+      totalCancellationPenalty, // 4% total cancellation penalty
+      cancellationGatewayFee, // 2% PG fee on cancelled
+      netCancellationPenalty // 2% UniVerse net penalty
     });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -183,11 +189,15 @@ router.get('/realtime-analytics', async (req, res) => {
     const projectedPlatformProfit = liveCompletedVolume * 0.03;
     const projectedCancellationPenalty = liveCancelledVolume * 0.04;
 
-    const totalGatewayFee = parseFloat((settledGateway + projectedGateway).toFixed(2));
+    const rawCancellation = settledCancellationPenalty + projectedCancellationPenalty;
+    const totalCancellationPenalty = parseFloat(rawCancellation.toFixed(2));
+    const cancellationGatewayFee = parseFloat((rawCancellation * 0.5).toFixed(2)); // 2% Razorpay fee on cancellations
+    const netCancellationPenalty = parseFloat((totalCancellationPenalty - cancellationGatewayFee).toFixed(2)); // 2% UniVerse Net Penalty
+
+    const totalGatewayFee = parseFloat((settledGateway + projectedGateway + cancellationGatewayFee).toFixed(2)); // All 2% PG fees (completed + cancelled)
     const totalPlatformCommission = parseFloat((settledPlatformProfit + projectedPlatformProfit).toFixed(2));
-    const totalCancellationPenalty = parseFloat((settledCancellationPenalty + projectedCancellationPenalty).toFixed(2));
-    // UniVerse Net Take = 3% Take + 4% Cancellation Protection (excludes 2% Razorpay fee)
-    const totalPlatformProfit = parseFloat((totalPlatformCommission + totalCancellationPenalty).toFixed(2));
+    // UniVerse Net Take = 3% Take + 2% Net Penalty (excludes all 2% Razorpay fees)
+    const totalPlatformProfit = parseFloat((totalPlatformCommission + netCancellationPenalty).toFixed(2));
     const totalPlatformDeductions = parseFloat((totalGatewayFee + totalPlatformProfit).toFixed(2));
 
     // Hourly Distribution for 24 hours of today (Real-Time Current Date)
@@ -1165,11 +1175,15 @@ router.get('/finance/history', async (req, res) => {
 });
 
 // 10. Finance: Mark Settlement as Paid
-router.post('/finance/settle', async (req, res) => {
+router.post(['/finance/settle', '/finance/settle/:storeId'], async (req, res) => {
   try {
-    const { storeId, utrNumber } = req.body;
-    if (!utrNumber) return res.status(400).json({ message: 'UTR Number is required' });
+    const storeId = req.params.storeId || req.body.storeId;
+    const utrNumber = req.body.utrNumber || req.body.utr;
+    
+    if (!storeId) return res.status(400).json({ message: 'Store ID is required' });
+    if (!utrNumber || !String(utrNumber).trim()) return res.status(400).json({ message: 'UTR Number is required' });
 
+    const cleanUtr = String(utrNumber).trim();
     const pendingSettlements = await prisma.settlement.findMany({
       where: { storeId: String(storeId), status: 'pending' }
     });
@@ -1182,7 +1196,8 @@ router.post('/finance/settle', async (req, res) => {
       where: { storeId: String(storeId), status: 'pending' },
       data: {
         status: 'completed',
-        utrNumber,
+        utrNumber: cleanUtr,
+        utr: cleanUtr,
         paidAt: new Date()
       }
     });

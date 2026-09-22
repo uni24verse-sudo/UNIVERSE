@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const prisma = require('../config/prisma');
 const whatsappMultiDeviceService = require('./whatsappMultiDeviceService');
 const emailMultiAccountService = require('./emailMultiAccountService');
+const { getFrontendUrl } = require('../config/urls');
 
 // Safe JSON array unpacker (handles Prisma JSONB, strings, or raw objects)
 function parseNodes(rawNodes) {
@@ -182,7 +183,7 @@ class JourneyEngineService {
     const storeName = meta.storeName || 'Campus Food Counter';
     const amountStr = meta.amount ? `₹${Number(meta.amount).toFixed(2)}` : '';
     const targetUpi = meta.customerUpi || meta.customerUpiId || 'UPI on file';
-    const frontendUrl = process.env.FRONTEND_URL || 'https://uat.food.universeorder.co.in';
+    const frontendUrl = getFrontendUrl();
     const trackerUrl = `${frontendUrl}/order-tracker/${orderNum}`;
     const utrStr = meta.utr ? `\n📌 *Bank Ref / UTR:* \`${meta.utr}\`` : '';
 
@@ -549,7 +550,7 @@ class JourneyEngineService {
     }
 
     const meta = getMetadata(state);
-    const frontendUrl = process.env.FRONTEND_URL || 'https://uat.food.universeorder.co.in';
+    const frontendUrl = getFrontendUrl();
     let rawBody = customBody || template?.body || `👋 Hi {{name}}, welcome to UniVerse! Order fresh food easily on campus at ${frontendUrl} 🍔🍕`;
 
     const orderNum = meta.orderNumber || meta.orderId || '';

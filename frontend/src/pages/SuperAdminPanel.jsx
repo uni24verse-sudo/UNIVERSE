@@ -125,20 +125,36 @@ const SuperAdminPanel = () => {
 
   // Robust Wakeup Mechanism: Refetch data when returning from inactivity/sleep
   useEffect(() => {
+    let wakeupTimer = null;
     const handleWakeup = () => {
-      if (document.visibilityState === 'visible') {
-        console.log('[SuperAdminPanel] Device woke up, syncing fresh data...');
-        // Silent fetch to ensure no data was missed while the screen was off/backgrounded
+      if (document.visibilityState !== 'visible') return;
+      if (typeof navigator !== 'undefined' && !navigator.onLine) return;
+
+      if (wakeupTimer) clearTimeout(wakeupTimer);
+      // Debounce by 800ms to allow laptop/mobile Wi-Fi to establish connection after waking from sleep
+      wakeupTimer = setTimeout(() => {
+        console.log('[SuperAdminPanel] Device woke up and online, syncing fresh data...');
         fetchDashboardData(true);
-      }
+      }, 800);
+    };
+
+    const handleOnline = () => {
+      console.log('[SuperAdminPanel] Network reconnected, syncing fresh data...');
+      if (wakeupTimer) clearTimeout(wakeupTimer);
+      wakeupTimer = setTimeout(() => {
+        fetchDashboardData(true);
+      }, 500);
     };
 
     document.addEventListener('visibilitychange', handleWakeup);
     window.addEventListener('focus', handleWakeup);
+    window.addEventListener('online', handleOnline);
 
     return () => {
+      if (wakeupTimer) clearTimeout(wakeupTimer);
       document.removeEventListener('visibilitychange', handleWakeup);
       window.removeEventListener('focus', handleWakeup);
+      window.removeEventListener('online', handleOnline);
     };
   }, [token]);
 
@@ -163,32 +179,39 @@ const SuperAdminPanel = () => {
   const fetchDashboardData = async (silent = false) => {
     if (!silent) setLoading(true);
     try {
-      const url = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      const url = (typeof window !== 'undefined' && window.location.hostname && 
+          window.location.hostname !== 'localhost' && 
+          window.location.hostname !== '127.0.0.1')
+        ? window.location.origin
+        : (import.meta.env.VITE_API_URL || 'http://localhost:5000');
       const config = { 
         headers: { Authorization: `Bearer ${token}` },
-        timeout: 6000 
+        timeout: 8000 
       };
       
       const [statsRes, vendorsRes, ordersRes, storesRes, financeRes, historyRes, locationsRes, refundsRes] = await Promise.all([
-        axios.get(`${url}/api/super-admin/stats`, config).catch(e => ({ data: null })),
-        axios.get(`${url}/api/super-admin/vendors`, config).catch(e => ({ data: [] })),
-        axios.get(`${url}/api/super-admin/orders`, config).catch(e => ({ data: [] })),
-        axios.get(`${url}/api/super-admin/stores`, config).catch(e => ({ data: [] })),
-        axios.get(`${url}/api/super-admin/finance`, config).catch(e => ({ data: [] })),
-        axios.get(`${url}/api/super-admin/finance/history`, config).catch(e => ({ data: [] })),
-        axios.get(`${url}/api/super-admin/locations`, config).catch(e => ({ data: [] })),
-        axios.get(`${url}/api/super-admin/refunds/pending`, config).catch(e => ({ data: [] }))
+        axios.get(`${url}/api/super-admin/stats`, config).catch(e => ({ isError: true })),
+        axios.get(`${url}/api/super-admin/vendors`, config).catch(e => ({ isError: true })),
+        axios.get(`${url}/api/super-admin/orders`, config).catch(e => ({ isError: true })),
+        axios.get(`${url}/api/super-admin/stores`, config).catch(e => ({ isError: true })),
+        axios.get(`${url}/api/super-admin/finance`, config).catch(e => ({ isError: true })),
+        axios.get(`${url}/api/super-admin/finance/history`, config).catch(e => ({ isError: true })),
+        axios.get(`${url}/api/super-admin/locations`, config).catch(e => ({ isError: true })),
+        axios.get(`${url}/api/super-admin/refunds/pending`, config).catch(e => ({ isError: true }))
       ]);
 
-      setPendingRefundCount(refundsRes.data?.length || 0);
+      if (!refundsRes.isError && Array.isArray(refundsRes.data)) {
+        setPendingRefundCount(refundsRes.data.length);
+      }
 
-      if (statsRes?.data) setStats(statsRes.data);
-      if (vendorsRes?.data) setVendors(vendorsRes.data);
-      if (ordersRes?.data) setOrders(ordersRes.data);
-      if (storesRes?.data) setStores(storesRes.data);
-      if (financeRes?.data) setFinanceData(financeRes.data);
-      if (historyRes?.data) setSettlementHistory(historyRes.data);
-      if (locationsRes?.data) setLocations(locationsRes.data);
+      // ONLY update state if the API call succeeded! Never overwrite existing valid data with empty arrays
+      if (!statsRes.isError && statsRes.data) setStats(statsRes.data);
+      if (!vendorsRes.isError && Array.isArray(vendorsRes.data)) setVendors(vendorsRes.data);
+      if (!ordersRes.isError && Array.isArray(ordersRes.data)) setOrders(ordersRes.data);
+      if (!storesRes.isError && Array.isArray(storesRes.data)) setStores(storesRes.data);
+      if (!financeRes.isError && Array.isArray(financeRes.data)) setFinanceData(financeRes.data);
+      if (!historyRes.isError && Array.isArray(historyRes.data)) setSettlementHistory(historyRes.data);
+      if (!locationsRes.isError && Array.isArray(locationsRes.data)) setLocations(locationsRes.data);
     } catch (err) {
       if (err.response?.status === 403 || err.response?.status === 401) {
         logout();
@@ -557,9 +580,9 @@ const SuperAdminPanel = () => {
               </div>
 
               <div style={{ padding: '1.5rem', background: '#ffffff', borderRadius: '24px', border: '1px solid var(--surface-border)', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', background: 'linear-gradient(135deg, #ffffff 0%, rgba(252, 175, 23, 0.05) 100%)' }}>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Activity size={16} color="var(--secondary)" /> Total Platform Deductions</p>
-                <h3 style={{ fontSize: '2.5rem', fontWeight: '900', margin: 0, color: 'var(--primary)' }}>₹{typeof stats.totalProfit === 'number' ? stats.totalProfit.toFixed(2) : (stats.totalProfit || '0.00')}</h3>
-                <p style={{ marginTop: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: '600' }}>Platform Take (5% Fees + 4% Protection)</p>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Activity size={16} color="var(--secondary)" /> UniVerse Net Take</p>
+                <h3 style={{ fontSize: '2.5rem', fontWeight: '900', margin: 0, color: 'var(--primary)' }}>₹{typeof stats.totalUniVerseNetTake === 'number' ? stats.totalUniVerseNetTake.toFixed(2) : (typeof stats.totalProfit === 'number' ? stats.totalProfit.toFixed(2) : (stats.totalProfit || '0.00'))}</h3>
+                <p style={{ marginTop: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: '600' }}>3% Commission + 2% Net Penalty (Excludes 2% PG)</p>
               </div>
             </div>
             
@@ -1691,6 +1714,9 @@ const SuperAdminPanel = () => {
                             </td>
                             <td style={{ padding: '1.25rem' }}>
                               <div style={{ fontWeight: '600' }}>₹{f.totalRevenue.toLocaleString()}</div>
+                              {f.totalRevenue === 0 && f.liveUnsettledRevenue > 0 && (
+                                <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', display: 'block', fontWeight: '600' }}>accumulating live</span>
+                              )}
                             </td>
                             <td style={{ padding: '1.25rem' }}>
                               <div style={{ fontWeight: '800', color: '#10b981' }}>₹{f.liveUnsettledRevenue?.toLocaleString() || '0'}</div>
@@ -1709,7 +1735,7 @@ const SuperAdminPanel = () => {
                                 <div>
                                   <div style={{ fontWeight: '800', color: '#ef4444' }}>
                                     ₹{displayCancellationPenalty.toLocaleString()}
-                                    {isAccumulating && <span style={{ fontSize: '0.65rem', color: '#ef4444', display: 'block', fontWeight: '700' }}>projected</span>}
+                                    {isAccumulating && <span style={{ fontSize: '0.65rem', color: '#ef4444', display: 'block', fontWeight: '700' }}>4% on cancelled</span>}
                                   </div>
                                 </div>
                               ) : (

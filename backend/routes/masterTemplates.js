@@ -6,6 +6,7 @@ const { Readable } = require('stream');
 const cloudinary = require('cloudinary').v2;
 const superAdminAuth = require('../middleware/superAdminAuth');
 const prisma = require('../config/prisma');
+const { getFrontendUrl } = require('../config/urls');
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -151,7 +152,7 @@ router.post('/', async (req, res) => {
         emailPreheader: emailPreheader || '',
         emailHeroImageUrl: emailHeroImageUrl || '',
         emailCtaText: emailCtaText || 'Open UniVerse',
-        emailCtaUrl: emailCtaUrl || process.env.FRONTEND_URL || 'https://uat.food.universeorder.co.in',
+        emailCtaUrl: emailCtaUrl || getFrontendUrl(),
         variables,
         status: 'Active'
       }
