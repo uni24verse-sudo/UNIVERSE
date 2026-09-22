@@ -29,7 +29,6 @@ import ToastFeedback from './components/ToastFeedback';
 import LocationPortal from './components/LocationPortal';
 import SplashScreen from './components/SplashScreen';
 import ScrollToTop from './components/ScrollToTop';
-import SessionGuard from './components/SessionGuard';
 import { Sparkles, Zap, MapPin } from 'lucide-react';
 
 const TopPromoBanner = () => {
@@ -121,7 +120,6 @@ const AppLayout = () => {
 
   return (
     <div className={`app-container ${hasPromo ? 'has-promo' : ''}`} style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-      <SessionGuard />
       {hasPromo && <TopPromoBanner />}
       <Navbar bannerVisible={!isAdminPath && hubType === 'College'} />
       
