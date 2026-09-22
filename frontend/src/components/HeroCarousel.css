@@ -7,12 +7,19 @@
   margin-bottom: 2rem;
   box-shadow: 0 30px 60px rgba(0, 0, 0, 0.12);
   background-color: #0f172a;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: pan-y;
+}
+
+.hero-carousel-container.is-dragging {
+  cursor: grabbing !important;
 }
 
 .hero-carousel-track {
   display: flex;
   height: 100%;
-  transition: transform 0.6s cubic-bezier(0.25, 1, 0.5, 1);
+  will-change: transform;
 }
 
 .hero-slide {
@@ -23,6 +30,8 @@
   position: relative;
   display: flex;
   align-items: center;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .hero-slide-overlay {
@@ -95,6 +104,53 @@
   box-shadow: 0 12px 32px rgba(0,0,0,0.4);
 }
 
+/* Elegant Desktop Nav Arrows */
+.hero-nav-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 10;
+  opacity: 0;
+  transition: opacity 0.3s ease, transform 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+.hero-carousel-container:hover .hero-nav-arrow {
+  opacity: 0.85;
+}
+
+.hero-nav-arrow:hover {
+  opacity: 1 !important;
+  background: #ef4123 !important;
+  border-color: #ef4123 !important;
+  transform: translateY(-50%) scale(1.1);
+  box-shadow: 0 6px 20px rgba(239, 65, 35, 0.45);
+}
+
+.hero-nav-arrow:active {
+  transform: translateY(-50%) scale(0.95);
+}
+
+.hero-nav-prev {
+  left: 20px;
+}
+
+.hero-nav-next {
+  right: 20px;
+}
+
 .hero-carousel-controls {
   position: absolute;
   bottom: 30px;
@@ -113,12 +169,13 @@
   border: none;
   cursor: pointer;
   padding: 0;
-  transition: all 0.3s;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .hero-carousel-dot.active {
-  background-color: white;
-  width: 24px;
+  background-color: #ef4123;
+  width: 26px;
+  box-shadow: 0 0 8px rgba(239, 65, 35, 0.6);
 }
 
 /* Responsive adjustments */
@@ -155,5 +212,9 @@
 
   .hero-carousel-controls {
     bottom: 15px;
+  }
+
+  .hero-nav-arrow {
+    display: none; /* Native touch swipe is preferred on mobile */
   }
 }

@@ -1,12 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { ChevronLeft, ChevronRight, Search, ArrowRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ArrowRight } from 'lucide-react';
 import './HeroCarousel.css';
 
 const HeroCarousel = ({ onSearch, hubType = 'College' }) => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [paidBanners, setPaidBanners] = useState([]);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragOffset, setDragOffset] = useState(0);
+  const [isHovered, setIsHovered] = useState(false);
+
+  const containerRef = useRef(null);
+  const startXRef = useRef(0);
+  const startYRef = useRef(0);
+  const directionLockedRef = useRef(null); // 'horizontal' | 'vertical' | null
+  const hasMovedRef = useRef(false);
+  const autoPlayTimerRef = useRef(null);
   const navigate = useNavigate();
 
   const collegeSlides = [
@@ -107,16 +117,156 @@ const HeroCarousel = ({ onSearch, hubType = 'College' }) => {
     setCurrentSlide(0);
   }, [slides.length]);
 
-  // Auto-advance timer (5 seconds)
-  useEffect(() => {
-    if (slides.length <= 1) return;
-    const timer = setInterval(() => {
-      setCurrentSlide((prev) => (prev === slides.length - 1 ? 0 : prev + 1));
-    }, 5000);
-    return () => clearInterval(timer);
+  // Navigation handlers
+  const goToNextSlide = useCallback(() => {
+    setCurrentSlide(prev => (prev === slides.length - 1 ? 0 : prev + 1));
   }, [slides.length]);
 
+  const goToPrevSlide = useCallback(() => {
+    setCurrentSlide(prev => (prev === 0 ? slides.length - 1 : prev - 1));
+  }, [slides.length]);
+
+  // Smart Autoplay Timer - pauses during drag, hover, or right after manual interactions
+  const resetAutoPlay = useCallback(() => {
+    if (autoPlayTimerRef.current) {
+      clearInterval(autoPlayTimerRef.current);
+      autoPlayTimerRef.current = null;
+    }
+    if (slides.length > 1 && !isHovered && !isDragging) {
+      autoPlayTimerRef.current = setInterval(() => {
+        goToNextSlide();
+      }, 5000);
+    }
+  }, [slides.length, isHovered, isDragging, goToNextSlide]);
+
+  useEffect(() => {
+    resetAutoPlay();
+    return () => {
+      if (autoPlayTimerRef.current) {
+        clearInterval(autoPlayTimerRef.current);
+      }
+    };
+  }, [resetAutoPlay]);
+
+  // Manual Touch Swipe Handlers (iOS / Android fluid gesture)
+  const handleTouchStart = (e) => {
+    if (slides.length <= 1) return;
+    const touch = e.touches[0];
+    startXRef.current = touch.clientX;
+    startYRef.current = touch.clientY;
+    directionLockedRef.current = null;
+    hasMovedRef.current = false;
+    setIsDragging(true);
+    setDragOffset(0);
+  };
+
+  const handleTouchMove = (e) => {
+    if (!startXRef.current || slides.length <= 1) return;
+    const touch = e.touches[0];
+    const diffX = touch.clientX - startXRef.current;
+    const diffY = touch.clientY - startYRef.current;
+
+    // Detect user intention (horizontal swipe vs vertical page scroll)
+    if (directionLockedRef.current === null) {
+      if (Math.abs(diffX) > 8 || Math.abs(diffY) > 8) {
+        if (Math.abs(diffX) >= Math.abs(diffY)) {
+          directionLockedRef.current = 'horizontal';
+        } else {
+          directionLockedRef.current = 'vertical';
+        }
+      }
+    }
+
+    if (directionLockedRef.current === 'horizontal') {
+      // Prevent browser horizontal rubber-banding while swiping carousel
+      if (e.cancelable) {
+        e.preventDefault();
+      }
+      hasMovedRef.current = true;
+      setDragOffset(diffX);
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (directionLockedRef.current === 'horizontal' && slides.length > 1) {
+      const containerWidth = containerRef.current?.clientWidth || 360;
+      const swipeThreshold = Math.min(60, containerWidth * 0.15);
+
+      if (dragOffset < -swipeThreshold) {
+        goToNextSlide();
+      } else if (dragOffset > swipeThreshold) {
+        goToPrevSlide();
+      }
+    }
+
+    setIsDragging(false);
+    setDragOffset(0);
+    startXRef.current = 0;
+    startYRef.current = 0;
+    directionLockedRef.current = null;
+    resetAutoPlay();
+
+    setTimeout(() => {
+      hasMovedRef.current = false;
+    }, 60);
+  };
+
+  // Manual Mouse Drag Handlers (Desktop fluid drag)
+  const handleMouseDown = (e) => {
+    if (e.button !== 0 || slides.length <= 1) return; // Only primary button
+    startXRef.current = e.clientX;
+    hasMovedRef.current = false;
+    setIsDragging(true);
+    setDragOffset(0);
+  };
+
+  const handleMouseMove = (e) => {
+    if (!isDragging || slides.length <= 1) return;
+    const diffX = e.clientX - startXRef.current;
+    if (Math.abs(diffX) > 5) {
+      hasMovedRef.current = true;
+    }
+    setDragOffset(diffX);
+  };
+
+  const handleMouseUp = () => {
+    if (!isDragging) return;
+    if (slides.length > 1) {
+      const containerWidth = containerRef.current?.clientWidth || 500;
+      const swipeThreshold = Math.min(70, containerWidth * 0.15);
+
+      if (dragOffset < -swipeThreshold) {
+        goToNextSlide();
+      } else if (dragOffset > swipeThreshold) {
+        goToPrevSlide();
+      }
+    }
+
+    setIsDragging(false);
+    setDragOffset(0);
+    startXRef.current = 0;
+    resetAutoPlay();
+
+    setTimeout(() => {
+      hasMovedRef.current = false;
+    }, 60);
+  };
+
+  const handleMouseLeave = () => {
+    setIsHovered(false);
+    if (isDragging) {
+      handleMouseUp();
+    }
+  };
+
+  const handleMouseEnter = () => {
+    setIsHovered(true);
+  };
+
   const handleSlideClick = (slide) => {
+    // If the user was dragging or swiping, prevent accidental click navigation
+    if (hasMovedRef.current) return;
+
     if (slide.stallId) {
       navigate(`/store/${slide.stallId}`);
     } else if (slide.targetUrl) {
@@ -128,16 +278,39 @@ const HeroCarousel = ({ onSearch, hubType = 'College' }) => {
     }
   };
 
+  // Dynamic live translate with 1:1 finger/cursor tracking
+  const containerWidth = containerRef.current?.clientWidth || 1;
+  const dragPercent = containerWidth > 0 ? (dragOffset / containerWidth) * 100 : 0;
+  const currentTranslate = -(currentSlide * 100) + dragPercent;
+
   return (
-    <div className="hero-carousel-container animate-fade-in-up">
-      <div className="hero-carousel-track" style={{ transform: `translateX(-${currentSlide * 100}%)` }}>
+    <div 
+      ref={containerRef}
+      className={`hero-carousel-container animate-fade-in-up ${isDragging ? 'is-dragging' : ''}`}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      onTouchCancel={handleTouchEnd}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+    >
+      <div 
+        className="hero-carousel-track" 
+        style={{ 
+          transform: `translateX(${currentTranslate}%)`,
+          transition: isDragging ? 'none' : 'transform 0.5s cubic-bezier(0.22, 1, 0.36, 1)'
+        }}
+      >
         {slides.map((slide, index) => (
           <div 
-            key={slide.id} 
+            key={slide.id || index} 
             className="hero-slide" 
             style={{ 
               backgroundImage: `url(${slide.image})`,
-              cursor: slide.stallId ? 'pointer' : 'default'
+              cursor: isDragging ? 'grabbing' : (slide.stallId ? 'pointer' : 'grab')
             }}
             onClick={() => handleSlideClick(slide)}
           >
@@ -164,17 +337,50 @@ const HeroCarousel = ({ onSearch, hubType = 'College' }) => {
         ))}
       </div>
 
-      {/* Carousel Controls */}
+      {/* Manual Desktop Nav Arrows */}
+      {slides.length > 1 && (
+        <>
+          <button 
+            type="button"
+            className="hero-nav-arrow hero-nav-prev"
+            onClick={(e) => {
+              e.stopPropagation();
+              goToPrevSlide();
+              resetAutoPlay();
+            }}
+            aria-label="Previous slide"
+          >
+            <ChevronLeft size={22} />
+          </button>
+          <button 
+            type="button"
+            className="hero-nav-arrow hero-nav-next"
+            onClick={(e) => {
+              e.stopPropagation();
+              goToNextSlide();
+              resetAutoPlay();
+            }}
+            aria-label="Next slide"
+          >
+            <ChevronRight size={22} />
+          </button>
+        </>
+      )}
+
+      {/* Carousel Dots */}
       {slides.length > 1 && (
         <div className="hero-carousel-controls">
           {slides.map((_, idx) => (
             <button 
               key={idx} 
+              type="button"
               className={`hero-carousel-dot ${currentSlide === idx ? 'active' : ''}`}
               onClick={(e) => {
                 e.stopPropagation();
                 setCurrentSlide(idx);
+                resetAutoPlay();
               }}
+              aria-label={`Go to slide ${idx + 1}`}
             />
           ))}
         </div>

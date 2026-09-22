@@ -21,6 +21,10 @@ scratch/
 /universe_developer_git_handbook.pdf
 *.bundle
 
+# Environment & Deployment files
+env-production
+env-uat
+
 # K6 Performance Test files
 K6.zip
 k6.zip
@@ -28,4 +32,12 @@ K6_extracted/
 k6_extracted/
 tmp/
 backend/scratch_check.js
+
+# Scratch audio generation & preview files
+boost_audio.py
+generate_preview.js
+preview_audio.html
+service-bell.mp3
+service-bell.original.mp3
+order notification voice.mpeg
 

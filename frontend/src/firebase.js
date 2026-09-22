@@ -101,8 +101,8 @@ export const onForegroundMessage = () => {
       navigator.serviceWorker.ready.then((reg) => {
         reg.showNotification(title, {
           body: body,
-          icon: "https://www.universeorder.co.in/icons.svg",
-          badge: "https://www.universeorder.co.in/favicon.svg",
+          icon: `${window.location.origin}/icons.svg`,
+          badge: `${window.location.origin}/favicon.svg`,
           requireInteraction: true,
           vibrate: [200, 100, 200],
           data: payload.data || {},

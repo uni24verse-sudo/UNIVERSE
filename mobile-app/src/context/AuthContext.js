@@ -53,9 +53,12 @@ export const AuthProvider = ({ children }) => {
       setUser(admin);
       return { success: true };
     } catch (error) {
+      console.error('Login error details:', error);
+      const serverMsg = error.response?.data?.message;
+      const networkMsg = error.message;
       return { 
         success: false, 
-        message: error.response?.data?.message || 'Login failed' 
+        message: serverMsg || (networkMsg ? `${networkMsg}` : 'Login failed') 
       };
     }
   };

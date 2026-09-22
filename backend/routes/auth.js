@@ -9,7 +9,7 @@ const prisma = require('../config/prisma');
 // Register
 router.post('/register', async (req, res) => {
   try {
-    const { name, email, password, telegramChatId } = req.body;
+    const { name, email, password, phone, stallName, telegramChatId } = req.body;
 
     if (!name || !email || !password) {
       return res.status(400).json({ message: 'Name, email, and password are required' });
@@ -27,18 +27,44 @@ router.post('/register', async (req, res) => {
 
     // Create new admin
     const id = crypto.randomUUID();
+    let storeId = '';
+
+    if (stallName && stallName.trim()) {
+      storeId = crypto.randomUUID();
+    }
+
     await prisma.admin.create({
       data: {
         id,
-        name,
+        name: name.trim(),
         email: cleanEmail,
         password: hashedPassword,
-        telegramChatId: telegramChatId || '',
-        role: 'vendor'
+        telegramChatId: telegramChatId || (phone ? phone.trim() : ''),
+        role: 'vendor',
+        status: 'PENDING_APPROVAL',
+        storeId
       }
     });
 
-    res.status(201).json({ message: 'Vendor registered successfully' });
+    // If proposed stall name is provided, create pending store
+    if (storeId) {
+      await prisma.store.create({
+        data: {
+          id: storeId,
+          adminId: id,
+          name: stallName.trim(),
+          isOpen: false,
+          isHidden: true,
+          subscriptionStatus: 'pending_approval'
+        }
+      });
+    }
+
+    res.status(201).json({ 
+      success: true,
+      status: 'PENDING_APPROVAL',
+      message: 'Registration submitted successfully! Your account is pending Super Admin verification before you can log in.' 
+    });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -51,7 +77,10 @@ router.post('/login', async (req, res) => {
     if (!email) return res.status(400).json({ message: 'Email is required' });
 
     const cleanEmail = email.toLowerCase().trim();
-    const admin = await prisma.admin.findUnique({ where: { email: cleanEmail } });
+    const admin = await prisma.admin.findUnique({ 
+      where: { email: cleanEmail },
+      include: { stores: true }
+    });
 
     if (!admin) return res.status(400).json({ message: 'Invalid email or password' });
 
@@ -69,11 +98,28 @@ router.post('/login', async (req, res) => {
     const validPassword = await bcrypt.compare(password, admin.password);
     if (!validPassword) return res.status(400).json({ message: 'Invalid email or password' });
 
+    // Check if vendor account is pending verification by Super Admin
+    if (admin.role === 'vendor' && admin.status === 'PENDING_APPROVAL') {
+      return res.status(403).json({
+        status: 'PENDING_APPROVAL',
+        message: 'Your vendor account is pending verification by Super Admin. You will be able to log in once approved.'
+      });
+    }
+
     const adminId = admin.id;
 
-    // Create and assign token with role
+    // Retrieve actual storeId dynamically
+    let actualStoreId = admin.storeId || admin.stores?.[0]?.id;
+    if (!actualStoreId && admin.role === 'vendor') {
+      const vendorStore = await prisma.store.findFirst({ where: { adminId } });
+      if (vendorStore) {
+        actualStoreId = vendorStore.id;
+      }
+    }
+
+    // Create and assign token with role and storeId
     const token = jwt.sign(
-      { _id: adminId, id: adminId, name: admin.name, role: admin.role },
+      { _id: adminId, id: adminId, name: admin.name, role: admin.role, storeId: actualStoreId, vendorId: admin.vendorId },
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
@@ -86,7 +132,9 @@ router.post('/login', async (req, res) => {
         name: admin.name, 
         email: admin.email, 
         telegramChatId: admin.telegramChatId,
-        role: admin.role
+        role: admin.role,
+        storeId: actualStoreId,
+        vendorId: admin.vendorId
       } 
     });
   } catch (err) {

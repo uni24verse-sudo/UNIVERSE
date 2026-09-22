@@ -56,26 +56,40 @@ router.get('/stats', async (req, res) => {
       where: { status: { in: ['Pending', 'Confirmed', 'Cooking'] } }
     });
 
-    const stores = await prisma.store.findMany();
-    let totalProfit = 0;
-    const now = new Date();
+    // Robust Calculation from Settlements + Live Unsettled Orders (matches Finance Tracker exactly)
+    const settlements = await prisma.settlement.findMany();
+    let settledGateway = 0;
+    let settledPlatformProfit = 0;
+    let settledCancellationPenalty = 0;
 
-    for (const store of stores) {
-      const storeOrders = completedOrders.filter(o => o.storeId === store.id);
-      const storeRevenue = storeOrders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
-      totalProfit += storeRevenue * 0.03;
-
-      // Add cancellation penalties (4% of cancelled volume)
-      const cancelledOrders = await prisma.order.findMany({
-        where: {
-          storeId: store.id,
-          status: 'Cancelled',
-          paymentStatus: 'Confirmed'
-        }
-      });
-      const cancelledVolume = cancelledOrders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
-      totalProfit += cancelledVolume * 0.04;
+    for (const s of settlements) {
+      const f = s.feesBreakdown && typeof s.feesBreakdown === 'object' ? s.feesBreakdown : {};
+      settledGateway += Number(f.gatewayFee || s.gatewayFee || 0);
+      settledPlatformProfit += Number(f.platformProfit || s.platformCommission || 0);
+      settledCancellationPenalty += Number(f.cancellationPenalty || s.cancellationPenalties || 0);
     }
+
+    // Live Unsettled Orders
+    const [unsettledCompleted, unsettledCancelled] = await Promise.all([
+      prisma.order.findMany({
+        where: { status: 'Completed', isSettled: false }
+      }),
+      prisma.order.findMany({
+        where: { status: 'Cancelled', paymentStatus: 'Confirmed', isSettled: false }
+      })
+    ]);
+
+    const liveCompletedVolume = unsettledCompleted.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+    const liveCancelledVolume = unsettledCancelled.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+
+    const projectedGateway = liveCompletedVolume * 0.02;
+    const projectedPlatformProfit = liveCompletedVolume * 0.03;
+    const projectedCancellationPenalty = liveCancelledVolume * 0.04;
+
+    const totalGatewayFee = parseFloat((settledGateway + projectedGateway).toFixed(2));
+    const totalPlatformProfit = parseFloat((settledPlatformProfit + projectedPlatformProfit).toFixed(2));
+    const totalCancellationPenalty = parseFloat((settledCancellationPenalty + projectedCancellationPenalty).toFixed(2));
+    const totalPlatformDeductions = parseFloat((totalGatewayFee + totalPlatformProfit + totalCancellationPenalty).toFixed(2));
 
     res.json({
       totalVendors,
@@ -84,7 +98,11 @@ router.get('/stats', async (req, res) => {
       activeOrders,
       totalRevenue,
       todayRevenue,
-      totalProfit: Math.round(totalProfit)
+      totalProfit: totalPlatformDeductions,
+      totalPlatformDeductions,
+      totalPlatformProfit,
+      totalGatewayFee,
+      totalCancellationPenalty
     });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -134,23 +152,39 @@ router.get('/realtime-analytics', async (req, res) => {
     const todayAvgOrderValue = todayCompleted.length > 0 ? Math.round(todayRevenue / todayCompleted.length) : 0;
     const ordersVelocityPerHour = lastHourOrders.length;
 
-    // Platform Profit Calculation: 1-Month Free Trial Rule
-    // During 30-day trial: 0% platform fee from vendors, 2% PG, 4% cancellation protection
-    // Post-trial (5% rule): 3% platform commission + 2% PG + 4% cancellation protection
-    let totalPlatformProfit = 0;
-    for (const store of allStores) {
-      const storeCompleted = completedOrders.filter(o => o.store && (o.store._id?.toString() === store._id.toString() || o.store.toString() === store._id.toString()));
-      totalPlatformProfit += storeCompleted.reduce((sum, o) => sum + (o.totalAmount || 0), 0) * 0.03;
+    // Platform Profit Calculation: Synced with Settlement Ledger + Live Volume
+    const settlements = await prisma.settlement.findMany();
+    let settledGateway = 0;
+    let settledPlatformProfit = 0;
+    let settledCancellationPenalty = 0;
 
-      // 4% cancellation penalty on cancelled confirmed orders
-      const storeCancelled = allOrders.filter(o => 
-        o.store && 
-        (o.store._id?.toString() === store._id.toString() || o.store.toString() === store._id.toString()) && 
-        o.status === 'Cancelled' && 
-        o.paymentStatus === 'Confirmed'
-      );
-      totalPlatformProfit += storeCancelled.reduce((sum, o) => sum + (o.totalAmount || 0), 0) * 0.04;
+    for (const s of settlements) {
+      const f = s.feesBreakdown && typeof s.feesBreakdown === 'object' ? s.feesBreakdown : {};
+      settledGateway += Number(f.gatewayFee || s.gatewayFee || 0);
+      settledPlatformProfit += Number(f.platformProfit || s.platformCommission || 0);
+      settledCancellationPenalty += Number(f.cancellationPenalty || s.cancellationPenalties || 0);
     }
+
+    const [unsettledCompleted, unsettledCancelled] = await Promise.all([
+      prisma.order.findMany({
+        where: { status: 'Completed', isSettled: false }
+      }),
+      prisma.order.findMany({
+        where: { status: 'Cancelled', paymentStatus: 'Confirmed', isSettled: false }
+      })
+    ]);
+
+    const liveCompletedVolume = unsettledCompleted.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+    const liveCancelledVolume = unsettledCancelled.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+
+    const projectedGateway = liveCompletedVolume * 0.02;
+    const projectedPlatformProfit = liveCompletedVolume * 0.03;
+    const projectedCancellationPenalty = liveCancelledVolume * 0.04;
+
+    const totalPlatformProfit = parseFloat((
+      settledGateway + settledPlatformProfit + settledCancellationPenalty +
+      projectedGateway + projectedPlatformProfit + projectedCancellationPenalty
+    ).toFixed(2));
 
     // Hourly Distribution for 24 hours of today (Real-Time Current Date)
     const hourlyVelocity = Array.from({ length: 24 }, (_, h) => {
@@ -521,7 +555,9 @@ router.get('/vendors', async (req, res) => {
         _id: vendor.id,
         name: vendor.name,
         email: vendor.email,
+        phone: vendor.telegramChatId || '',
         role: vendor.role,
+        status: vendor.status || 'ACTIVE',
         isBanned: vendor.isBanned,
         createdAt: vendor.createdAt,
         updatedAt: vendor.updatedAt,
@@ -544,6 +580,91 @@ router.get('/vendors', async (req, res) => {
     }));
 
     res.json(vendorsWithStores);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 2b. Approve Pending Vendor
+router.put('/vendor/:id/approve', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const vendor = await prisma.admin.findUnique({
+      where: { id },
+      include: { stores: true }
+    });
+
+    if (!vendor) return res.status(404).json({ message: 'Vendor not found' });
+
+    await prisma.admin.update({
+      where: { id },
+      data: { status: 'ACTIVE' }
+    });
+
+    if (vendor.stores && vendor.stores.length > 0) {
+      await prisma.store.updateMany({
+        where: { adminId: id },
+        data: {
+          isHidden: false,
+          subscriptionStatus: 'active'
+        }
+      });
+    }
+
+    res.json({ success: true, message: `Vendor "${vendor.name}" approved successfully.` });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 2c. Reject & Permanently Purge Fake/Spam Vendor
+router.delete('/vendor/:id/reject', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const vendor = await prisma.admin.findUnique({
+      where: { id },
+      include: { stores: true }
+    });
+
+    if (!vendor) return res.status(404).json({ message: 'Vendor not found' });
+
+    // Hard delete stores & admin account to completely eradicate credentials & free email
+    await prisma.$transaction(async (tx) => {
+      const storeIds = (vendor.stores || []).map(s => s.id);
+      if (storeIds.length > 0) {
+        await tx.order.deleteMany({ where: { storeId: { in: storeIds } } });
+        await tx.store.deleteMany({ where: { id: { in: storeIds } } });
+      }
+      await tx.admin.delete({ where: { id } });
+    });
+
+    res.json({ success: true, message: `Vendor application rejected and credentials permanently purged.` });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 2d. Generic Delete Vendor
+router.delete('/vendor/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const vendor = await prisma.admin.findUnique({
+      where: { id },
+      include: { stores: true }
+    });
+
+    if (!vendor) return res.status(404).json({ message: 'Vendor not found' });
+
+    await prisma.$transaction(async (tx) => {
+      const storeIds = (vendor.stores || []).map(s => s.id);
+      if (storeIds.length > 0) {
+        await tx.order.deleteMany({ where: { storeId: { in: storeIds } } });
+        await tx.store.deleteMany({ where: { id: { in: storeIds } } });
+      }
+      await tx.admin.delete({ where: { id } });
+    });
+
+    res.json({ success: true, message: `Vendor and associated stores removed successfully.` });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -925,38 +1046,28 @@ router.get(['/finance', '/finance/summary'], async (req, res) => {
     const stores = await prisma.store.findMany({
       include: { admin: { select: { id: true, name: true, email: true } } }
     });
+    const allSettlements = await prisma.settlement.findMany({
+      orderBy: { periodEnd: 'desc' }
+    });
+    const allUnsettledOrders = await prisma.order.findMany({
+      where: { status: 'Completed', isSettled: false }
+    });
+    const allUnsettledCancelled = await prisma.order.findMany({
+      where: { status: 'Cancelled', paymentStatus: 'Confirmed', isSettled: false }
+    });
 
     const now = new Date();
 
-    const financeData = await Promise.all(stores.map(async (store) => {
-      const pendingSettlements = await prisma.settlement.findMany({
-        where: { storeId: store.id, status: 'pending' }
-      });
+    const financeData = stores.map((store) => {
+      const storeSettlements = allSettlements.filter(s => s.storeId === store.id);
+      const pendingSettlements = storeSettlements.filter(s => s.status === 'pending');
+      const latestSettlement = storeSettlements[0] || null;
 
-      const latestSettlement = await prisma.settlement.findFirst({
-        where: { storeId: store.id },
-        orderBy: { periodEnd: 'desc' }
-      });
+      const storeUnsettledOrders = allUnsettledOrders.filter(o => o.storeId === store.id);
+      const liveUnsettledRevenue = storeUnsettledOrders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
 
-      const unsettledOrders = await prisma.order.findMany({
-        where: {
-          storeId: store.id,
-          status: 'Completed',
-          isSettled: false
-        }
-      });
-
-      const liveUnsettledRevenue = unsettledOrders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
-
-      const unsettledCancelled = await prisma.order.findMany({
-        where: {
-          storeId: store.id,
-          status: 'Cancelled',
-          paymentStatus: 'Confirmed',
-          isSettled: false
-        }
-      });
-      const liveCancelledVolume = unsettledCancelled.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+      const storeUnsettledCancelled = allUnsettledCancelled.filter(o => o.storeId === store.id);
+      const liveCancelledVolume = storeUnsettledCancelled.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
 
       // Projected fees on live (unsettled) volume — standard rates + cancellation penalty if any
       const projectedGatewayFee = parseFloat((liveUnsettledRevenue * 0.02).toFixed(2));
@@ -994,7 +1105,7 @@ router.get(['/finance', '/finance/summary'], async (req, res) => {
       let settlementStatus = 'paid';
       if (pendingSettlements.length > 0) {
         settlementStatus = 'pending';
-      } else if (liveUnsettledRevenue > 0) {
+      } else if (liveUnsettledRevenue > 0 || liveCancelledVolume > 0) {
         settlementStatus = 'accumulating';
       }
 
@@ -1020,7 +1131,7 @@ router.get(['/finance', '/finance/summary'], async (req, res) => {
         settlementStatus,
         pendingCount: pendingSettlements.length
       };
-    }));
+    });
 
     res.json(financeData);
   } catch (err) {

@@ -78,7 +78,7 @@ const PrivacyPolicy = () => {
         }}>
           <section style={{ marginBottom: '2.5rem' }}>
             <p style={{ marginBottom: '1.5rem' }}>
-              This Privacy Policy describes how <b>UNIVERSE</b> and its affiliates (collectively "Universe, we, our, us") collect, use, share, protect or otherwise process your information/ personal data through our website <span style={{ color: 'var(--primary)' }}>https://www.universeorder.co.in</span> (hereinafter referred to as Platform).
+              This Privacy Policy describes how <b>UNIVERSE</b> and its affiliates (collectively "Universe, we, our, us") collect, use, share, protect or otherwise process your information/ personal data through our website <span style={{ color: 'var(--primary)' }}>https://food.universeorder.co.in</span> (including universeorder.co.in and uat.food.universeorder.co.in, hereinafter referred to as Platform).
             </p>
             <p style={{ marginBottom: '1.5rem' }}>
               By visiting this Platform, providing your information or availing any product/service offered on the Platform, you expressly agree to be bound by the terms and conditions of this Privacy Policy and the Terms of Use. If you do not agree please do not use or access our Platform.

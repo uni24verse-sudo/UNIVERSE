@@ -4,7 +4,7 @@ import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
 import { QRCodeSVG } from 'qrcode.react';
 import { 
-  ArrowLeft, Store, LayoutDashboard, QrCode, LogOut, Plus, Pencil, Trash2, Eye, EyeOff, Save, X, Image as LucideImage, Download, ExternalLink, ShoppingBag, Tag, Sparkles, Loader2, Check, Menu, Globe, Upload, Link as LucideLink
+  ArrowLeft, Store, LayoutDashboard, QrCode, LogOut, Plus, Pencil, Trash2, Eye, EyeOff, Save, X, Image as LucideImage, Download, ExternalLink, ShoppingBag, Tag, Sparkles, Loader2, Check, Menu, Globe, Upload, Link as LucideLink, Zap
 } from 'lucide-react';
 
 const ManageStore = () => {
@@ -27,6 +27,7 @@ const ManageStore = () => {
   const [storeOpeningTime, setStoreOpeningTime] = useState('10:00');
   const [storeClosingTime, setStoreClosingTime] = useState('22:00');
   const [storeIsAutomated, setStoreIsAutomated] = useState(true);
+  const [storeAutoAccept, setStoreAutoAccept] = useState(false);
   const [storeType, setStoreType] = useState('FastFood');
   const [storeImageFile, setStoreImageFile] = useState(null);
 
@@ -127,6 +128,7 @@ const ManageStore = () => {
           setStoreOpeningTime(defaultStore.openingTime || '10:00');
           setStoreClosingTime(defaultStore.closingTime || '22:00');
           setStoreIsAutomated(defaultStore.isAutomated !== false);
+          setStoreAutoAccept(defaultStore.autoAcceptOrders === true);
           setStoreAccentColor(defaultStore.accentColor || '#ef4123');
           setStoreType(defaultStore.storeType || 'FastFood');
 
@@ -162,6 +164,7 @@ const ManageStore = () => {
       setStoreOpeningTime(selected.openingTime || '10:00');
       setStoreClosingTime(selected.closingTime || '22:00');
       setStoreIsAutomated(selected.isAutomated !== false);
+      setStoreAutoAccept(selected.autoAcceptOrders === true);
       setStoreAccentColor(selected.accentColor || '#ef4123');
       setStoreType(selected.storeType || 'FastFood');
       setIsEditingStore(false);
@@ -281,6 +284,31 @@ const ManageStore = () => {
     }
   };
 
+  const toggleAutoAccept = async () => {
+    if (!store) return;
+    const targetId = store._id || store.id;
+    const nextStatus = !store.autoAcceptOrders;
+    setStore(prev => ({ ...prev, autoAcceptOrders: nextStatus }));
+    setStores(prev => prev.map(s => (s._id === targetId || s.id === targetId) ? { ...s, autoAcceptOrders: nextStatus } : s));
+    setStoreAutoAccept(nextStatus);
+
+    try {
+      const res = await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/store/${targetId}/toggle-auto-accept`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.data && res.data.autoAcceptOrders !== undefined) {
+        setStore(prev => ({ ...prev, autoAcceptOrders: res.data.autoAcceptOrders }));
+        setStores(prev => prev.map(s => (s._id === targetId || s.id === targetId) ? { ...s, autoAcceptOrders: res.data.autoAcceptOrders } : s));
+        setStoreAutoAccept(res.data.autoAcceptOrders);
+      }
+    } catch (err) {
+      alert('Failed to update Auto-Accept setting');
+      setStore(prev => ({ ...prev, autoAcceptOrders: !nextStatus }));
+      setStores(prev => prev.map(s => (s._id === targetId || s.id === targetId) ? { ...s, autoAcceptOrders: !nextStatus } : s));
+      setStoreAutoAccept(!nextStatus);
+    }
+  };
+
   const handleUploadCategoryImage = async (categoryName, file) => {
     if (!file) return;
     try {
@@ -377,6 +405,7 @@ const ManageStore = () => {
           openingTime: storeOpeningTime,
           closingTime: storeClosingTime,
           isAutomated: storeIsAutomated,
+          autoAcceptOrders: storeAutoAccept,
           accentColor: storeAccentColor,
           storeType: storeType
         },
@@ -404,9 +433,10 @@ const ManageStore = () => {
         openingTime: storeRes.data.openingTime,
         closingTime: storeRes.data.closingTime,
         isAutomated: storeRes.data.isAutomated,
+        autoAcceptOrders: storeRes.data.autoAcceptOrders,
         storeType: storeRes.data.storeType
       }));
-      setStores(prev => prev.map(s => s._id === store._id ? { ...s, name: storeRes.data.name, category: storeRes.data.category, packagingCharge: storeRes.data.packagingCharge, market: storeRes.data.market, upiId: storeRes.data.upiId, telegramChatId: storeRes.data.telegramChatId, telegramBotToken: storeRes.data.telegramBotToken, openingTime: storeRes.data.openingTime, closingTime: storeRes.data.closingTime, isAutomated: storeRes.data.isAutomated, storeType: storeRes.data.storeType } : s));
+      setStores(prev => prev.map(s => s._id === store._id ? { ...s, name: storeRes.data.name, category: storeRes.data.category, packagingCharge: storeRes.data.packagingCharge, market: storeRes.data.market, upiId: storeRes.data.upiId, telegramChatId: storeRes.data.telegramChatId, telegramBotToken: storeRes.data.telegramBotToken, openingTime: storeRes.data.openingTime, closingTime: storeRes.data.closingTime, isAutomated: storeRes.data.isAutomated, autoAcceptOrders: storeRes.data.autoAcceptOrders, storeType: storeRes.data.storeType } : s));
 
       updateVendor(adminRes.data.admin);
       setIsEditingStore(false);
@@ -1019,6 +1049,21 @@ const ManageStore = () => {
                         </div>
                       )}
                     </div>
+
+                    <div style={{ padding: '1rem', background: 'rgba(239, 65, 35, 0.05)', borderRadius: '16px', border: '1px solid rgba(239, 65, 35, 0.15)', marginTop: '0.75rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div>
+                          <p style={{ margin: 0, fontWeight: '700', fontSize: '0.9rem' }}>Auto-Accept Orders</p>
+                          <p style={{ margin: 0, fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Automatically accept paid orders without manual confirmation</p>
+                        </div>
+                        <input 
+                          type="checkbox" 
+                          checked={storeAutoAccept} 
+                          onChange={(e) => setStoreAutoAccept(e.target.checked)}
+                          style={{ width: '20px', height: '20px', cursor: 'pointer', accentColor: '#ef4123' }}
+                        />
+                      </div>
+                    </div>
                   </div>
                   <div style={{ display: 'flex', gap: '0.5rem' }}>
                     <button type="submit" className="btn btn-primary" style={{ padding: '0.5rem', height: 'auto', borderRadius: '10px', fontSize: '0.875rem', flex: 1 }}>
@@ -1075,6 +1120,33 @@ const ManageStore = () => {
                         AUTO-MODE
                       </span>
                     )}
+                  </div>
+                  <div style={{ padding: '1rem', background: '#f8fafc', borderRadius: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid rgba(239, 65, 35, 0.15)' }}>
+                    <div>
+                      <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Auto-Accept Orders</p>
+                      <p style={{ fontWeight: '700', margin: 0, fontSize: '0.85rem' }}>
+                        {store.autoAcceptOrders ? 'Auto-Confirm Orders Instantly' : 'Manual Acceptance (Vendor Reviews)'}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={toggleAutoAccept}
+                      style={{
+                        padding: '0.4rem 0.8rem',
+                        borderRadius: '100px',
+                        border: `1px solid ${store.autoAcceptOrders ? 'rgba(239, 65, 35, 0.3)' : 'var(--surface-border)'}`,
+                        background: store.autoAcceptOrders ? 'rgba(239, 65, 35, 0.1)' : 'rgba(0,0,0,0.05)',
+                        color: store.autoAcceptOrders ? '#ef4123' : 'var(--text-secondary)',
+                        fontWeight: '800',
+                        fontSize: '0.75rem',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.35rem'
+                      }}
+                    >
+                      <Zap size={13} fill={store.autoAcceptOrders ? '#ef4123' : 'none'} /> {store.autoAcceptOrders ? 'ENABLED' : 'DISABLED'}
+                    </button>
                   </div>
                 </div>
               )}
