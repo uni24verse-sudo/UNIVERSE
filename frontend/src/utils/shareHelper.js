@@ -15,11 +15,12 @@ export const shareContent = async ({ title, text, url }) => {
   // 1. Web Share API (Primary for mobile devices like Android Chrome / iOS Safari)
   if (navigator.share) {
     try {
-      await navigator.share({
-        title: shareTitle,
-        text: shareText,
-        url: shareUrl
-      });
+      // If shareText already includes the URL, omit the url parameter so Android/WhatsApp won't print it twice
+      const sharePayload = shareText.includes(shareUrl)
+        ? { title: shareTitle, text: shareText }
+        : { title: shareTitle, text: shareText, url: shareUrl };
+
+      await navigator.share(sharePayload);
       return { success: true, method: 'native' };
     } catch (err) {
       if (err.name === 'AbortError') {

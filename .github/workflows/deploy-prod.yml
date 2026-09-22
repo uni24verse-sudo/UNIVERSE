@@ -53,9 +53,8 @@ jobs:
             pm2 reload universe-backend || pm2 restart universe-backend || pm2 restart all
             pm2 logs universe-backend --lines 25 --nostream
 
-            echo "🌐 Updating and reloading Nginx configuration..."
-            sudo cp /home/ubuntu/UNIVERSE/prod.nginx.conf /etc/nginx/sites-available/default
-            sudo nginx -t && sudo systemctl reload nginx
+            echo "🌐 Inspecting, updating and reloading active Nginx configuration..."
+            sudo python3 /home/ubuntu/UNIVERSE/backend/scripts/update-nginx.py
 
             echo "=========================================="
             echo "✅ UniVerse Production Deployment Completed!"
