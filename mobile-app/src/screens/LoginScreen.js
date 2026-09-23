@@ -56,10 +56,10 @@ export default function LoginScreen() {
           <View style={styles.header}>
             <Text style={styles.title}>UNIVERSE</Text>
             <View style={styles.badge}>
-              <Text style={styles.badgeText}>STAFF</Text>
+              <Text style={styles.badgeText}>VENDOR PARTNER</Text>
             </View>
           </View>
-          <Text style={styles.subtitle}>Sign in to manage your active orders</Text>
+          <Text style={styles.subtitle}>Fast, synchronized kitchen operations</Text>
 
           <View style={styles.inputContainer}>
             <Text style={styles.label}>Email Address</Text>

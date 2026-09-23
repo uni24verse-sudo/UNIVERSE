@@ -29,22 +29,37 @@ function getAppOrigins(req) {
   return { frontendOrigin, publicOrigin };
 }
 
-// Helper to ensure absolute URL with valid scheme for Open Graph scrapers (WhatsApp, FB, Telegram)
+// Helper to detect social / messaging platform preview scrapers
+function isBotRequest(req) {
+  const ua = (req.get('user-agent') || '').toLowerCase();
+  return /whatsapp|facebookexternalhit|facebot|twitterbot|telegrambot|linkedinbot|slackbot|discordbot|bingbot|googlebot|crawler|spider/i.test(ua);
+}
+
+// Helper to ensure absolute, compressed, lightweight URL for Open Graph scrapers (WhatsApp, FB, Telegram)
 function formatImageUrl(img, origin) {
   if (!img || typeof img !== 'string' || !img.trim()) {
     return `${origin}/favicon.png`;
   }
-  const clean = img.trim();
-  if (clean.startsWith('http://') || clean.startsWith('https://')) {
-    return clean;
-  }
+  let clean = img.trim();
   if (clean.startsWith('//')) {
-    return `https:${clean}`;
+    clean = `https:${clean}`;
+  } else if (clean.startsWith('/')) {
+    clean = `${origin}${clean}`;
+  } else if (!clean.startsWith('http://') && !clean.startsWith('https://')) {
+    clean = `${origin}/${clean}`;
   }
-  if (clean.startsWith('/')) {
-    return `${origin}${clean}`;
+
+  // Cloudinary Optimization for Social / WhatsApp Link Previews:
+  // WhatsApp strictly caps preview images at 300KB and prefers JPEG format.
+  // Phone/vendor dish uploads are often 3-5MB PNG/JPEGs which WhatsApp rejects or drops.
+  // Transforming with w_600,h_600,c_fill,q_auto,f_jpg yields ~40-80KB high-definition previews.
+  if (clean.includes('cloudinary.com') && clean.includes('/upload/')) {
+    if (!clean.includes('/upload/w_600') && !clean.includes('/upload/w_') && !clean.includes('/upload/c_')) {
+      clean = clean.replace('/upload/', '/upload/w_600,h_600,c_fill,q_auto,f_jpg/');
+    }
   }
-  return `${origin}/${clean}`;
+
+  return clean;
 }
 
 // 1. Food Dish Share Controller (/d/:storeId & /api/share/dish)
@@ -116,7 +131,11 @@ const handleDishShare = async (req, res) => {
       targetUrl = `${frontendOrigin}/store/${store.id}`;
     }
 
+    const isBot = isBotRequest(req);
+    const selfUrl = `${publicOrigin}${req.originalUrl}`;
     const ogImage = formatImageUrl(rawImage, publicOrigin);
+    const canonicalUrl = isBot ? selfUrl : targetUrl;
+    const ogUrl = selfUrl;
 
     // Render lightweight Open Graph HTML with instant client-side redirection
     const html = `<!DOCTYPE html>
@@ -127,15 +146,18 @@ const handleDishShare = async (req, res) => {
   <title>${escapeHtml(pageTitle)}</title>
 
   <!-- Canonical and Open Graph / WhatsApp Preview Tags -->
-  <link rel="canonical" href="${escapeHtml(targetUrl)}">
+  <link rel="canonical" href="${escapeHtml(canonicalUrl)}">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="UniVerse Campus Dining">
   <meta property="og:title" content="${escapeHtml(ogTitle)}">
   <meta property="og:description" content="${escapeHtml(ogDesc)}">
   <meta property="og:image" content="${escapeHtml(ogImage)}">
   <meta property="og:image:secure_url" content="${escapeHtml(ogImage)}">
+  <meta property="og:image:type" content="image/jpeg">
+  <meta property="og:image:width" content="600">
+  <meta property="og:image:height" content="600">
   <meta property="og:image:alt" content="${escapeHtml(ogTitle)}">
-  <meta property="og:url" content="${escapeHtml(targetUrl)}">
+  <meta property="og:url" content="${escapeHtml(ogUrl)}">
 
   <!-- Twitter Card -->
   <meta name="twitter:card" content="summary_large_image">
@@ -143,11 +165,11 @@ const handleDishShare = async (req, res) => {
   <meta name="twitter:description" content="${escapeHtml(ogDesc)}">
   <meta name="twitter:image" content="${escapeHtml(ogImage)}">
 
-  <!-- Instant Browser Redirect for Humans -->
+  ${!isBot ? `<!-- Instant Browser Redirect for Humans -->
   <meta http-equiv="refresh" content="0;url=${escapeHtml(targetUrl)}">
   <script>
     window.location.replace("${escapeHtml(targetUrl)}");
-  </script>
+  </script>` : ''}
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #ffffff; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; text-align: center; }
     .loader { padding: 2rem; border-radius: 16px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); }
@@ -200,9 +222,12 @@ const handleStallShare = async (req, res) => {
     const pageTitle = `${store.name} | UNIVERSE Campus Dining`;
     const ogTitle = `🏪 ${store.name} • UNIVERSE Campus Dining`;
     const ogDesc = `Looking for good food? Explore ${productCount > 0 ? `${productCount} fresh dishes` : 'the live menu'} at ${store.name} (${store.market || 'Campus'}). Ready to order on UNIVERSE!`;
-    // User requirement: if sharing stall then stall image should be shown
+    const isBot = isBotRequest(req);
+    const selfUrl = `${publicOrigin}${req.originalUrl}`;
     const ogImage = formatImageUrl(store.image, publicOrigin);
     const targetUrl = `${frontendOrigin}/store/${store.id}`;
+    const canonicalUrl = isBot ? selfUrl : targetUrl;
+    const ogUrl = selfUrl;
 
     const html = `<!DOCTYPE html>
 <html lang="en">
@@ -211,25 +236,29 @@ const handleStallShare = async (req, res) => {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${escapeHtml(pageTitle)}</title>
 
-  <link rel="canonical" href="${escapeHtml(targetUrl)}">
+  <link rel="canonical" href="${escapeHtml(canonicalUrl)}">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="UniVerse Campus Dining">
   <meta property="og:title" content="${escapeHtml(ogTitle)}">
   <meta property="og:description" content="${escapeHtml(ogDesc)}">
   <meta property="og:image" content="${escapeHtml(ogImage)}">
   <meta property="og:image:secure_url" content="${escapeHtml(ogImage)}">
+  <meta property="og:image:type" content="image/jpeg">
+  <meta property="og:image:width" content="600">
+  <meta property="og:image:height" content="600">
   <meta property="og:image:alt" content="${escapeHtml(ogTitle)}">
-  <meta property="og:url" content="${escapeHtml(targetUrl)}">
+  <meta property="og:url" content="${escapeHtml(ogUrl)}">
 
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="${escapeHtml(ogTitle)}">
   <meta name="twitter:description" content="${escapeHtml(ogDesc)}">
   <meta name="twitter:image" content="${escapeHtml(ogImage)}">
 
+  ${!isBot ? `<!-- Instant Browser Redirect for Humans -->
   <meta http-equiv="refresh" content="0;url=${escapeHtml(targetUrl)}">
   <script>
     window.location.replace("${escapeHtml(targetUrl)}");
-  </script>
+  </script>` : ''}
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #ffffff; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; text-align: center; }
     .loader { padding: 2rem; border-radius: 16px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); }

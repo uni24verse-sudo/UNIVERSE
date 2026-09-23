@@ -11,7 +11,8 @@ import {
   RefreshControl,
   ScrollView,
   Dimensions,
-  Switch
+  Switch,
+  Vibration
 } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -343,6 +344,9 @@ export default function LiveOrdersScreen({ navigation }) {
         return;
       }
 
+      // Tactile physical feedback for kitchen vendor
+      Vibration.vibrate(40);
+
       // Optimistic Update
       setOrders((prev) => prev.map((o) => (o._id === orderId ? { ...o, status: newStatus } : o)));
       await apiClient.put(`/orders/${orderId}/status`, { status: newStatus });
@@ -358,12 +362,35 @@ export default function LiveOrdersScreen({ navigation }) {
 
   const handleDirectHandover = async (orderId, orderNumber) => {
     try {
+      // Tactile double vibration on completed handover
+      Vibration.vibrate([0, 50, 40, 80]);
+
       // Optimistic Update
       setOrders((prev) => prev.map((o) => (o._id === orderId ? { ...o, status: 'Completed' } : o)));
       await apiClient.put(`/orders/${orderId}/handover-direct`);
     } catch (error) {
       Alert.alert('Error', error.response?.data?.message || 'Failed to complete handover');
       fetchOrders();
+    }
+  };
+
+  // Safe handler to allow early cooking with kitchen confirmation
+  const handleStartCookingPreOrder = (order, preOrderInfo) => {
+    if (preOrderInfo.locked) {
+      Alert.alert(
+        '⏳ Scheduled Pre-Order',
+        `Order #${order.orderNumber || ''} is scheduled for ${order.scheduledTime} (in ${preOrderInfo.diffMins} minutes).\n\nDo you want to begin cooking early?`,
+        [
+          { text: 'Keep on Hold', style: 'cancel' },
+          { 
+            text: 'Yes, Start Cooking', 
+            style: 'default', 
+            onPress: () => updateStatus(order._id, 'Confirmed', 'Cooking') 
+          }
+        ]
+      );
+    } else {
+      updateStatus(order._id, 'Confirmed', 'Cooking');
     }
   };
 
@@ -384,6 +411,7 @@ export default function LiveOrdersScreen({ navigation }) {
             if (!storeId) return;
 
             try {
+              Vibration.vibrate([0, 60, 50, 100]);
               // Optimistic update
               setOrders((prev) => prev.map((o) => (o.status === 'Ready' ? { ...o, status: 'Completed' } : o)));
               const res = await apiClient.put(`/orders/store/${storeId}/complete-all-ready`);
@@ -398,7 +426,7 @@ export default function LiveOrdersScreen({ navigation }) {
     );
   };
 
-  // Helper to parse scheduled pickup time in Indian Standard Time (IST, UTC + 5:30)
+  // Helper to parse scheduled pickup time in Indian Standard Time (IST, UTC + 5:30) with midnight protection
   function parseScheduledTimeIST(scheduledTimeStr) {
     if (!scheduledTimeStr) return null;
     const trimmed = scheduledTimeStr.trim().toUpperCase();
@@ -422,7 +450,14 @@ export default function LiveOrdersScreen({ navigation }) {
     const istScheduled = new Date(istNow);
     istScheduled.setHours(hours, minutes, 0, 0);
 
-    const diffMinutes = (istScheduled.getTime() - istNow.getTime()) / (1000 * 60);
+    let diffMinutes = (istScheduled.getTime() - istNow.getTime()) / (1000 * 60);
+
+    // Midnight rollover protection: if order is for 12:xx AM / early AM and current time is late evening
+    if (diffMinutes < -120 && istNow.getHours() >= 18 && hours <= 6) {
+      istScheduled.setDate(istScheduled.getDate() + 1);
+      diffMinutes = (istScheduled.getTime() - istNow.getTime()) / (1000 * 60);
+    }
+
     return {
       diffMinutes: Math.round(diffMinutes),
       hours,
@@ -470,9 +505,10 @@ export default function LiveOrdersScreen({ navigation }) {
   // Status counts for tab badges
   const counts = useMemo(() => {
     const active = orders.filter(o => ['Pending', 'Confirmed', 'Cooking'].includes(o.status)).length;
+    const preOrders = orders.filter(o => o.isPreOrder && ['Pending', 'Confirmed', 'Cooking'].includes(o.status)).length;
     const ready = orders.filter(o => o.status === 'Ready').length;
     const history = orders.filter(o => ['Completed', 'Cancelled'].includes(o.status)).length;
-    return { active, ready, history };
+    return { active, preOrders, ready, history };
   }, [orders]);
 
   // Today's summary statistics for history tab
@@ -517,6 +553,15 @@ export default function LiveOrdersScreen({ navigation }) {
     });
   }, [orders, filter, searchQuery]);
   const activeOrders = useMemo(() => displayOrders.filter(o => ['Pending', 'Confirmed', 'Cooking'].includes(o.status)), [displayOrders]);
+  const preOrdersList = useMemo(() => {
+    return displayOrders
+      .filter(o => o.isPreOrder && ['Pending', 'Confirmed', 'Cooking'].includes(o.status))
+      .sort((a, b) => {
+        const timeA = parseScheduledTimeIST(a.scheduledTime)?.diffMinutes ?? 9999;
+        const timeB = parseScheduledTimeIST(b.scheduledTime)?.diffMinutes ?? 9999;
+        return timeA - timeB;
+      });
+  }, [displayOrders]);
   const readyOrders = useMemo(() => displayOrders.filter(o => o.status === 'Ready'), [displayOrders]);
   const historyOrders = useMemo(() => displayOrders.filter(o => ['Completed', 'Cancelled'].includes(o.status)), [displayOrders]);
 
@@ -589,17 +634,16 @@ export default function LiveOrdersScreen({ navigation }) {
         <View style={autoAcceptOrders ? styles.actionRow : null}>
           <TouchableOpacity 
             style={{ flex: autoAcceptOrders ? 1.4 : 1 }}
-            onPress={() => updateStatus(order._id, 'Confirmed', 'Cooking')}
-            disabled={preOrderInfo.locked}
+            onPress={() => handleStartCookingPreOrder(order, preOrderInfo)}
             activeOpacity={0.8}
           >
             <LinearGradient 
-              colors={preOrderInfo.locked ? ['#94A3B8', '#64748B'] : ['#8B5CF6', '#7C3AED']} 
+              colors={preOrderInfo.locked ? ['#7C3AED', '#6D28D9'] : ['#8B5CF6', '#7C3AED']} 
               style={styles.gradientBtn}
             >
               <Ionicons name="restaurant-outline" size={18} color="white" style={{ marginRight: 6 }} />
               <Text style={styles.btnText}>
-                {preOrderInfo.locked ? 'Scheduled for Later' : 'Start Cooking'}
+                {preOrderInfo.locked ? `Start Cooking (${preOrderInfo.diffMins}m hold)` : 'Start Cooking'}
               </Text>
             </LinearGradient>
           </TouchableOpacity>
@@ -891,13 +935,14 @@ export default function LiveOrdersScreen({ navigation }) {
         </View>
       </View>
 
-      {/* Modern 3-Tab Filter Bar */}
+      {/* Modern 4-Tab Filter Bar */}
       <View style={styles.tabsContainer}>
         {[
           { key: 'Active', label: 'Active', count: counts.active, color: '#3B82F6' },
+          { key: 'Pre-Orders', label: 'Pre-Orders', count: counts.preOrders, color: '#8B5CF6' },
           { key: 'Ready', label: 'Ready', count: counts.ready, color: '#EF4123' },
           { key: 'History', label: 'History', count: counts.history, color: '#64748B' },
-        ].map((tab) => {
+        ].map((tab, idx) => {
           const isActive = filter === tab.key;
           return (
             <TouchableOpacity 
@@ -905,8 +950,7 @@ export default function LiveOrdersScreen({ navigation }) {
               style={[styles.tab, isActive && styles.tabActive]}
               onPress={() => {
                 setFilter(tab.key);
-                const pageIndex = tab.key === 'Active' ? 0 : tab.key === 'Ready' ? 1 : 2;
-                scrollViewRef.current?.scrollTo({ x: pageIndex * screenWidth, animated: true });
+                scrollViewRef.current?.scrollTo({ x: idx * screenWidth, animated: true });
               }}
               activeOpacity={0.8}
             >
@@ -915,7 +959,7 @@ export default function LiveOrdersScreen({ navigation }) {
               </Text>
               <View style={[
                 styles.tabBadge, 
-                isActive ? styles.tabBadgeActive : styles.tabBadgeInactive
+                isActive ? [styles.tabBadgeActive, { backgroundColor: tab.color }] : styles.tabBadgeInactive
               ]}>
                 <Text style={[styles.tabBadgeText, isActive && styles.tabBadgeTextActive]}>
                   {tab.count}
@@ -977,8 +1021,9 @@ export default function LiveOrdersScreen({ navigation }) {
             const offsetX = e.nativeEvent.contentOffset.x;
             const pageIndex = Math.round(offsetX / screenWidth);
             if (pageIndex === 0 && filter !== 'Active') setFilter('Active');
-            else if (pageIndex === 1 && filter !== 'Ready') setFilter('Ready');
-            else if (pageIndex === 2 && filter !== 'History') setFilter('History');
+            else if (pageIndex === 1 && filter !== 'Pre-Orders') setFilter('Pre-Orders');
+            else if (pageIndex === 2 && filter !== 'Ready') setFilter('Ready');
+            else if (pageIndex === 3 && filter !== 'History') setFilter('History');
           }}
         >
           {/* Page 0: Active */}
@@ -998,7 +1043,34 @@ export default function LiveOrdersScreen({ navigation }) {
             />
           </View>
 
-          {/* Page 1: Ready */}
+          {/* Page 1: Dedicated Pre-Orders Queue */}
+          <View style={{ width: screenWidth, flex: 1 }}>
+            <FlatList
+              data={preOrdersList}
+              keyExtractor={(item) => item._id}
+              renderItem={renderItem}
+              contentContainerStyle={styles.list}
+              refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => fetchOrders(true)} colors={['#8B5CF6']} />}
+              ListHeaderComponent={
+                preOrdersList.length > 0 ? (
+                  <View style={styles.preOrderHeaderNotice}>
+                    <Ionicons name="calendar" size={16} color="#7C3AED" style={{ marginRight: 6 }} />
+                    <Text style={styles.preOrderNoticeText}>
+                      Advance pickup schedule. Audio chime rings 20m before pickup.
+                    </Text>
+                  </View>
+                ) : null
+              }
+              ListEmptyComponent={
+                <View style={styles.emptyContainer}>
+                  <Text style={styles.emptyTitle}>No Scheduled Pre-Orders</Text>
+                  <Text style={styles.emptySub}>Advance scheduled student orders will appear here.</Text>
+                </View>
+              }
+            />
+          </View>
+
+          {/* Page 2: Ready */}
           <View style={{ width: screenWidth, flex: 1 }}>
             <FlatList
               data={readyOrders}
@@ -1056,7 +1128,7 @@ export default function LiveOrdersScreen({ navigation }) {
             />
           </View>
 
-          {/* Page 2: History */}
+          {/* Page 3: History */}
           <View style={{ width: screenWidth, flex: 1 }}>
             <FlatList
               data={historyOrders}
@@ -1212,22 +1284,22 @@ const styles = StyleSheet.create({
   },
   tabsContainer: {
     flexDirection: 'row',
-    paddingHorizontal: 20,
+    paddingHorizontal: 14,
     marginBottom: 12,
-    gap: 10,
+    gap: 6,
   },
   tab: {
     flex: 1,
     flexDirection: 'row',
-    paddingVertical: 10,
-    paddingHorizontal: 10,
+    paddingVertical: 9,
+    paddingHorizontal: 4,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 14,
+    borderRadius: 12,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    gap: 6,
+    gap: 4,
   },
   tabActive: {
     backgroundColor: '#0F172A',
@@ -1236,29 +1308,50 @@ const styles = StyleSheet.create({
   tabText: {
     color: '#64748B',
     fontWeight: '700',
-    fontSize: 14,
+    fontSize: 12,
   },
   activeTabText: {
     color: '#FFFFFF',
   },
   tabBadge: {
-    paddingHorizontal: 7,
-    paddingVertical: 2,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
     borderRadius: 100,
+    minWidth: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   tabBadgeInactive: {
     backgroundColor: '#F1F5F9',
   },
   tabBadgeActive: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: 'rgba(255,255,255,0.25)',
   },
   tabBadgeText: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '800',
     color: '#475569',
   },
   tabBadgeTextActive: {
     color: '#FFFFFF',
+  },
+  preOrderHeaderNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F5F3FF',
+    borderWidth: 1,
+    borderColor: '#DDD6FE',
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    marginBottom: 14,
+  },
+  preOrderNoticeText: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#6D28D9',
+    lineHeight: 16,
   },
   searchContainer: {
     flexDirection: 'row',

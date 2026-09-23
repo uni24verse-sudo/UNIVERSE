@@ -23,19 +23,35 @@ function MainTabNavigator() {
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarStyle: { backgroundColor: '#FFFFFF', borderTopColor: '#E2E8F0' },
+        tabBarStyle: { 
+          backgroundColor: '#FFFFFF', 
+          borderTopColor: '#F1F5F9',
+          borderTopWidth: 1,
+          height: Platform.OS === 'ios' ? 86 : 64,
+          paddingBottom: Platform.OS === 'ios' ? 28 : 10,
+          paddingTop: 8,
+          shadowColor: '#0F172A',
+          shadowOffset: { width: 0, height: -3 },
+          shadowOpacity: 0.05,
+          shadowRadius: 6,
+          elevation: 6,
+        },
+        tabBarLabelStyle: {
+          fontSize: 11,
+          fontWeight: '700',
+        },
         tabBarActiveTintColor: '#EF4123',
         tabBarInactiveTintColor: '#94A3B8',
         tabBarIcon: ({ focused, color, size }) => {
           let iconName;
           if (route.name === 'Orders') {
-            iconName = focused ? 'list' : 'list-outline';
+            iconName = focused ? 'receipt' : 'receipt-outline';
           } else if (route.name === 'Menu') {
-            iconName = focused ? 'restaurant' : 'restaurant-outline';
+            iconName = focused ? 'fast-food' : 'fast-food-outline';
           } else if (route.name === 'Profile') {
             iconName = focused ? 'person' : 'person-outline';
           }
-          return <Ionicons name={iconName} size={size} color={color} />;
+          return <Ionicons name={iconName} size={size + 1} color={color} />;
         },
       })}
     >

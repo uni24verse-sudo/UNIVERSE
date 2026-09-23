@@ -1,19 +1,39 @@
 {
   "expo": {
-    "name": "UNIVERSE",
+    "name": "UniVerse Vendor",
     "slug": "mobile-app",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/logo-symbol.png",
     "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0F172A"
+    },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.universe.vendor",
+      "buildNumber": "2",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Allow UniVerse Vendor to access your camera to scan student order pickup QR codes.",
+        "NSMicrophoneUsageDescription": "Allow UniVerse Vendor to use audio alerts and notifications in kitchen operations.",
+        "UIBackgroundModes": ["remote-notification", "fetch", "audio"]
+      }
     },
     "android": {
       "package": "com.universe.vendor",
+      "versionCode": 2,
       "googleServicesFile": "./google-services.json",
+      "permissions": [
+        "CAMERA",
+        "VIBRATE",
+        "WAKE_LOCK",
+        "POST_NOTIFICATIONS",
+        "RECORD_AUDIO"
+      ],
       "adaptiveIcon": {
-        "backgroundColor": "#FFFFFF",
+        "backgroundColor": "#0F172A",
         "foregroundImage": "./assets/android-icon-foreground.png"
       }
     },

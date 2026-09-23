@@ -13,6 +13,7 @@ export default function ScannerScreen({ navigation }) {
   const [processing, setProcessing] = useState(false);
   const [isCameraReady, setIsCameraReady] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [torch, setTorch] = useState(false);
   const isFocused = useIsFocused();
 
   useEffect(() => {
@@ -87,15 +88,40 @@ export default function ScannerScreen({ navigation }) {
           <CameraView 
             style={styles.camera}
             facing="back"
+            enableTorch={torch}
             onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
             barcodeScannerSettings={{
               barcodeTypes: ["qr"],
             }}
           />
+
+          {/* Illuminated Target Viewfinder */}
+          <View style={styles.viewfinderContainer} pointerEvents="none">
+            <View style={styles.reticleBox}>
+              <View style={[styles.corner, styles.cornerTL]} />
+              <View style={[styles.corner, styles.cornerTR]} />
+              <View style={[styles.corner, styles.cornerBL]} />
+              <View style={[styles.corner, styles.cornerBR]} />
+              <Text style={styles.reticleHint}>Align student QR code within frame</Text>
+            </View>
+          </View>
+
+          {/* Top Bar Controls */}
+          <View style={styles.topControlBar}>
+            <TouchableOpacity onPress={() => setTorch(t => !t)} style={styles.controlIconBtn}>
+              <Ionicons name={torch ? "flash" : "flash-outline"} size={22} color={torch ? "#FBBF24" : "white"} />
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.controlCloseBtn}>
+              <Ionicons name="close" size={20} color="white" />
+              <Text style={styles.closeBtnText}>Done</Text>
+            </TouchableOpacity>
+          </View>
+
           {processing && !showSuccess && (
             <View style={styles.processingOverlay}>
               <ActivityIndicator size="large" color="#EF4123" />
-              <Text style={styles.processingText}>Verifying...</Text>
+              <Text style={styles.processingText}>Verifying Handover...</Text>
             </View>
           )}
           {showSuccess && (
@@ -106,9 +132,6 @@ export default function ScannerScreen({ navigation }) {
               <Text style={[styles.processingText, { color: 'white', fontSize: 24, marginTop: 16 }]}>Verified!</Text>
             </View>
           )}
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.closeBtn}>
-            <Text style={styles.closeBtnText}>Close</Text>
-          </TouchableOpacity>
         </>
       ) : (
         <View style={styles.loadingContainer}>
@@ -186,22 +209,104 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderRadius: 12,
   },
-  closeBtn: {
+  topControlBar: {
     position: 'absolute',
     top: 50,
+    left: 20,
     right: 20,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    zIndex: 20,
+  },
+  controlIconBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  controlCloseBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 10,
-    borderRadius: 20,
+    borderRadius: 22,
+    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    gap: 4,
   },
   closeBtnText: {
     color: 'white',
-    fontWeight: 'bold',
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  viewfinderContainer: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  reticleBox: {
+    width: 260,
+    height: 260,
+    position: 'relative',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  corner: {
+    position: 'absolute',
+    width: 32,
+    height: 32,
+    borderColor: '#EF4123',
+  },
+  cornerTL: {
+    top: 0,
+    left: 0,
+    borderTopWidth: 4,
+    borderLeftWidth: 4,
+    borderTopLeftRadius: 12,
+  },
+  cornerTR: {
+    top: 0,
+    right: 0,
+    borderTopWidth: 4,
+    borderRightWidth: 4,
+    borderTopRightRadius: 12,
+  },
+  cornerBL: {
+    bottom: 0,
+    left: 0,
+    borderBottomWidth: 4,
+    borderLeftWidth: 4,
+    borderBottomLeftRadius: 12,
+  },
+  cornerBR: {
+    bottom: 0,
+    right: 0,
+    borderBottomWidth: 4,
+    borderRightWidth: 4,
+    borderBottomRightRadius: 12,
+  },
+  reticleHint: {
+    position: 'absolute',
+    bottom: -36,
+    color: 'rgba(255, 255, 255, 0.85)',
+    fontSize: 13,
+    fontWeight: '600',
+    textAlign: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 12,
+    overflow: 'hidden',
   },
   processingOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
     justifyContent: 'center',
     alignItems: 'center',
   },
