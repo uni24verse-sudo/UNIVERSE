@@ -16,8 +16,10 @@ import {
   Alert
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import apiClient from '../api/client';
+import { AuthContext } from '../context/AuthContext';
 import { SocketContext } from '../context/SocketContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -35,7 +37,9 @@ const detectDietaryPreference = (name) => {
 
 export default function MenuScreen() {
   const insets = useSafeAreaInsets();
+  const { user } = useContext(AuthContext);
   const { socket } = useContext(SocketContext);
+  const isEmployee = user?.role === 'employee';
 
   const [store, setStore] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -545,19 +549,21 @@ export default function MenuScreen() {
             />
           </View>
 
-          {/* Delete Button */}
-          <TouchableOpacity 
-            style={styles.deleteButton}
-            onPress={() => confirmDeleteProduct(item)}
-            disabled={isDeleting || isToggling}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            {isDeleting ? (
-              <ActivityIndicator size="small" color="#EF4444" />
-            ) : (
-              <Ionicons name="trash-outline" size={20} color="#EF4444" />
-            )}
-          </TouchableOpacity>
+          {/* Delete Button - Cart Owner Only */}
+          {!isEmployee && (
+            <TouchableOpacity 
+              style={styles.deleteButton}
+              onPress={() => confirmDeleteProduct(item)}
+              disabled={isDeleting || isToggling}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              {isDeleting ? (
+                <ActivityIndicator size="small" color="#EF4444" />
+              ) : (
+                <Ionicons name="trash-outline" size={19} color="#94A3B8" />
+              )}
+            </TouchableOpacity>
+          )}
         </View>
       </View>
     );
@@ -567,30 +573,46 @@ export default function MenuScreen() {
     <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* Top Header */}
       <View style={styles.header}>
-        <View>
-          <Text style={styles.headerTitle}>Menu & Stall</Text>
-          <Text style={styles.headerSubtitle}>{store.name || 'Vendor Stall'}</Text>
+        <View style={{ flex: 1, marginRight: 8 }}>
+          <Text style={styles.headerTitle}>Menu Items</Text>
+          <Text style={styles.headerSubtitle} numberOfLines={1}>
+            {store.name || 'Vendor Stall'} • {store.market || 'Campus Market'}
+          </Text>
         </View>
 
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <TouchableOpacity 
-            style={styles.scanHeaderBtn} 
-            onPress={() => setShowScanPickerModal(true)}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="sparkles" size={15} color="#EF4123" />
-            <Text style={styles.scanHeaderBtnText}>Scan</Text>
-          </TouchableOpacity>
+        {!isEmployee ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <TouchableOpacity 
+              style={styles.scanHeaderBtn} 
+              onPress={() => setShowScanPickerModal(true)}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="sparkles" size={14} color="#EF4123" />
+              <Text style={styles.scanHeaderBtnText}>AI Scan</Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity 
-            style={styles.addItemHeaderBtn} 
-            onPress={() => setShowAddModal(true)}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="add" size={18} color="#FFFFFF" />
-            <Text style={styles.addItemHeaderBtnText}>Add</Text>
-          </TouchableOpacity>
-        </View>
+            <TouchableOpacity 
+              style={styles.addItemHeaderBtn} 
+              onPress={() => setShowAddModal(true)}
+              activeOpacity={0.85}
+            >
+              <LinearGradient
+                colors={['#FF6B00', '#EF4123']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.addItemGradient}
+              >
+                <Ionicons name="add" size={17} color="#FFFFFF" />
+                <Text style={styles.addItemHeaderBtnText}>Add Item</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View style={styles.employeeBadgeContainer}>
+            <Ionicons name="shield-checkmark" size={13} color="#7E22CE" style={{ marginRight: 4 }} />
+            <Text style={styles.employeeBadgeText}>STAFF MODE</Text>
+          </View>
+        )}
       </View>
 
       {/* Main Content */}
@@ -604,121 +626,49 @@ export default function MenuScreen() {
         }
         ListHeaderComponent={
           <View>
-            {/* Stall Hero Control Card */}
-            <View style={[styles.stallCard, isOpen ? styles.stallCardOpen : styles.stallCardClosed]}>
-              <View style={styles.stallCardHeader}>
-                <View style={styles.stallStatusInfo}>
-                  <View style={styles.stallStatusBadgeRow}>
-                    <View style={[styles.statusDot, { backgroundColor: isOpen ? '#EF4123' : '#EF4444' }]} />
-                    <Text style={[styles.stallStatusBadgeText, { color: isOpen ? '#EF4123' : '#EF4444' }]}>
-                      {isOpen ? 'STALL IS OPEN' : 'STALL IS CLOSED'}
-                    </Text>
-                  </View>
-                  <Text style={styles.stallStatusDesc}>
-                    {isOpen 
-                      ? 'Currently accepting live orders from students.' 
-                      : 'Closed. Students cannot place new orders.'}
-                  </Text>
+            {isEmployee ? (
+              <View style={styles.staffNoticeBox}>
+                <Ionicons name="shield-checkmark" size={16} color="#7E22CE" style={{ marginRight: 8, marginTop: 1 }} />
+                <Text style={styles.staffNoticeText}>
+                  Staff Stock Mode: Toggle dish availability anytime. Dish creation, price edits, and removals are restricted to the Cart Owner.
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.inventorySummaryCard}>
+                <View style={styles.inventoryStatCol}>
+                  <Text style={styles.inventoryStatNumber}>{(store.products || []).length}</Text>
+                  <Text style={styles.inventoryStatLabel}>Total Dishes</Text>
                 </View>
-
-                <View style={styles.stallToggleContainer}>
-                  {togglingStatus ? (
-                    <ActivityIndicator size="small" color={isOpen ? '#EF4123' : '#EF4444'} />
-                  ) : (
-                    <Switch
-                      value={isOpen}
-                      onValueChange={() => handleToggleStoreStatus(false)}
-                      disabled={togglingStatus}
-                      trackColor={{ false: '#CBD5E1', true: '#FED7AA' }}
-                      thumbColor={isOpen ? '#EF4123' : '#94A3B8'}
-                    />
-                  )}
+                <View style={styles.inventoryDivider} />
+                <View style={styles.inventoryStatCol}>
+                  <Text style={[styles.inventoryStatNumber, { color: '#059669' }]}>
+                    {(store.products || []).filter(p => p.isAvailable !== false).length}
+                  </Text>
+                  <Text style={styles.inventoryStatLabel}>In Stock</Text>
+                </View>
+                <View style={styles.inventoryDivider} />
+                <View style={styles.inventoryStatCol}>
+                  <Text style={[styles.inventoryStatNumber, { color: '#DC2626' }]}>
+                    {(store.products || []).filter(p => p.isAvailable === false).length}
+                  </Text>
+                  <Text style={styles.inventoryStatLabel}>Sold Out</Text>
                 </View>
               </View>
+            )}
 
-              <View style={styles.stallCardDivider} />
-
-              <View style={styles.autoAcceptRow}>
-                <View style={{ flex: 1, paddingRight: 10 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-                    <Ionicons name="flash" size={15} color={store.autoAcceptOrders ? '#EF4123' : '#64748B'} />
-                    <Text style={{ fontSize: 13, fontWeight: '800', color: '#0F172A' }}>
-                      Auto-Accept Orders
-                    </Text>
-                    {store.autoAcceptOrders && (
-                      <View style={{ backgroundColor: 'rgba(239, 65, 35, 0.1)', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 6 }}>
-                        <Text style={{ color: '#EF4123', fontSize: 10, fontWeight: '800' }}>ACTIVE</Text>
-                      </View>
-                    )}
-                  </View>
-                  <Text style={{ fontSize: 11, color: '#64748B', lineHeight: 15 }}>
-                    Automatically confirm incoming paid orders without manual tapping
-                  </Text>
-                </View>
-                <Switch
-                  value={Boolean(store.autoAcceptOrders)}
-                  onValueChange={handleToggleAutoAccept}
-                  disabled={togglingAutoAccept}
-                  trackColor={{ false: '#CBD5E1', true: '#FED7AA' }}
-                  thumbColor={store.autoAcceptOrders ? '#EF4123' : '#94A3B8'}
-                  style={{ transform: [{ scaleX: 0.8 }, { scaleY: 0.8 }] }}
-                />
-              </View>
-
-              <View style={styles.stallCardDivider} />
-
-              <View style={styles.stallCardFooter}>
-                <View style={styles.stallStat}>
-                  <Ionicons name="location-outline" size={14} color="#64748B" />
-                  <Text style={styles.stallStatText}>{store.market || 'Campus'}</Text>
-                </View>
-                <View style={styles.stallStat}>
-                  <Ionicons name="fast-food-outline" size={14} color="#64748B" />
-                  <Text style={styles.stallStatText}>{(store.products || []).length} Menu Items</Text>
-                </View>
-                <View style={styles.stallStat}>
-                  <Ionicons name="checkmark-circle-outline" size={14} color="#10B981" />
-                  <Text style={styles.stallStatText}>
-                    {(store.products || []).filter(p => p.isAvailable !== false).length} In Stock
-                  </Text>
-                </View>
-              </View>
-            </View>
-
-            {/* Quick Actions Bar */}
-            <View style={styles.actionButtonsRow}>
-              <TouchableOpacity
-                style={styles.scanMenuBtn}
-                onPress={() => setShowScanPickerModal(true)}
-                activeOpacity={0.85}
-              >
-                <Ionicons name="sparkles" size={16} color="#FFFFFF" />
-                <Text style={styles.scanMenuBtnText}>Scan Menu with AI</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.addItemSecondaryBtn}
-                onPress={() => setShowAddModal(true)}
-                activeOpacity={0.85}
-              >
-                <Ionicons name="add-circle-outline" size={17} color="#EF4123" />
-                <Text style={styles.addItemSecondaryBtnText}>Add Item</Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Search Input Bar */}
+            {/* Quick Search Bar */}
             <View style={styles.searchContainer}>
-              <Ionicons name="search" size={20} color="#94A3B8" />
+              <Ionicons name="search-outline" size={18} color="#94A3B8" />
               <TextInput
                 style={styles.searchInput}
-                placeholder="Search dish, category..."
+                placeholder="Search dish by name or category..."
                 value={searchQuery}
                 onChangeText={setSearchQuery}
                 placeholderTextColor="#94A3B8"
               />
               {searchQuery.length > 0 && (
                 <TouchableOpacity onPress={() => setSearchQuery('')}>
-                  <Ionicons name="close-circle" size={20} color="#94A3B8" />
+                  <Ionicons name="close-circle" size={18} color="#94A3B8" />
                 </TouchableOpacity>
               )}
             </View>
@@ -751,6 +701,7 @@ export default function MenuScreen() {
               <Text style={styles.sectionTitle}>
                 {selectedCategory === 'All' ? 'All Dishes' : selectedCategory} ({filteredProducts.length})
               </Text>
+              <Text style={styles.sectionSub}>Tap switch to toggle instant availability</Text>
             </View>
           </View>
         }
@@ -1178,116 +1129,128 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    borderBottomColor: '#F1F5F9',
   },
   headerTitle: {
     fontSize: 22,
-    fontWeight: '800',
+    fontWeight: '900',
     color: '#0F172A',
+    letterSpacing: -0.5,
   },
   headerSubtitle: {
-    fontSize: 13,
+    fontSize: 12,
     color: '#64748B',
-    fontWeight: '500',
+    fontWeight: '600',
+    marginTop: 2,
   },
-  addItemHeaderBtn: {
+  scanHeaderBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#EF4123',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#FED7AA',
+    backgroundColor: '#FFF7ED',
+    gap: 5,
+  },
+  scanHeaderBtnText: {
+    color: '#EA580C',
+    fontWeight: '800',
+    fontSize: 13,
+  },
+  addItemHeaderBtn: {
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  addItemGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 14,
     paddingVertical: 8,
-    borderRadius: 20,
-    gap: 6,
+    borderRadius: 12,
+    gap: 4,
   },
   addItemHeaderBtnText: {
     color: '#FFFFFF',
-    fontWeight: '700',
+    fontWeight: '800',
     fontSize: 13,
+  },
+  employeeBadgeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F5F3FF',
+    borderWidth: 1,
+    borderColor: '#DDD6FE',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+  },
+  employeeBadgeText: {
+    color: '#7E22CE',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.5,
   },
   listContent: {
     paddingHorizontal: 16,
     paddingBottom: 40,
   },
-  // Stall Status Hero Card
-  stallCard: {
-    marginTop: 16,
-    borderRadius: 20,
-    padding: 16,
-    borderWidth: 1.5,
-    backgroundColor: '#FFFFFF',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    elevation: 3,
-  },
-  stallCardOpen: {
-    borderColor: '#EF4123',
-    backgroundColor: '#FFF7ED',
-  },
-  stallCardClosed: {
-    borderColor: '#EF4444',
-    backgroundColor: '#FEF2F2',
-  },
-  stallCardHeader: {
+  staffNoticeBox: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
+    backgroundColor: '#FAF5FF',
+    borderWidth: 1,
+    borderColor: '#E9D5FF',
+    borderRadius: 14,
+    padding: 14,
+    marginTop: 14,
   },
-  stallStatusInfo: {
+  staffNoticeText: {
     flex: 1,
-    marginRight: 10,
-  },
-  stallStatusBadgeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  statusDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    marginRight: 8,
-  },
-  stallStatusBadgeText: {
-    fontSize: 15,
-    fontWeight: '900',
-    letterSpacing: 0.5,
-  },
-  stallStatusDesc: {
     fontSize: 12,
-    color: '#64748B',
-    lineHeight: 16,
-  },
-  stallToggleContainer: {
-    width: 60,
-    alignItems: 'flex-end',
-  },
-  stallCardDivider: {
-    height: 1,
-    backgroundColor: 'rgba(0,0,0,0.06)',
-    marginVertical: 12,
-  },
-  autoAcceptRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 2,
-  },
-  stallCardFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  stallStat: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  stallStatText: {
-    fontSize: 12,
+    color: '#6B21A8',
     fontWeight: '600',
-    color: '#475569',
+    lineHeight: 17,
+  },
+  inventorySummaryCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    marginTop: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  inventoryStatCol: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  inventoryStatNumber: {
+    fontSize: 20,
+    fontWeight: '900',
+    color: '#0F172A',
+  },
+  inventoryStatLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#64748B',
+    marginTop: 2,
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+  },
+  inventoryDivider: {
+    width: 1,
+    height: 28,
+    backgroundColor: '#F1F5F9',
   },
   // Search bar
   searchContainer: {
@@ -1341,9 +1304,16 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   sectionTitle: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#334155',
+    fontSize: 16,
+    fontWeight: '900',
+    color: '#0F172A',
+    letterSpacing: -0.3,
+  },
+  sectionSub: {
+    fontSize: 12,
+    color: '#64748B',
+    fontWeight: '500',
+    marginTop: 2,
   },
   // Product Card
   productCard: {

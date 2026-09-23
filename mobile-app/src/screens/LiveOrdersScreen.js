@@ -91,6 +91,45 @@ function AutoCancelTimer({ order }) {
   );
 }
 
+// Illustrated Empty State Component
+function EmptyQueueState({ type }) {
+  let icon = 'restaurant-outline';
+  let title = 'Queue is Clear!';
+  let sub = 'New incoming student orders will chime and appear here automatically.';
+  let color = '#10B981';
+  let bg = '#ECFDF5';
+
+  if (type === 'Pre-Orders') {
+    icon = 'calendar-outline';
+    title = 'No Scheduled Pre-Orders';
+    sub = 'Advance scheduled student orders will appear here.';
+    color = '#8B5CF6';
+    bg = '#F5F3FF';
+  } else if (type === 'Ready') {
+    icon = 'bag-check-outline';
+    title = 'No Orders Waiting Pickup';
+    sub = 'Orders marked ready will appear here for student handover.';
+    color = '#EF4123';
+    bg = '#FFF7ED';
+  } else if (type === 'History') {
+    icon = 'receipt-outline';
+    title = 'No Past Orders Today';
+    sub = 'Completed and handed over orders will appear here.';
+    color = '#64748B';
+    bg = '#F1F5F9';
+  }
+
+  return (
+    <View style={styles.emptyContainer}>
+      <View style={[styles.emptyIconCircle, { backgroundColor: bg }]}>
+        <Ionicons name={icon} size={36} color={color} />
+      </View>
+      <Text style={styles.emptyTitle}>{title}</Text>
+      <Text style={styles.emptySub}>{sub}</Text>
+    </View>
+  );
+}
+
 export default function LiveOrdersScreen({ navigation }) {
   const { user } = useContext(AuthContext);
   const { socket, isConnected, socketError } = useContext(SocketContext);
@@ -536,12 +575,10 @@ export default function LiveOrdersScreen({ navigation }) {
       if (query) {
         const orderNum = (o.orderNumber || '').toString().toLowerCase();
         const custName = (o.customerName || '').toLowerCase();
-        const custPhone = (o.customerPhone || '').toLowerCase();
         const itemNames = (o.items || []).map(i => i.name?.toLowerCase()).join(' ');
 
         const match = orderNum.includes(query) || 
                       custName.includes(query) || 
-                      custPhone.includes(query) || 
                       itemNames.includes(query);
         if (!match) return false;
       }
@@ -837,13 +874,14 @@ export default function LiveOrdersScreen({ navigation }) {
           ))}
         </View>
 
-        {/* Customer & Total Row */}
+        {/* Customer & Total Row (Protected Student Privacy - No Phone Number) */}
         <View style={styles.customerRow}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
-            <Ionicons name="person-circle-outline" size={18} color="#64748B" />
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, flex: 1 }}>
+            <View style={styles.customerAvatarMini}>
+              <Ionicons name="person" size={12} color="#475569" />
+            </View>
             <Text style={styles.customerName} numberOfLines={1}>
-              {item.customerName || 'Customer'}
-              {item.customerPhone ? ` • ${item.customerPhone}` : ''}
+              {item.customerName || 'Student Customer'}
             </Text>
           </View>
 
@@ -860,13 +898,26 @@ export default function LiveOrdersScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Top Header */}
+      {/* Executive Kitchen Command Header */}
       <View style={styles.header}>
         <View style={styles.headerTopRow}>
-          <Text style={styles.headerTitle}>Kitchen Orders</Text>
+          <View style={{ flex: 1, marginRight: 10 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Text style={styles.headerTitle}>Kitchen Orders</Text>
+              <View style={[styles.syncStatusPill, { backgroundColor: isConnected ? '#ECFDF5' : '#FEF2F2' }]}>
+                <View style={[styles.dot, { backgroundColor: isConnected ? '#10B981' : '#EF4444' }]} />
+                <Text style={[styles.syncStatusText, { color: isConnected ? '#059669' : '#DC2626' }]}>
+                  {isConnected ? 'LIVE' : 'OFFLINE'}
+                </Text>
+              </View>
+            </View>
+            <Text style={styles.headerSub} numberOfLines={1}>
+              {storeData?.name || 'UniVerse Kitchen Counter'}
+            </Text>
+          </View>
 
           <View style={styles.headerControls}>
-            {/* Audio Speaker Icon Button */}
+            {/* Audio Alert Speaker Toggle */}
             <TouchableOpacity 
               style={[
                 styles.audioIconBtn,
@@ -878,7 +929,7 @@ export default function LiveOrdersScreen({ navigation }) {
             >
               <Ionicons 
                 name={isAudioEnabled ? 'volume-high' : 'volume-mute'} 
-                size={19} 
+                size={18} 
                 color={isAudioEnabled ? '#EF4123' : '#94A3B8'} 
               />
             </TouchableOpacity>
@@ -888,32 +939,24 @@ export default function LiveOrdersScreen({ navigation }) {
               styles.stallSwitchCard,
               isStoreOpen ? styles.stallSwitchCardOpen : styles.stallSwitchCardClosed
             ]}>
-              <View style={[styles.miniStatusDot, { backgroundColor: isStoreOpen ? '#EF4123' : '#94A3B8' }]} />
-              <Text style={[styles.stallSwitchText, { color: isStoreOpen ? '#EF4123' : '#64748B' }]}>
-                {isStoreOpen ? 'STALL OPEN' : 'CLOSED'}
+              <Text style={[styles.stallSwitchText, { color: isStoreOpen ? '#059669' : '#64748B' }]}>
+                {isStoreOpen ? 'OPEN' : 'CLOSED'}
               </Text>
               <Switch
                 value={isStoreOpen}
                 onValueChange={() => handleToggleStoreStatus(false)}
                 disabled={togglingStatus}
-                trackColor={{ false: '#CBD5E1', true: '#FED7AA' }}
-                thumbColor={isStoreOpen ? '#EF4123' : '#F1F5F9'}
+                trackColor={{ false: '#CBD5E1', true: '#A7F3D0' }}
+                thumbColor={isStoreOpen ? '#10B981' : '#94A3B8'}
                 ios_backgroundColor="#CBD5E1"
-                style={{ transform: [{ scaleX: 0.75 }, { scaleY: 0.75 }], marginLeft: 2, marginRight: -4 }}
+                style={{ transform: [{ scaleX: 0.72 }, { scaleY: 0.72 }], marginLeft: 2, marginRight: -4 }}
               />
             </View>
           </View>
         </View>
 
-        {/* Sub-Header Row: Live Sync on Left, Quick Auto-Accept on Right */}
+        {/* Quick Auto-Accept Bar */}
         <View style={styles.subHeaderRow}>
-          <View style={styles.connectionStatus}>
-            <View style={[styles.dot, { backgroundColor: isConnected ? '#10B981' : '#EF4444' }]} />
-            <Text style={styles.connectionText}>
-              {isConnected ? 'Live Sync Active' : (socketError ? `Err: ${socketError}` : 'Reconnecting...')}
-            </Text>
-          </View>
-
           <TouchableOpacity 
             style={[
               styles.autoAcceptPill,
@@ -924,16 +967,16 @@ export default function LiveOrdersScreen({ navigation }) {
             activeOpacity={0.75}
           >
             <Ionicons 
-              name="flash" 
-              size={12} 
+              name={autoAcceptOrders ? "flash" : "flash-outline"} 
+              size={13} 
               color={autoAcceptOrders ? '#EF4123' : '#64748B'} 
-              style={{ marginRight: 4 }} 
+              style={{ marginRight: 5 }} 
             />
             <Text style={[
               styles.autoAcceptPillText,
-              { color: autoAcceptOrders ? '#EF4123' : '#64748B' }
+              { color: autoAcceptOrders ? '#EF4123' : '#475569' }
             ]}>
-              Auto-Accept {autoAcceptOrders ? 'ON' : 'OFF'}
+              Auto-Accept Orders: {autoAcceptOrders ? 'Enabled' : 'Disabled'}
             </Text>
           </TouchableOpacity>
         </View>
@@ -1038,12 +1081,7 @@ export default function LiveOrdersScreen({ navigation }) {
               renderItem={renderItem}
               contentContainerStyle={styles.list}
               refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => fetchOrders(true)} colors={['#3B82F6']} />}
-              ListEmptyComponent={
-                <View style={styles.emptyContainer}>
-                  <Text style={styles.emptyTitle}>Queue is Clear!</Text>
-                  <Text style={styles.emptySub}>New orders will automatically ring and show up here.</Text>
-                </View>
-              }
+              ListEmptyComponent={<EmptyQueueState type="Active" />}
             />
           </View>
 
@@ -1065,12 +1103,7 @@ export default function LiveOrdersScreen({ navigation }) {
                   </View>
                 ) : null
               }
-              ListEmptyComponent={
-                <View style={styles.emptyContainer}>
-                  <Text style={styles.emptyTitle}>No Scheduled Pre-Orders</Text>
-                  <Text style={styles.emptySub}>Advance scheduled student orders will appear here.</Text>
-                </View>
-              }
+              ListEmptyComponent={<EmptyQueueState type="Pre-Orders" />}
             />
           </View>
 
@@ -1123,12 +1156,7 @@ export default function LiveOrdersScreen({ navigation }) {
                   </TouchableOpacity>
                 ) : null
               }
-              ListEmptyComponent={
-                <View style={styles.emptyContainer}>
-                  <Text style={styles.emptyTitle}>No Ready Orders</Text>
-                  <Text style={styles.emptySub}>Orders that are marked ready will appear here.</Text>
-                </View>
-              }
+              ListEmptyComponent={<EmptyQueueState type="Ready" />}
             />
           </View>
 
@@ -1140,12 +1168,7 @@ export default function LiveOrdersScreen({ navigation }) {
               renderItem={renderItem}
               contentContainerStyle={styles.list}
               refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => fetchOrders(true)} colors={['#3B82F6']} />}
-              ListEmptyComponent={
-                <View style={styles.emptyContainer}>
-                  <Text style={styles.emptyTitle}>No Order History</Text>
-                  <Text style={styles.emptySub}>Completed or cancelled orders will appear here.</Text>
-                </View>
-              }
+              ListEmptyComponent={<EmptyQueueState type="History" />}
             />
           </View>
         </ScrollView>
@@ -1195,17 +1218,36 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   headerTitle: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '900',
     color: '#0F172A',
     letterSpacing: -0.5,
   },
+  headerSub: {
+    fontSize: 12,
+    color: '#64748B',
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  syncStatusPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 12,
+    gap: 4,
+  },
+  syncStatusText: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
   audioIconBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: '#FFFFFF',
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: '#E2E8F0',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1218,17 +1260,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    paddingVertical: 3,
-    paddingLeft: 10,
-    paddingRight: 6,
-    borderRadius: 20,
-    borderWidth: 1,
+    paddingVertical: 2,
+    paddingLeft: 8,
+    paddingRight: 4,
+    borderRadius: 18,
+    borderWidth: 1.5,
     borderColor: '#E2E8F0',
-    gap: 5,
+    gap: 4,
   },
   stallSwitchCardOpen: {
-    borderColor: 'rgba(239, 65, 35, 0.3)',
-    backgroundColor: 'rgba(239, 65, 35, 0.05)',
+    borderColor: '#A7F3D0',
+    backgroundColor: '#ECFDF5',
   },
   stallSwitchCardClosed: {
     borderColor: '#E2E8F0',
@@ -1241,7 +1283,7 @@ const styles = StyleSheet.create({
   },
   stallSwitchText: {
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '900',
     letterSpacing: 0.3,
   },
   connectionStatus: {
@@ -1250,36 +1292,33 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   subHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 8,
+    marginTop: 10,
   },
   autoAcceptPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 20,
-    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 12,
+    borderWidth: 1.5,
   },
   autoAcceptPillActive: {
-    backgroundColor: 'rgba(239, 65, 35, 0.08)',
-    borderColor: 'rgba(239, 65, 35, 0.3)',
+    backgroundColor: 'rgba(239, 65, 35, 0.06)',
+    borderColor: 'rgba(239, 65, 35, 0.25)',
   },
   autoAcceptPillInactive: {
     backgroundColor: '#FFFFFF',
     borderColor: '#E2E8F0',
   },
   autoAcceptPillText: {
-    fontSize: 11,
-    fontWeight: '800',
+    fontSize: 12,
+    fontWeight: '700',
     letterSpacing: 0.2,
   },
   dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
   connectionText: {
     color: '#64748B',
@@ -1558,10 +1597,18 @@ const styles = StyleSheet.create({
     paddingTop: 4,
     marginBottom: 14,
   },
+  customerAvatarMini: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   customerName: {
-    color: '#475569',
+    color: '#334155',
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   orderTotal: {
     fontSize: 17,
@@ -1641,21 +1688,31 @@ const styles = StyleSheet.create({
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 50,
-    paddingHorizontal: 20,
+    paddingVertical: 56,
+    paddingHorizontal: 28,
+  },
+  emptyIconCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
   },
   emptyTitle: {
     color: '#0F172A',
-    fontSize: 20,
-    fontWeight: '800',
+    fontSize: 18,
+    fontWeight: '900',
     marginBottom: 6,
     textAlign: 'center',
+    letterSpacing: -0.3,
   },
   emptySub: {
     color: '#64748B',
-    fontSize: 14,
+    fontSize: 13,
     textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: 19,
+    maxWidth: 280,
   },
   fabContainer: {
     position: 'absolute',
