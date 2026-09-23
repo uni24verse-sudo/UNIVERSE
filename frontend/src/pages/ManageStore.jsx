@@ -614,7 +614,9 @@ const ManageStore = () => {
   );
   if (!store) return null;
 
-  const storeUrl = `${window.location.origin}/store/${store._id}`;
+  const storeId = store?._id || store?.id;
+  const storeLiveUrl = `${window.location.origin}/store/${storeId}`;
+  const storeQrUrl = `${storeLiveUrl}?source=qr`;
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--background)' }}>
@@ -757,7 +759,7 @@ const ManageStore = () => {
               <div style={{ background: 'white', padding: '1.5rem', borderRadius: '24px', display: 'inline-block', marginBottom: '1.5rem', boxShadow: '0 10px 30px rgba(0,0,0,0.2)' }}>
                 <QRCodeSVG 
                   id="store-qr-code" 
-                  value={storeType === 'Restaurant' ? `${storeUrl}?source=qr` : storeUrl} 
+                  value={storeQrUrl} 
                   size={200} 
                   level="H" 
                 />
@@ -767,7 +769,7 @@ const ManageStore = () => {
                 <button className="btn btn-primary" onClick={downloadQR} style={{ borderRadius: '14px', height: '50px' }}>
                   <Download size={18} style={{ marginRight: '0.5rem' }} /> Download High-Res
                 </button>
-                <a href={storeUrl} target="_blank" rel="noreferrer" className="btn btn-secondary" style={{ borderRadius: '14px', height: '50px', textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <a href={storeLiveUrl} target="_blank" rel="noreferrer" className="btn btn-secondary" style={{ borderRadius: '14px', height: '50px', textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <ExternalLink size={18} style={{ marginRight: '0.5rem' }} /> View Live Menu
                 </a>
               </div>

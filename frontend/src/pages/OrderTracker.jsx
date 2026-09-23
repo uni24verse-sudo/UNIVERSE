@@ -23,6 +23,7 @@ import {
   Send,
   Edit3
 } from 'lucide-react';
+import { playOrderCompletedSound, playOrderConfirmedSound } from '../utils/soundHelper';
 
 const CountdownTimer = ({ deadline }) => {
   const [timeLeft, setTimeLeft] = useState(() => {
@@ -116,9 +117,9 @@ const OrderTracker = () => {
       setOrder(prev => {
         if (prev && prev.status !== updatedOrder.status) {
           if (updatedOrder.status === 'Confirmed') {
-            new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3').play().catch(() => {});
+            playOrderConfirmedSound();
           } else if (updatedOrder.status === 'Completed') {
-            new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3').play().catch(() => {});
+            playOrderCompletedSound();
           }
         }
         const hasRefunded = updatedOrder.refundStatus === 'Refunded' || updatedOrder.refundStatus === 'Processed';

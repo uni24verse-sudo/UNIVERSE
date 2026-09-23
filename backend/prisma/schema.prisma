@@ -238,7 +238,7 @@ model WebhookEvent {
 model Settlement {
   id                    String    @id
   storeId               String?
-  adminId               String?   @default("")
+  adminId               String?
   settlementType        String    @default("daily") // "daily" | "monthly"
   month                 Int?      @default(1)
   year                  Int?      @default(2026)

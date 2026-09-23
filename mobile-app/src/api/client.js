@@ -6,9 +6,15 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 let customBaseUrl = null;
 
-// Initialize custom URL from storage
+// Initialize custom URL from storage with auto-migration from legacy domain
 AsyncStorage.getItem('custom_api_url').then(val => {
-  if (val) customBaseUrl = val;
+  if (val) {
+    if (val.includes('api.universeorder.co.in')) {
+      val = val.replace('api.universeorder.co.in', 'food.universeorder.co.in');
+      AsyncStorage.setItem('custom_api_url', val).catch(() => {});
+    }
+    customBaseUrl = val;
+  }
 }).catch(() => {});
 
 export const setServerUrl = async (url) => {
@@ -23,6 +29,9 @@ export const setServerUrl = async (url) => {
 // Determine API URL: custom override > explicit env var > local development on web/LAN > production
 export const getBaseUrl = () => {
   if (customBaseUrl) {
+    if (customBaseUrl.includes('api.universeorder.co.in')) {
+      return customBaseUrl.replace('api.universeorder.co.in', 'food.universeorder.co.in');
+    }
     return customBaseUrl;
   }
   if (process.env.EXPO_PUBLIC_API_URL) {
@@ -38,7 +47,7 @@ export const getBaseUrl = () => {
       return `http://${hostname}:5000/api`;
     }
   }
-  return 'https://api.universeorder.co.in/api';
+  return 'https://food.universeorder.co.in/api';
 };
 
 export const getSocketUrl = () => {

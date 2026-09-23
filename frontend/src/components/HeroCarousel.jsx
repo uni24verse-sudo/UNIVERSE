@@ -86,16 +86,20 @@ const HeroCarousel = ({ onSearch, hubType = 'College' }) => {
         });
 
         if (Array.isArray(res.data) && res.data.length > 0) {
-          const formatted = res.data.map(b => ({
-            id: b.id,
-            title: b.title || `${b.storeName} Specials`,
-            subtitle: `Exclusive offers from ${b.storeName}. Skip the wait and order fresh!`,
-            image: b.bannerUrl || b.rawAssetUrl,
-            color: 'var(--primary)',
-            tag: b.tag || 'Featured Stall',
-            stallId: b.stallId,
-            targetUrl: b.targetUrl || `/store/${b.stallId}`
-          }));
+          const formatted = res.data.map(b => {
+            const hasOverlay = Boolean(b.title && b.title.trim() !== '' && b.title !== '__NO_TEXT__');
+            return {
+              id: b.id,
+              title: hasOverlay ? b.title : '',
+              hasTextOverlay: hasOverlay,
+              subtitle: hasOverlay ? (b.subtitle || `Exclusive offers from ${b.storeName}. Skip the wait and order fresh!`) : '',
+              image: b.bannerUrl || b.rawAssetUrl,
+              color: 'var(--primary)',
+              tag: hasOverlay ? (b.tag || '') : '',
+              stallId: b.stallId,
+              targetUrl: b.targetUrl || `/store/${b.stallId}`
+            };
+          });
           setPaidBanners(formatted);
         } else {
           setPaidBanners([]);
@@ -314,25 +318,31 @@ const HeroCarousel = ({ onSearch, hubType = 'College' }) => {
             }}
             onClick={() => handleSlideClick(slide)}
           >
-            <div className="hero-slide-overlay" style={{ background: `linear-gradient(to right, rgba(15,23,42,0.95) 0%, rgba(15,23,42,0.6) 50%, transparent 100%)` }}></div>
-            
-            <div className="hero-slide-content">
-              <span className="hero-slide-tag" style={{ backgroundColor: slide.color }}>
-                {slide.tag}
-              </span>
-              <h1 className="hero-slide-title">{slide.title}</h1>
-              <p className="hero-slide-subtitle">{slide.subtitle}</p>
-              <button 
-                className="hero-slide-cta" 
-                style={{ backgroundColor: slide.color, display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleSlideClick(slide);
-                }}
-              >
-                {slide.stallId ? 'Order from Stall' : 'Explore Now'} <ArrowRight size={16} />
-              </button>
-            </div>
+            {slide.hasTextOverlay !== false && slide.title ? (
+              <>
+                <div className="hero-slide-overlay"></div>
+                
+                <div className="hero-slide-content">
+                  {slide.tag && (
+                    <span className="hero-slide-tag" style={{ backgroundColor: slide.color }}>
+                      {slide.tag}
+                    </span>
+                  )}
+                  <h1 className="hero-slide-title">{slide.title}</h1>
+                  {slide.subtitle && <p className="hero-slide-subtitle">{slide.subtitle}</p>}
+                  <button 
+                    className="hero-slide-cta" 
+                    style={{ backgroundColor: slide.color, display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleSlideClick(slide);
+                    }}
+                  >
+                    {slide.stallId ? 'Order from Stall' : 'Explore Now'} <ArrowRight size={16} />
+                  </button>
+                </div>
+              </>
+            ) : null}
           </div>
         ))}
       </div>

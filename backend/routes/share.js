@@ -29,6 +29,24 @@ function getAppOrigins(req) {
   return { frontendOrigin, publicOrigin };
 }
 
+// Helper to ensure absolute URL with valid scheme for Open Graph scrapers (WhatsApp, FB, Telegram)
+function formatImageUrl(img, origin) {
+  if (!img || typeof img !== 'string' || !img.trim()) {
+    return `${origin}/favicon.png`;
+  }
+  const clean = img.trim();
+  if (clean.startsWith('http://') || clean.startsWith('https://')) {
+    return clean;
+  }
+  if (clean.startsWith('//')) {
+    return `https:${clean}`;
+  }
+  if (clean.startsWith('/')) {
+    return `${origin}${clean}`;
+  }
+  return `${origin}/${clean}`;
+}
+
 // 1. Food Dish Share Controller (/d/:storeId & /api/share/dish)
 const handleDishShare = async (req, res) => {
   try {
@@ -54,7 +72,7 @@ const handleDishShare = async (req, res) => {
     });
 
     if (!store) {
-      return res.redirect(origin);
+      return res.redirect(frontendOrigin);
     }
 
     // Look for matching product in store.products
@@ -78,7 +96,7 @@ const handleDishShare = async (req, res) => {
     let pageTitle = '';
     let ogTitle = '';
     let ogDesc = '';
-    let ogImage = '';
+    let rawImage = '';
     let targetUrl = '';
 
     if (matchedProduct) {
@@ -88,16 +106,17 @@ const handleDishShare = async (req, res) => {
       pageTitle = `${matchedProduct.name} — ₹${minPrice} • ${store.name} | UNIVERSE`;
       ogTitle = `🔥 ${matchedProduct.name} — ₹${minPrice} • ${store.name}`;
       ogDesc = `Hungry? Fresh ${matchedProduct.name} from ${store.name} (${store.market || 'Campus'}), ready to order on UNIVERSE!`;
-      // User requirement: if sharing food then food image should be shown, fallback to stall image
-      ogImage = matchedProduct.image || store.image || `${publicOrigin}/favicon.png`;
+      rawImage = matchedProduct.image || store.image;
       targetUrl = `${frontendOrigin}/store/${store.id}?dish=${encodeURIComponent(matchedProduct.name)}`;
     } else {
       pageTitle = `${store.name} | UNIVERSE Campus Dining`;
       ogTitle = `🏪 ${store.name} • UNIVERSE Campus Dining`;
       ogDesc = `Looking for good food? Explore the live menu at ${store.name} (${store.market || 'Campus'}) on UNIVERSE!`;
-      ogImage = store.image || `${publicOrigin}/favicon.png`;
+      rawImage = store.image;
       targetUrl = `${frontendOrigin}/store/${store.id}`;
     }
+
+    const ogImage = formatImageUrl(rawImage, publicOrigin);
 
     // Render lightweight Open Graph HTML with instant client-side redirection
     const html = `<!DOCTYPE html>
@@ -182,7 +201,7 @@ const handleStallShare = async (req, res) => {
     const ogTitle = `🏪 ${store.name} • UNIVERSE Campus Dining`;
     const ogDesc = `Looking for good food? Explore ${productCount > 0 ? `${productCount} fresh dishes` : 'the live menu'} at ${store.name} (${store.market || 'Campus'}). Ready to order on UNIVERSE!`;
     // User requirement: if sharing stall then stall image should be shown
-    const ogImage = store.image || `${publicOrigin}/favicon.png`;
+    const ogImage = formatImageUrl(store.image, publicOrigin);
     const targetUrl = `${frontendOrigin}/store/${store.id}`;
 
     const html = `<!DOCTYPE html>

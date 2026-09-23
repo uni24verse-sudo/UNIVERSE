@@ -14,22 +14,109 @@ import ProductCard from '../components/Store/ProductCard';
 import VariantModal from '../components/Store/VariantModal';
 
 const MenuSkeleton = () => (
-  <div style={{ minHeight: '100vh', paddingBottom: '120px' }}>
-    <div className="store-banner-wrapper skeleton" style={{ height: '240px' }}></div>
-    <div className="store-header-sticky" style={{ background: 'white' }}>
-      <div style={{ maxWidth: '800px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
-        <div className="skeleton skeleton-text" style={{ width: '150px', height: '1.25rem' }}></div>
+  <div style={{ minHeight: '100vh', paddingBottom: '120px', background: '#fbfcfd' }}>
+    {/* Store Banner Skeleton */}
+    <div className="store-banner-wrapper skeleton" style={{ position: 'relative', height: '240px' }}>
+      <div style={{ position: 'absolute', top: '16px', left: '16px', zIndex: 2 }}>
+        <div 
+          className="skeleton" 
+          style={{ 
+            width: '38px', 
+            height: '38px', 
+            borderRadius: '50%', 
+            background: 'rgba(255, 255, 255, 0.9)', 
+            backdropFilter: 'blur(8px)',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.1)' 
+          }} 
+        />
       </div>
     </div>
-    <div style={{ padding: '2rem 1rem', maxWidth: '800px', margin: '0 auto' }}>
-      <div className="skeleton" style={{ height: '80px', borderRadius: '24px', marginBottom: '2rem' }}></div>
-      <div className="skeleton" style={{ height: '52px', borderRadius: '100px', marginBottom: '1.5rem' }}></div>
-      <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '2rem', overflowX: 'hidden' }}>
-        {[1, 2, 3, 4].map(i => <div key={i} className="skeleton" style={{ width: '80px', height: '36px', borderRadius: '100px', flexShrink: 0 }}></div>)}
+
+    <div style={{ padding: '1.25rem 1rem 0.5rem 1rem', maxWidth: '800px', margin: '0 auto' }}>
+      {/* Floating Store Hero Card Skeleton (matches StoreSubHeader) */}
+      <div 
+        className="glass-card" 
+        style={{ 
+          padding: '1.25rem 1.5rem', 
+          marginBottom: '1.25rem', 
+          borderRadius: '26px',
+          background: 'rgba(255, 255, 255, 0.96)',
+          border: '1px solid rgba(0, 0, 0, 0.06)',
+          boxShadow: '0 16px 38px -8px rgba(15, 23, 42, 0.08), 0 4px 12px rgba(0, 0, 0, 0.03)',
+          transform: 'translateY(-14px)'
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <div className="skeleton" style={{ width: '180px', height: '1.5rem', borderRadius: '8px' }} />
+              <div className="skeleton" style={{ width: '18px', height: '18px', borderRadius: '50%' }} />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '0.5rem' }}>
+              <div className="skeleton" style={{ width: '90px', height: '0.85rem', borderRadius: '4px' }} />
+              <div className="skeleton" style={{ width: '80px', height: '0.85rem', borderRadius: '4px' }} />
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <div className="skeleton" style={{ width: '56px', height: '26px', borderRadius: '100px' }} />
+            <div className="skeleton" style={{ width: '84px', height: '26px', borderRadius: '100px' }} />
+          </div>
+        </div>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '1rem' }}>
+
+      {/* Inline Search Bar Skeleton */}
+      <div className="skeleton" style={{ height: '48px', borderRadius: '100px', marginBottom: '1.25rem' }} />
+
+      {/* Category Pills Navigation Skeleton */}
+      <div style={{ display: 'flex', gap: '0.65rem', marginBottom: '1.75rem', overflowX: 'hidden' }}>
+        {['All Dishes', 'Recommended', 'Fast Food', 'Beverages', 'Combos'].map((_, i) => (
+          <div 
+            key={i} 
+            className="skeleton" 
+            style={{ 
+              width: i === 0 ? '92px' : '84px', 
+              height: '36px', 
+              borderRadius: '9999px', 
+              flexShrink: 0 
+            }} 
+          />
+        ))}
+      </div>
+
+      {/* Product List Cards Skeleton (matches ProductCard list layout) */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
         {[1, 2, 3, 4].map(i => (
-          <div key={i} className="skeleton" style={{ height: '240px', borderRadius: '28px' }}></div>
+          <div 
+            key={i} 
+            className="product-list-card" 
+            style={{ pointerEvents: 'none' }}
+          >
+            <div className="product-list-info" style={{ flex: 1, paddingRight: '1rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', marginBottom: '0.45rem' }}>
+                <div className="skeleton" style={{ width: '14px', height: '14px', borderRadius: '3px' }} />
+                <div className="skeleton" style={{ width: '60px', height: '14px', borderRadius: '4px' }} />
+              </div>
+              <div className="skeleton" style={{ width: '70%', height: '1.15rem', borderRadius: '6px', marginBottom: '0.4rem' }} />
+              <div className="skeleton" style={{ width: '45px', height: '1rem', borderRadius: '4px', marginBottom: '0.5rem' }} />
+              <div className="skeleton" style={{ width: '85%', height: '0.75rem', borderRadius: '4px' }} />
+            </div>
+            <div style={{ position: 'relative', width: '110px', height: '110px', flexShrink: 0 }}>
+              <div className="skeleton" style={{ width: '100%', height: '100%', borderRadius: '18px' }} />
+              <div 
+                className="skeleton" 
+                style={{ 
+                  position: 'absolute', 
+                  bottom: '-8px', 
+                  left: '50%', 
+                  transform: 'translateX(-50%)', 
+                  width: '74px', 
+                  height: '30px', 
+                  borderRadius: '100px', 
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.1)' 
+                }} 
+              />
+            </div>
+          </div>
         ))}
       </div>
     </div>
@@ -123,11 +210,16 @@ const StoreMenu = () => {
 
   const isExternal = localStorage.getItem('universe_location_type') === 'External' || store?.hubId?.type === 'External';
 
-  // Automatic smooth scroll and 5-second spotlight for shared dish
+  // Automatic smooth scroll and 5-second spotlight for shared dish / global search dish
   useEffect(() => {
-    if (!highlightedDish || !store) return;
+    if (!highlightedDish || !store || loading) return;
 
-    const scrollTimer = setTimeout(() => {
+    let attempts = 0;
+    let cancelled = false;
+    let categorySetForExternal = false;
+
+    const findAndScroll = () => {
+      if (cancelled) return;
       const allDishElements = document.querySelectorAll('[data-dish-name]');
       let targetElement = null;
 
@@ -140,21 +232,29 @@ const StoreMenu = () => {
       }
 
       if (targetElement) {
-        const isCollege = !isExternal && localStorage.getItem('universe_location_type') === 'College';
-        const navHeight = window.innerWidth <= 600 ? 64 : 72;
-        const promoHeight = isCollege ? 38 : 0;
-        const stickyHeaderOffset = navHeight + promoHeight + 75;
-
-        const elementRect = targetElement.getBoundingClientRect();
-        const absoluteElementTop = elementRect.top + window.pageYOffset;
-        const scrollTarget = Math.max(0, absoluteElementTop - stickyHeaderOffset);
-
-        window.scrollTo({
-          top: scrollTarget,
-          behavior: 'smooth'
+        targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } else if (!categorySetForExternal && isExternal && store.products) {
+        // For External hubs: 'All' shows CategoryOverview, not ProductCards.
+        // Find the dish's category and switch to it so ProductCards render.
+        const matchedProduct = store.products.find(p => {
+          const pName = (p.name || '').trim().toLowerCase();
+          return pName === highlightedDish || pName.includes(highlightedDish) || highlightedDish.includes(pName);
         });
+        if (matchedProduct) {
+          const rawCat = (matchedProduct.category || 'Specialty').trim();
+          const formatted = rawCat.charAt(0).toUpperCase() + rawCat.slice(1);
+          setActiveCategory(formatted);
+          categorySetForExternal = true;
+          // Re-attempt after React re-render
+          setTimeout(findAndScroll, 300);
+        }
+      } else if (attempts < 15) {
+        attempts++;
+        setTimeout(findAndScroll, 100);
       }
-    }, 300);
+    };
+
+    const scrollTimer = setTimeout(findAndScroll, 200);
 
     // Fade out / remove orange highlight border after 5 seconds exactly
     const highlightTimer = setTimeout(() => {
@@ -162,10 +262,11 @@ const StoreMenu = () => {
     }, 5000);
 
     return () => {
+      cancelled = true;
       clearTimeout(scrollTimer);
       clearTimeout(highlightTimer);
     };
-  }, [highlightedDish, store, isExternal]);
+  }, [highlightedDish, store, loading]);
 
   const handleToggleSearch = useCallback(() => {
     setShowSearchModal(prev => {
@@ -399,6 +500,14 @@ const StoreMenu = () => {
     }
   }, [storeClosed, id, addToCart, handleVariantClick]);
 
+  const handleBack = () => {
+    if (window.history.state && window.history.state.idx > 0) {
+      navigate(-1);
+    } else {
+      navigate('/');
+    }
+  };
+
   if (loading) return <MenuSkeleton />;
   if (!store) return <div className="auth-wrapper"><h3>Store not found.</h3></div>;
 
@@ -408,7 +517,7 @@ const StoreMenu = () => {
       <div className="store-banner-fullwidth animate-fade-in-up">
         <OptimizedImage src={store.image} alt={store.name} className="store-banner-img" />
         <button 
-          onClick={() => navigate(-1)} 
+          onClick={handleBack} 
           className="store-banner-back-btn"
           aria-label="Back"
           title="Back"
@@ -420,6 +529,7 @@ const StoreMenu = () => {
       <StoreSubHeader 
         store={store}
         navigate={navigate}
+        onBack={handleBack}
         isExternal={isExternal}
         dietaryFilter={dietaryFilter}
         setDietaryFilter={setDietaryFilter}

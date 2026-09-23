@@ -455,7 +455,7 @@ const SuperAdminPartnerEquity = ({ token }) => {
             ₹{availablePoolAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </h2>
           <p style={{ margin: '0.4rem 0 0 0', fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: '600' }}>
-            Net Platform Profit (3% Take + 4% Penalty • Excludes 2% Razorpay Fee)
+            Net Platform Profit (3% Take + 2% Net Penalty • Excludes all 2% PG Fees)
           </p>
         </div>
 
@@ -468,7 +468,7 @@ const SuperAdminPartnerEquity = ({ token }) => {
             ₹{(poolInfo?.totalPlatformDeductions || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </h2>
           <p style={{ margin: '0.4rem 0 0 0', fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: '600' }}>
-            2% PG (₹{(poolInfo?.totalGatewayFee || 0).toFixed(2)}) + 3% Profit (₹{(poolInfo?.totalPlatformProfit || 0).toFixed(2)}) + 4% Penalty (₹{(poolInfo?.totalCancellationPenalty || 0).toFixed(2)})
+            2% PG (₹{(poolInfo?.totalGatewayFee || 0).toFixed(2)}) + 3% Take (₹{(poolInfo?.totalPlatformProfit || 0).toFixed(2)}) + 2% Net Penalty (₹{(poolInfo?.netCancellationPenalty || ((poolInfo?.totalCancellationPenalty || 0) * 0.5)).toFixed(2)})
           </p>
         </div>
 

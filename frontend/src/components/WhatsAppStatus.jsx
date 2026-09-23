@@ -22,10 +22,11 @@ const VendorNotifications = ({ store }) => {
     e.preventDefault();
     if (!store) return;
     setIsUpdating(true);
+    const targetStoreId = store?._id || store?.id;
     try {
       // Save to STORE level
       await axios.put(
-        `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/store/${store._id}/update-details`,
+        `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/store/${targetStoreId}/update-details`,
         { telegramChatId, telegramBotToken },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -45,10 +46,11 @@ const VendorNotifications = ({ store }) => {
   const sendTestAlert = async () => {
     if (!store) return;
     setTestStatus('sending');
+    const targetStoreId = store?._id || store?.id;
     try {
       await axios.post(
         (import.meta.env.VITE_API_URL || 'http://localhost:5000') + '/api/whatsapp/test-telegram',
-        { storeId: store._id },
+        { storeId: targetStoreId },
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setTestStatus('success');

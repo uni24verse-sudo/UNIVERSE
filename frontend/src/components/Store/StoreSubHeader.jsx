@@ -5,6 +5,7 @@ import { shareContent } from '../../utils/shareHelper';
 const StoreSubHeader = ({ 
   store, 
   navigate, 
+  onBack,
   isExternal, 
   dietaryFilter,
   setDietaryFilter,
@@ -12,6 +13,14 @@ const StoreSubHeader = ({
 }) => {
   const isStoreOpen = store.isOpen !== false;
   const [isScrolled, setIsScrolled] = useState(false);
+
+  const handleBackAction = onBack || (() => {
+    if (window.history.state && window.history.state.idx > 0) {
+      navigate(-1);
+    } else {
+      navigate('/');
+    }
+  });
 
   const handleShareStall = () => {
     const rawId = store?.id || store?._id || '';
@@ -60,7 +69,7 @@ const StoreSubHeader = ({
       >
         <div style={{ maxWidth: '800px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.65rem 1rem' }}>
           <button 
-            onClick={() => navigate(-1)} 
+            onClick={handleBackAction} 
             style={{ 
               background: '#ffffff', 
               border: '1px solid var(--surface-border)', 

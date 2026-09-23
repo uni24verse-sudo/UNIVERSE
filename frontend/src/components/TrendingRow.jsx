@@ -61,19 +61,36 @@ const TrendingRow = () => {
     return (
       <div className="trending-section">
         <div className="trending-header">
-           <div className="skeleton" style={{ width: '200px', height: '2rem', borderRadius: '8px' }}></div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem' }}>
+            <div className="skeleton" style={{ width: '24px', height: '24px', borderRadius: '6px' }} />
+            <div className="skeleton" style={{ width: '190px', height: '1.65rem', borderRadius: '8px' }} />
+          </div>
+          <div className="skeleton" style={{ width: '260px', height: '0.85rem', borderRadius: '6px' }} />
         </div>
         <div className="trending-carousel-wrapper">
           <div className="trending-carousel">
-            {[1, 2, 3, 4].map(i => (
-              <div key={i} className="trending-card">
-                <div className="trending-img-wrapper skeleton"></div>
+            {[1, 2, 3, 4, 5, 6].map(i => (
+              <div key={i} className="trending-card" style={{ pointerEvents: 'none' }}>
+                <div className="trending-img-wrapper skeleton" style={{ position: 'relative' }}>
+                  <div 
+                    className="skeleton" 
+                    style={{ 
+                      position: 'absolute', 
+                      top: '8px', 
+                      left: '8px', 
+                      width: '26px', 
+                      height: '18px', 
+                      borderRadius: '100px', 
+                      background: 'rgba(255, 255, 255, 0.85)' 
+                    }} 
+                  />
+                </div>
                 <div className="trending-info">
-                  <div className="skeleton" style={{ height: '1rem', width: '80%', marginBottom: '0.5rem', borderRadius: '4px' }}></div>
-                  <div className="skeleton" style={{ height: '0.75rem', width: '60%', marginBottom: '1rem', borderRadius: '4px' }}></div>
-                  <div className="trending-footer">
-                    <div className="skeleton" style={{ height: '1rem', width: '30%', borderRadius: '4px' }}></div>
-                    <div className="skeleton" style={{ height: '1.75rem', width: '60px', borderRadius: '8px' }}></div>
+                  <div className="skeleton" style={{ height: '0.95rem', width: '78%', marginBottom: '0.35rem', borderRadius: '4px' }} />
+                  <div className="skeleton" style={{ height: '0.75rem', width: '52%', marginBottom: '0.75rem', borderRadius: '4px' }} />
+                  <div className="trending-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div className="skeleton" style={{ height: '1rem', width: '38px', borderRadius: '4px' }} />
+                    <div className="skeleton" style={{ height: '1.6rem', width: '54px', borderRadius: '8px' }} />
                   </div>
                 </div>
               </div>

@@ -10,6 +10,7 @@ const orderRepository = require('../repositories/orderRepository');
 const customerRepository = require('../repositories/customerRepository');
 const auditService = require('../services/auditService');
 const refundService = require('../services/refundService');
+const { getFrontendUrl } = require('../config/urls');
 
 // Helper to generate a unique 4-digit order number
 const generateOrderNumber = () => Math.floor(1000 + Math.random() * 9000).toString();
@@ -732,7 +733,7 @@ router.get('/refund/claim-pay/:refundId', async (req, res) => {
               </div>
             </div>
 
-            <a href="${process.env.FRONTEND_URL || 'https://uat.food.universeorder.co.in'}/super-admin/panel?tab=refunds" style="display: block; background: #334155; color: white; text-decoration: none; padding: 0.85rem; border-radius: 12px; font-weight: 800; font-size: 0.85rem;">
+            <a href="${getFrontendUrl()}/super-admin/panel?tab=refunds" style="display: block; background: #334155; color: white; text-decoration: none; padding: 0.85rem; border-radius: 12px; font-weight: 800; font-size: 0.85rem;">
               Open Super Admin Panel
             </a>
           </div>
@@ -865,7 +866,7 @@ router.all('/refund/mobile-settle/:refundId', async (req, res) => {
             <div style="width: 55px; height: 55px; border-radius: 50%; background: #451a03; color: #f59e0b; display: flex; align-items: center; justify-content: center; font-size: 2rem; margin: 0 auto 1rem;">ℹ️</div>
             <h2 style="margin: 0 0 0.5rem 0;">${result.message}</h2>
             <p style="color: #94a3b8; font-size: 0.9rem; margin-top: 1rem;">This refund may have already been settled by another admin.</p>
-            <a href="${process.env.FRONTEND_URL || 'https://uat.food.universeorder.co.in'}/super-admin/panel?tab=refunds" style="display:inline-block; margin-top: 1.5rem; background: #334155; color: white; text-decoration: none; padding: 0.8rem 1.5rem; border-radius: 12px; font-weight: 700; font-size: 0.85rem;">Open Super Admin Portal</a>
+            <a href="${getFrontendUrl()}/super-admin/panel?tab=refunds" style="display:inline-block; margin-top: 1.5rem; background: #334155; color: white; text-decoration: none; padding: 0.8rem 1.5rem; border-radius: 12px; font-weight: 700; font-size: 0.85rem;">Open Super Admin Portal</a>
           </div>
         </body>
         </html>
