@@ -344,7 +344,7 @@ router.post('/admin/publish', superAdminAuth, async (req, res) => {
           "endDate" = $7,
           "updatedAt" = NOW()
       WHERE id = $8
-    `, bannerUrl, title || '', tag || 'Featured Stall', parseInt(slotIndex, 10) || 1, targetUrl || '', startDate, endDate, bannerId);
+    `, bannerUrl, title || '', tag !== undefined ? tag : 'Featured Stall', parseInt(slotIndex, 10) || 1, targetUrl || '', startDate, endDate, bannerId);
 
     const io = req.app.get('io');
     if (io) {

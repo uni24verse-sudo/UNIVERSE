@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { ShoppingBag, X, ExternalLink, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
 import { io } from 'socket.io-client';
 import axios from 'axios';
+import { playOrderCompletedSound, playOrderReadySound, playOrderConfirmedSound } from '../utils/soundHelper';
 
 const RecentOrders = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -75,9 +76,11 @@ const RecentOrders = () => {
           if (existing && existing.status !== updatedOrder.status) {
             // Play Sound
             if (updatedOrder.status === 'Confirmed') {
-              new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3').play().catch(() => {});
+              playOrderConfirmedSound();
             } else if (updatedOrder.status === 'Completed') {
-              new Audio('https://assets.mixkit.co/active_storage/sfx/1003/1003-preview.mp3').play().catch(() => {});
+              playOrderCompletedSound();
+            } else if (updatedOrder.status === 'Ready') {
+              playOrderReadySound();
             }
 
             // Update Local Storage

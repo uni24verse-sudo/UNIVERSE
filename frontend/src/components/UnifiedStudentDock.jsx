@@ -21,6 +21,7 @@ import {
 import { io } from 'socket.io-client';
 import axios from 'axios';
 import { CartContext } from '../context/CartContext';
+import { playOrderCompletedSound, playOrderReadySound, playOrderConfirmedSound } from '../utils/soundHelper';
 
 const UnifiedStudentDock = () => {
   const { cart, total, reorder, cartLocationId } = useContext(CartContext);
@@ -106,9 +107,11 @@ const UnifiedStudentDock = () => {
 
       socket.on('order_status_update', (updatedOrder) => {
         if (updatedOrder.status === 'Confirmed') {
-          new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3').play().catch(() => {});
-        } else if (updatedOrder.status === 'Completed' || updatedOrder.status === 'Ready') {
-          new Audio('https://assets.mixkit.co/active_storage/sfx/1003/1003-preview.mp3').play().catch(() => {});
+          playOrderConfirmedSound();
+        } else if (updatedOrder.status === 'Completed') {
+          playOrderCompletedSound();
+        } else if (updatedOrder.status === 'Ready') {
+          playOrderReadySound();
         }
         loadCustomerOrders(true);
       });

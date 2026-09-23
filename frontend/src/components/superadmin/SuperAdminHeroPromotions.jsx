@@ -22,7 +22,8 @@ import {
   Coins,
   Radio,
   Sliders,
-  CheckCheck
+  CheckCheck,
+  Image as ImageIcon
 } from 'lucide-react';
 
 const SuperAdminHeroPromotions = ({ token, socket }) => {
@@ -36,6 +37,7 @@ const SuperAdminHeroPromotions = ({ token, socket }) => {
   // Dual-Screen Preview Simulator Modal State
   const [previewModal, setPreviewModal] = useState(null);
   const [finalBannerUrl, setFinalBannerUrl] = useState('');
+  const [showOverlayText, setShowOverlayText] = useState(true);
   const [finalTitle, setFinalTitle] = useState('');
   const [finalTag, setFinalTag] = useState('');
   const [selectedSlot, setSelectedSlot] = useState(1);
@@ -81,8 +83,10 @@ const SuperAdminHeroPromotions = ({ token, socket }) => {
   const handleOpenSimulator = (item) => {
     setPreviewModal(item);
     setFinalBannerUrl(item.bannerUrl || item.rawAssetUrl || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=1920&q=80');
-    setFinalTitle(item.title || item.rawText || `${item.storeName} Specials`);
-    setFinalTag(item.tag || 'Featured Stall');
+    const isClean = item.title === '' || item.title === '__NO_TEXT__';
+    setShowOverlayText(!isClean);
+    setFinalTitle(isClean ? '' : (item.title || item.rawText || `${item.storeName} Specials`));
+    setFinalTag(isClean ? '' : (item.tag || 'Featured Stall'));
     setSelectedSlot(item.slotIndex || 1);
   };
 
@@ -93,8 +97,8 @@ const SuperAdminHeroPromotions = ({ token, socket }) => {
       await axios.post(`${API_URL}/api/banners/admin/publish`, {
         bannerId: previewModal.id,
         bannerUrl: finalBannerUrl,
-        title: finalTitle,
-        tag: finalTag,
+        title: showOverlayText ? (finalTitle.trim() || `${previewModal.storeName} Specials`) : '',
+        tag: showOverlayText ? (finalTag.trim() || 'Featured Stall') : '',
         slotIndex: selectedSlot,
         targetUrl: `/store/${previewModal.stallId}`
       }, authConfig);
@@ -126,7 +130,7 @@ const SuperAdminHeroPromotions = ({ token, socket }) => {
 
   const pendingQueue = banners.filter(b => b.status === 'pending_design');
   const activeBanners = banners.filter(b => b.status === 'active' && new Date(b.endDate) > new Date());
-  const totalPaidRevenue = banners.reduce((acc, curr) => acc + (parseFloat(curr.amountPaid) || 1000), 0);
+  const totalPaidRevenue = banners.reduce((acc, curr) => acc + (parseFloat(curr.amountPaid) || 799), 0);
 
   return (
     <div style={{ color: '#0f172a', fontFamily: 'inherit' }}>
@@ -168,7 +172,7 @@ const SuperAdminHeroPromotions = ({ token, socket }) => {
               marginBottom: '0.75rem',
               letterSpacing: '0.04em'
             }}>
-              <Sparkles size={14} /> HERO PROMOTIONS ENGINE • ₹1,000/MO SLOTS
+              <Sparkles size={14} /> HERO PROMOTIONS ENGINE • ₹799/MO SLOTS
             </div>
             <h1 style={{ fontSize: '2.1rem', fontWeight: '900', margin: 0, letterSpacing: '-0.03em', color: '#0f172a' }}>
               Location Hero Promotions
@@ -332,7 +336,7 @@ const SuperAdminHeroPromotions = ({ token, socket }) => {
             </p>
           </div>
           <span style={{ fontSize: '0.8rem', fontWeight: '800', background: '#f1f5f9', color: '#475569', padding: '0.35rem 0.85rem', borderRadius: '100px' }}>
-            ₹1,000 / Slot / 30 Days
+            ₹799 / Slot / 30 Days
           </span>
         </div>
 
@@ -439,7 +443,7 @@ const SuperAdminHeroPromotions = ({ token, socket }) => {
               </span>
             </h3>
             <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.875rem', color: '#64748b' }}>
-              Vendors who paid ₹1,000 for their hero campaign. Download their raw assets, align with standard 1920×768 master template, and publish.
+              Vendors who paid ₹799 for their hero campaign. Download their raw assets, align with standard 1920×768 master template, and publish.
             </p>
           </div>
         </div>
@@ -487,7 +491,7 @@ const SuperAdminHeroPromotions = ({ token, socket }) => {
                     </h4>
                   </div>
                   <span style={{ background: 'rgba(16, 185, 129, 0.12)', color: '#059669', padding: '0.35rem 0.85rem', borderRadius: '100px', fontSize: '0.75rem', fontWeight: '900', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                    <Check size={12} /> PAID ₹1,000
+                    <Check size={12} /> PAID ₹{item.amountPaid || 799}
                   </span>
                 </div>
 
@@ -764,6 +768,63 @@ const SuperAdminHeroPromotions = ({ token, socket }) => {
               </button>
             </div>
 
+            {/* Banner Style Toggle Selector */}
+            <div style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '0.75rem', 
+              marginBottom: '1.25rem', 
+              padding: '0.85rem 1.25rem', 
+              background: 'rgba(255,255,255,0.04)', 
+              borderRadius: '16px', 
+              border: '1px solid rgba(255,255,255,0.08)',
+              flexWrap: 'wrap'
+            }}>
+              <span style={{ fontSize: '0.8rem', fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                Banner Style:
+              </span>
+              <button 
+                type="button"
+                onClick={() => setShowOverlayText(false)}
+                style={{
+                  padding: '0.55rem 1.15rem',
+                  borderRadius: '100px',
+                  fontSize: '0.82rem',
+                  fontWeight: '800',
+                  cursor: 'pointer',
+                  border: !showOverlayText ? '2px solid #10b981' : '1px solid rgba(255,255,255,0.15)',
+                  background: !showOverlayText ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255,255,255,0.05)',
+                  color: !showOverlayText ? '#10b981' : '#94a3b8',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.45rem',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                <ImageIcon size={15} /> Pure Graphic Poster (No Text / No Button Overlay)
+              </button>
+              <button 
+                type="button"
+                onClick={() => setShowOverlayText(true)}
+                style={{
+                  padding: '0.55rem 1.15rem',
+                  borderRadius: '100px',
+                  fontSize: '0.82rem',
+                  fontWeight: '800',
+                  cursor: 'pointer',
+                  border: showOverlayText ? '2px solid #6366f1' : '1px solid rgba(255,255,255,0.15)',
+                  background: showOverlayText ? 'rgba(99, 102, 241, 0.2)' : 'rgba(255,255,255,0.05)',
+                  color: showOverlayText ? '#818cf8' : '#94a3b8',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.45rem',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                <Sparkles size={15} /> Standard Template (Title, Tag & Button Overlay)
+              </button>
+            </div>
+
             {/* Inputs Row */}
             <div style={{ 
               display: 'grid', 
@@ -787,30 +848,41 @@ const SuperAdminHeroPromotions = ({ token, socket }) => {
                   style={{ width: '100%', marginTop: '0.4rem', padding: '0.75rem 1rem', borderRadius: '10px', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.12)', color: 'white', fontWeight: '600' }}
                 />
               </div>
-              <div>
-                <label style={{ fontSize: '0.75rem', fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase' }}>
-                  Offer Headline / Title
-                </label>
-                <input 
-                  type="text" 
-                  value={finalTitle}
-                  onChange={(e) => setFinalTitle(e.target.value)}
-                  placeholder="e.g. Flat 20% Off Combos"
-                  style={{ width: '100%', marginTop: '0.4rem', padding: '0.75rem 1rem', borderRadius: '10px', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.12)', color: 'white', fontWeight: '600' }}
-                />
-              </div>
-              <div>
-                <label style={{ fontSize: '0.75rem', fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase' }}>
-                  Tag Badge (Optional)
-                </label>
-                <input 
-                  type="text" 
-                  value={finalTag}
-                  onChange={(e) => setFinalTag(e.target.value)}
-                  placeholder="e.g. Featured Stall"
-                  style={{ width: '100%', marginTop: '0.4rem', padding: '0.75rem 1rem', borderRadius: '10px', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.12)', color: 'white', fontWeight: '600' }}
-                />
-              </div>
+
+              {showOverlayText ? (
+                <>
+                  <div>
+                    <label style={{ fontSize: '0.75rem', fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase' }}>
+                      Offer Headline / Title
+                    </label>
+                    <input 
+                      type="text" 
+                      value={finalTitle}
+                      onChange={(e) => setFinalTitle(e.target.value)}
+                      placeholder="e.g. Flat 20% Off Combos"
+                      style={{ width: '100%', marginTop: '0.4rem', padding: '0.75rem 1rem', borderRadius: '10px', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.12)', color: 'white', fontWeight: '600' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.75rem', fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase' }}>
+                      Tag Badge (Optional)
+                    </label>
+                    <input 
+                      type="text" 
+                      value={finalTag}
+                      onChange={(e) => setFinalTag(e.target.value)}
+                      placeholder="e.g. Featured Stall"
+                      style={{ width: '100%', marginTop: '0.4rem', padding: '0.75rem 1rem', borderRadius: '10px', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.12)', color: 'white', fontWeight: '600' }}
+                    />
+                  </div>
+                </>
+              ) : (
+                <div style={{ gridColumn: 'span 2', padding: '0.85rem 1.25rem', background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.25)', borderRadius: '12px', fontSize: '0.82rem', color: '#10b981', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                  <CheckCircle2 size={18} />
+                  <span><strong>Pure Graphic Mode:</strong> Image displays at 100% full clarity with no dark scrim, text, or button blocking the design. Clicking anywhere on the banner will open <strong>/store/{previewModal.stallId}</strong>.</span>
+                </div>
+              )}
+
               <div>
                 <label style={{ fontSize: '0.75rem', fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase' }}>
                   Slot Assignment (1 to 5)
@@ -836,7 +908,7 @@ const SuperAdminHeroPromotions = ({ token, socket }) => {
                   <Monitor size={18} /> DESKTOP VIEWPORT PREVIEW (1920 × 768 px Canvas)
                 </div>
                 <span style={{ background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', padding: '0.25rem 0.75rem', borderRadius: '100px', fontSize: '0.75rem', fontWeight: '900' }}>
-                  16:6.4 RATIO
+                  {!showOverlayText ? 'PURE GRAPHIC MODE' : '16:6.4 RATIO'}
                 </span>
               </div>
 
@@ -865,46 +937,54 @@ const SuperAdminHeroPromotions = ({ token, socket }) => {
                   alignItems: 'center',
                   padding: '0 3rem'
                 }}>
-                  <div style={{
-                    position: 'absolute',
-                    inset: 0,
-                    background: 'linear-gradient(to right, rgba(15,23,42,0.95) 0%, rgba(15,23,42,0.6) 50%, transparent 100%)'
-                  }} />
+                  {showOverlayText ? (
+                    <>
+                      <div style={{
+                        position: 'absolute',
+                        inset: 0,
+                        background: 'linear-gradient(to right, rgba(15,23,42,0.95) 0%, rgba(15,23,42,0.6) 50%, transparent 100%)'
+                      }} />
 
-                  <div style={{ position: 'relative', zIndex: 2, maxWidth: '500px' }}>
-                    <span style={{ 
-                      display: 'inline-block', 
-                      padding: '0.3rem 0.85rem', 
-                      borderRadius: '100px', 
-                      background: 'var(--primary, #ef4123)', 
-                      fontSize: '0.7rem', 
-                      fontWeight: '800', 
-                      textTransform: 'uppercase',
-                      marginBottom: '0.75rem' 
-                    }}>
-                      {finalTag}
-                    </span>
-                    <h1 style={{ fontSize: '2rem', fontWeight: '900', margin: '0 0 0.5rem 0', lineHeight: 1.15, color: 'white' }}>
-                      {finalTitle}
-                    </h1>
-                    <p style={{ fontSize: '0.9rem', opacity: 0.9, margin: '0 0 1.25rem 0', color: '#cbd5e1' }}>
-                      Order fresh from {previewModal.storeName}. Pick up hot & skip the line!
-                    </p>
-                    <button style={{
-                      background: 'var(--primary, #ef4123)',
-                      color: 'white',
-                      border: 'none',
-                      padding: '0.75rem 1.5rem',
-                      borderRadius: '10px',
-                      fontWeight: '800',
-                      fontSize: '0.85rem',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '0.4rem'
-                    }}>
-                      Explore Now <ArrowRight size={14} />
-                    </button>
-                  </div>
+                      <div style={{ position: 'relative', zIndex: 2, maxWidth: '500px' }}>
+                        <span style={{ 
+                          display: 'inline-block', 
+                          padding: '0.3rem 0.85rem', 
+                          borderRadius: '100px', 
+                          background: 'var(--primary, #ef4123)', 
+                          fontSize: '0.7rem', 
+                          fontWeight: '800', 
+                          textTransform: 'uppercase',
+                          marginBottom: '0.75rem' 
+                        }}>
+                          {finalTag}
+                        </span>
+                        <h1 style={{ fontSize: '2rem', fontWeight: '900', margin: '0 0 0.5rem 0', lineHeight: 1.15, color: 'white' }}>
+                          {finalTitle}
+                        </h1>
+                        <p style={{ fontSize: '0.9rem', opacity: 0.9, margin: '0 0 1.25rem 0', color: '#cbd5e1' }}>
+                          Order fresh from {previewModal.storeName}. Pick up hot & skip the line!
+                        </p>
+                        <button style={{
+                          background: 'var(--primary, #ef4123)',
+                          color: 'white',
+                          border: 'none',
+                          padding: '0.75rem 1.5rem',
+                          borderRadius: '10px',
+                          fontWeight: '800',
+                          fontSize: '0.85rem',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.4rem'
+                        }}>
+                          Explore Now <ArrowRight size={14} />
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <div style={{ position: 'absolute', bottom: '1rem', right: '1.5rem', background: 'rgba(15, 23, 42, 0.75)', backdropFilter: 'blur(8px)', padding: '0.4rem 0.85rem', borderRadius: '100px', fontSize: '0.75rem', color: '#10b981', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '0.4rem', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+                      <CheckCircle2 size={14} /> 100% Unobstructed Graphic (Click opens stall)
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -916,7 +996,7 @@ const SuperAdminHeroPromotions = ({ token, socket }) => {
                   <Smartphone size={18} /> MOBILE PHONE PREVIEW (iPhone / Android)
                 </div>
                 <span style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', padding: '0.25rem 0.75rem', borderRadius: '100px', fontSize: '0.75rem', fontWeight: '900' }}>
-                  MOBILE SAFE ZONE
+                  {!showOverlayText ? '100% FULL IMAGE' : 'MOBILE SAFE ZONE'}
                 </span>
               </div>
 
@@ -945,38 +1025,48 @@ const SuperAdminHeroPromotions = ({ token, socket }) => {
                     padding: '1.25rem',
                     display: 'flex',
                     flexDirection: 'column',
-                    justifyContent: 'center'
+                    justifyContent: 'flex-end'
                   }}>
-                    <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to right, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 70%, transparent 100%)' }} />
+                    {showOverlayText ? (
+                      <>
+                        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(15, 23, 42, 0.95) 0%, rgba(15, 23, 42, 0.6) 50%, transparent 100%)' }} />
 
-                    <div style={{ position: 'relative', zIndex: 2 }}>
-                      <span style={{ 
-                        display: 'inline-block', 
-                        padding: '0.2rem 0.6rem', 
-                        borderRadius: '100px', 
-                        background: 'var(--primary, #ef4123)', 
-                        fontSize: '0.6rem', 
-                        fontWeight: '800', 
-                        textTransform: 'uppercase',
-                        marginBottom: '0.5rem' 
-                      }}>
-                        {finalTag}
-                      </span>
-                      <h3 style={{ fontSize: '1.25rem', fontWeight: '900', margin: '0 0 0.75rem 0', lineHeight: 1.2, color: 'white' }}>
-                        {finalTitle}
-                      </h3>
-                      <button style={{
-                        background: 'var(--primary, #ef4123)',
-                        color: 'white',
-                        border: 'none',
-                        padding: '0.5rem 1rem',
-                        borderRadius: '8px',
-                        fontWeight: '800',
-                        fontSize: '0.75rem'
-                      }}>
-                        Explore Now
-                      </button>
-                    </div>
+                        <div style={{ position: 'relative', zIndex: 2 }}>
+                          <span style={{ 
+                            display: 'inline-block', 
+                            padding: '0.2rem 0.6rem', 
+                            borderRadius: '100px', 
+                            background: 'var(--primary, #ef4123)', 
+                            fontSize: '0.6rem', 
+                            fontWeight: '800', 
+                            textTransform: 'uppercase',
+                            marginBottom: '0.4rem' 
+                          }}>
+                            {finalTag}
+                          </span>
+                          <h3 style={{ fontSize: '1.2rem', fontWeight: '900', margin: '0 0 0.6rem 0', lineHeight: 1.2, color: 'white' }}>
+                            {finalTitle}
+                          </h3>
+                          <button style={{
+                            background: 'var(--primary, #ef4123)',
+                            color: 'white',
+                            border: 'none',
+                            padding: '0.45rem 1.1rem',
+                            borderRadius: '100px',
+                            fontWeight: '800',
+                            fontSize: '0.75rem'
+                          }}>
+                            Explore Now
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <div style={{ position: 'relative', zIndex: 2, textAlign: 'center' }}>
+                        <span style={{ background: 'rgba(15, 23, 42, 0.8)', backdropFilter: 'blur(6px)', padding: '0.3rem 0.75rem', borderRadius: '100px', fontSize: '0.65rem', color: '#10b981', fontWeight: '800', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+                          100% Poster Visibility
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -984,9 +1074,13 @@ const SuperAdminHeroPromotions = ({ token, socket }) => {
                 <div style={{ flex: 1, minWidth: '280px', background: 'rgba(255,255,255,0.03)', padding: '1.5rem', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.08)' }}>
                   <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '1rem', fontWeight: '800', color: '#10b981' }}>Safe Zone Verification Checklist</h4>
                   <ul style={{ margin: 0, paddingLeft: '1.25rem', fontSize: '0.85rem', color: '#94a3b8', lineHeight: '1.8' }}>
-                    <li>Headline and offer text are centered and 100% visible on mobile.</li>
-                    <li>No vital food dish photography is cropped out.</li>
-                    <li>Banner is deep-linked to <strong style={{ color: 'white' }}>/store/{previewModal.stallId}</strong>.</li>
+                    <li>
+                      {!showOverlayText 
+                        ? <strong style={{ color: '#10b981' }}>Pure Graphic Mode: Artwork and text inside your flyer are 100% visible.</strong>
+                        : 'Headline and offer text are positioned cleanly within the mobile safe zone.'}
+                    </li>
+                    <li>Clicking anywhere on this banner in the live app will forward students to <strong style={{ color: 'white' }}>/store/{previewModal.stallId}</strong>.</li>
+                    <li>No vital food dish photography is distorted or clipped.</li>
                     <li>Publishing starts the <strong style={{ color: '#10b981' }}>30-Day countdown</strong> immediately.</li>
                   </ul>
                 </div>

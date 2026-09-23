@@ -1,3 +1,5 @@
+import { playOrderCompletedSound, playOrderReadySound } from './soundHelper';
+
 class NotificationManager {
   constructor() {
     this.permission = 'default';
@@ -26,7 +28,7 @@ class NotificationManager {
     }
 
     try {
-      this.playNotificationSound();
+      this.playNotificationSound(options.soundType);
 
       // Show browser notification
       new Notification(title, {
@@ -43,8 +45,12 @@ class NotificationManager {
     }
   }
 
-  playNotificationSound() {
-    if (this.audio) {
+  playNotificationSound(soundType = 'default') {
+    if (soundType === 'completed') {
+      playOrderCompletedSound();
+    } else if (soundType === 'ready') {
+      playOrderReadySound();
+    } else if (this.audio) {
       this.audio.play().catch(() => {});
     }
   }
@@ -66,7 +72,8 @@ class NotificationManager {
     return this.showNotification(title, {
       body,
       tag: `order-${id}`,
-      renotify: true
+      renotify: true,
+      soundType: status === 'Completed' ? 'completed' : status === 'Ready' ? 'ready' : 'default'
     });
   }
 

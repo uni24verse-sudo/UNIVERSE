@@ -32,33 +32,29 @@ import ScrollToTop from './components/ScrollToTop';
 import { Sparkles, Zap, MapPin } from 'lucide-react';
 
 const TopPromoBanner = () => {
+  const statement = "ORDER 15 MIN EARLY. EAT FRESH.";
+  const items = Array(8).fill(statement);
+
   return (
-    <div className="promo-banner" style={{
-      height: 'var(--promo-height)',
-      boxSizing: 'border-box',
-      padding: '0 1rem',
-      textAlign: 'center',
-      color: 'white',
-      fontWeight: '800',
-      fontSize: '0.8125rem',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: '0.75rem',
-      boxShadow: '0 4px 15px rgba(239, 65, 35, 0.25)',
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      zIndex: 1100,
-      letterSpacing: '0.05em',
-      textTransform: 'uppercase'
-    }}>
-      <Sparkles size={14} className="pulse" />
-      <span style={{ textShadow: '0 2px 4px rgba(0,0,0,0.15)' }}>
-        ORDER 15 MIN EARLY. EAT FRESH.
-      </span>
-      <Zap size={14} className="pulse" />
+    <div className="promo-banner" aria-label="Campus Notice">
+      <div className="promo-marquee-track">
+        <div className="promo-marquee-group">
+          {items.map((text, idx) => (
+            <span key={`p1-${idx}`} className="promo-marquee-item">
+              <span className="promo-marquee-text">{text}</span>
+              <span className="promo-marquee-bullet">✦</span>
+            </span>
+          ))}
+        </div>
+        <div className="promo-marquee-group" aria-hidden="true">
+          {items.map((text, idx) => (
+            <span key={`p2-${idx}`} className="promo-marquee-item">
+              <span className="promo-marquee-text">{text}</span>
+              <span className="promo-marquee-bullet">✦</span>
+            </span>
+          ))}
+        </div>
+      </div>
     </div>
   );
 };

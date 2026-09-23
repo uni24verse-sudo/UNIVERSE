@@ -43,6 +43,7 @@ import {
   Smartphone,
   Zap
 } from 'lucide-react';
+import { playOrderCompletedSound } from '../utils/soundHelper';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
 const CountdownTimer = ({ deadline, onAccept }) => {
@@ -168,7 +169,11 @@ const Dashboard = () => {
   useEffect(() => {
     const vendorId = vendor?.id || vendor?._id;
     if (vendorId) {
-      const hasSeenModal = vendor.seenFeatures?.includes(MODAL_KEY);
+      let stored = [];
+      try {
+        stored = JSON.parse(localStorage.getItem('universe_vendor_seen_features') || '[]');
+      } catch (e) {}
+      const hasSeenModal = vendor.seenFeatures?.includes(MODAL_KEY) || stored.includes(MODAL_KEY);
       if (!hasSeenModal) {
         setShowReleaseModal(true);
       }
@@ -177,15 +182,27 @@ const Dashboard = () => {
 
   const markFeatureAsSeen = (featureKey) => {
     const vendorId = vendor?.id || vendor?._id;
-    if (vendorId && !vendor.seenFeatures?.includes(featureKey)) {
-      axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/auth/mark-feature-seen`, 
-        { featureKey },
-        { headers: { 'Authorization': token } }
-      ).then(res => {
-        if (res.data.admin) {
-          updateVendor(res.data.admin);
+    if (vendorId) {
+      try {
+        const stored = JSON.parse(localStorage.getItem('universe_vendor_seen_features') || '[]');
+        if (!stored.includes(featureKey)) {
+          stored.push(featureKey);
+          localStorage.setItem('universe_vendor_seen_features', JSON.stringify(stored));
         }
-      }).catch(err => console.error(`Failed to mark ${featureKey} as seen`, err));
+      } catch (e) {}
+
+      if (!vendor.seenFeatures?.includes(featureKey)) {
+        axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/auth/mark-feature-seen`, 
+          { featureKey },
+          { headers: { 'Authorization': `Bearer ${token}` } }
+        ).then(res => {
+          if (res.data?.admin) {
+            updateVendor(res.data.admin);
+          }
+        }).catch(() => {
+          // Gracefully fallback when feature flag route is omitted
+        });
+      }
     }
   };
 
@@ -259,7 +276,7 @@ const Dashboard = () => {
         setStores(storesRes.data);
         if (storesRes.data.length > 0) {
           const savedStoreId = localStorage.getItem('preferredStoreId');
-          const savedStore = storesRes.data.find(s => s._id === savedStoreId);
+          const savedStore = storesRes.data.find(s => (s._id === savedStoreId || s.id === savedStoreId));
           setStore(savedStore || storesRes.data[0]);
         } else {
           setStore(null);
@@ -283,7 +300,8 @@ const Dashboard = () => {
     
     const fetchStoreOrders = async () => {
       try {
-        const ordersRes = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/orders/${store._id}/vendor-orders`, {
+        const storeId = store._id || store.id;
+        const ordersRes = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/orders/${storeId}/vendor-orders`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         setOrders(ordersRes.data);
@@ -302,7 +320,8 @@ const Dashboard = () => {
         
         // 1. Hard fetch fresh orders to catch any missed during sleep
         if (store && token) {
-           axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/orders/${store._id}/vendor-orders`, {
+           const storeId = store._id || store.id;
+           axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/orders/${storeId}/vendor-orders`, {
              headers: { Authorization: `Bearer ${token}` }
            })
            .then(res => setOrders(res.data))
@@ -311,7 +330,8 @@ const Dashboard = () => {
 
         // 2. Ensure Socket is locked in
         if (socket && connected && store) {
-           socket.emit('join_store_room', store._id);
+           const storeId = store._id || store.id;
+           socket.emit('join_store_room', storeId);
         }
       }
     };
@@ -328,28 +348,31 @@ const Dashboard = () => {
   // Join relevant store room whenever the selected store changes
   useEffect(() => {
     if (socket && connected && store) {
-      socket.emit('join_store_room', store._id);
+      const currentStoreId = store._id || store.id;
+      socket.emit('join_store_room', currentStoreId);
       
       const handleNewOrder = (order) => {
-        const orderStoreId = (typeof order.store === 'object') ? order.store._id : order.store;
-        if (orderStoreId !== store._id) return;
+        const orderStoreId = (typeof order.store === 'object') ? (order.store._id || order.store.id) : order.store;
+        if (orderStoreId !== currentStoreId) return;
 
         setOrders(prev => {
-          const exists = prev.find(o => o._id === order._id);
-          if (exists) return prev.map(o => o._id === order._id ? order : o);
+          const exists = prev.find(o => (o._id === order._id || o.id === order.id));
+          if (exists) return prev.map(o => (o._id === order._id || o.id === order.id) ? order : o);
           return [order, ...prev];
         });
       };
 
       const handleStoreStatus = ({ storeId, isOpen }) => {
-        if (storeId === store._id || storeId === store.id) {
+        const currentStoreId = store._id || store.id;
+        if (storeId === currentStoreId) {
           setStore(prev => ({ ...prev, isOpen }));
           setStores(prev => prev.map(s => (s._id === storeId || s.id === storeId) ? { ...s, isOpen } : s));
         }
       };
 
       const handleStoreAutoAccept = ({ storeId, autoAcceptOrders }) => {
-        if (storeId === store._id || storeId === store.id) {
+        const currentStoreId = store._id || store.id;
+        if (storeId === currentStoreId) {
           setStore(prev => ({ ...prev, autoAcceptOrders }));
           setStores(prev => prev.map(s => (s._id === storeId || s.id === storeId) ? { ...s, autoAcceptOrders } : s));
         }
@@ -458,6 +481,45 @@ const Dashboard = () => {
     }
   }, [showScanner, scannerMode]);
 
+  const downloadDashboardQR = () => {
+    const svg = document.getElementById('dashboard-store-qr');
+    if (!svg || !store) return;
+    try {
+      const svgData = new XMLSerializer().serializeToString(svg);
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+      img.onload = () => {
+        canvas.width = img.width + 60;
+        canvas.height = img.height + 140;
+        ctx.fillStyle = 'white';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // Draw store name
+        ctx.fillStyle = '#0f172a';
+        ctx.font = 'bold 22px Inter, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(store.name || 'Store', canvas.width / 2, 40);
+        
+        ctx.drawImage(img, 30, 65);
+        
+        // Draw footer
+        ctx.fillStyle = '#64748b';
+        ctx.font = '14px Inter, sans-serif';
+        ctx.fillText('Scan to order via UniVerse', canvas.width / 2, canvas.height - 30);
+        
+        const pngFile = canvas.toDataURL('image/png');
+        const downloadLink = document.createElement('a');
+        downloadLink.download = `${(store.name || 'Store').replace(/[^a-zA-Z0-9_-]/g, '_')}_QR.png`;
+        downloadLink.href = pngFile;
+        downloadLink.click();
+      };
+      img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+    } catch (err) {
+      console.error('Failed to download dashboard QR:', err);
+    }
+  };
+
   const handleVerifyHandover = async (orderId, handoverToken) => {
     setVerifyingScan(true);
     setScanResult(null);
@@ -474,7 +536,7 @@ const Dashboard = () => {
         setOrders(prev => prev.map(o => (o._id === orderId || o.id === orderId) ? (completedOrder || { ...o, status: 'Completed' }) : o));
         
         // Play success sound
-        new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3').play().catch(() => {});
+        playOrderCompletedSound();
         
         // Close scanner after pulse
         setTimeout(() => {
@@ -502,7 +564,7 @@ const Dashboard = () => {
       if (res.data?.success) {
         const completedOrder = res.data.order;
         setOrders(prev => prev.map(o => (o._id === orderId || o.id === orderId) ? (completedOrder || { ...o, status: 'Completed' }) : o));
-        new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3').play().catch(() => {});
+        playOrderCompletedSound();
       }
     } catch (err) {
       console.error('Direct Handover Error:', err);
@@ -532,7 +594,7 @@ const Dashboard = () => {
       if (res.data?.success && Array.isArray(res.data?.orders)) {
         const completedMap = new Map(res.data.orders.map(o => [o.id || o._id, o]));
         setOrders(prev => prev.map(o => completedMap.get(o._id) || completedMap.get(o.id) || o));
-        new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3').play().catch(() => {});
+        playOrderCompletedSound();
       }
     } catch (err) {
       console.error('Bulk Complete Error:', err);
@@ -1000,9 +1062,9 @@ const Dashboard = () => {
           }}>
             {stores.length > 0 && (
               <select 
-                value={store?._id || ''} 
+                value={(store?._id || store?.id) || ''} 
                 onChange={(e) => {
-                  const selected = stores.find(s => s._id === e.target.value);
+                  const selected = stores.find(s => (s._id === e.target.value || s.id === e.target.value));
                   setStore(selected);
                   localStorage.setItem('preferredStoreId', e.target.value);
                 }}
@@ -1017,9 +1079,10 @@ const Dashboard = () => {
                   flex: isMobile ? 1 : 'none'
                 }}
               >
-                {stores.map(s => (
-                  <option key={s._id} value={s._id}>{s.name} ({s.market || 'BH1 Market'})</option>
-                ))}
+                {stores.map(s => {
+                  const sId = s._id || s.id;
+                  return <option key={sId} value={sId}>{s.name} ({s.market || 'BH1 Market'})</option>;
+                })}
               </select>
             )}
             
@@ -1315,9 +1378,9 @@ const Dashboard = () => {
             </Link>
           </div>
         ) : activeTab === 'finance' ? (
-          <VendorFinance storeId={store?._id} />
+          <VendorFinance storeId={store?._id || store?.id} />
         ) : activeTab === 'employees' ? (
-          <EmployeeManagement storeId={store?._id} />
+          <EmployeeManagement storeId={store?._id || store?.id} />
         ) : activeTab === 'promotions' ? (
           <VendorPromotionManager store={store} />
         ) : activeTab === 'kds' ? (
@@ -1965,9 +2028,16 @@ const Dashboard = () => {
                   <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '24px' }}>
                     <h4 style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><QrCode size={18} /> Store QR</h4>
                     <div style={{ background: 'white', padding: '1rem', borderRadius: '16px', textAlign: 'center', marginBottom: '1rem' }}>
-                      <QRCodeSVG value={`${window.location.origin}/store/${store._id}?source=qr`} size={160} level="H" />
+                      <QRCodeSVG id="dashboard-store-qr" value={`${window.location.origin}/store/${store._id || store.id}?source=qr`} size={160} level="H" />
                     </div>
-                    <button onClick={() => navigate('/vendor/store/manage')} className="btn btn-secondary" style={{ width: '100%', borderRadius: '12px' }}>Download QR</button>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                      <button onClick={downloadDashboardQR} className="btn btn-primary" style={{ width: '100%', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }}>
+                        <Download size={16} /> Download QR Code
+                      </button>
+                      <button onClick={() => navigate('/vendor/store/manage')} className="btn btn-secondary" style={{ width: '100%', borderRadius: '12px' }}>
+                        Manage Stall
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -2146,7 +2216,7 @@ const Dashboard = () => {
                     </div>
                     <div>
                       <span style={{ fontSize: '1.25rem', fontWeight: '900', color: store?.isOpen ? '#10b981' : '#ef4444', display: 'block' }}>{store?.isOpen ? 'ONLINE' : 'OFFLINE'}</span>
-                      <Link to={`/store/${store?._id}`} target="_blank" style={{ color: 'var(--primary)', fontSize: '0.75rem', textDecoration: 'underline', fontWeight: '700' }}>View Public Link</Link>
+                      <Link to={`/store/${store?._id || store?.id}`} target="_blank" style={{ color: 'var(--primary)', fontSize: '0.75rem', textDecoration: 'underline', fontWeight: '700' }}>View Public Link</Link>
                     </div>
                  </div>
               </div>

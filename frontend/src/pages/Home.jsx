@@ -365,8 +365,8 @@ const Home = () => {
     <div style={{ minHeight: '100vh', position: 'relative' }}>
       <FloatingBackground />
 
-      {/* Premium Hero Carousel */}
-      <div style={{ padding: '2rem 2rem 0 2rem', maxWidth: '1200px', margin: '0 auto' }}>
+      {/* Full-Bleed Edge-to-Edge Hero Carousel */}
+      <div style={{ width: '100%', margin: 0, padding: 0 }}>
         <HeroCarousel hubType={hubType} onSearch={(q) => { 
           setLocalSearchQuery(q); 
           window.scrollTo({ top: 600, behavior: 'smooth' }); 
