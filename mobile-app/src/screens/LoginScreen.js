@@ -9,7 +9,8 @@ import {
   KeyboardAvoidingView, 
   Platform, 
   ScrollView,
-  StatusBar
+  StatusBar,
+  Image
 } from 'react-native';
 import { AuthContext } from '../context/AuthContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -44,185 +45,189 @@ export default function LoginScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#0F172A" />
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <StatusBar barStyle="light-content" backgroundColor="#0A0F1D" />
 
-      {/* Top Brand Banner */}
-      <LinearGradient 
-        colors={['#0A0F1D', '#0F172A', '#1E293B']} 
-        start={{ x: 0, y: 0 }} 
-        end={{ x: 1, y: 1 }}
-        style={styles.heroBanner}
-      >
-        <SafeAreaView edges={['top']} style={styles.heroSafe}>
-          <View style={styles.brandRow}>
-            <View style={styles.logoBadge}>
-              <Ionicons name="restaurant" size={20} color="#FF6B00" />
-            </View>
-            <View>
-              <Text style={styles.brandTitle}>UNIVERSE</Text>
-              <Text style={styles.brandSub}>VENDOR PARTNER</Text>
-            </View>
-          </View>
-          <Text style={styles.heroHeadline}>Kitchen Operations</Text>
-          <Text style={styles.heroTagline}>Real-time order synchronization & instant student handovers</Text>
-        </SafeAreaView>
-      </LinearGradient>
-
-      {/* Main Login Card */}
       <KeyboardAvoidingView 
         style={styles.keyboardView}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView 
           contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
+          keyboardShouldPersistTaps="always"
           showsVerticalScrollIndicator={false}
+          bounces={false}
         >
-          <View style={styles.card}>
-            <View style={styles.cardHeader}>
-              <Text style={styles.cardTitle}>Sign In</Text>
-              <Text style={styles.cardSubtitle}>Enter your registered vendor or staff credentials</Text>
-            </View>
-
-            {/* Email Field */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>EMAIL ADDRESS</Text>
-              <View style={[styles.inputWrapper, emailFocused && styles.inputWrapperFocused]}>
-                <Ionicons 
-                  name="mail-outline" 
-                  size={19} 
-                  color={emailFocused ? '#EF4123' : '#94A3B8'} 
-                  style={styles.inputIcon} 
-                />
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="vendor@universeorder.co.in"
-                  placeholderTextColor="#94A3B8"
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  value={email}
-                  onChangeText={(t) => { setEmail(t); setErrorMessage(''); }}
-                  onFocus={() => setEmailFocused(true)}
-                  onBlur={() => setEmailFocused(false)}
-                />
+          {/* Top Brand Banner with Official Astronaut/Helmet Logo */}
+          <LinearGradient 
+            colors={['#0A0F1D', '#0F172A', '#1E293B']} 
+            start={{ x: 0, y: 0 }} 
+            end={{ x: 1, y: 1 }}
+            style={styles.heroBanner}
+          >
+            <View style={styles.brandRow}>
+              <Image 
+                source={require('../../assets/logo-symbol.png')} 
+                style={styles.brandLogo} 
+                resizeMode="contain" 
+              />
+              <View>
+                <Text style={styles.brandTitle}>UNIVERSE</Text>
+                <Text style={styles.brandSub}>VENDOR PARTNER</Text>
               </View>
             </View>
+            <Text style={styles.heroHeadline}>Kitchen Operations</Text>
+            <Text style={styles.heroTagline}>Real-time order synchronization & instant student handovers</Text>
+          </LinearGradient>
 
-            {/* Password Field */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>PASSWORD</Text>
-              <View style={[styles.inputWrapper, passwordFocused && styles.inputWrapperFocused]}>
-                <Ionicons 
-                  name="lock-closed-outline" 
-                  size={19} 
-                  color={passwordFocused ? '#EF4123' : '#94A3B8'} 
-                  style={styles.inputIcon} 
-                />
-                <TextInput
-                  style={[styles.textInput, { flex: 1 }]}
-                  placeholder="Enter your password"
-                  placeholderTextColor="#94A3B8"
-                  secureTextEntry={!showPassword}
-                  value={password}
-                  onChangeText={(t) => { setPassword(t); setErrorMessage(''); }}
-                  onFocus={() => setPasswordFocused(true)}
-                  onBlur={() => setPasswordFocused(false)}
-                />
-                <TouchableOpacity 
-                  onPress={() => setShowPassword(!showPassword)}
-                  style={styles.eyeBtn}
-                  activeOpacity={0.7}
-                >
+          {/* Main Login Card Section */}
+          <View style={styles.cardContainer}>
+            <View style={styles.card}>
+              <View style={styles.cardHeader}>
+                <Text style={styles.cardTitle}>Sign In</Text>
+                <Text style={styles.cardSubtitle}>Enter your registered vendor or staff credentials</Text>
+              </View>
+
+              {/* Email Field */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>EMAIL ADDRESS</Text>
+                <View style={[styles.inputWrapper, emailFocused && styles.inputWrapperFocused]}>
                   <Ionicons 
-                    name={showPassword ? 'eye-off-outline' : 'eye-outline'} 
-                    size={20} 
-                    color="#94A3B8" 
+                    name="mail-outline" 
+                    size={19} 
+                    color={emailFocused ? '#EF4123' : '#94A3B8'} 
+                    style={styles.inputIcon} 
                   />
-                </TouchableOpacity>
+                  <TextInput
+                    style={styles.textInput}
+                    placeholder="vendor@universeorder.co.in"
+                    placeholderTextColor="#94A3B8"
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    value={email}
+                    onChangeText={(t) => { setEmail(t); setErrorMessage(''); }}
+                    onFocus={() => setEmailFocused(true)}
+                    onBlur={() => setEmailFocused(false)}
+                  />
+                </View>
               </View>
-            </View>
 
-            {/* Error Message */}
-            {errorMessage ? (
-              <View style={styles.errorBanner}>
-                <Ionicons name="alert-circle" size={17} color="#DC2626" style={{ marginRight: 8 }} />
-                <Text style={styles.errorText}>{errorMessage}</Text>
+              {/* Password Field */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>PASSWORD</Text>
+                <View style={[styles.inputWrapper, passwordFocused && styles.inputWrapperFocused]}>
+                  <Ionicons 
+                    name="lock-closed-outline" 
+                    size={19} 
+                    color={passwordFocused ? '#EF4123' : '#94A3B8'} 
+                    style={styles.inputIcon} 
+                  />
+                  <TextInput
+                    style={[styles.textInput, { flex: 1 }]}
+                    placeholder="Enter your password"
+                    placeholderTextColor="#94A3B8"
+                    secureTextEntry={!showPassword}
+                    value={password}
+                    onChangeText={(t) => { setPassword(t); setErrorMessage(''); }}
+                    onFocus={() => setPasswordFocused(true)}
+                    onBlur={() => setPasswordFocused(false)}
+                  />
+                  <TouchableOpacity 
+                    onPress={() => setShowPassword(!showPassword)}
+                    style={styles.eyeBtn}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons 
+                      name={showPassword ? 'eye-off-outline' : 'eye-outline'} 
+                      size={20} 
+                      color="#94A3B8" 
+                    />
+                  </TouchableOpacity>
+                </View>
               </View>
-            ) : null}
 
-            {/* Submit Button */}
-            <TouchableOpacity 
-              onPress={handleLogin}
-              disabled={isLoggingIn}
-              activeOpacity={0.85}
-              style={styles.submitBtnContainer}
-            >
-              <LinearGradient
-                colors={['#FF6B00', '#EF4123']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.submitBtn}
+              {/* Error Message */}
+              {errorMessage ? (
+                <View style={styles.errorBanner}>
+                  <Ionicons name="alert-circle" size={17} color="#DC2626" style={{ marginRight: 8 }} />
+                  <Text style={styles.errorText}>{errorMessage}</Text>
+                </View>
+              ) : null}
+
+              {/* Submit Button */}
+              <TouchableOpacity 
+                onPress={handleLogin}
+                disabled={isLoggingIn}
+                activeOpacity={0.85}
+                style={styles.submitBtnContainer}
               >
-                {isLoggingIn ? (
-                  <View style={styles.loadingRow}>
-                    <ActivityIndicator color="#FFFFFF" size="small" />
-                    <Text style={styles.submitBtnTextLoading}>Authenticating...</Text>
-                  </View>
-                ) : (
-                  <View style={styles.btnContentRow}>
-                    <Text style={styles.submitBtnText}>Sign In to Kitchen</Text>
-                    <Ionicons name="arrow-forward" size={18} color="#FFFFFF" style={{ marginLeft: 6 }} />
-                  </View>
-                )}
-              </LinearGradient>
-            </TouchableOpacity>
+                <LinearGradient
+                  colors={['#FF6B00', '#EF4123']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.submitBtn}
+                >
+                  {isLoggingIn ? (
+                    <View style={styles.loadingRow}>
+                      <ActivityIndicator color="#FFFFFF" size="small" />
+                      <Text style={styles.submitBtnTextLoading}>Authenticating...</Text>
+                    </View>
+                  ) : (
+                    <View style={styles.btnContentRow}>
+                      <Text style={styles.submitBtnText}>Sign In to Kitchen</Text>
+                      <Ionicons name="arrow-forward" size={18} color="#FFFFFF" style={{ marginLeft: 6 }} />
+                    </View>
+                  )}
+                </LinearGradient>
+              </TouchableOpacity>
 
-            {/* Security Guarantee */}
-            <View style={styles.securityRow}>
-              <Ionicons name="shield-checkmark" size={14} color="#10B981" />
-              <Text style={styles.securityText}>End-to-End Encrypted Vendor Session</Text>
+              {/* Security Guarantee */}
+              <View style={styles.securityRow}>
+                <Ionicons name="shield-checkmark" size={14} color="#10B981" />
+                <Text style={styles.securityText}>End-to-End Encrypted Vendor Session</Text>
+              </View>
             </View>
-          </View>
 
-          {/* Footer Info */}
-          <View style={styles.footer}>
-            <Text style={styles.footerVersion}>UNIVERSE Vendor OS • Version 1.0.1 (Production)</Text>
-            <Text style={styles.footerHelp}>Stall access issues? Contact your campus Super Admin</Text>
+            {/* Footer Info */}
+            <View style={styles.footer}>
+              <Text style={styles.footerVersion}>UNIVERSE Vendor OS • Version 1.0.1 (Production)</Text>
+              <Text style={styles.footerHelp}>Stall access issues? Contact your campus Super Admin</Text>
+            </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#0A0F1D',
   },
+  keyboardView: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+  },
+
+  /* Hero Banner */
   heroBanner: {
-    paddingBottom: 40,
+    paddingTop: Platform.OS === 'android' ? 16 : 8,
+    paddingBottom: 28,
     paddingHorizontal: 24,
-  },
-  heroSafe: {
-    paddingTop: Platform.OS === 'android' ? 14 : 6,
   },
   brandRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 16,
   },
-  logoBadge: {
-    width: 38,
-    height: 38,
+  brandLogo: {
+    width: 44,
+    height: 44,
     borderRadius: 12,
-    backgroundColor: 'rgba(255, 107, 0, 0.15)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 107, 0, 0.3)',
-    alignItems: 'center',
-    justifyContent: 'center',
     marginRight: 12,
   },
   brandTitle: {
@@ -250,29 +255,31 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     maxWidth: '90%',
   },
-  keyboardView: {
+
+  /* Card Container */
+  cardContainer: {
     flex: 1,
-    marginTop: -20,
-  },
-  scrollContent: {
-    flexGrow: 1,
+    backgroundColor: '#F8FAFC',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
     paddingHorizontal: 20,
-    paddingBottom: 24,
+    paddingTop: 24,
+    paddingBottom: 30,
   },
   card: {
     backgroundColor: '#FFFFFF',
     borderRadius: 22,
-    padding: 24,
+    padding: 22,
     shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 2,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: '#E2E8F0',
   },
   cardHeader: {
-    marginBottom: 22,
+    marginBottom: 20,
   },
   cardTitle: {
     fontSize: 22,
@@ -305,14 +312,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     height: 52,
   },
+  // Stable focus without dynamic elevation/shadow to prevent Android RenderNode recreation
   inputWrapperFocused: {
     borderColor: '#EF4123',
     backgroundColor: '#FFFFFF',
-    shadowColor: '#EF4123',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    borderWidth: 2,
   },
   inputIcon: {
     marginRight: 10,
@@ -322,6 +326,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#0F172A',
     fontWeight: '500',
+    height: '100%',
   },
   eyeBtn: {
     padding: 6,
@@ -351,7 +356,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.28,
     shadowRadius: 10,
-    elevation: 5,
+    elevation: 4,
   },
   submitBtn: {
     height: 54,
