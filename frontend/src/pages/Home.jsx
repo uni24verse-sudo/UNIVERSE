@@ -290,6 +290,7 @@ const Home = () => {
       <FloatingBackground />
       
       {/* Responsive Full-Bleed Edge-to-Edge Hero Banner Skeleton */}
+      <div className="hero-carousel-wrapper">
       <div className="hero-carousel-container" style={{ position: 'relative', overflow: 'hidden', background: '#f8fafc' }}>
         <div className="skeleton" style={{ position: 'absolute', inset: 0, zIndex: 0 }} />
         <div 
@@ -310,6 +311,7 @@ const Home = () => {
           <div className="skeleton hero-carousel-dot" style={{ width: '6px', height: '6px', borderRadius: '3px', background: '#e2e8f0' }} />
           <div className="skeleton hero-carousel-dot" style={{ width: '6px', height: '6px', borderRadius: '3px', background: '#e2e8f0' }} />
         </div>
+      </div>
       </div>
 
       <main style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 2rem 6rem 2rem' }}>
@@ -451,7 +453,7 @@ const Home = () => {
       <FloatingBackground />
 
       {/* Full-Bleed Edge-to-Edge Hero Carousel */}
-      <div style={{ width: '100%', margin: 0, padding: 0 }}>
+      <div className="hero-carousel-wrapper">
         <HeroCarousel hubType={hubType} onSearch={(q) => { 
           setLocalSearchQuery(q); 
           window.scrollTo({ top: 600, behavior: 'smooth' }); 
