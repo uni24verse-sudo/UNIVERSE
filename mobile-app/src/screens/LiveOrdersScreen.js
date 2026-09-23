@@ -336,7 +336,7 @@ export default function LiveOrdersScreen({ navigation }) {
     };
   }, [socket, queueAnnouncement, cancelAnnouncement, user, storeData]);
 
-  const updateStatus = async (orderId, currentStatus, newStatus) => {
+  const updateStatus = async (orderId, currentStatus, newStatus, force = false) => {
     try {
       const targetOrder = orders.find(o => o._id === orderId);
       if (targetOrder && targetOrder.status !== currentStatus) {
@@ -349,7 +349,7 @@ export default function LiveOrdersScreen({ navigation }) {
 
       // Optimistic Update
       setOrders((prev) => prev.map((o) => (o._id === orderId ? { ...o, status: newStatus } : o)));
-      await apiClient.put(`/orders/${orderId}/status`, { status: newStatus });
+      await apiClient.put(`/orders/${orderId}/status`, { status: newStatus, force });
     } catch (error) {
       if (error.response?.status === 409) {
         Alert.alert('Conflict', 'Someone else already processed this order!');
@@ -385,12 +385,12 @@ export default function LiveOrdersScreen({ navigation }) {
           { 
             text: 'Yes, Start Cooking', 
             style: 'default', 
-            onPress: () => updateStatus(order._id, 'Confirmed', 'Cooking') 
+            onPress: () => updateStatus(order._id, 'Confirmed', 'Cooking', true) 
           }
         ]
       );
     } else {
-      updateStatus(order._id, 'Confirmed', 'Cooking');
+      updateStatus(order._id, 'Confirmed', 'Cooking', false);
     }
   };
 
@@ -456,6 +456,10 @@ export default function LiveOrdersScreen({ navigation }) {
     if (diffMinutes < -120 && istNow.getHours() >= 18 && hours <= 6) {
       istScheduled.setDate(istScheduled.getDate() + 1);
       diffMinutes = (istScheduled.getTime() - istNow.getTime()) / (1000 * 60);
+    } else if (diffMinutes > 720 && istNow.getHours() <= 6 && hours >= 18) {
+      // Early AM to yesterday late evening
+      istScheduled.setDate(istScheduled.getDate() - 1);
+      diffMinutes = (istScheduled.getTime() - istNow.getTime()) / (1000 * 60);
     }
 
     return {
@@ -505,7 +509,7 @@ export default function LiveOrdersScreen({ navigation }) {
   // Status counts for tab badges
   const counts = useMemo(() => {
     const active = orders.filter(o => ['Pending', 'Confirmed', 'Cooking'].includes(o.status)).length;
-    const preOrders = orders.filter(o => o.isPreOrder && ['Pending', 'Confirmed', 'Cooking'].includes(o.status)).length;
+    const preOrders = orders.filter(o => o.isPreOrder && ['Pending', 'Confirmed', 'Cooking', 'Ready'].includes(o.status)).length;
     const ready = orders.filter(o => o.status === 'Ready').length;
     const history = orders.filter(o => ['Completed', 'Cancelled'].includes(o.status)).length;
     return { active, preOrders, ready, history };
@@ -555,7 +559,7 @@ export default function LiveOrdersScreen({ navigation }) {
   const activeOrders = useMemo(() => displayOrders.filter(o => ['Pending', 'Confirmed', 'Cooking'].includes(o.status)), [displayOrders]);
   const preOrdersList = useMemo(() => {
     return displayOrders
-      .filter(o => o.isPreOrder && ['Pending', 'Confirmed', 'Cooking'].includes(o.status))
+      .filter(o => o.isPreOrder && ['Pending', 'Confirmed', 'Cooking', 'Ready'].includes(o.status))
       .sort((a, b) => {
         const timeA = parseScheduledTimeIST(a.scheduledTime)?.diffMinutes ?? 9999;
         const timeB = parseScheduledTimeIST(b.scheduledTime)?.diffMinutes ?? 9999;

@@ -18,7 +18,7 @@ const generateOrderNumber = () => Math.floor(1000 + Math.random() * 9000).toStri
 // Generate a cryptographically secure random token (hex string)
 const generateSecureToken = () => crypto.randomBytes(16).toString('hex');
 
-// Helper to parse scheduled pickup time in Indian Standard Time (IST, UTC + 5:30)
+// Helper to parse scheduled pickup time in Indian Standard Time (IST, UTC + 5:30) with midnight protection
 function parseScheduledTimeIST(scheduledTimeStr) {
   if (!scheduledTimeStr) return null;
   const trimmed = scheduledTimeStr.trim().toUpperCase();
@@ -43,9 +43,20 @@ function parseScheduledTimeIST(scheduledTimeStr) {
   const istScheduled = new Date(istNow);
   istScheduled.setHours(hours, minutes, 0, 0);
 
-  const diffMinutes = (istScheduled.getTime() - istNow.getTime()) / (1000 * 60);
+  let diffMinutes = (istScheduled.getTime() - istNow.getTime()) / (1000 * 60);
+
+  // Midnight rollover protection: late evening to early AM order
+  if (diffMinutes < -120 && istNow.getHours() >= 18 && hours <= 6) {
+    istScheduled.setDate(istScheduled.getDate() + 1);
+    diffMinutes = (istScheduled.getTime() - istNow.getTime()) / (1000 * 60);
+  } else if (diffMinutes > 720 && istNow.getHours() <= 6 && hours >= 18) {
+    // Early AM to yesterday late evening
+    istScheduled.setDate(istScheduled.getDate() - 1);
+    diffMinutes = (istScheduled.getTime() - istNow.getTime()) / (1000 * 60);
+  }
+
   return {
-    diffMinutes,
+    diffMinutes: Math.round(diffMinutes),
     hours,
     minutes,
     formattedTime: `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`
@@ -178,7 +189,7 @@ router.put('/:id/status', auth, async (req, res) => {
     if (existingOrder.isPreOrder && existingOrder.scheduledTime) {
       if (status === 'Cooking' || status === 'Ready') {
         const parsed = parseScheduledTimeIST(existingOrder.scheduledTime);
-        if (parsed && parsed.diffMinutes > 20) {
+        if (parsed && parsed.diffMinutes > 20 && !req.body.force) {
           return res.status(403).json({ 
             message: `Too early to prepare! Please wait until there is less than 20 minutes left before ${existingOrder.scheduledTime}. (Current: ${Math.round(parsed.diffMinutes)} mins left)` 
           });
