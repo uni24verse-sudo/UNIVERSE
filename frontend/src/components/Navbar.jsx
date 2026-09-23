@@ -130,11 +130,15 @@ const Navbar = ({ bannerVisible }) => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [dropdownRef]);
 
-  const handleResultClick = (storeId) => {
+  const handleResultClick = (storeId, dishName = null) => {
     setShowDropdown(false);
     setIsSearchFocused(false);
     setSearchQuery('');
-    navigate(`/store/${storeId}`);
+    if (dishName) {
+      navigate(`/store/${storeId}?dish=${encodeURIComponent(dishName)}`);
+    } else {
+      navigate(`/store/${storeId}`);
+    }
   };
 
   const closeSearch = () => {
@@ -361,31 +365,59 @@ const Navbar = ({ bannerVisible }) => {
                   {searchResults.dishes.length > 0 && (
                     <div>
                       <h4 style={{ fontSize: '0.625rem', fontWeight: '800', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.5rem', padding: '0 1.5rem' }}>Items</h4>
-                      {searchResults.dishes.map((store) => (
-                        <div 
-                          key={`dish-store-${store._id}`}
-                          onClick={() => handleResultClick(store._id)}
-                          className="result-item"
-                          style={{ background: 'hsla(var(--primary-h), var(--primary-s), var(--primary-l), 0.03)' }}
-                        >
-                          <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, border: '1px solid var(--surface-border)' }}>
-                            <ChefHat size={18} color="var(--primary)" />
-                          </div>
-                          <div style={{ flex: 1 }}>
-                            <h5 style={{ margin: 0, fontSize: '0.875rem', fontWeight: '700', color: 'var(--text-primary)' }}>
-                              In <span style={{ color: 'var(--primary)' }}>{store.name}</span>
-                            </h5>
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', marginTop: '0.25rem' }}>
-                              {store.matchedProducts.map((p, pIdx) => (
-                                <span key={pIdx} style={{ fontSize: '0.6875rem', color: 'var(--text-secondary)', fontWeight: '600' }}>
-                                  {p.name} <span style={{ color: 'var(--primary)' }}>₹{p.price}</span>
-                                </span>
-                              ))}
+                      {searchResults.dishes.map((store) => {
+                        const firstDishName = store.matchedProducts?.[0]?.name || '';
+                        return (
+                          <div 
+                            key={`dish-store-${store._id}`}
+                            onClick={() => handleResultClick(store._id, firstDishName)}
+                            className="result-item"
+                            style={{ background: 'hsla(var(--primary-h), var(--primary-s), var(--primary-l), 0.03)', cursor: 'pointer' }}
+                          >
+                            <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, border: '1px solid var(--surface-border)' }}>
+                              <ChefHat size={18} color="var(--primary)" />
                             </div>
+                            <div style={{ flex: 1 }}>
+                              <h5 style={{ margin: 0, fontSize: '0.875rem', fontWeight: '700', color: 'var(--text-primary)' }}>
+                                In <span style={{ color: 'var(--primary)' }}>{store.name}</span>
+                              </h5>
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', marginTop: '0.3rem' }}>
+                                {store.matchedProducts.map((p, pIdx) => (
+                                  <button
+                                    key={pIdx}
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleResultClick(store._id, p.name);
+                                    }}
+                                    style={{
+                                      fontSize: '0.6875rem',
+                                      color: 'var(--text-primary)',
+                                      background: '#ffffff',
+                                      border: '1px solid var(--surface-border)',
+                                      borderRadius: '6px',
+                                      padding: '0.2rem 0.45rem',
+                                      fontWeight: '600',
+                                      cursor: 'pointer',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '0.25rem',
+                                      boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+                                      transition: 'all 0.15s ease'
+                                    }}
+                                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--primary)'; e.currentTarget.style.color = 'var(--primary)'; }}
+                                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--surface-border)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
+                                  >
+                                    <span>{p.name}</span>
+                                    <span style={{ color: 'var(--primary)', fontWeight: '800' }}>₹{p.price}</span>
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                            <ChevronRight size={14} color="var(--primary)" />
                           </div>
-                          <ChevronRight size={14} color="var(--primary)" />
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>

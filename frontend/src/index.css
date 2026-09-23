@@ -418,7 +418,7 @@ h1 {
 
 .skeleton {
   position: relative;
-  background: #e9eef5;
+  background: #f1f5f9;
   overflow: hidden;
 }
 
@@ -432,11 +432,12 @@ h1 {
   transform: translateX(-100%);
   background: linear-gradient(
     90deg,
-    transparent 0,
-    rgba(255, 255, 255, 0.7) 50%,
+    transparent 0%,
+    rgba(255, 255, 255, 0.65) 50%,
     transparent 100%
   );
-  animation: skeletonShimmer 1.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  animation: skeletonShimmer 1.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  pointer-events: none;
 }
 
 .skeleton-text {
@@ -2695,7 +2696,32 @@ h1 {
 .market-filter-wrapper {
   position: relative;
   width: 100%;
-  margin: 1.25rem 0 1.85rem 0;
+  margin: 0 0 1.5rem 0;
+}
+
+@media (max-width: 768px) {
+  .market-filter-wrapper {
+    margin-top: 0;
+    margin-bottom: 1.25rem;
+    margin-left: -2rem;
+    margin-right: -2rem;
+    width: calc(100% + 4rem);
+  }
+}
+
+.home-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 0.5rem;
+  margin-bottom: 1.25rem;
+}
+
+@media (max-width: 768px) {
+  .home-section-header {
+    margin-top: 0.25rem;
+    margin-bottom: 1rem;
+  }
 }
 
 .market-filter-scroll {
@@ -2706,6 +2732,13 @@ h1 {
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
   padding: 0.25rem 0.2rem 0.6rem 0.2rem;
+}
+
+@media (max-width: 768px) {
+  .market-filter-scroll {
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
 }
 
 .market-filter-scroll::-webkit-scrollbar {
