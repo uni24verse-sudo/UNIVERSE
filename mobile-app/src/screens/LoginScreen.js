@@ -1,39 +1,37 @@
 import React, { useState, useContext } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, KeyboardAvoidingView, Platform, Dimensions } from 'react-native';
+import { 
+  View, 
+  Text, 
+  TextInput, 
+  TouchableOpacity, 
+  StyleSheet, 
+  ActivityIndicator, 
+  KeyboardAvoidingView, 
+  Platform, 
+  ScrollView,
+  StatusBar,
+  Image
+} from 'react-native';
 import { AuthContext } from '../context/AuthContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { getBaseUrl, setServerUrl } from '../api/client';
-
-const { width } = Dimensions.get('window');
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-  const [currentServer, setCurrentServer] = useState(getBaseUrl());
-  const [showServerPicker, setShowServerPicker] = useState(false);
-  const [customIp, setCustomIp] = useState('10.36.97.59');
-  const { login } = useContext(AuthContext);
+  const [emailFocused, setEmailFocused] = useState(false);
+  const [passwordFocused, setPasswordFocused] = useState(false);
 
-  const handleSelectServer = async (type) => {
-    let newUrl = 'https://food.universeorder.co.in/api';
-    if (type === 'uat') {
-      newUrl = 'https://uat.food.universeorder.co.in/api';
-    } else if (type === 'local') {
-      newUrl = `http://${customIp.trim()}:5000/api`;
-    }
-    await setServerUrl(newUrl);
-    setCurrentServer(newUrl);
-    setShowServerPicker(false);
-  };
+  const { login } = useContext(AuthContext);
 
   const handleLogin = async () => {
     setErrorMessage('');
     if (!email || !password) {
-      setErrorMessage('Please enter email and password');
+      setErrorMessage('Please enter your email and password');
       return;
     }
 
@@ -42,146 +40,162 @@ export default function LoginScreen() {
     setIsLoggingIn(false);
 
     if (!result.success) {
-      setErrorMessage(result.message);
+      setErrorMessage(result.message || 'Invalid credentials. Please verify your email & password.');
     }
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <StatusBar barStyle="light-content" backgroundColor="#0A0F1D" />
+
       <KeyboardAvoidingView 
         style={styles.keyboardView}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <View style={styles.card}>
-          <View style={styles.header}>
-            <Text style={styles.title}>UNIVERSE</Text>
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>STAFF</Text>
-            </View>
-          </View>
-          <Text style={styles.subtitle}>Sign in to manage your active orders</Text>
-
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Email Address</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="you@universe.com"
-              placeholderTextColor="#64748B"
-              keyboardType="email-address"
-              autoCapitalize="none"
-              value={email}
-              onChangeText={setEmail}
-            />
-          </View>
-
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Password</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="••••••••"
-              placeholderTextColor="#64748B"
-              secureTextEntry
-              value={password}
-              onChangeText={setPassword}
-            />
-          </View>
-
-          {errorMessage ? (
-            <View style={styles.errorBox}>
-              <Text style={styles.errorText}>{errorMessage}</Text>
-            </View>
-          ) : null}
-
-          <TouchableOpacity 
-            onPress={handleLogin}
-            disabled={isLoggingIn}
-            activeOpacity={0.8}
-            style={{ marginTop: 12 }}
+        <ScrollView 
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="always"
+          showsVerticalScrollIndicator={false}
+          bounces={false}
+        >
+          {/* Top Brand Banner with Official Astronaut/Helmet Logo */}
+          <LinearGradient 
+            colors={['#0A0F1D', '#0F172A', '#1E293B']} 
+            start={{ x: 0, y: 0 }} 
+            end={{ x: 1, y: 1 }}
+            style={styles.heroBanner}
           >
-            <LinearGradient
-              colors={['#FF6B00', '#EF4123']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.gradientButton}
-            >
-              {isLoggingIn ? (
-                <ActivityIndicator color="#fff" size="small" />
-              ) : (
-                <Text style={styles.buttonText}>Sign In</Text>
-              )}
-            </LinearGradient>
-          </TouchableOpacity>
+            <View style={styles.brandRow}>
+              <Image 
+                source={require('../../assets/logo-symbol.png')} 
+                style={styles.brandLogo} 
+                resizeMode="contain" 
+              />
+              <View>
+                <Text style={styles.brandTitle}>UNIVERSE</Text>
+                <Text style={styles.brandSub}>VENDOR PARTNER</Text>
+              </View>
+            </View>
+            <Text style={styles.heroHeadline}>Kitchen Operations</Text>
+            <Text style={styles.heroTagline}>Real-time order synchronization & instant student handovers</Text>
+          </LinearGradient>
 
-          {/* Server Switcher Pill for Easy Testing on Real Phone */}
-          <View style={styles.serverContainer}>
-            <TouchableOpacity 
-              onPress={() => setShowServerPicker(!showServerPicker)}
-              style={styles.serverPill}
-              activeOpacity={0.7}
-            >
-              <View style={[styles.serverDot, { backgroundColor: currentServer.includes('uat.food') ? '#F59E0B' : (currentServer.includes('universeorder.co.in') ? '#10B981' : '#3B82F6') }]} />
-              <Text style={styles.serverText}>
-                {currentServer.includes('uat.food') ? 'UAT Staging' : (currentServer.includes('universeorder.co.in') ? 'Production (Live)' : 'Local Dev Server')}
-              </Text>
-              <Ionicons name={showServerPicker ? "chevron-up" : "settings-outline"} size={13} color="#94A3B8" />
-            </TouchableOpacity>
+          {/* Main Login Card Section */}
+          <View style={styles.cardContainer}>
+            <View style={styles.card}>
+              <View style={styles.cardHeader}>
+                <Text style={styles.cardTitle}>Sign In</Text>
+                <Text style={styles.cardSubtitle}>Enter your registered vendor or staff credentials</Text>
+              </View>
 
-            {showServerPicker && (
-              <View style={styles.serverMenu}>
-                <Text style={styles.serverMenuLabel}>Select Backend Server:</Text>
-                
-                <TouchableOpacity 
-                  style={[styles.serverOption, currentServer === 'https://food.universeorder.co.in/api' && styles.serverOptionActive]}
-                  onPress={() => handleSelectServer('cloud')}
-                >
-                  <Text style={[styles.serverOptionTitle, currentServer === 'https://food.universeorder.co.in/api' && styles.serverOptionTitleActive]}>
-                    🌐 Live Production
-                  </Text>
-                  <Text style={styles.serverOptionSub}>food.universeorder.co.in</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity 
-                  style={[styles.serverOption, currentServer.includes('uat.food') && styles.serverOptionActive]}
-                  onPress={() => handleSelectServer('uat')}
-                >
-                  <Text style={[styles.serverOptionTitle, currentServer.includes('uat.food') && styles.serverOptionTitleActive]}>
-                    🧪 UAT Testing
-                  </Text>
-                  <Text style={styles.serverOptionSub}>uat.food.universeorder.co.in</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity 
-                  style={[styles.serverOption, (!currentServer.includes('universeorder.co.in')) && styles.serverOptionActive]}
-                  onPress={() => handleSelectServer('local')}
-                >
-                  <Text style={[styles.serverOptionTitle, (!currentServer.includes('universeorder.co.in')) && styles.serverOptionTitleActive]}>
-                    💻 Local Laptop
-                  </Text>
-                  <Text style={styles.serverOptionSub}>http://{customIp}:5000</Text>
-                </TouchableOpacity>
-
-                <View style={styles.ipInputRow}>
-                  <Text style={styles.ipLabel}>IP:</Text>
-                  <TextInput 
-                    style={styles.ipInput}
-                    value={customIp}
-                    onChangeText={setCustomIp}
-                    placeholder="10.36.97.59"
+              {/* Email Field */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>EMAIL ADDRESS</Text>
+                <View style={[styles.inputWrapper, emailFocused && styles.inputWrapperFocused]}>
+                  <Ionicons 
+                    name="mail-outline" 
+                    size={19} 
+                    color={emailFocused ? '#EF4123' : '#94A3B8'} 
+                    style={styles.inputIcon} 
+                  />
+                  <TextInput
+                    style={styles.textInput}
+                    placeholder="vendor@universeorder.co.in"
                     placeholderTextColor="#94A3B8"
+                    keyboardType="email-address"
                     autoCapitalize="none"
                     autoCorrect={false}
+                    value={email}
+                    onChangeText={(t) => { setEmail(t); setErrorMessage(''); }}
+                    onFocus={() => setEmailFocused(true)}
+                    onBlur={() => setEmailFocused(false)}
+                  />
+                </View>
+              </View>
+
+              {/* Password Field */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>PASSWORD</Text>
+                <View style={[styles.inputWrapper, passwordFocused && styles.inputWrapperFocused]}>
+                  <Ionicons 
+                    name="lock-closed-outline" 
+                    size={19} 
+                    color={passwordFocused ? '#EF4123' : '#94A3B8'} 
+                    style={styles.inputIcon} 
+                  />
+                  <TextInput
+                    style={[styles.textInput, { flex: 1 }]}
+                    placeholder="Enter your password"
+                    placeholderTextColor="#94A3B8"
+                    secureTextEntry={!showPassword}
+                    value={password}
+                    onChangeText={(t) => { setPassword(t); setErrorMessage(''); }}
+                    onFocus={() => setPasswordFocused(true)}
+                    onBlur={() => setPasswordFocused(false)}
                   />
                   <TouchableOpacity 
-                    style={styles.saveIpBtn}
-                    onPress={() => handleSelectServer('local')}
+                    onPress={() => setShowPassword(!showPassword)}
+                    style={styles.eyeBtn}
+                    activeOpacity={0.7}
                   >
-                    <Text style={styles.saveIpText}>Use</Text>
+                    <Ionicons 
+                      name={showPassword ? 'eye-off-outline' : 'eye-outline'} 
+                      size={20} 
+                      color="#94A3B8" 
+                    />
                   </TouchableOpacity>
                 </View>
               </View>
-            )}
+
+              {/* Error Message */}
+              {errorMessage ? (
+                <View style={styles.errorBanner}>
+                  <Ionicons name="alert-circle" size={17} color="#DC2626" style={{ marginRight: 8 }} />
+                  <Text style={styles.errorText}>{errorMessage}</Text>
+                </View>
+              ) : null}
+
+              {/* Submit Button */}
+              <TouchableOpacity 
+                onPress={handleLogin}
+                disabled={isLoggingIn}
+                activeOpacity={0.85}
+                style={styles.submitBtnContainer}
+              >
+                <LinearGradient
+                  colors={['#FF6B00', '#EF4123']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.submitBtn}
+                >
+                  {isLoggingIn ? (
+                    <View style={styles.loadingRow}>
+                      <ActivityIndicator color="#FFFFFF" size="small" />
+                      <Text style={styles.submitBtnTextLoading}>Authenticating...</Text>
+                    </View>
+                  ) : (
+                    <View style={styles.btnContentRow}>
+                      <Text style={styles.submitBtnText}>Sign In to Kitchen</Text>
+                      <Ionicons name="arrow-forward" size={18} color="#FFFFFF" style={{ marginLeft: 6 }} />
+                    </View>
+                  )}
+                </LinearGradient>
+              </TouchableOpacity>
+
+              {/* Security Guarantee */}
+              <View style={styles.securityRow}>
+                <Ionicons name="shield-checkmark" size={14} color="#10B981" />
+                <Text style={styles.securityText}>End-to-End Encrypted Vendor Session</Text>
+              </View>
+            </View>
+
+            {/* Footer Info */}
+            <View style={styles.footer}>
+              <Text style={styles.footerVersion}>UNIVERSE Vendor OS • Version 1.0.1 (Production)</Text>
+              <Text style={styles.footerHelp}>Stall access issues? Contact your campus Super Admin</Text>
+            </View>
           </View>
-        </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -190,202 +204,212 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC', // Light background
+    backgroundColor: '#0A0F1D',
   },
   keyboardView: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
   },
-  card: {
-    width: '100%',
-    maxWidth: 400,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    padding: 32,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 4,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
+  scrollContent: {
+    flexGrow: 1,
   },
-  header: {
+
+  /* Hero Banner */
+  heroBanner: {
+    paddingTop: Platform.OS === 'android' ? 16 : 8,
+    paddingBottom: 28,
+    paddingHorizontal: 24,
+  },
+  brandRow: {
     flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: 12,
-    marginBottom: 8,
+    alignItems: 'center',
+    marginBottom: 16,
   },
-  title: {
-    fontSize: 34,
+  brandLogo: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    marginRight: 12,
+  },
+  brandTitle: {
+    color: '#FFFFFF',
+    fontSize: 18,
     fontWeight: '900',
-    color: '#0F172A',
-    letterSpacing: -1,
+    letterSpacing: 1.5,
   },
-  badge: {
-    backgroundColor: 'rgba(59, 130, 246, 0.15)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: 'rgba(59, 130, 246, 0.3)',
-  },
-  badgeText: {
-    color: '#3B82F6',
-    fontSize: 12,
-    fontWeight: 'bold',
+  brandSub: {
+    color: '#FF8A3D',
+    fontSize: 10,
+    fontWeight: '800',
     letterSpacing: 1,
   },
-  subtitle: {
-    fontSize: 15,
-    color: '#64748B',
-    marginBottom: 36,
+  heroHeadline: {
+    color: '#FFFFFF',
+    fontSize: 26,
+    fontWeight: '900',
+    letterSpacing: -0.5,
+    marginBottom: 4,
   },
-  inputContainer: {
-    marginBottom: 20,
-  },
-  label: {
-    color: '#64748B',
+  heroTagline: {
+    color: '#94A3B8',
     fontSize: 13,
-    fontWeight: '600',
-    marginBottom: 8,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    lineHeight: 18,
+    maxWidth: '90%',
   },
-  input: {
+
+  /* Card Container */
+  cardContainer: {
+    flex: 1,
     backgroundColor: '#F8FAFC',
-    color: '#0F172A',
-    paddingHorizontal: 16,
-    paddingVertical: 18,
-    borderRadius: 14,
-    fontSize: 16,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: 20,
+    paddingTop: 24,
+    paddingBottom: 30,
+  },
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 22,
+    padding: 22,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 2,
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
-  errorBox: {
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
-    padding: 12,
-    borderRadius: 10,
-    marginBottom: 16,
+  cardHeader: {
+    marginBottom: 20,
+  },
+  cardTitle: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: '#0F172A',
+    marginBottom: 4,
+  },
+  cardSubtitle: {
+    fontSize: 13,
+    color: '#64748B',
+    lineHeight: 18,
+  },
+  inputGroup: {
+    marginBottom: 18,
+  },
+  inputLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#475569',
+    letterSpacing: 0.6,
+    marginBottom: 7,
+  },
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    paddingHorizontal: 14,
+    height: 52,
+  },
+  // Stable focus without dynamic elevation/shadow to prevent Android RenderNode recreation
+  inputWrapperFocused: {
+    borderColor: '#EF4123',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 2,
+  },
+  inputIcon: {
+    marginRight: 10,
+  },
+  textInput: {
+    flex: 1,
+    fontSize: 15,
+    color: '#0F172A',
+    fontWeight: '500',
+    height: '100%',
+  },
+  eyeBtn: {
+    padding: 6,
+    marginRight: -4,
+  },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF2F2',
     borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.2)',
+    borderColor: '#FECACA',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
   },
   errorText: {
-    color: '#F87171',
-    textAlign: 'center',
-    fontSize: 14,
-    fontWeight: '500',
+    flex: 1,
+    color: '#DC2626',
+    fontSize: 13,
+    fontWeight: '600',
+    lineHeight: 17,
   },
-  gradientButton: {
-    paddingVertical: 18,
+  submitBtnContainer: {
+    marginTop: 6,
+    borderRadius: 14,
+    shadowColor: '#EF4123',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.28,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+  submitBtn: {
+    height: 54,
     borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    flexDirection: 'row',
   },
-  buttonText: {
-    color: '#ffffff',
-    fontSize: 17,
-    fontWeight: 'bold',
-    letterSpacing: 0.5,
-  },
-  serverContainer: {
-    marginTop: 20,
-    alignItems: 'center',
-  },
-  serverPill: {
+  btnContentRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F1F5F9',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    gap: 6,
   },
-  serverDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
+  submitBtnText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '800',
+    letterSpacing: 0.3,
   },
-  serverText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#475569',
-  },
-  serverMenu: {
-    width: '100%',
-    backgroundColor: '#F8FAFC',
-    borderRadius: 14,
-    padding: 12,
-    marginTop: 10,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  serverMenuLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#64748B',
-    textTransform: 'uppercase',
-    marginBottom: 8,
-  },
-  serverOption: {
-    backgroundColor: '#FFFFFF',
-    padding: 10,
-    borderRadius: 10,
-    marginBottom: 6,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  serverOptionActive: {
-    borderColor: '#FF6B00',
-    backgroundColor: '#FFF7ED',
-  },
-  serverOptionTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#1E293B',
-  },
-  serverOptionTitleActive: {
-    color: '#EA580C',
-  },
-  serverOptionSub: {
-    fontSize: 11,
-    color: '#64748B',
-    marginTop: 2,
-  },
-  ipInputRow: {
+  loadingRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginTop: 4,
   },
-  ipLabel: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#475569',
-  },
-  ipInput: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    fontSize: 12,
-    color: '#0F172A',
-  },
-  saveIpBtn: {
-    backgroundColor: '#3B82F6',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  saveIpText: {
+  submitBtnTextLoading: {
     color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '700',
+    marginLeft: 8,
+  },
+  securityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 20,
+  },
+  securityText: {
     fontSize: 11,
-    fontWeight: 'bold',
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  footer: {
+    marginTop: 24,
+    alignItems: 'center',
+    paddingBottom: 16,
+  },
+  footerVersion: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#94A3B8',
+    marginBottom: 4,
+  },
+  footerHelp: {
+    fontSize: 11,
+    color: '#CBD5E1',
   },
 });

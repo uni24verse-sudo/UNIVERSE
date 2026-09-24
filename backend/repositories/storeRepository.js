@@ -20,7 +20,7 @@ class StoreRepository {
       where,
       include: {
         admin: { select: { id: true, name: true, email: true } },
-        location: { select: { id: true, name: true, type: true, city: true } }
+        location: { select: { id: true, name: true, type: true, city: true, dietaryType: true, markets: true } }
       },
       orderBy: [
         { priority: 'asc' },
@@ -94,7 +94,7 @@ class StoreRepository {
       },
       include: {
         admin: { select: { id: true, name: true, email: true, telegramChatId: true } },
-        location: { select: { id: true, name: true, type: true, city: true } }
+        location: { select: { id: true, name: true, type: true, city: true, dietaryType: true, markets: true } }
       }
     });
 
@@ -111,7 +111,7 @@ class StoreRepository {
     const stores = await prisma.store.findMany({
       where: { adminId },
       include: {
-        location: { select: { id: true, name: true, type: true, city: true } }
+        location: { select: { id: true, name: true, type: true, city: true, dietaryType: true, markets: true } }
       }
     });
 

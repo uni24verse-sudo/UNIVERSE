@@ -142,55 +142,47 @@ export default function ProfileScreen() {
         }
       >
         {/* Profile Header */}
+        {/* Modern Profile Header */}
         <View style={styles.header}>
           <View>
             <Text style={styles.title}>Stall Profile</Text>
-            <Text style={styles.subtitle}>Account & Performance Center</Text>
-          </View>
-          <View style={[styles.roleBadge, isEmployee ? styles.employeeBadge : styles.vendorBadge]}>
-            <Ionicons 
-              name={isEmployee ? 'shield' : 'storefront'} 
-              size={13} 
-              color={isEmployee ? '#7E22CE' : '#2563EB'} 
-              style={{ marginRight: 4 }} 
-            />
-            <Text style={[styles.roleBadgeText, isEmployee ? styles.employeeBadgeText : styles.vendorBadgeText]}>
-              {isEmployee ? 'STAFF' : 'CART OWNER'}
-            </Text>
+            <Text style={styles.subtitle}>Account details & settlement summary</Text>
           </View>
         </View>
 
-        {/* User & Stall Card */}
-        <View style={styles.card}>
-          <View style={styles.cardRow}>
-            <Ionicons name="person-circle-outline" size={20} color="#64748B" />
-            <View style={{ flex: 1, marginLeft: 10 }}>
-              <Text style={styles.label}>Account Name</Text>
-              <Text style={styles.value}>{user.name}</Text>
+        {/* User Identity Card */}
+        <View style={styles.profileCard}>
+          <View style={styles.profileTopRow}>
+            <View style={styles.avatarCircle}>
+              <Text style={styles.avatarText}>
+                {(user.name || 'V').charAt(0).toUpperCase()}
+              </Text>
             </View>
-          </View>
-
-          <View style={styles.cardDivider} />
-
-          <View style={styles.cardRow}>
-            <Ionicons name="mail-outline" size={20} color="#64748B" />
-            <View style={{ flex: 1, marginLeft: 10 }}>
-              <Text style={styles.label}>Email Address</Text>
-              <Text style={styles.value}>{user.email}</Text>
+            <View style={{ flex: 1, marginLeft: 14 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Text style={styles.profileName} numberOfLines={1}>{user.name || 'Vendor'}</Text>
+                <View style={[styles.roleBadge, isEmployee ? styles.employeeBadge : styles.vendorBadge]}>
+                  <Ionicons 
+                    name={isEmployee ? 'shield' : 'storefront'} 
+                    size={11} 
+                    color={isEmployee ? '#7E22CE' : '#1D4ED8'} 
+                    style={{ marginRight: 3 }} 
+                  />
+                  <Text style={[styles.roleBadgeText, isEmployee ? styles.employeeBadgeText : styles.vendorBadgeText]}>
+                    {isEmployee ? 'STAFF' : 'CART OWNER'}
+                  </Text>
+                </View>
+              </View>
+              <Text style={styles.profileEmail} numberOfLines={1}>{user.email}</Text>
             </View>
           </View>
 
           {storeName ? (
-            <>
-              <View style={styles.cardDivider} />
-              <View style={styles.cardRow}>
-                <Ionicons name="storefront-outline" size={20} color="#64748B" />
-                <View style={{ flex: 1, marginLeft: 10 }}>
-                  <Text style={styles.label}>Assigned Stall</Text>
-                  <Text style={styles.value}>{storeName}</Text>
-                </View>
-              </View>
-            </>
+            <View style={styles.assignedStallRow}>
+              <Ionicons name="storefront" size={15} color="#EF4123" style={{ marginRight: 6 }} />
+              <Text style={styles.assignedStallLabel}>Assigned Stall:</Text>
+              <Text style={styles.assignedStallValue} numberOfLines={1}>{storeName}</Text>
+            </View>
           ) : null}
         </View>
 
@@ -399,40 +391,67 @@ const styles = StyleSheet.create({
     color: '#7E22CE',
     letterSpacing: 0.5,
   },
-  card: {
+  profileCard: {
     backgroundColor: '#FFFFFF',
+    borderRadius: 20,
     padding: 18,
-    borderRadius: 18,
-    marginBottom: 16,
+    marginBottom: 18,
     borderWidth: 1,
     borderColor: '#E2E8F0',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
-    shadowRadius: 6,
+    shadowRadius: 8,
     elevation: 2,
   },
-  cardRow: {
+  profileTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  cardDivider: {
-    height: 1,
-    backgroundColor: '#F1F5F9',
-    marginVertical: 12,
+  avatarCircle: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#3B82F6',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  label: {
-    fontSize: 11,
-    color: '#64748B',
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
-    marginBottom: 2,
+  avatarText: {
+    fontSize: 20,
+    fontWeight: '900',
+    color: '#FFFFFF',
   },
-  value: {
-    fontSize: 16,
+  profileName: {
+    fontSize: 17,
+    fontWeight: '900',
     color: '#0F172A',
+    letterSpacing: -0.3,
+  },
+  profileEmail: {
+    fontSize: 13,
+    color: '#64748B',
+    fontWeight: '500',
+    marginTop: 2,
+  },
+  assignedStallRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 14,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+  },
+  assignedStallLabel: {
+    fontSize: 12,
     fontWeight: '700',
+    color: '#64748B',
+    marginRight: 6,
+  },
+  assignedStallValue: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#0F172A',
+    flex: 1,
   },
 
   /* Stats Card Styles */

@@ -1,0 +1,19 @@
+# Root .easignore for monorepo
+backend/
+frontend/
+node_modules/
+dist/
+scratch/
+.agents/
+tmp/
+*.pdf
+*.zip
+*.log
+
+# Ignore heavy build artifacts in mobile-app
+mobile-app/node_modules/
+mobile-app/.expo/
+mobile-app/dist/
+mobile-app/web-build/
+mobile-app/android/
+mobile-app/ios/

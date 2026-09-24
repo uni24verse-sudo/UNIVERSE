@@ -1,0 +1,49 @@
+{
+  "expo": {
+    "name": "UniVerse",
+    "slug": "lucky-lakshayb057",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/logo-symbol.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#FFFFFF"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.universe.student",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Allow UniVerse to use camera to scan stall menus and QR codes.",
+        "UIBackgroundModes": ["audio", "fetch"]
+      }
+    },
+    "android": {
+      "package": "com.universe.student",
+      "versionCode": 1,
+      "permissions": [
+        "VIBRATE",
+        "WAKE_LOCK",
+        "POST_NOTIFICATIONS",
+        "RECORD_AUDIO"
+      ],
+      "adaptiveIcon": {
+        "backgroundColor": "#FFFFFF",
+        "foregroundImage": "./assets/android-icon-foreground.png"
+      }
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-audio"
+    ],
+    "owner": "lakshayb057-developer",
+    "extra": {
+      "eas": {
+        "projectId": "829b8c47-506d-43bc-801d-a64c8df45e59"
+      }
+    }
+  }
+}
