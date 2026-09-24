@@ -1,0 +1,60 @@
+export const THEME = {
+  colors: {
+    primary: '#EF4123',
+    primaryHover: '#D83519',
+    primarySoft: 'rgba(239, 65, 35, 0.08)',
+    primaryShadow: 'rgba(239, 65, 35, 0.25)',
+    secondary: '#FCAF17',
+    secondarySoft: 'rgba(252, 175, 23, 0.12)',
+    background: '#FBFBFB',
+    surface: '#FFFFFF',
+    surfaceBorder: 'rgba(0, 0, 0, 0.06)',
+    surfaceSubtle: '#F8FAFC',
+    textPrimary: '#0F172A',
+    textSecondary: '#64748B',
+    textMuted: '#94A3B8',
+    success: '#10B981',
+    successSoft: 'rgba(16, 185, 129, 0.12)',
+    error: '#EF4444',
+    errorSoft: 'rgba(239, 68, 68, 0.12)',
+    border: '#E2E8F0',
+    veg: '#16A34A',
+    nonVeg: '#DC2626',
+    egg: '#D97706',
+  },
+  typography: {
+    fontRegular: 'System',
+    fontMedium: 'System',
+    fontBold: 'System',
+  },
+  borderRadius: {
+    sm: 8,
+    md: 14,
+    lg: 20,
+    xl: 24,
+    full: 9999,
+  },
+  shadows: {
+    card: {
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.06,
+      shadowRadius: 12,
+      elevation: 3,
+    },
+    primary: {
+      shadowColor: '#EF4123',
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: 0.25,
+      shadowRadius: 14,
+      elevation: 6,
+    },
+    floating: {
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.12,
+      shadowRadius: 20,
+      elevation: 8,
+    }
+  }
+};
