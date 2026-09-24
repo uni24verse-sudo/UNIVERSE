@@ -14,6 +14,7 @@ import ProfileScreen from '../screens/ProfileScreen';
 import LiveOrdersScreen from '../screens/LiveOrdersScreen';
 import ScannerScreen from '../screens/ScannerScreen';
 import MenuScreen from '../screens/MenuScreen';
+import AnalyticsScreen from '../screens/AnalyticsScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -48,6 +49,8 @@ function MainTabNavigator() {
             iconName = focused ? 'receipt' : 'receipt-outline';
           } else if (route.name === 'Menu') {
             iconName = focused ? 'fast-food' : 'fast-food-outline';
+          } else if (route.name === 'Analytics') {
+            iconName = focused ? 'stats-chart' : 'stats-chart-outline';
           } else if (route.name === 'Profile') {
             iconName = focused ? 'person' : 'person-outline';
           }
@@ -64,6 +67,11 @@ function MainTabNavigator() {
         name="Menu" 
         component={MenuScreen} 
         options={{ title: 'Menu' }} 
+      />
+      <Tab.Screen 
+        name="Analytics" 
+        component={AnalyticsScreen} 
+        options={{ title: 'Analytics' }} 
       />
       <Tab.Screen 
         name="Profile" 

@@ -1280,6 +1280,29 @@ const SuperAdminPanel = () => {
                        </select>
                     </div>
                     
+                    {/* Auto-Timing Schedule Control */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem', padding: '0.4rem 0.6rem', background: store.isAutomated ? 'rgba(79, 70, 229, 0.08)' : '#f8fafc', borderRadius: '8px' }}>
+                      <span style={{ fontSize: '0.75rem', fontWeight: '800', color: store.isAutomated ? '#4f46e5' : '#64748b' }}>
+                        {store.isAutomated ? '⏰ Auto-Schedule Active' : '🛑 Manual Open/Close'}
+                      </span>
+                      <button 
+                        onClick={async () => {
+                          try {
+                            const newStatus = !store.isAutomated;
+                            await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/super-admin/store/${store._id}/update-details`, 
+                              { isAutomated: newStatus }, 
+                              { headers: { Authorization: `Bearer ${token}` } }
+                            );
+                            setStores(stores.map(s => s._id === store._id ? { ...s, isAutomated: newStatus } : s));
+                            fetchDashboardData(true);
+                          } catch(err) { alert('Failed to toggle auto timing'); }
+                        }}
+                        style={{ border: 'none', background: store.isAutomated ? '#ef4444' : '#4f46e5', color: '#fff', fontSize: '0.65rem', fontWeight: '800', padding: '0.25rem 0.6rem', borderRadius: '6px', cursor: 'pointer' }}
+                      >
+                        {store.isAutomated ? 'Turn OFF Auto' : 'Turn ON Auto'}
+                      </button>
+                    </div>
+
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
                       <div>
                         <label style={{ fontSize: '0.65rem', display: 'block', marginBottom: '0.25rem', fontWeight: '700' }}>Opens at</label>

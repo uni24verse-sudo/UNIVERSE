@@ -244,6 +244,18 @@ router.get('/all/list', async (req, res) => {
   }
 });
 
+// Get all locations with available markets (Public/Authenticated)
+router.get('/locations/list', async (req, res) => {
+  try {
+    const locations = await prisma.location.findMany({
+      orderBy: { createdAt: 'asc' }
+    });
+    res.json(locations);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 // Get single store by ID (Public)
 router.get('/:id', async (req, res) => {
   try {
@@ -649,8 +661,43 @@ router.put('/:storeId/toggle-auto-accept', auth, async (req, res) => {
 router.put('/:storeId/update-details', auth, async (req, res) => {
   try {
     const adminId = req.admin.id || req.admin._id;
-    const store = await storeRepository.updateStoreDetails(req.params.storeId, adminId, req.body);
+    let store = await storeRepository.updateStoreDetails(req.params.storeId, adminId, req.body);
     if (!store) return res.status(404).json({ message: 'Store not found' });
+
+    // If automated mode is active or was toggled, instantly evaluate open/close status
+    if (store.isAutomated) {
+      const now = new Date();
+      const currentHHMM = new Intl.DateTimeFormat('en-GB', {
+        timeZone: 'Asia/Kolkata',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      }).format(now);
+
+      const op = store.openingTime || '10:00';
+      const cl = store.closingTime || '22:00';
+      const shouldBeOpen = op <= cl
+        ? (currentHHMM >= op && currentHHMM < cl)
+        : (currentHHMM >= op || currentHHMM < cl);
+
+      if (store.isOpen !== shouldBeOpen) {
+        store = await storeRepository.updateStoreDetails(req.params.storeId, adminId, { isOpen: shouldBeOpen });
+      }
+    }
+
+    const io = req.app.get('io');
+    if (io) {
+      const sId = String(store._id || store.id);
+      io.emit('store_status_update', { storeId: sId, isOpen: store.isOpen, isAutomated: store.isAutomated });
+      io.emit('store_timing_update', {
+        storeId: sId,
+        openingTime: store.openingTime,
+        closingTime: store.closingTime,
+        isAutomated: store.isAutomated,
+        isOpen: store.isOpen
+      });
+      io.to('superadmin_room').emit('superadmin:store_update', store);
+    }
 
     res.json(store);
   } catch (err) {
