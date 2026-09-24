@@ -1,22 +1,20 @@
 {
   "expo": {
-    "name": "UniVerse",
-    "slug": "lucky-lakshayb057",
+    "name": "UniVerse Food",
+    "slug": "universe-food",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/logo-symbol.png",
     "userInterfaceStyle": "light",
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#FFFFFF"
-    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.universe.student",
       "infoPlist": {
         "NSCameraUsageDescription": "Allow UniVerse to use camera to scan stall menus and QR codes.",
-        "UIBackgroundModes": ["audio", "fetch"]
+        "UIBackgroundModes": [
+          "audio",
+          "fetch"
+        ]
       }
     },
     "android": {
@@ -37,12 +35,22 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-audio"
+      "expo-audio",
+      "expo-font",
+      "expo-asset",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#FFFFFF"
+        }
+      ]
     ],
-    "owner": "lakshayb057-developer",
+    "owner": "uni24verse",
     "extra": {
       "eas": {
-        "projectId": "829b8c47-506d-43bc-801d-a64c8df45e59"
+        "projectId": "bb8e932c-7e9b-4561-b786-b7dd4e1a01ff"
       }
     }
   }

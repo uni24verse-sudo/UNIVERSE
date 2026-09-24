@@ -51,7 +51,7 @@ whatsappMultiDeviceService.setIO(io);
 // ⚡ AWS RDS PostgreSQL Connection & Background Services Boot
 prisma.$connect()
   .then(() => {
-    console.log('✅ [UniVerse] Connected to AWS RDS PostgreSQL via Prisma ORM (100% Native)');
+    console.log('✅ [UniVerse] Connected to Supabase PostgreSQL via Prisma ORM');
     whatsappMultiDeviceService.init().catch(err => console.error('[WhatsApp] Engine Init Error:', err.message));
     journeyEngineService.start();
   })
@@ -216,7 +216,12 @@ setInterval(async () => {
 
     for (const store of automatedStores) {
       try {
-        const shouldBeOpen = currentHHMM >= store.openingTime && currentHHMM < store.closingTime;
+        const op = store.openingTime || '10:00';
+        const cl = store.closingTime || '22:00';
+        const shouldBeOpen = op <= cl
+          ? (currentHHMM >= op && currentHHMM < cl)
+          : (currentHHMM >= op || currentHHMM < cl);
+
         if (store.isOpen !== shouldBeOpen) {
           await prisma.store.update({
             where: { id: store.id },
@@ -224,6 +229,7 @@ setInterval(async () => {
           });
 
           io.emit('store_status_update', { storeId: store.id, isOpen: shouldBeOpen });
+          io.to('superadmin_room').emit('superadmin:store_update', { ...store, isOpen: shouldBeOpen });
           await telegramService.sendStatusAlert(store, shouldBeOpen).catch(() => {});
           
           console.log(`Automated (IST ${currentHHMM}): Store ${store.name} is now ${shouldBeOpen ? 'OPEN' : 'CLOSED'}`);

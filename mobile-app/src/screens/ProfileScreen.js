@@ -1,339 +1,1580 @@
 import React, { useContext, useState, useEffect, useCallback, useMemo } from 'react';
-import { 
-  View, 
-  Text, 
-  TouchableOpacity, 
-  StyleSheet, 
-  ScrollView, 
-  RefreshControl, 
-  ActivityIndicator 
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
+  RefreshControl,
+  ActivityIndicator,
+  Image,
+  Alert,
+  Modal,
+  TextInput,
+  Switch,
+  Platform,
+  Dimensions,
 } from 'react-native';
-import { AuthContext } from '../context/AuthContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import * as ImagePicker from 'expo-image-picker';
+import { AuthContext } from '../context/AuthContext';
+import { SocketContext } from '../context/SocketContext';
 import apiClient from '../api/client';
 
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
+const DEFAULT_LPU_MARKETS = [
+  'BH1 Market',
+  'Block34 Market',
+  'LIT Market',
+  'Mall Market',
+  'BH6 Market',
+  'Apartment Market',
+];
+
 export default function ProfileScreen() {
-  const { user, logout } = useContext(AuthContext);
-  const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const { user, logout, updateUser } = useContext(AuthContext);
+  const { socket } = useContext(SocketContext);
+  const [store, setStore] = useState(null);
+  const [employees, setEmployees] = useState([]);
+  const [allLocations, setAllLocations] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [statsTab, setStatsTab] = useState('today'); // 'today' | 'total'
-  const [storeName, setStoreName] = useState('');
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [togglingStatus, setTogglingStatus] = useState(false);
 
-  // Role check: employees must not see financial/revenue figures
+  // Modals
+  const [showEditStoreModal, setShowEditStoreModal] = useState(false);
+  const [storeFormData, setStoreFormData] = useState({ name: '', category: '', market: '' });
+  const [savingStore, setSavingStore] = useState(false);
+
+  // Automated Stall Timing State
+  const [showEditTimingModal, setShowEditTimingModal] = useState(false);
+  const [timingFormData, setTimingFormData] = useState({
+    isAutomated: false,
+    openingTime: '10:00',
+    closingTime: '22:00',
+  });
+  const [savingTiming, setSavingTiming] = useState(false);
+  const [togglingAutoSchedule, setTogglingAutoSchedule] = useState(false);
+
+  const [showEditOwnerModal, setShowEditOwnerModal] = useState(false);
+  const [ownerFormData, setOwnerFormData] = useState({ name: '', upiId: '' });
+  const [savingOwner, setSavingOwner] = useState(false);
+
+  const [showAddEmployeeModal, setShowAddEmployeeModal] = useState(false);
+  const [employeeFormData, setEmployeeFormData] = useState({ name: '', email: '', password: '' });
+  const [savingEmployee, setSavingEmployee] = useState(false);
+
+  const [showEditEmployeeModal, setShowEditEmployeeModal] = useState(false);
+  const [selectedEmployee, setSelectedEmployee] = useState(null);
+  const [editEmployeeFormData, setEditEmployeeFormData] = useState({ name: '', password: '' });
+  const [updatingEmployee, setUpdatingEmployee] = useState(false);
+
   const isEmployee = user?.role === 'employee';
+  const storeId = user?.storeId || user?.id;
 
-  const fetchData = useCallback(async (isPull = false) => {
+  // Format 24h HH:mm to 12h AM/PM
+  const formatTime12h = (hhmm) => {
+    if (!hhmm) return '--:--';
+    const parts = hhmm.split(':');
+    if (parts.length < 2) return hhmm;
+    const h = parseInt(parts[0], 10);
+    const m = (parts[1] || '00').padStart(2, '0');
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const hour12 = h % 12 === 0 ? 12 : h % 12;
+    return `${hour12}:${m} ${ampm}`;
+  };
+
+  // ---------------------------------------------------------
+  // Fetch Store, Employees, and Locations
+  // ---------------------------------------------------------
+  const fetchProfileData = useCallback(async (isPull = false) => {
     if (!user) return;
     try {
-      if (isPull) {
-        setRefreshing(true);
-      } else {
-        setLoading(true);
-      }
+      if (isPull) setRefreshing(true);
+      else setLoading(true);
 
-      const storeId = user?.storeId || user?.id;
-
-      // 1. Fetch store info
+      // 1. Fetch Store Information
       try {
         const storeRes = await apiClient.get('/store/my-stores');
         if (storeRes.data && storeRes.data.length > 0) {
-          setStoreName(storeRes.data[0].name || '');
+          const currentStore = storeRes.data[0];
+          setStore(currentStore);
+          setStoreFormData({
+            name: currentStore.name || '',
+            category: currentStore.category || '',
+            market: currentStore.market || '',
+          });
+          setOwnerFormData({
+            name: user.name || '',
+            upiId: currentStore.upiId || '',
+          });
+          setTimingFormData({
+            isAutomated: Boolean(currentStore.isAutomated),
+            openingTime: currentStore.openingTime || '10:00',
+            closingTime: currentStore.closingTime || '22:00',
+          });
         }
-      } catch (e) {
-        console.log('Store fetch error:', e.message);
+      } catch (err) {
+        console.log('Store fetch error:', err.message);
       }
 
-      // 2. Fetch orders for stats if vendor / cart owner
+      // 2. Fetch Locations list for configured markets
+      try {
+        const locRes = await apiClient.get('/store/locations/list');
+        if (locRes.data && Array.isArray(locRes.data)) {
+          setAllLocations(locRes.data);
+        }
+      } catch (e) {
+        console.log('Locations list fetch error:', e.message);
+      }
+
+      // 3. Fetch Employees (Only for Cart Owner / Vendor)
       if (!isEmployee && storeId) {
         try {
-          const ordersRes = await apiClient.get(`/orders/${storeId}/vendor-orders`);
-          setOrders(ordersRes.data || []);
-        } catch (e) {
-          console.log('Orders fetch error:', e.message);
+          const empRes = await apiClient.get(`/employees/${storeId}`);
+          setEmployees(empRes.data || []);
+        } catch (err) {
+          console.log('Employees fetch error:', err.message);
         }
       }
     } catch (err) {
-      console.error('Failed to fetch profile stats:', err);
+      console.error('Failed to load profile details:', err);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [user, isEmployee]);
+  }, [user, isEmployee, storeId]);
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    fetchProfileData();
+  }, [fetchProfileData]);
 
-  // Compute Today & Total Stall Statistics
-  const stallStats = useMemo(() => {
-    const todayStr = new Date().toDateString();
+  // Real-time synchronization via WebSockets (Super Admin & Automation sync)
+  useEffect(() => {
+    if (!socket || !store) return;
+    const currentStoreId = String(store.id || store._id || '');
 
-    let todayCompletedCount = 0;
-    let todayGross = 0;
-    let totalCompletedCount = 0;
-    let totalGross = 0;
-    let todayCancelledCount = 0;
-    let totalCancelledCount = 0;
+    const handleStatusUpdate = (data) => {
+      if (String(data.storeId) === currentStoreId) {
+        setStore((prev) => ({
+          ...prev,
+          isOpen: data.isOpen !== undefined ? data.isOpen : prev.isOpen,
+          isAutomated: data.isAutomated !== undefined ? data.isAutomated : prev.isAutomated,
+        }));
+      }
+    };
 
-    orders.forEach((o) => {
-      const isCompleted = o.status === 'Completed';
-      const isCancelled = o.status === 'Cancelled';
-      const orderDateStr = o.createdAt ? new Date(o.createdAt).toDateString() : '';
-      const isToday = orderDateStr === todayStr;
-      const amt = Number(o.totalAmount) || 0;
+    const handleTimingUpdate = (data) => {
+      if (String(data.storeId) === currentStoreId) {
+        setStore((prev) => ({
+          ...prev,
+          openingTime: data.openingTime || prev.openingTime,
+          closingTime: data.closingTime || prev.closingTime,
+          isAutomated: data.isAutomated !== undefined ? Boolean(data.isAutomated) : prev.isAutomated,
+          isOpen: data.isOpen !== undefined ? data.isOpen : prev.isOpen,
+        }));
+        setTimingFormData((prev) => ({
+          ...prev,
+          openingTime: data.openingTime || prev.openingTime,
+          closingTime: data.closingTime || prev.closingTime,
+          isAutomated: data.isAutomated !== undefined ? Boolean(data.isAutomated) : prev.isAutomated,
+        }));
+      }
+    };
 
-      if (isCompleted) {
-        totalCompletedCount += 1;
-        totalGross += amt;
-        if (isToday) {
-          todayCompletedCount += 1;
-          todayGross += amt;
-        }
-      } else if (isCancelled) {
-        totalCancelledCount += 1;
-        if (isToday) {
-          todayCancelledCount += 1;
+    socket.on('store_status_update', handleStatusUpdate);
+    socket.on('store_timing_update', handleTimingUpdate);
+
+    return () => {
+      socket.off('store_status_update', handleStatusUpdate);
+      socket.off('store_timing_update', handleTimingUpdate);
+    };
+  }, [socket, store?.id, store?._id]);
+
+  // Compute available markets for the current location
+  const availableMarkets = useMemo(() => {
+    // 1. Check if store's own location object has markets
+    if (store?.location?.markets && typeof store.location.markets === 'string') {
+      const parsed = store.location.markets.split(',').map((m) => m.trim()).filter(Boolean);
+      if (parsed.length > 0) return parsed;
+    }
+
+    // 2. Find location from allLocations list
+    if (store?.locationId && allLocations.length > 0) {
+      const loc = allLocations.find((l) => l.id === store.locationId);
+      if (loc && loc.markets) {
+        const parsed = loc.markets.split(',').map((m) => m.trim()).filter(Boolean);
+        if (parsed.length > 0) return parsed;
+      }
+    }
+
+    // 3. Default to LPU market zones
+    return DEFAULT_LPU_MARKETS;
+  }, [store, allLocations]);
+
+  // ---------------------------------------------------------
+  // 1. Stall Image Upload / Change in Real-Time
+  // ---------------------------------------------------------
+  const handlePickStallImage = async () => {
+    if (isEmployee) {
+      Alert.alert('Restricted', 'Only the Cart Owner can update the stall image.');
+      return;
+    }
+    const currentStoreId = store?.id || store?._id || storeId;
+    if (!currentStoreId) {
+      Alert.alert('Error', 'Store ID not found.');
+      return;
+    }
+
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Denied', 'Gallery permission is required to select a stall image.');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [16, 9],
+        quality: 0.8,
+      });
+
+      if (result.canceled || !result.assets || result.assets.length === 0) {
+        return;
+      }
+
+      const asset = result.assets[0];
+      setUploadingImage(true);
+
+      const formData = new FormData();
+      const filename = asset.uri.split('/').pop() || 'stall_image.jpg';
+      const match = /\.(\w+)$/.exec(filename);
+      const fileType = match ? `image/${match[1]}` : 'image/jpeg';
+
+      formData.append('imageFile', {
+        uri: Platform.OS === 'ios' ? asset.uri.replace('file://', '') : asset.uri,
+        name: filename,
+        type: fileType,
+      });
+
+      const res = await apiClient.put(`/store/${currentStoreId}/update-image`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+
+      if (res.data) {
+        setStore((prev) => ({ ...prev, image: res.data.image || asset.uri }));
+        Alert.alert('Success', 'Stall photo updated in real-time!');
+      }
+    } catch (err) {
+      console.error('Failed to upload stall image:', err);
+      Alert.alert('Upload Failed', err.response?.data?.message || 'Could not upload stall image.');
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  // ---------------------------------------------------------
+  // 2. Real-Time Store Info Update (Name, Category, Market, UPI)
+  // ---------------------------------------------------------
+  const handleSaveStoreDetails = async () => {
+    const currentStoreId = store?.id || store?._id || storeId;
+    if (!currentStoreId) return;
+
+    if (!storeFormData.name.trim()) {
+      Alert.alert('Required', 'Please enter a valid Stall Name.');
+      return;
+    }
+
+    setSavingStore(true);
+    try {
+      const payload = {
+        name: storeFormData.name.trim(),
+        category: storeFormData.category.trim() || 'General',
+        market: storeFormData.market.trim() || availableMarkets[0] || 'BH1 Market',
+      };
+
+      const res = await apiClient.put(`/store/${currentStoreId}/update-details`, payload);
+
+      if (res.data) {
+        setStore((prev) => ({
+          ...prev,
+          name: res.data.name || storeFormData.name,
+          category: res.data.category || storeFormData.category,
+          market: res.data.market || storeFormData.market,
+        }));
+        setShowEditStoreModal(false);
+        Alert.alert('Updated', 'Stall details updated in real-time!');
+      }
+    } catch (err) {
+      console.error('Failed to update store details:', err);
+      Alert.alert('Error', err.response?.data?.message || 'Failed to update stall details.');
+    } finally {
+      setSavingStore(false);
+    }
+  };
+
+  // ---------------------------------------------------------
+  // 3. Real-Time Stall Open/Closed Toggle
+  // ---------------------------------------------------------
+  const handleToggleStoreStatus = async () => {
+    const currentStoreId = store?.id || store?._id || storeId;
+    if (!currentStoreId || togglingStatus) return;
+
+    setTogglingStatus(true);
+    try {
+      const res = await apiClient.put(`/store/${currentStoreId}/toggle-status`, {
+        forceCancelPending: false,
+      });
+
+      if (res.data?.requiresConfirmation) {
+        Alert.alert(
+          'Pending Orders Alert',
+          res.data.message,
+          [
+            { text: 'Keep Open', style: 'cancel' },
+            {
+              text: 'Close & Refund',
+              style: 'destructive',
+              onPress: async () => {
+                const confRes = await apiClient.put(`/store/${currentStoreId}/toggle-status`, {
+                  forceCancelPending: true,
+                });
+                setStore((prev) => ({ ...prev, isOpen: confRes.data.isOpen }));
+              },
+            },
+          ]
+        );
+      } else {
+        setStore((prev) => ({ ...prev, isOpen: res.data.isOpen }));
+      }
+    } catch (err) {
+      console.error('Toggle store status error:', err);
+      Alert.alert('Error', 'Could not update stall open/closed status.');
+    } finally {
+      setTogglingStatus(false);
+    }
+  };
+
+  // ---------------------------------------------------------
+  // 3b. Real-Time Automated Schedule Toggle
+  // ---------------------------------------------------------
+  const handleToggleAutoSchedule = async () => {
+    if (isEmployee) {
+      Alert.alert('Restricted', 'Only the Cart Owner can configure automated stall timing.');
+      return;
+    }
+    const currentStoreId = store?.id || store?._id || storeId;
+    if (!currentStoreId || togglingAutoSchedule) return;
+
+    const newStatus = !store?.isAutomated;
+    setTogglingAutoSchedule(true);
+    try {
+      const res = await apiClient.put(`/store/${currentStoreId}/update-details`, {
+        isAutomated: newStatus,
+      });
+      if (res.data) {
+        setStore((prev) => ({
+          ...prev,
+          isAutomated: res.data.isAutomated,
+          isOpen: res.data.isOpen,
+        }));
+        setTimingFormData((prev) => ({
+          ...prev,
+          isAutomated: Boolean(res.data.isAutomated),
+        }));
+        Alert.alert(
+          'Automated Schedule',
+          newStatus
+            ? `Automated timing is now ON (${formatTime12h(store?.openingTime || '10:00')} – ${formatTime12h(store?.closingTime || '22:00')}). Your stall will automatically open and close in real-time according to IST.`
+            : 'Automated timing is now OFF. Your stall is in manual control mode.'
+        );
+      }
+    } catch (err) {
+      console.error('Failed to toggle auto schedule:', err);
+      Alert.alert('Error', err.response?.data?.message || 'Could not update automated schedule.');
+    } finally {
+      setTogglingAutoSchedule(false);
+    }
+  };
+
+  // ---------------------------------------------------------
+  // 3c. Real-Time Save Stall Timing (Opening & Closing Hours)
+  // ---------------------------------------------------------
+  const handleSaveTimingDetails = async () => {
+    const currentStoreId = store?.id || store?._id || storeId;
+    if (!currentStoreId) return;
+
+    const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
+    const op = (timingFormData.openingTime || '').trim();
+    const cl = (timingFormData.closingTime || '').trim();
+
+    if (!timeRegex.test(op)) {
+      Alert.alert('Invalid Format', 'Please enter a valid Opening Time in 24-hr format (e.g. 10:00 or 08:30).');
+      return;
+    }
+    if (!timeRegex.test(cl)) {
+      Alert.alert('Invalid Format', 'Please enter a valid Closing Time in 24-hr format (e.g. 22:00 or 23:00).');
+      return;
+    }
+
+    setSavingTiming(true);
+    try {
+      const res = await apiClient.put(`/store/${currentStoreId}/update-details`, {
+        isAutomated: timingFormData.isAutomated,
+        openingTime: op,
+        closingTime: cl,
+      });
+
+      if (res.data) {
+        setStore((prev) => ({
+          ...prev,
+          isAutomated: res.data.isAutomated,
+          openingTime: res.data.openingTime,
+          closingTime: res.data.closingTime,
+          isOpen: res.data.isOpen,
+        }));
+        setShowEditTimingModal(false);
+        Alert.alert('Schedule Saved', 'Automated stall timing updated and synced with Super Admin!');
+      }
+    } catch (err) {
+      console.error('Failed to save timing details:', err);
+      Alert.alert('Error', err.response?.data?.message || 'Could not save timing schedule.');
+    } finally {
+      setSavingTiming(false);
+    }
+  };
+
+  // ---------------------------------------------------------
+  // 4. Real-Time Owner Details & UPI ID Update
+  // ---------------------------------------------------------
+  const handleSaveOwnerDetails = async () => {
+    if (!ownerFormData.name.trim()) {
+      Alert.alert('Required', 'Please enter your name.');
+      return;
+    }
+
+    setSavingOwner(true);
+    try {
+      // 1. Update owner's name
+      const profileRes = await apiClient.put('/auth/update-profile', {
+        name: ownerFormData.name.trim(),
+      });
+
+      if (profileRes.data?.admin || profileRes.data) {
+        const updated = profileRes.data.admin || profileRes.data;
+        updateUser({ name: updated.name || ownerFormData.name });
+      }
+
+      // 2. Update store's payout UPI ID (reflected in Super Admin panel)
+      const currentStoreId = store?.id || store?._id || storeId;
+      if (currentStoreId && ownerFormData.upiId !== undefined) {
+        const upiRes = await apiClient.put(`/store/${currentStoreId}/update-details`, {
+          upiId: ownerFormData.upiId.trim(),
+        });
+        if (upiRes.data) {
+          setStore((prev) => ({ ...prev, upiId: upiRes.data.upiId || ownerFormData.upiId.trim() }));
+          setStoreFormData((prev) => ({ ...prev, upiId: upiRes.data.upiId || ownerFormData.upiId.trim() }));
         }
       }
+
+      setShowEditOwnerModal(false);
+      Alert.alert('Updated', 'Owner profile and Payout UPI ID updated in real-time!');
+    } catch (err) {
+      console.error('Failed to update owner profile:', err);
+      Alert.alert('Error', err.response?.data?.message || 'Failed to update owner details.');
+    } finally {
+      setSavingOwner(false);
+    }
+  };
+
+  // ---------------------------------------------------------
+  // 5. Employees Management: Add Employee
+  // ---------------------------------------------------------
+  const handleAddEmployee = async () => {
+    const currentStoreId = store?.id || store?._id || storeId;
+    if (!currentStoreId) return;
+
+    const { name, email, password } = employeeFormData;
+    if (!name.trim() || !email.trim() || !password.trim()) {
+      Alert.alert('Required', 'Please fill in Name, Email/Phone, and Password for the employee.');
+      return;
+    }
+
+    setSavingEmployee(true);
+    try {
+      const res = await apiClient.post(`/employees/${currentStoreId}`, {
+        name: name.trim(),
+        email: email.trim().toLowerCase(),
+        password: password.trim(),
+      });
+
+      if (res.data) {
+        setEmployees((prev) => [res.data, ...prev]);
+        setShowAddEmployeeModal(false);
+        setEmployeeFormData({ name: '', email: '', password: '' });
+        Alert.alert('Success', `Employee ${name.trim()} added! They can now log in to the mobile app.`);
+      }
+    } catch (err) {
+      console.error('Add employee error:', err);
+      Alert.alert('Error', err.response?.data?.message || 'Failed to create employee account.');
+    } finally {
+      setSavingEmployee(false);
+    }
+  };
+
+  // ---------------------------------------------------------
+  // 6. Employees Management: Toggle Status (Active / Inactive)
+  // ---------------------------------------------------------
+  const handleToggleEmployeeStatus = async (employee) => {
+    const currentStoreId = store?.id || store?._id || storeId;
+    const empId = employee.id || employee._id;
+    if (!currentStoreId || !empId) return;
+
+    const newStatus = employee.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
+
+    setEmployees((prev) =>
+      prev.map((e) => ((e.id || e._id) === empId ? { ...e, status: newStatus } : e))
+    );
+
+    try {
+      await apiClient.patch(`/employees/${currentStoreId}/${empId}/status`, {
+        status: newStatus,
+      });
+    } catch (err) {
+      console.error('Toggle employee status error:', err);
+      Alert.alert('Error', 'Failed to toggle employee status.');
+      setEmployees((prev) =>
+        prev.map((e) => ((e.id || e._id) === empId ? { ...e, status: employee.status } : e))
+      );
+    }
+  };
+
+  // ---------------------------------------------------------
+  // 7. Employees Management: Edit Employee
+  // ---------------------------------------------------------
+  const handleOpenEditEmployee = (emp) => {
+    setSelectedEmployee(emp);
+    setEditEmployeeFormData({
+      name: emp.name || '',
+      password: '',
     });
+    setShowEditEmployeeModal(true);
+  };
 
-    // Standard 5% deduction (3% UniVerse Platform + 2% Payment Gateway) -> 95% Net Payout
-    const todayNet = Math.round(todayGross * 0.95);
-    const totalNet = Math.round(totalGross * 0.95);
-    const todayAov = todayCompletedCount > 0 ? Math.round(todayGross / todayCompletedCount) : 0;
-    const totalAov = totalCompletedCount > 0 ? Math.round(totalGross / totalCompletedCount) : 0;
+  const handleUpdateEmployee = async () => {
+    const currentStoreId = store?.id || store?._id || storeId;
+    const empId = selectedEmployee?.id || selectedEmployee?._id;
+    if (!currentStoreId || !empId) return;
 
-    return {
-      today: {
-        completedCount: todayCompletedCount,
-        gross: todayGross,
-        net: todayNet,
-        aov: todayAov,
-        cancelledCount: todayCancelledCount,
-      },
-      total: {
-        completedCount: totalCompletedCount,
-        gross: totalGross,
-        net: totalNet,
-        aov: totalAov,
-        cancelledCount: totalCancelledCount,
-      },
-    };
-  }, [orders]);
+    if (!editEmployeeFormData.name.trim()) {
+      Alert.alert('Required', 'Please enter employee name.');
+      return;
+    }
+
+    setUpdatingEmployee(true);
+    try {
+      const payload = { name: editEmployeeFormData.name.trim() };
+      if (editEmployeeFormData.password.trim()) {
+        payload.password = editEmployeeFormData.password.trim();
+      }
+
+      const res = await apiClient.put(`/employees/${currentStoreId}/${empId}`, payload);
+      if (res.data) {
+        setEmployees((prev) =>
+          prev.map((e) => ((e.id || e._id) === empId ? { ...e, name: res.data.name } : e))
+        );
+        setShowEditEmployeeModal(false);
+        Alert.alert('Updated', 'Employee details updated in real-time!');
+      }
+    } catch (err) {
+      console.error('Update employee error:', err);
+      Alert.alert('Error', err.response?.data?.message || 'Failed to update employee details.');
+    } finally {
+      setUpdatingEmployee(false);
+    }
+  };
+
+  // ---------------------------------------------------------
+  // 8. Employees Management: Delete / Revoke Employee
+  // ---------------------------------------------------------
+  const handleDeleteEmployee = (employee) => {
+    const currentStoreId = store?.id || store?._id || storeId;
+    const empId = employee.id || employee._id;
+    if (!currentStoreId || !empId) return;
+
+    Alert.alert(
+      'Revoke Employee Access',
+      `Are you sure you want to remove ${employee.name}? They will no longer be able to log in to this kitchen stall.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Revoke Access',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await apiClient.delete(`/employees/${currentStoreId}/${empId}`);
+              setEmployees((prev) => prev.filter((e) => (e.id || e._id) !== empId));
+              Alert.alert('Removed', `${employee.name} has been revoked.`);
+            } catch (err) {
+              console.error('Delete employee error:', err);
+              Alert.alert('Error', err.response?.data?.message || 'Failed to remove employee.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  // ---------------------------------------------------------
+  // 9. Logout
+  // ---------------------------------------------------------
+  const handleLogout = () => {
+    Alert.alert('Logout', 'Are you sure you want to log out of UniVerse Vendor OS?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Log Out', style: 'destructive', onPress: logout },
+    ]);
+  };
 
   if (!user) return null;
 
-  const isToday = statsTab === 'today';
-  const currentData = isToday ? stallStats.today : stallStats.total;
-
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
         refreshControl={
-          <RefreshControl 
-            refreshing={refreshing} 
-            onRefresh={() => fetchData(true)} 
-            colors={['#3B82F6']} 
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => fetchProfileData(true)}
+            colors={['#EF4123']}
           />
         }
       >
-        {/* Profile Header */}
-        {/* Modern Profile Header */}
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.title}>Stall Profile</Text>
-            <Text style={styles.subtitle}>Account details & settlement summary</Text>
-          </View>
-        </View>
-
-        {/* User Identity Card */}
-        <View style={styles.profileCard}>
-          <View style={styles.profileTopRow}>
-            <View style={styles.avatarCircle}>
-              <Text style={styles.avatarText}>
-                {(user.name || 'V').charAt(0).toUpperCase()}
-              </Text>
-            </View>
-            <View style={{ flex: 1, marginLeft: 14 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Text style={styles.profileName} numberOfLines={1}>{user.name || 'Vendor'}</Text>
-                <View style={[styles.roleBadge, isEmployee ? styles.employeeBadge : styles.vendorBadge]}>
-                  <Ionicons 
-                    name={isEmployee ? 'shield' : 'storefront'} 
-                    size={11} 
-                    color={isEmployee ? '#7E22CE' : '#1D4ED8'} 
-                    style={{ marginRight: 3 }} 
-                  />
-                  <Text style={[styles.roleBadgeText, isEmployee ? styles.employeeBadgeText : styles.vendorBadgeText]}>
-                    {isEmployee ? 'STAFF' : 'CART OWNER'}
-                  </Text>
-                </View>
-              </View>
-              <Text style={styles.profileEmail} numberOfLines={1}>{user.email}</Text>
-            </View>
-          </View>
-
-          {storeName ? (
-            <View style={styles.assignedStallRow}>
-              <Ionicons name="storefront" size={15} color="#EF4123" style={{ marginRight: 6 }} />
-              <Text style={styles.assignedStallLabel}>Assigned Stall:</Text>
-              <Text style={styles.assignedStallValue} numberOfLines={1}>{storeName}</Text>
-            </View>
-          ) : null}
-        </View>
-
         {/* =================================================== */}
-        {/* STALL PERFORMANCE DASHBOARD (VENDOR ONLY) */}
+        {/* 1. STALL IMAGE HERO & DETAILS SECTION               */}
         {/* =================================================== */}
-        {!isEmployee ? (
-          <View style={styles.statsCard}>
-            {/* Dashboard Header with Mode Switcher */}
-            <View style={styles.statsHeader}>
-              <View>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Ionicons name="bar-chart" size={18} color="#3B82F6" />
-                  <Text style={styles.statsTitle}>Stall Performance</Text>
-                </View>
-                <Text style={styles.statsSub}>
-                  {isToday ? "Today's settlement & revenue" : 'All-time lifetime performance'}
+        <View style={styles.heroCardContainer}>
+          <View style={styles.imageWrapper}>
+            {store?.image ? (
+              <Image source={{ uri: store.image }} style={styles.stallImage} resizeMode="cover" />
+            ) : (
+              <LinearGradient
+                colors={['#1E293B', '#0F172A']}
+                style={styles.stallImagePlaceholder}
+              >
+                <Ionicons name="storefront" size={54} color="#94A3B8" />
+                <Text style={styles.placeholderStallText}>
+                  {store?.name || 'Your Food Stall'}
+                </Text>
+                <Text style={styles.placeholderSub}>Tap 'Change Photo' to upload stall banner</Text>
+              </LinearGradient>
+            )}
+
+            {/* Gradient Overlay for Readable Text */}
+            <LinearGradient
+              colors={['transparent', 'rgba(15, 23, 42, 0.85)']}
+              style={styles.imageOverlay}
+            />
+
+            {/* Stall Open/Closed Status Chip */}
+            <View style={styles.statusChipWrapper}>
+              <View
+                style={[
+                  styles.statusPill,
+                  store?.isOpen ? styles.statusPillOpen : styles.statusPillClosed,
+                ]}
+              >
+                <View
+                  style={[
+                    styles.statusDot,
+                    store?.isOpen ? styles.statusDotOpen : styles.statusDotClosed,
+                  ]}
+                />
+                <Text
+                  style={[
+                    styles.statusPillText,
+                    store?.isOpen ? styles.statusPillTextOpen : styles.statusPillTextClosed,
+                  ]}
+                >
+                  {store?.isOpen ? 'OPEN FOR ORDERS' : 'CURRENTLY CLOSED'}
                 </Text>
               </View>
+            </View>
 
-              {/* Pill Toggle: Today vs Total */}
-              <View style={styles.togglePill}>
-                <TouchableOpacity 
-                  style={[styles.toggleBtn, isToday && styles.toggleBtnActive]}
-                  onPress={() => setStatsTab('today')}
+            {/* Change Stall Photo Button */}
+            {!isEmployee && (
+              <TouchableOpacity
+                style={styles.changePhotoBtn}
+                onPress={handlePickStallImage}
+                disabled={uploadingImage}
+                activeOpacity={0.8}
+              >
+                {uploadingImage ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <>
+                    <Ionicons name="camera" size={14} color="#FFFFFF" style={{ marginRight: 5 }} />
+                    <Text style={styles.changePhotoText}>Change Photo</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* Stall Meta Row */}
+          <View style={styles.stallMetaBox}>
+            <View style={styles.stallTitleRow}>
+              <View style={{ flex: 1, marginRight: 10 }}>
+                <Text style={styles.stallNameText} numberOfLines={1}>
+                  {store?.name || 'UniVerse Kitchen Stall'}
+                </Text>
+                <View style={styles.stallLocationRow}>
+                  <Ionicons name="location-sharp" size={13} color="#EF4123" style={{ marginRight: 4 }} />
+                  <Text style={styles.stallLocationText} numberOfLines={1}>
+                    {store?.market || 'Select Market'} • {store?.category || 'Fast Food'}
+                  </Text>
+                </View>
+              </View>
+
+              {!isEmployee && (
+                <TouchableOpacity
+                  style={styles.editStallBtn}
+                  onPress={() => setShowEditStoreModal(true)}
                   activeOpacity={0.7}
                 >
-                  <Text style={[styles.toggleText, isToday && styles.toggleTextActive]}>
-                    Today
-                  </Text>
+                  <Ionicons name="pencil" size={13} color="#0F172A" />
+                  <Text style={styles.editStallBtnText}>Edit Stall</Text>
                 </TouchableOpacity>
-                <TouchableOpacity 
-                  style={[styles.toggleBtn, !isToday && styles.toggleBtnActive]}
-                  onPress={() => setStatsTab('total')}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[styles.toggleText, !isToday && styles.toggleTextActive]}>
-                    Total
+              )}
+            </View>
+
+            {/* Quick Open/Closed Toggle Switch */}
+            {!isEmployee && (
+              <View style={styles.quickToggleRow}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 10 }}>
+                  <Ionicons
+                    name={store?.isOpen ? 'restaurant' : 'moon'}
+                    size={16}
+                    color={store?.isOpen ? '#10B981' : '#64748B'}
+                    style={{ marginRight: 8 }}
+                  />
+                  <Text style={styles.quickToggleLabel} numberOfLines={1}>
+                    {store?.isOpen ? 'Accepting customer orders' : 'Stall is offline and closed'}
                   </Text>
-                </TouchableOpacity>
+                </View>
+                <Switch
+                  value={Boolean(store?.isOpen)}
+                  onValueChange={handleToggleStoreStatus}
+                  disabled={togglingStatus}
+                  trackColor={{ false: '#E2E8F0', true: '#10B981' }}
+                  thumbColor="#FFFFFF"
+                />
+              </View>
+            )}
+          </View>
+        </View>
+
+        {/* =================================================== */}
+        {/* 2. AUTOMATED STALL TIMING & SCHEDULE CARD           */}
+        {/* =================================================== */}
+        <View style={styles.sectionCard}>
+          <View style={styles.sectionHeaderRow}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+              <View style={[styles.sectionIconBg, { backgroundColor: 'rgba(239, 65, 35, 0.1)' }]}>
+                <Ionicons name="time" size={17} color="#EF4123" />
+              </View>
+              <View style={{ marginLeft: 4, flex: 1 }}>
+                <Text style={styles.sectionTitle}>Automated Stall Timing</Text>
+                <Text style={styles.sectionSubtitle}>
+                  Auto-schedule synced with Super Admin (IST)
+                </Text>
               </View>
             </View>
 
-            {loading && orders.length === 0 ? (
-              <View style={{ paddingVertical: 20, alignItems: 'center' }}>
-                <ActivityIndicator size="small" color="#3B82F6" />
-                <Text style={{ marginTop: 8, color: '#64748B', fontSize: 12 }}>Loading analytics...</Text>
+            {!isEmployee && (
+              <TouchableOpacity
+                style={styles.sectionActionBtn}
+                onPress={() => {
+                  setTimingFormData({
+                    isAutomated: Boolean(store?.isAutomated),
+                    openingTime: store?.openingTime || '10:00',
+                    closingTime: store?.closingTime || '22:00',
+                  });
+                  setShowEditTimingModal(true);
+                }}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="create-outline" size={15} color="#2563EB" style={{ marginRight: 4 }} />
+                <Text style={styles.sectionActionText}>Edit</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* Auto-Timing Toggle Row */}
+          <View style={styles.timingToggleRow}>
+            <View style={{ flex: 1, marginRight: 12 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
+                <View
+                  style={[
+                    styles.timingDot,
+                    store?.isAutomated ? styles.timingDotActive : styles.timingDotManual,
+                  ]}
+                />
+                <Text style={styles.timingToggleTitle}>
+                  {store?.isAutomated ? 'Auto-Schedule Active' : 'Manual Schedule Mode'}
+                </Text>
               </View>
-            ) : (
-              <View style={styles.metricsWrapper}>
-                {/* Primary Row: Gross Sales & Net Payout */}
-                <View style={styles.primaryRow}>
-                  {/* Gross Sales */}
-                  <View style={[styles.metricCard, { borderLeftColor: '#3B82F6' }]}>
-                    <Text style={styles.metricLabel}>
-                      {isToday ? "Today's Gross" : 'Total Gross'}
-                    </Text>
-                    <Text style={styles.metricValue}>
-                      ₹{currentData.gross.toLocaleString()}
-                    </Text>
-                    <View style={styles.comparisonChip}>
-                      <Text style={styles.comparisonText}>
-                        {isToday 
-                          ? `Lifetime: ₹${stallStats.total.gross.toLocaleString()}` 
-                          : `Today: ₹${stallStats.today.gross.toLocaleString()}`}
-                      </Text>
-                    </View>
-                  </View>
+              <Text style={styles.timingToggleSub}>
+                {store?.isAutomated
+                  ? 'Stall automatically opens & closes at set times in real-time'
+                  : 'Vendor manually controls stall open/closed switch'}
+              </Text>
+            </View>
 
-                  {/* Net Payout (95%) */}
-                  <View style={[styles.metricCard, { borderLeftColor: '#10B981', backgroundColor: '#F0FDF4' }]}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <Text style={[styles.metricLabel, { color: '#047857' }]}>
-                        {isToday ? 'Est. Net Payout' : 'Total Net Payout'}
-                      </Text>
-                      <View style={styles.deductionTag}>
-                        <Text style={styles.deductionTagText}>-5%</Text>
-                      </View>
-                    </View>
-                    <Text style={[styles.metricValue, { color: '#047857' }]}>
-                      ₹{currentData.net.toLocaleString()}
-                    </Text>
-                    <Text style={styles.metricHint}>
-                      After 3% UniVerse + 2% PG
+            {!isEmployee && (
+              <Switch
+                value={Boolean(store?.isAutomated)}
+                onValueChange={handleToggleAutoSchedule}
+                disabled={togglingAutoSchedule}
+                trackColor={{ false: '#E2E8F0', true: '#4F46E5' }}
+                thumbColor="#FFFFFF"
+              />
+            )}
+          </View>
+
+          {/* Operating Hours Visual Pill Row */}
+          <View style={styles.timingPillRow}>
+            <View style={styles.timingPillCol}>
+              <Text style={styles.timingPillLabel}>OPENS AT</Text>
+              <View style={styles.timingPillBox}>
+                <Ionicons name="sunny-outline" size={14} color="#F59E0B" style={{ marginRight: 6 }} />
+                <Text style={styles.timingPillValue}>
+                  {formatTime12h(store?.openingTime || '10:00')}
+                </Text>
+                <Text style={styles.timing24hTag}>({store?.openingTime || '10:00'})</Text>
+              </View>
+            </View>
+
+            <View style={styles.timingDividerArrow}>
+              <Ionicons name="arrow-forward" size={16} color="#CBD5E1" />
+            </View>
+
+            <View style={styles.timingPillCol}>
+              <Text style={styles.timingPillLabel}>CLOSES AT</Text>
+              <View style={styles.timingPillBox}>
+                <Ionicons name="moon-outline" size={14} color="#3B82F6" style={{ marginRight: 6 }} />
+                <Text style={styles.timingPillValue}>
+                  {formatTime12h(store?.closingTime || '22:00')}
+                </Text>
+                <Text style={styles.timing24hTag}>({store?.closingTime || '22:00'})</Text>
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.timingSyncBanner}>
+            <Ionicons name="shield-checkmark" size={13} color="#10B981" style={{ marginRight: 5 }} />
+            <Text style={styles.timingSyncText}>
+              Directly connected to PostgreSQL DB & Super Admin Panel
+            </Text>
+          </View>
+        </View>
+
+        {/* =================================================== */}
+        {/* 3. OWNER & ACCOUNT DETAILS SECTION                  */}
+        {/* =================================================== */}
+        <View style={styles.sectionCard}>
+          <View style={styles.sectionHeaderRow}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+              <View style={styles.sectionIconBg}>
+                <Ionicons name="person" size={16} color="#2563EB" />
+              </View>
+              <Text style={styles.sectionTitle}>
+                {isEmployee ? 'Staff Account Details' : 'Cart Owner Details'}
+              </Text>
+            </View>
+
+            {!isEmployee && (
+              <TouchableOpacity
+                style={styles.sectionActionBtn}
+                onPress={() => setShowEditOwnerModal(true)}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="create-outline" size={15} color="#2563EB" style={{ marginRight: 4 }} />
+                <Text style={styles.sectionActionText}>Edit</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          <View style={styles.ownerInfoGrid}>
+            {/* Full Name */}
+            <View style={styles.ownerInfoRow}>
+              <Text style={styles.infoLabel}>Full Name</Text>
+              <Text style={styles.infoValue} numberOfLines={1}>
+                {user.name || 'Vendor Owner'}
+              </Text>
+            </View>
+
+            {/* Login Email / ID */}
+            <View style={styles.ownerInfoRow}>
+              <Text style={styles.infoLabel}>Login Email / ID</Text>
+              <Text style={styles.infoValue} numberOfLines={1} ellipsizeMode="middle">
+                {user.email || 'N/A'}
+              </Text>
+            </View>
+
+            {/* Payout UPI ID (Synced with Super Admin Panel) */}
+            <View style={styles.ownerInfoRow}>
+              <Text style={styles.infoLabel}>Payout UPI ID</Text>
+              <View style={{ flex: 1, alignItems: 'flex-end', marginLeft: 8 }}>
+                {store?.upiId ? (
+                  <View style={styles.upiBadge}>
+                    <Ionicons name="card" size={12} color="#2563EB" style={{ marginRight: 4 }} />
+                    <Text style={styles.upiBadgeText} numberOfLines={1}>
+                      {store.upiId}
                     </Text>
                   </View>
+                ) : (
+                  <TouchableOpacity onPress={() => setShowEditOwnerModal(true)}>
+                    <Text style={styles.upiUnsetLink}>+ Set Payout UPI ID</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+
+            {/* Account Role */}
+            <View style={[styles.ownerInfoRow, { borderBottomWidth: 0, paddingBottom: 0 }]}>
+              <Text style={styles.infoLabel}>Account Role</Text>
+              <View
+                style={[
+                  styles.roleBadge,
+                  isEmployee ? styles.employeeRoleBadge : styles.ownerRoleBadge,
+                ]}
+              >
+                <Ionicons
+                  name={isEmployee ? 'shield-checkmark' : 'sparkles'}
+                  size={11}
+                  color={isEmployee ? '#7E22CE' : '#2563EB'}
+                  style={{ marginRight: 4 }}
+                />
+                <Text
+                  style={[
+                    styles.roleBadgeText,
+                    isEmployee ? styles.employeeRoleText : styles.ownerRoleText,
+                  ]}
+                >
+                  {isEmployee ? 'KITCHEN STAFF' : 'CART OWNER (FULL ACCESS)'}
+                </Text>
+              </View>
+            </View>
+          </View>
+        </View>
+
+        {/* =================================================== */}
+        {/* 3. EMPLOYEES & STAFF MANAGEMENT SECTION (REALTIME)   */}
+        {/* =================================================== */}
+        {!isEmployee ? (
+          <View style={styles.sectionCard}>
+            <View style={styles.sectionHeaderRow}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 8 }}>
+                <View style={[styles.sectionIconBg, { backgroundColor: 'rgba(126, 34, 206, 0.1)' }]}>
+                  <Ionicons name="people" size={16} color="#7E22CE" />
                 </View>
-
-                {/* Secondary Row: Fulfilled, AOV, Cancelled */}
-                <View style={styles.secondaryRow}>
-                  <View style={styles.miniCard}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 2 }}>
-                      <Ionicons name="checkmark-circle" size={14} color="#10B981" />
-                      <Text style={styles.miniLabel}>Fulfilled</Text>
-                    </View>
-                    <Text style={styles.miniValue}>{currentData.completedCount}</Text>
-                    <Text style={styles.miniSub}>
-                      {isToday ? `Total: ${stallStats.total.completedCount}` : `Today: ${stallStats.today.completedCount}`}
-                    </Text>
-                  </View>
-
-                  <View style={styles.miniCard}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 2 }}>
-                      <Ionicons name="pricetag" size={14} color="#6366F1" />
-                      <Text style={styles.miniLabel}>Avg Order</Text>
-                    </View>
-                    <Text style={styles.miniValue}>₹{currentData.aov}</Text>
-                    <Text style={styles.miniSub}>Per ticket</Text>
-                  </View>
-
-                  <View style={styles.miniCard}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 2 }}>
-                      <Ionicons name="close-circle" size={14} color="#EF4444" />
-                      <Text style={styles.miniLabel}>Cancelled</Text>
-                    </View>
-                    <Text style={[styles.miniValue, { color: currentData.cancelledCount > 0 ? '#EF4444' : '#64748B' }]}>
-                      {currentData.cancelledCount}
-                    </Text>
-                    <Text style={styles.miniSub}>Orders</Text>
-                  </View>
-                </View>
-
-                {/* Fixed Settlement Notice */}
-                <View style={styles.noticeBox}>
-                  <Ionicons name="information-circle-outline" size={15} color="#475569" style={{ marginRight: 6 }} />
-                  <Text style={styles.noticeText}>
-                    Daily settlements process automatically at T+1 with a fixed 5% deduction (3% UniVerse + 2% PG).
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.sectionTitle} numberOfLines={1}>
+                    Kitchen Staff & Employees
+                  </Text>
+                  <Text style={styles.sectionSub} numberOfLines={1}>
+                    Real-time operational staff logins
                   </Text>
                 </View>
+              </View>
+
+              <TouchableOpacity
+                style={styles.addEmployeeBtn}
+                onPress={() => setShowAddEmployeeModal(true)}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="add" size={15} color="#FFFFFF" style={{ marginRight: 2 }} />
+                <Text style={styles.addEmployeeBtnText}>Add Staff</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Privacy notice banner */}
+            <View style={styles.staffNoticeBox}>
+              <Ionicons name="shield-checkmark" size={14} color="#7E22CE" style={{ marginRight: 6 }} />
+              <Text style={styles.staffNoticeText}>
+                Employees log in via mobile app to fulfill live orders. Payout statistics and revenue are restricted to the Cart Owner.
+              </Text>
+            </View>
+
+            {/* Employees List */}
+            {employees.length === 0 ? (
+              <View style={styles.emptyEmployeesBox}>
+                <Ionicons name="person-add-outline" size={34} color="#CBD5E1" />
+                <Text style={styles.emptyEmployeesTitle}>No employees added yet</Text>
+                <Text style={styles.emptyEmployeesSub}>
+                  Add kitchen staff so they can process orders on their own devices without seeing your financial earnings.
+                </Text>
+                <TouchableOpacity
+                  style={styles.emptyAddBtn}
+                  onPress={() => setShowAddEmployeeModal(true)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.emptyAddBtnText}>+ Add First Employee</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <View style={styles.employeeList}>
+                {employees.map((emp) => {
+                  const empId = emp.id || emp._id;
+                  const isActive = emp.status === 'ACTIVE';
+
+                  return (
+                    <View key={empId} style={styles.employeeCard}>
+                      <View style={styles.employeeTopRow}>
+                        {/* Avatar Initial */}
+                        <View style={[styles.empAvatar, !isActive && styles.empAvatarInactive]}>
+                          <Text style={styles.empAvatarText}>
+                            {(emp.name || 'S').charAt(0).toUpperCase()}
+                          </Text>
+                        </View>
+
+                        {/* Name & Login */}
+                        <View style={{ flex: 1, marginLeft: 10 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <Text style={styles.empName} numberOfLines={1}>
+                              {emp.name}
+                            </Text>
+                            {/* Status Pill */}
+                            <View
+                              style={[
+                                styles.empStatusBadge,
+                                isActive ? styles.empStatusActive : styles.empStatusInactive,
+                              ]}
+                            >
+                              <View
+                                style={[
+                                  styles.empStatusDot,
+                                  isActive ? styles.empStatusDotActive : styles.empStatusDotInactive,
+                                ]}
+                              />
+                              <Text
+                                style={[
+                                  styles.empStatusText,
+                                  isActive ? styles.empStatusTextActive : styles.empStatusTextInactive,
+                                ]}
+                              >
+                                {isActive ? 'ACTIVE' : 'INACTIVE'}
+                              </Text>
+                            </View>
+                          </View>
+
+                          <Text style={styles.empEmail} numberOfLines={1} ellipsizeMode="middle">
+                            {emp.email}
+                          </Text>
+                        </View>
+                      </View>
+
+                      {/* Real-Time Action Buttons */}
+                      <View style={styles.empActionsRow}>
+                        {/* Toggle Active / Inactive Switch */}
+                        <TouchableOpacity
+                          style={[
+                            styles.empActionBtn,
+                            isActive ? styles.empActionBtnDeactivate : styles.empActionBtnActivate,
+                          ]}
+                          onPress={() => handleToggleEmployeeStatus(emp)}
+                          activeOpacity={0.7}
+                        >
+                          <Ionicons
+                            name={isActive ? 'pause-circle-outline' : 'play-circle-outline'}
+                            size={13}
+                            color={isActive ? '#D97706' : '#10B981'}
+                            style={{ marginRight: 4 }}
+                          />
+                          <Text
+                            style={[
+                              styles.empActionBtnText,
+                              { color: isActive ? '#D97706' : '#10B981' },
+                            ]}
+                          >
+                            {isActive ? 'Deactivate' : 'Activate'}
+                          </Text>
+                        </TouchableOpacity>
+
+                        {/* Edit Employee Name / Password */}
+                        <TouchableOpacity
+                          style={styles.empActionBtn}
+                          onPress={() => handleOpenEditEmployee(emp)}
+                          activeOpacity={0.7}
+                        >
+                          <Ionicons name="key-outline" size={13} color="#2563EB" style={{ marginRight: 4 }} />
+                          <Text style={[styles.empActionBtnText, { color: '#2563EB' }]}>Edit / PW</Text>
+                        </TouchableOpacity>
+
+                        {/* Delete / Revoke Employee */}
+                        <TouchableOpacity
+                          style={[styles.empActionBtn, styles.empActionBtnDelete]}
+                          onPress={() => handleDeleteEmployee(emp)}
+                          activeOpacity={0.7}
+                        >
+                          <Ionicons name="trash-outline" size={13} color="#EF4444" style={{ marginRight: 4 }} />
+                          <Text style={[styles.empActionBtnText, { color: '#EF4444' }]}>Revoke</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  );
+                })}
               </View>
             )}
           </View>
         ) : (
-          /* Employee Restricted Privacy Card */
-          <View style={styles.employeeCard}>
-            <Ionicons name="shield-checkmark" size={24} color="#7E22CE" style={{ marginBottom: 8 }} />
-            <Text style={styles.employeeCardTitle}>Kitchen Operations Account</Text>
-            <Text style={styles.employeeCardText}>
-              You are logged in with employee permissions. Financial statistics and revenue summaries are restricted to the Cart Owner.
+          /* Employee Restricted Card */
+          <View style={styles.sectionCard}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+              <Ionicons name="shield-checkmark" size={20} color="#7E22CE" style={{ marginRight: 8 }} />
+              <Text style={styles.sectionTitle}>Kitchen Staff Privileges</Text>
+            </View>
+            <Text style={styles.employeeRestrictedText}>
+              You are logged in with employee credentials for <Text style={{ fontWeight: '800' }}>{store?.name || 'this stall'}</Text>. You have live order queue & fulfillment access. Managing employees and financial payouts is reserved for the Cart Owner.
             </Text>
           </View>
         )}
 
-        {/* Logout Button */}
-        <TouchableOpacity style={styles.logoutButton} onPress={logout} activeOpacity={0.8}>
-          <Ionicons name="log-out-outline" size={20} color="#EF4444" style={{ marginRight: 8 }} />
-          <Text style={styles.logoutText}>Logout of Stall</Text>
+        {/* =================================================== */}
+        {/* 4. LOGOUT & FOOTER                                  */}
+        {/* =================================================== */}
+        <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout} activeOpacity={0.8}>
+          <Ionicons name="log-out-outline" size={18} color="#EF4444" style={{ marginRight: 8 }} />
+          <Text style={styles.logoutBtnText}>Log Out of Kitchen OS</Text>
         </TouchableOpacity>
 
-        <Text style={styles.footerText}>UNIVERSE Vendor OS • v1.0.0</Text>
+        <Text style={styles.footerNote}>UNIVERSE Vendor OS • v1.1.0 • Supabase Cloud DB</Text>
       </ScrollView>
+
+      {/* =================================================== */}
+      {/* MODAL 1: EDIT STALL DETAILS (WITH MARKET SELECTOR)  */}
+      {/* =================================================== */}
+      <Modal visible={showEditStoreModal} transparent animationType="slide">
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <View>
+                <Text style={styles.modalTitle}>Edit Stall Details</Text>
+                <Text style={styles.modalSubtitle}>Updates reflect live across customer app</Text>
+              </View>
+              <TouchableOpacity onPress={() => setShowEditStoreModal(false)}>
+                <Ionicons name="close" size={22} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 420 }}>
+              <Text style={styles.inputLabel}>Stall Name</Text>
+              <TextInput
+                style={styles.textInput}
+                value={storeFormData.name}
+                onChangeText={(text) => setStoreFormData((prev) => ({ ...prev, name: text }))}
+                placeholder="e.g. Pizza Bar, Food Bowl"
+                placeholderTextColor="#94A3B8"
+              />
+
+              <Text style={styles.inputLabel}>Food Category</Text>
+              <TextInput
+                style={styles.textInput}
+                value={storeFormData.category}
+                onChangeText={(text) => setStoreFormData((prev) => ({ ...prev, category: text }))}
+                placeholder="e.g. Fast Food, Beverages, Rolls"
+                placeholderTextColor="#94A3B8"
+              />
+
+              {/* MARKET SELECTOR PILLS (NO TYPING!) */}
+              <Text style={styles.inputLabel}>Select Campus Market / Location</Text>
+              <View style={styles.marketPillsContainer}>
+                {availableMarkets.map((marketName) => {
+                  const isSelected = storeFormData.market === marketName;
+                  return (
+                    <TouchableOpacity
+                      key={marketName}
+                      style={[
+                        styles.marketSelectPill,
+                        isSelected && styles.marketSelectPillActive,
+                      ]}
+                      onPress={() =>
+                        setStoreFormData((prev) => ({ ...prev, market: marketName }))
+                      }
+                      activeOpacity={0.75}
+                    >
+                      <Ionicons
+                        name={isSelected ? 'checkmark-circle' : 'location-outline'}
+                        size={13}
+                        color={isSelected ? '#FFFFFF' : '#64748B'}
+                        style={{ marginRight: 5 }}
+                      />
+                      <Text
+                        style={[
+                          styles.marketSelectPillText,
+                          isSelected && styles.marketSelectPillTextActive,
+                        ]}
+                      >
+                        {marketName}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </ScrollView>
+
+            <View style={styles.modalBtnRow}>
+              <TouchableOpacity
+                style={styles.modalCancelBtn}
+                onPress={() => setShowEditStoreModal(false)}
+              >
+                <Text style={styles.modalCancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.modalSaveBtn}
+                onPress={handleSaveStoreDetails}
+                disabled={savingStore}
+              >
+                {savingStore ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.modalSaveBtnText}>Save Changes</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* =================================================== */}
+      {/* MODAL 1B: EDIT AUTOMATED STALL TIMING & SCHEDULE    */}
+      {/* =================================================== */}
+      <Modal visible={showEditTimingModal} transparent animationType="slide">
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <View>
+                <Text style={styles.modalTitle}>Automated Stall Timing</Text>
+                <Text style={styles.modalSubtitle}>Daily schedule synced with Super Admin (IST)</Text>
+              </View>
+              <TouchableOpacity onPress={() => setShowEditTimingModal(false)}>
+                <Ionicons name="close" size={22} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Auto Schedule Switch */}
+            <View style={styles.modalToggleRow}>
+              <View style={{ flex: 1, marginRight: 10 }}>
+                <Text style={styles.modalToggleTitle}>Enable Automated Schedule</Text>
+                <Text style={styles.modalToggleSubtitle}>
+                  Auto-opens & closes your stall at scheduled hours
+                </Text>
+              </View>
+              <Switch
+                value={timingFormData.isAutomated}
+                onValueChange={(val) => setTimingFormData((prev) => ({ ...prev, isAutomated: val }))}
+                trackColor={{ false: '#E2E8F0', true: '#4F46E5' }}
+                thumbColor="#FFFFFF"
+              />
+            </View>
+
+            {/* Opening Time Section */}
+            <View style={{ marginTop: 14 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text style={styles.inputLabel}>Opens at (24-Hour IST)</Text>
+                <Text style={styles.liveTimePill}>{formatTime12h(timingFormData.openingTime)}</Text>
+              </View>
+              <TextInput
+                style={styles.textInput}
+                value={timingFormData.openingTime}
+                onChangeText={(text) => setTimingFormData((prev) => ({ ...prev, openingTime: text }))}
+                placeholder="10:00"
+                placeholderTextColor="#94A3B8"
+                maxLength={5}
+              />
+              {/* Presets */}
+              <View style={styles.presetChipRow}>
+                {['08:00', '09:00', '10:00', '11:00'].map((preset) => (
+                  <TouchableOpacity
+                    key={preset}
+                    style={[
+                      styles.presetChip,
+                      timingFormData.openingTime === preset && styles.presetChipActive,
+                    ]}
+                    onPress={() => setTimingFormData((prev) => ({ ...prev, openingTime: preset }))}
+                  >
+                    <Text
+                      style={[
+                        styles.presetChipText,
+                        timingFormData.openingTime === preset && styles.presetChipTextActive,
+                      ]}
+                    >
+                      {formatTime12h(preset)}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            {/* Closing Time Section */}
+            <View style={{ marginTop: 14 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text style={styles.inputLabel}>Closes at (24-Hour IST)</Text>
+                <Text style={styles.liveTimePill}>{formatTime12h(timingFormData.closingTime)}</Text>
+              </View>
+              <TextInput
+                style={styles.textInput}
+                value={timingFormData.closingTime}
+                onChangeText={(text) => setTimingFormData((prev) => ({ ...prev, closingTime: text }))}
+                placeholder="22:00"
+                placeholderTextColor="#94A3B8"
+                maxLength={5}
+              />
+              {/* Presets */}
+              <View style={styles.presetChipRow}>
+                {['21:00', '22:00', '23:00', '00:00'].map((preset) => (
+                  <TouchableOpacity
+                    key={preset}
+                    style={[
+                      styles.presetChip,
+                      timingFormData.closingTime === preset && styles.presetChipActive,
+                    ]}
+                    onPress={() => setTimingFormData((prev) => ({ ...prev, closingTime: preset }))}
+                  >
+                    <Text
+                      style={[
+                        styles.presetChipText,
+                        timingFormData.closingTime === preset && styles.presetChipTextActive,
+                      ]}
+                    >
+                      {formatTime12h(preset)}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            {/* Sync hint */}
+            <Text style={styles.fieldHint}>
+              Directly syncs to PostgreSQL DB and updates Super Admin Panel & customer app in real-time.
+            </Text>
+
+            <View style={styles.modalBtnRow}>
+              <TouchableOpacity
+                style={styles.modalCancelBtn}
+                onPress={() => setShowEditTimingModal(false)}
+              >
+                <Text style={styles.modalCancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.modalSaveBtn}
+                onPress={handleSaveTimingDetails}
+                disabled={savingTiming}
+              >
+                {savingTiming ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.modalSaveBtnText}>Save Schedule</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* =================================================== */}
+      {/* MODAL 2: EDIT OWNER & PAYOUT UPI ID                 */}
+      {/* =================================================== */}
+      <Modal visible={showEditOwnerModal} transparent animationType="slide">
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <View>
+                <Text style={styles.modalTitle}>Edit Owner Profile</Text>
+                <Text style={styles.modalSubtitle}>Configure contact & settlement payout details</Text>
+              </View>
+              <TouchableOpacity onPress={() => setShowEditOwnerModal(false)}>
+                <Ionicons name="close" size={22} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.inputLabel}>Full Name</Text>
+            <TextInput
+              style={styles.textInput}
+              value={ownerFormData.name}
+              onChangeText={(text) => setOwnerFormData((prev) => ({ ...prev, name: text }))}
+              placeholder="Your Full Name"
+              placeholderTextColor="#94A3B8"
+            />
+
+            <Text style={styles.inputLabel}>Payout UPI ID (Super Admin Settlements)</Text>
+            <TextInput
+              style={styles.textInput}
+              value={ownerFormData.upiId}
+              onChangeText={(text) => setOwnerFormData((prev) => ({ ...prev, upiId: text }))}
+              placeholder="e.g. 9876543210@paytm, vendor@okhdfcbank"
+              placeholderTextColor="#94A3B8"
+              autoCapitalize="none"
+            />
+            <Text style={styles.fieldHint}>
+              Directly syncs to the Super Admin Panel for your daily T+1 revenue payouts.
+            </Text>
+
+            <View style={styles.modalBtnRow}>
+              <TouchableOpacity
+                style={styles.modalCancelBtn}
+                onPress={() => setShowEditOwnerModal(false)}
+              >
+                <Text style={styles.modalCancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.modalSaveBtn}
+                onPress={handleSaveOwnerDetails}
+                disabled={savingOwner}
+              >
+                {savingOwner ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.modalSaveBtnText}>Save Profile</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* =================================================== */}
+      {/* MODAL 3: ADD NEW EMPLOYEE                           */}
+      {/* =================================================== */}
+      <Modal visible={showAddEmployeeModal} transparent animationType="slide">
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <View>
+                <Text style={styles.modalTitle}>Add Kitchen Staff</Text>
+                <Text style={styles.modalSubtitle}>Create mobile login for your employee</Text>
+              </View>
+              <TouchableOpacity onPress={() => setShowAddEmployeeModal(false)}>
+                <Ionicons name="close" size={22} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.inputLabel}>Employee Name</Text>
+            <TextInput
+              style={styles.textInput}
+              value={employeeFormData.name}
+              onChangeText={(text) => setEmployeeFormData((prev) => ({ ...prev, name: text }))}
+              placeholder="e.g. Rahul Sharma"
+              placeholderTextColor="#94A3B8"
+            />
+
+            <Text style={styles.inputLabel}>Login Email or Phone</Text>
+            <TextInput
+              style={styles.textInput}
+              value={employeeFormData.email}
+              onChangeText={(text) => setEmployeeFormData((prev) => ({ ...prev, email: text }))}
+              placeholder="e.g. rahul@stall.com or 9876543210"
+              placeholderTextColor="#94A3B8"
+              autoCapitalize="none"
+              keyboardType="email-address"
+            />
+
+            <Text style={styles.inputLabel}>Create Password</Text>
+            <TextInput
+              style={styles.textInput}
+              value={employeeFormData.password}
+              onChangeText={(text) => setEmployeeFormData((prev) => ({ ...prev, password: text }))}
+              placeholder="Minimum 6 characters"
+              placeholderTextColor="#94A3B8"
+              secureTextEntry
+            />
+
+            <View style={styles.modalBtnRow}>
+              <TouchableOpacity
+                style={styles.modalCancelBtn}
+                onPress={() => setShowAddEmployeeModal(false)}
+              >
+                <Text style={styles.modalCancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalSaveBtn, { backgroundColor: '#7E22CE' }]}
+                onPress={handleAddEmployee}
+                disabled={savingEmployee}
+              >
+                {savingEmployee ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.modalSaveBtnText}>Create Account</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* =================================================== */}
+      {/* MODAL 4: EDIT EMPLOYEE (NAME / PASSWORD RESET)       */}
+      {/* =================================================== */}
+      <Modal visible={showEditEmployeeModal} transparent animationType="slide">
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <View>
+                <Text style={styles.modalTitle}>Edit Staff Details</Text>
+                <Text style={styles.modalSubtitle}>{selectedEmployee?.email}</Text>
+              </View>
+              <TouchableOpacity onPress={() => setShowEditEmployeeModal(false)}>
+                <Ionicons name="close" size={22} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.inputLabel}>Employee Name</Text>
+            <TextInput
+              style={styles.textInput}
+              value={editEmployeeFormData.name}
+              onChangeText={(text) => setEditEmployeeFormData((prev) => ({ ...prev, name: text }))}
+              placeholder="Employee Name"
+              placeholderTextColor="#94A3B8"
+            />
+
+            <Text style={styles.inputLabel}>New Password (leave blank to keep current)</Text>
+            <TextInput
+              style={styles.textInput}
+              value={editEmployeeFormData.password}
+              onChangeText={(text) => setEditEmployeeFormData((prev) => ({ ...prev, password: text }))}
+              placeholder="Leave blank to keep unchanged"
+              placeholderTextColor="#94A3B8"
+              secureTextEntry
+            />
+
+            <View style={styles.modalBtnRow}>
+              <TouchableOpacity
+                style={styles.modalCancelBtn}
+                onPress={() => setShowEditEmployeeModal(false)}
+              >
+                <Text style={styles.modalCancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalSaveBtn, { backgroundColor: '#2563EB' }]}
+                onPress={handleUpdateEmployee}
+                disabled={updatingEmployee}
+              >
+                {updatingEmployee ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.modalSaveBtnText}>Update Staff</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -344,328 +1585,791 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8FAFC',
   },
   scrollContent: {
-    padding: 20,
-    paddingBottom: 40,
+    padding: 16,
+    paddingBottom: 48,
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+
+  /* Hero Stall Card */
+  heroCardContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 22,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginBottom: 16,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    elevation: 3,
+  },
+  imageWrapper: {
+    width: '100%',
+    height: 190,
+    position: 'relative',
+    backgroundColor: '#0F172A',
+  },
+  stallImage: {
+    width: '100%',
+    height: '100%',
+  },
+  stallImagePlaceholder: {
+    width: '100%',
+    height: '100%',
     alignItems: 'center',
-    marginBottom: 20,
-    marginTop: 6,
+    justifyContent: 'center',
+    padding: 20,
   },
-  title: {
-    fontSize: 26,
+  placeholderStallText: {
+    fontSize: 18,
     fontWeight: '900',
-    color: '#0F172A',
-    letterSpacing: -0.5,
+    color: '#FFFFFF',
+    marginTop: 8,
   },
-  subtitle: {
-    fontSize: 13,
-    color: '#64748B',
-    fontWeight: '500',
-    marginTop: 2,
+  placeholderSub: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#94A3B8',
+    marginTop: 4,
   },
-  roleBadge: {
+  imageOverlay: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 90,
+  },
+  statusChipWrapper: {
+    position: 'absolute',
+    top: 14,
+    left: 14,
+  },
+  statusPill: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 5,
     paddingHorizontal: 10,
-    borderRadius: 999,
-  },
-  vendorBadge: {
-    backgroundColor: 'rgba(59, 130, 246, 0.1)',
-  },
-  vendorBadgeText: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#2563EB',
-    letterSpacing: 0.5,
-  },
-  employeeBadge: {
-    backgroundColor: '#FAF5FF',
-  },
-  employeeBadgeText: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#7E22CE',
-    letterSpacing: 0.5,
-  },
-  profileCard: {
-    backgroundColor: '#FFFFFF',
     borderRadius: 20,
-    padding: 18,
-    marginBottom: 18,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 2,
   },
-  profileTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  statusPillOpen: {
+    backgroundColor: 'rgba(16, 185, 129, 0.92)',
   },
-  avatarCircle: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#3B82F6',
-    alignItems: 'center',
-    justifyContent: 'center',
+  statusPillClosed: {
+    backgroundColor: 'rgba(100, 116, 139, 0.92)',
   },
-  avatarText: {
-    fontSize: 20,
+  statusDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    marginRight: 6,
+  },
+  statusDotOpen: {
+    backgroundColor: '#FFFFFF',
+  },
+  statusDotClosed: {
+    backgroundColor: '#CBD5E1',
+  },
+  statusPillText: {
+    fontSize: 10,
     fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  statusPillTextOpen: {
     color: '#FFFFFF',
   },
-  profileName: {
-    fontSize: 17,
-    fontWeight: '900',
-    color: '#0F172A',
-    letterSpacing: -0.3,
+  statusPillTextClosed: {
+    color: '#FFFFFF',
   },
-  profileEmail: {
-    fontSize: 13,
-    color: '#64748B',
-    fontWeight: '500',
-    marginTop: 2,
-  },
-  assignedStallRow: {
+  changePhotoBtn: {
+    position: 'absolute',
+    bottom: 12,
+    right: 12,
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: 'rgba(15, 23, 42, 0.85)',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
+  },
+  changePhotoText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  stallMetaBox: {
+    padding: 16,
+  },
+  stallTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  stallNameText: {
+    fontSize: 20,
+    fontWeight: '900',
+    color: '#0F172A',
+    letterSpacing: -0.4,
+  },
+  stallLocationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  stallLocationText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  editStallBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 11,
+    backgroundColor: '#F1F5F9',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    gap: 4,
+    flexShrink: 0,
+  },
+  editStallBtnText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  quickToggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     marginTop: 14,
     paddingTop: 12,
     borderTopWidth: 1,
     borderTopColor: '#F1F5F9',
   },
-  assignedStallLabel: {
+  quickToggleLabel: {
     fontSize: 12,
-    fontWeight: '700',
-    color: '#64748B',
-    marginRight: 6,
-  },
-  assignedStallValue: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: '#0F172A',
-    flex: 1,
+    fontWeight: '600',
+    color: '#475569',
   },
 
-  /* Stats Card Styles */
-  statsCard: {
+  /* Generic Section Card */
+  sectionCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 20,
-    padding: 18,
-    marginBottom: 20,
+    padding: 16,
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    shadowColor: '#000',
+    marginBottom: 16,
+    shadowColor: '#0F172A',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
     shadowRadius: 8,
     elevation: 2,
   },
-  statsHeader: {
+  sectionHeaderRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    justifyContent: 'space-between',
+    marginBottom: 14,
   },
-  statsTitle: {
-    fontSize: 17,
+  sectionIconBg: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: 'rgba(37, 99, 235, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  sectionTitle: {
+    fontSize: 15,
     fontWeight: '900',
     color: '#0F172A',
     letterSpacing: -0.3,
   },
-  statsSub: {
+  sectionSub: {
     fontSize: 11,
-    color: '#64748B',
     fontWeight: '500',
-    marginTop: 2,
-  },
-  togglePill: {
-    flexDirection: 'row',
-    backgroundColor: '#F1F5F9',
-    borderRadius: 999,
-    padding: 3,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  toggleBtn: {
-    paddingVertical: 5,
-    paddingHorizontal: 12,
-    borderRadius: 999,
-  },
-  toggleBtnActive: {
-    backgroundColor: '#FFFFFF',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  toggleText: {
-    fontSize: 12,
-    fontWeight: '700',
     color: '#64748B',
+    marginTop: 1,
   },
-  toggleTextActive: {
-    color: '#0F172A',
-    fontWeight: '800',
-  },
-  metricsWrapper: {
-    gap: 12,
-  },
-  primaryRow: {
+  sectionActionBtn: {
     flexDirection: 'row',
-    gap: 10,
+    alignItems: 'center',
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+    backgroundColor: 'rgba(37, 99, 235, 0.08)',
+    flexShrink: 0,
   },
-  metricCard: {
-    flex: 1,
+  sectionActionText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#2563EB',
+  },
+
+  /* Owner Info Grid */
+  ownerInfoGrid: {
     backgroundColor: '#F8FAFC',
     borderRadius: 14,
     padding: 14,
-    borderLeftWidth: 4,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#F1F5F9',
   },
-  metricLabel: {
-    fontSize: 11,
+  ownerInfoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 9,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+  },
+  infoLabel: {
+    fontSize: 12,
     fontWeight: '700',
     color: '#64748B',
-    marginBottom: 4,
+    maxWidth: '42%',
   },
-  metricValue: {
-    fontSize: 22,
-    fontWeight: '900',
+  infoValue: {
+    fontSize: 13,
+    fontWeight: '800',
     color: '#0F172A',
-    letterSpacing: -0.5,
+    flex: 1,
+    textAlign: 'right',
+    marginLeft: 8,
   },
-  metricHint: {
-    fontSize: 10,
-    color: '#059669',
-    fontWeight: '600',
-    marginTop: 4,
+  upiBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(37, 99, 235, 0.1)',
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    maxWidth: '100%',
   },
-  comparisonChip: {
-    marginTop: 6,
-    backgroundColor: 'rgba(59, 130, 246, 0.08)',
-    paddingVertical: 2,
-    paddingHorizontal: 6,
-    borderRadius: 6,
-    alignSelf: 'flex-start',
-  },
-  comparisonText: {
-    fontSize: 10,
-    fontWeight: '700',
+  upiBadgeText: {
+    fontSize: 12,
+    fontWeight: '800',
     color: '#2563EB',
   },
-  deductionTag: {
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
-    paddingVertical: 1,
-    paddingHorizontal: 6,
-    borderRadius: 6,
-  },
-  deductionTagText: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#047857',
-  },
-  secondaryRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  miniCard: {
-    flex: 1,
-    backgroundColor: '#F8FAFC',
-    borderRadius: 12,
-    padding: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  miniLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#64748B',
-  },
-  miniValue: {
-    fontSize: 17,
-    fontWeight: '900',
-    color: '#0F172A',
-    marginVertical: 2,
-  },
-  miniSub: {
-    fontSize: 9,
-    fontWeight: '600',
-    color: '#94A3B8',
-  },
-  noticeBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  noticeText: {
-    fontSize: 11,
-    color: '#64748B',
-    lineHeight: 16,
-    flex: 1,
-    fontWeight: '500',
-  },
-
-  /* Employee Card */
-  employeeCard: {
-    backgroundColor: '#FAF5FF',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 20,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#F3E8FF',
-  },
-  employeeCardTitle: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#7E22CE',
-    marginBottom: 6,
-  },
-  employeeCardText: {
+  upiUnsetLink: {
     fontSize: 12,
-    color: '#6B21A8',
-    textAlign: 'center',
+    fontWeight: '800',
+    color: '#EF4123',
+  },
+  roleBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+  },
+  ownerRoleBadge: {
+    backgroundColor: 'rgba(37, 99, 235, 0.1)',
+  },
+  ownerRoleText: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: '#2563EB',
+    letterSpacing: 0.5,
+  },
+  employeeRoleBadge: {
+    backgroundColor: '#FAF5FF',
+  },
+  employeeRoleText: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: '#7E22CE',
+    letterSpacing: 0.5,
+  },
+  employeeRestrictedText: {
+    fontSize: 12,
+    color: '#64748B',
     lineHeight: 18,
   },
 
-  /* Logout */
-  logoutButton: {
+  /* Employees Management Section */
+  addEmployeeBtn: {
     flexDirection: 'row',
-    backgroundColor: '#FEF2F2',
-    paddingVertical: 15,
+    alignItems: 'center',
+    backgroundColor: '#7E22CE',
+    paddingVertical: 6,
+    paddingHorizontal: 11,
+    borderRadius: 12,
+    flexShrink: 0,
+  },
+  addEmployeeBtnText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  staffNoticeBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FAF5FF',
+    borderRadius: 12,
+    padding: 10,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: '#F3E8FF',
+  },
+  staffNoticeText: {
+    flex: 1,
+    fontSize: 11,
+    color: '#6B21A8',
+    lineHeight: 16,
+    fontWeight: '500',
+  },
+  emptyEmployeesBox: {
+    paddingVertical: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F8FAFC',
     borderRadius: 14,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: '#CBD5E1',
+    paddingHorizontal: 20,
+  },
+  emptyEmployeesTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#475569',
+    marginTop: 8,
+  },
+  emptyEmployeesSub: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: '#94A3B8',
+    textAlign: 'center',
+    marginTop: 4,
+    lineHeight: 16,
+  },
+  emptyAddBtn: {
+    marginTop: 12,
+    backgroundColor: '#7E22CE',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+  },
+  emptyAddBtnText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  employeeList: {
+    gap: 10,
+  },
+  employeeCard: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  employeeTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  empAvatar: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#7E22CE',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  empAvatarInactive: {
+    backgroundColor: '#94A3B8',
+  },
+  empAvatarText: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: '#FFFFFF',
+  },
+  empName: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  empEmail: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: '#64748B',
+    marginTop: 1,
+  },
+  empStatusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 3,
+    paddingHorizontal: 7,
+    borderRadius: 6,
+  },
+  empStatusActive: {
+    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+  },
+  empStatusInactive: {
+    backgroundColor: 'rgba(217, 119, 6, 0.1)',
+  },
+  empStatusDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 3,
+    marginRight: 4,
+  },
+  empStatusDotActive: {
+    backgroundColor: '#10B981',
+  },
+  empStatusDotInactive: {
+    backgroundColor: '#D97706',
+  },
+  empStatusText: {
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  empStatusTextActive: {
+    color: '#10B981',
+  },
+  empStatusTextInactive: {
+    color: '#D97706',
+  },
+  empActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 8,
+    marginTop: 10,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#E2E8F0',
+  },
+  empActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  empActionBtnActivate: {
+    borderColor: 'rgba(16, 185, 129, 0.3)',
+    backgroundColor: '#F0FDF4',
+  },
+  empActionBtnDeactivate: {
+    borderColor: 'rgba(217, 119, 6, 0.3)',
+    backgroundColor: '#FFFBEB',
+  },
+  empActionBtnDelete: {
+    borderColor: 'rgba(239, 68, 68, 0.25)',
+    backgroundColor: '#FEF2F2',
+  },
+  empActionBtnText: {
+    fontSize: 11,
+    fontWeight: '800',
+  },
+
+  /* Logout Button */
+  logoutBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FEE2E2',
+    paddingVertical: 14,
+    borderRadius: 16,
+    marginTop: 8,
+  },
+  logoutBtnText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#EF4444',
+  },
+  footerNote: {
+    textAlign: 'center',
+    fontSize: 11,
+    color: '#94A3B8',
+    fontWeight: '600',
+    marginTop: 16,
+  },
+
+  /* Modals */
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.65)',
+    justifyContent: 'flex-end',
+  },
+  modalCard: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 22,
+    paddingBottom: Platform.OS === 'ios' ? 40 : 24,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 14,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: '#0F172A',
+    letterSpacing: -0.3,
+  },
+  modalSubtitle: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: '#64748B',
+    marginTop: 2,
+  },
+  inputLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#475569',
+    marginBottom: 6,
+    marginTop: 12,
+  },
+  fieldHint: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: '#64748B',
+    marginTop: 4,
+  },
+  textInput: {
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#0F172A',
+  },
+
+  /* Market Selector Pills */
+  marketPillsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 4,
+    marginBottom: 4,
+  },
+  marketSelectPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    backgroundColor: '#F1F5F9',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+  },
+  marketSelectPillActive: {
+    backgroundColor: '#0F172A',
+    borderColor: '#0F172A',
+  },
+  marketSelectPillText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#475569',
+  },
+  marketSelectPillTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+  },
+
+  /* Automated Stall Timing Styles */
+  timingToggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+  },
+  timingDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 6,
+  },
+  timingDotActive: {
+    backgroundColor: '#10B981',
+  },
+  timingDotManual: {
+    backgroundColor: '#F59E0B',
+  },
+  timingToggleTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  timingToggleSub: {
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 2,
+    lineHeight: 16,
+  },
+  timingPillRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  timingPillCol: {
+    flex: 1,
+  },
+  timingPillLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#94A3B8',
+    letterSpacing: 0.5,
+    marginBottom: 5,
+  },
+  timingPillBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  timingPillValue: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  timing24hTag: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#94A3B8',
+    marginLeft: 4,
+  },
+  timingDividerArrow: {
+    paddingHorizontal: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 14,
+  },
+  timingSyncBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ECFDF5',
+    borderRadius: 10,
+    paddingVertical: 7,
+    paddingHorizontal: 10,
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+  },
+  timingSyncText: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: '#065F46',
+    flex: 1,
+  },
+
+  /* Timing Modal Styles */
+  modalToggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#F8FAFC',
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginTop: 6,
+  },
+  modalToggleTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  modalToggleSubtitle: {
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  liveTimePill: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#4F46E5',
+    backgroundColor: '#EEF2FF',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  presetChipRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 6,
+  },
+  presetChip: {
+    flex: 1,
+    backgroundColor: '#F1F5F9',
+    borderRadius: 8,
+    paddingVertical: 6,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#FECACA',
-    marginBottom: 16,
+    borderColor: '#E2E8F0',
   },
-  logoutText: {
-    color: '#EF4444',
-    fontSize: 16,
+  presetChipActive: {
+    backgroundColor: '#0F172A',
+    borderColor: '#0F172A',
+  },
+  presetChipText: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: '#475569',
+  },
+  presetChipTextActive: {
+    color: '#FFFFFF',
     fontWeight: '800',
   },
-  footerText: {
-    textAlign: 'center',
-    color: '#94A3B8',
-    fontSize: 12,
-    fontWeight: '600',
+
+  modalBtnRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 18,
+  },
+  modalCancelBtn: {
+    flex: 1,
+    backgroundColor: '#F1F5F9',
+    paddingVertical: 12,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalCancelBtnText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#64748B',
+  },
+  modalSaveBtn: {
+    flex: 1,
+    backgroundColor: '#0F172A',
+    paddingVertical: 12,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalSaveBtnText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#FFFFFF',
   },
 });

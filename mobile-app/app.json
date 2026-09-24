@@ -1,16 +1,11 @@
 {
   "expo": {
     "name": "UniVerse Vendor",
-    "slug": "mobile-app",
+    "slug": "universe-vendor",
     "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/logo-symbol.png",
     "userInterfaceStyle": "light",
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#0F172A"
-    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.universe.vendor",
@@ -18,7 +13,11 @@
       "infoPlist": {
         "NSCameraUsageDescription": "Allow UniVerse Vendor to access your camera to scan student order pickup QR codes.",
         "NSMicrophoneUsageDescription": "Allow UniVerse Vendor to use audio alerts and notifications in kitchen operations.",
-        "UIBackgroundModes": ["remote-notification", "fetch", "audio"]
+        "UIBackgroundModes": [
+          "remote-notification",
+          "fetch",
+          "audio"
+        ]
       }
     },
     "android": {
@@ -42,10 +41,10 @@
     },
     "extra": {
       "eas": {
-        "projectId": "ee781595-a628-412d-b402-d3ccb943b4b4"
+        "projectId": "d6f66118-c2d4-4835-8878-7b94ece4d69c"
       }
     },
-    "owner": "parth-sharma24",
+    "owner": "uni24verse",
     "plugins": [
       "expo-audio",
       [
@@ -62,6 +61,16 @@
           "sounds": [
             "./assets/order_received.mp3"
           ]
+        }
+      ],
+      "expo-font",
+      "expo-asset",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#0F172A"
         }
       ]
     ]

@@ -22,7 +22,16 @@ import apiClient from '../api/client';
 import { useAudioAlerts } from '../hooks/useAudioAlerts';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import * as Notifications from 'expo-notifications';
+const getNotifications = () => {
+  if (Platform.OS === 'web') return null;
+  try {
+    const { isRunningInExpoGo } = require('expo');
+    if (isRunningInExpoGo && isRunningInExpoGo()) return null;
+    return require('expo-notifications');
+  } catch (e) {
+    return null;
+  }
+};
 
 // Real-Time Auto-Cancellation Countdown Timer
 function AutoCancelTimer({ order }) {
@@ -268,15 +277,22 @@ export default function LiveOrdersScreen({ navigation }) {
             queuePreOrderReminder(order);
 
             // 2. Trigger local push notification & vibration
-            Notifications.scheduleNotificationAsync({
-              content: {
-                title: `🔥 Start Cooking Pre-Order #${order.orderNumber || ''}!`,
-                body: `Scheduled for ${order.scheduledTime}. Preparation window is open now.`,
-                sound: true,
-                priority: Notifications.AndroidNotificationPriority.HIGH,
-              },
-              trigger: null,
-            }).catch(e => console.log('[PreOrderNotification] Error:', e));
+            try {
+              const notifMod = getNotifications();
+              if (notifMod?.scheduleNotificationAsync) {
+                notifMod.scheduleNotificationAsync({
+                  content: {
+                    title: `🔥 Start Cooking Pre-Order #${order.orderNumber || ''}!`,
+                    body: `Scheduled for ${order.scheduledTime}. Preparation window is open now.`,
+                    sound: true,
+                    priority: notifMod.AndroidNotificationPriority?.HIGH,
+                  },
+                  trigger: null,
+                }).catch(e => console.log('[PreOrderNotification] Error:', e));
+              }
+            } catch (err) {
+              console.log('[PreOrderNotification] Local notification bypassed:', err.message);
+            }
           }
         }
       }
@@ -289,7 +305,12 @@ export default function LiveOrdersScreen({ navigation }) {
       ['Pending', 'Confirmed', 'Cooking'].includes(o.status)
     ).length;
     
-    Notifications.setBadgeCountAsync(activeCount).catch(() => {});
+    try {
+      const notifMod = getNotifications();
+      if (notifMod?.setBadgeCountAsync) {
+        notifMod.setBadgeCountAsync(activeCount).catch(() => {});
+      }
+    } catch (e) {}
   }, [orders]);
 
   const fetchOrders = useCallback(async (isPullRefresh = false) => {
@@ -900,19 +921,12 @@ export default function LiveOrdersScreen({ navigation }) {
     <SafeAreaView style={styles.container}>
       {/* Executive Kitchen Command Header */}
       <View style={styles.header}>
-        <View style={styles.headerTopRow}>
-          <View style={{ flex: 1, marginRight: 10 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Text style={styles.headerTitle}>Kitchen Orders</Text>
-              <View style={[styles.syncStatusPill, { backgroundColor: isConnected ? '#ECFDF5' : '#FEF2F2' }]}>
-                <View style={[styles.dot, { backgroundColor: isConnected ? '#10B981' : '#EF4444' }]} />
-                <Text style={[styles.syncStatusText, { color: isConnected ? '#059669' : '#DC2626' }]}>
-                  {isConnected ? 'LIVE' : 'OFFLINE'}
-                </Text>
-              </View>
-            </View>
-            <Text style={styles.headerSub} numberOfLines={1}>
-              {storeData?.name || 'UniVerse Kitchen Counter'}
+        {/* Tier 1: Stall Identity on Left, Audio & Stall Switch on Right */}
+        <View style={styles.headerTier1}>
+          <View style={styles.stallChip}>
+            <Ionicons name="storefront" size={13} color="#EF4123" style={{ marginRight: 6 }} />
+            <Text style={styles.stallChipText} numberOfLines={1}>
+              {storeData?.name || 'UniVerse Stall'}
             </Text>
           </View>
 
@@ -929,7 +943,7 @@ export default function LiveOrdersScreen({ navigation }) {
             >
               <Ionicons 
                 name={isAudioEnabled ? 'volume-high' : 'volume-mute'} 
-                size={18} 
+                size={16} 
                 color={isAudioEnabled ? '#EF4123' : '#94A3B8'} 
               />
             </TouchableOpacity>
@@ -939,6 +953,7 @@ export default function LiveOrdersScreen({ navigation }) {
               styles.stallSwitchCard,
               isStoreOpen ? styles.stallSwitchCardOpen : styles.stallSwitchCardClosed
             ]}>
+              <View style={[styles.miniStatusDot, { backgroundColor: isStoreOpen ? '#10B981' : '#94A3B8' }]} />
               <Text style={[styles.stallSwitchText, { color: isStoreOpen ? '#059669' : '#64748B' }]}>
                 {isStoreOpen ? 'OPEN' : 'CLOSED'}
               </Text>
@@ -955,30 +970,43 @@ export default function LiveOrdersScreen({ navigation }) {
           </View>
         </View>
 
-        {/* Quick Auto-Accept Bar */}
-        <View style={styles.subHeaderRow}>
-          <TouchableOpacity 
-            style={[
-              styles.autoAcceptPill,
-              autoAcceptOrders ? styles.autoAcceptPillActive : styles.autoAcceptPillInactive
-            ]}
-            onPress={handleToggleAutoAccept}
-            disabled={togglingAutoAccept}
-            activeOpacity={0.75}
-          >
-            <Ionicons 
-              name={autoAcceptOrders ? "flash" : "flash-outline"} 
-              size={13} 
-              color={autoAcceptOrders ? '#EF4123' : '#64748B'} 
-              style={{ marginRight: 5 }} 
-            />
-            <Text style={[
-              styles.autoAcceptPillText,
-              { color: autoAcceptOrders ? '#EF4123' : '#475569' }
-            ]}>
-              Auto-Accept Orders: {autoAcceptOrders ? 'Enabled' : 'Disabled'}
-            </Text>
-          </TouchableOpacity>
+        {/* Tier 2: Title + Live Sync Pill + Compact Auto-Accept Toggle */}
+        <View style={styles.headerTier2}>
+          <Text style={styles.headerTitle}>Kitchen Orders</Text>
+
+          <View style={styles.badgesCluster}>
+            {/* Live Status Pill */}
+            <View style={[styles.syncStatusPill, { backgroundColor: isConnected ? '#ECFDF5' : '#FEF2F2' }]}>
+              <View style={[styles.dot, { backgroundColor: isConnected ? '#10B981' : '#EF4444' }]} />
+              <Text style={[styles.syncStatusText, { color: isConnected ? '#059669' : '#DC2626' }]}>
+                {isConnected ? 'LIVE' : 'OFFLINE'}
+              </Text>
+            </View>
+
+            {/* Compact Auto-Accept Chip */}
+            <TouchableOpacity 
+              style={[
+                styles.autoAcceptChip,
+                autoAcceptOrders ? styles.autoAcceptChipActive : styles.autoAcceptChipInactive
+              ]}
+              onPress={handleToggleAutoAccept}
+              disabled={togglingAutoAccept}
+              activeOpacity={0.75}
+            >
+              <Ionicons 
+                name={autoAcceptOrders ? "flash" : "flash-outline"} 
+                size={11} 
+                color={autoAcceptOrders ? '#EF4123' : '#64748B'} 
+                style={{ marginRight: 4 }} 
+              />
+              <Text style={[
+                styles.autoAcceptChipText,
+                { color: autoAcceptOrders ? '#EF4123' : '#64748B' }
+              ]}>
+                {autoAcceptOrders ? 'Auto: ON' : 'Auto: OFF'}
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 
@@ -1203,19 +1231,47 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 14,
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 12,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+    marginBottom: 10,
   },
-  headerTopRow: {
+  headerTier1: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 8,
+  },
+  stallChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    paddingVertical: 4.5,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    maxWidth: '55%',
+  },
+  stallChipText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#0F172A',
+    letterSpacing: -0.2,
   },
   headerControls: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+  },
+  headerTier2: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 2,
   },
   headerTitle: {
     fontSize: 22,
@@ -1223,29 +1279,49 @@ const styles = StyleSheet.create({
     color: '#0F172A',
     letterSpacing: -0.5,
   },
-  headerSub: {
-    fontSize: 12,
-    color: '#64748B',
-    fontWeight: '600',
-    marginTop: 2,
+  badgesCluster: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   syncStatusPill: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 12,
+    paddingVertical: 3,
+    borderRadius: 8,
     gap: 4,
   },
   syncStatusText: {
     fontSize: 10,
     fontWeight: '800',
-    letterSpacing: 0.5,
+    letterSpacing: 0.4,
+  },
+  autoAcceptChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 3.5,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  autoAcceptChipActive: {
+    backgroundColor: 'rgba(239, 65, 35, 0.08)',
+    borderColor: 'rgba(239, 65, 35, 0.3)',
+  },
+  autoAcceptChipInactive: {
+    backgroundColor: '#F8FAFC',
+    borderColor: '#E2E8F0',
+  },
+  autoAcceptChipText: {
+    fontSize: 10.5,
+    fontWeight: '800',
+    letterSpacing: 0.2,
   },
   audioIconBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     backgroundColor: '#FFFFFF',
     borderWidth: 1.5,
     borderColor: '#E2E8F0',
@@ -1291,58 +1367,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
   },
-  subHeaderRow: {
-    marginTop: 10,
-  },
-  autoAcceptPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 12,
-    borderWidth: 1.5,
-  },
-  autoAcceptPillActive: {
-    backgroundColor: 'rgba(239, 65, 35, 0.06)',
-    borderColor: 'rgba(239, 65, 35, 0.25)',
-  },
-  autoAcceptPillInactive: {
-    backgroundColor: '#FFFFFF',
-    borderColor: '#E2E8F0',
-  },
-  autoAcceptPillText: {
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 0.2,
-  },
   dot: {
     width: 6,
     height: 6,
     borderRadius: 3,
   },
-  connectionText: {
-    color: '#64748B',
-    fontSize: 12,
-    fontWeight: '600',
-  },
   tabsContainer: {
     flexDirection: 'row',
-    paddingHorizontal: 14,
-    marginBottom: 12,
+    paddingHorizontal: 16,
+    marginBottom: 10,
     gap: 6,
   },
   tab: {
     flex: 1,
     flexDirection: 'row',
-    paddingVertical: 9,
-    paddingHorizontal: 4,
+    paddingVertical: 8,
+    paddingHorizontal: 2,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 12,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    gap: 4,
   },
   tabActive: {
     backgroundColor: '#0F172A',
@@ -1351,15 +1397,17 @@ const styles = StyleSheet.create({
   tabText: {
     color: '#64748B',
     fontWeight: '700',
-    fontSize: 12,
+    fontSize: 11,
   },
   activeTabText: {
     color: '#FFFFFF',
+    fontWeight: '800',
   },
   tabBadge: {
-    paddingHorizontal: 5,
+    marginLeft: 3,
+    paddingHorizontal: 4.5,
     paddingVertical: 1,
-    borderRadius: 100,
+    borderRadius: 8,
     minWidth: 16,
     alignItems: 'center',
     justifyContent: 'center',
@@ -1400,8 +1448,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    marginHorizontal: 20,
-    marginBottom: 14,
+    marginHorizontal: 16,
+    marginBottom: 12,
     paddingHorizontal: 14,
     borderRadius: 12,
     borderWidth: 1,

@@ -1,6 +1,6 @@
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
-import { Platform } from 'react-native';
+import { Platform, NativeModules } from 'react-native';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -26,11 +26,11 @@ export const setServerUrl = async (url) => {
   }
 };
 
-// Determine API URL: custom override > explicit env var > local development on web/LAN > production
+// Determine API URL: custom override > explicit env var > local development on web > UAT cloud server
 export const getBaseUrl = () => {
   if (customBaseUrl) {
     if (customBaseUrl.includes('api.universeorder.co.in')) {
-      return customBaseUrl.replace('api.universeorder.co.in', 'food.universeorder.co.in');
+      return customBaseUrl.replace('api.universeorder.co.in', 'uat.food.universeorder.co.in');
     }
     return customBaseUrl;
   }
@@ -42,12 +42,10 @@ export const getBaseUrl = () => {
     if (hostname === 'localhost' || hostname === '127.0.0.1') {
       return 'http://localhost:5000/api';
     }
-    // Local network IP (e.g. 192.168.x.x)
-    if (/^192\.168\./.test(hostname) || /^10\./.test(hostname) || /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(hostname)) {
-      return `http://${hostname}:5000/api`;
-    }
   }
-  return 'https://food.universeorder.co.in/api';
+
+  // Connect to UAT App Server (https://uat.food.universeorder.co.in)
+  return 'https://uat.food.universeorder.co.in/api';
 };
 
 export const getSocketUrl = () => {
@@ -82,7 +80,25 @@ apiClient.interceptors.request.use(
     }
     return config;
   },
-  (error) => {
+  (error) => Promise.reject(error)
+);
+
+let onUnauthorizedCallback = null;
+
+export const setOnUnauthorizedCallback = (callback) => {
+  onUnauthorizedCallback = callback;
+};
+
+// Add a response interceptor to handle 401 Unauthorized (e.g. environment switch or expired token)
+apiClient.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    if (error.response?.status === 401) {
+      console.warn('[apiClient] 401 Unauthorized received. Triggering session refresh/logout.');
+      if (typeof onUnauthorizedCallback === 'function') {
+        onUnauthorizedCallback();
+      }
+    }
     return Promise.reject(error);
   }
 );

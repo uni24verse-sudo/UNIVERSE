@@ -49,12 +49,11 @@ router.post('/scan', upload.single('menuImage'), async (req, res) => {
           ],
         },
       ],
-      model: "meta-llama/llama-4-scout-17b-16e-instruct",
+      model: "qwen/qwen3.8-27b",
       temperature: 0.1,
       max_tokens: 8192,
       top_p: 1,
       stream: false,
-      stop: null,
     });
 
     let text = chatCompletion.choices[0].message.content;

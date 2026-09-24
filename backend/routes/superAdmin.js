@@ -1029,7 +1029,22 @@ router.put('/store/:id/update-details', async (req, res) => {
       data: updateData
     });
 
-    res.json({ message: 'Store updated successfully', store: normalizeStore(store) });
+    const normalized = normalizeStore(store);
+    const io = req.app.get('io');
+    if (io) {
+      const sId = String(store.id);
+      io.emit('store_status_update', { storeId: sId, isOpen: store.isOpen, isAutomated: store.isAutomated });
+      io.emit('store_timing_update', {
+        storeId: sId,
+        openingTime: store.openingTime,
+        closingTime: store.closingTime,
+        isAutomated: store.isAutomated,
+        isOpen: store.isOpen
+      });
+      io.to('superadmin_room').emit('superadmin:store_update', normalized);
+    }
+
+    res.json({ message: 'Store updated successfully', store: normalized });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

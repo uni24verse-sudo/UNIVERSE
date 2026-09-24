@@ -16,6 +16,9 @@
     },
     "production": {
       "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://food.universeorder.co.in/api"
+      },
       "android": {
         "buildType": "app-bundle"
       },
