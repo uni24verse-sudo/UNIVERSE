@@ -65,17 +65,55 @@ const TermsAndPrivacyScreen = ({ navigation }) => {
           <View style={styles.card}>
             <Text style={styles.title}>Student Privacy Policy</Text>
             <Text style={styles.paragraph}>
-              UniVerse respects student privacy. We only collect the necessary information to process campus food orders and coordinate counter pick-ups.
+              UniVerse respects student privacy. We only collect the necessary information to process campus food orders and coordinate counter pick-ups. This policy applies to the UniVerse Food mobile application.
             </Text>
 
             <Text style={styles.heading}>1. Information Collected</Text>
             <Text style={styles.paragraph}>
-              We collect your name, 10-digit mobile number, campus location hub, and optional delivery/table location purely for identifying your food package.
+              We collect your name, 10-digit mobile number, email address, and campus location hub purely for identifying your food package and order tracking. No login account is required — your details are stored locally on your device for convenience.
             </Text>
 
-            <Text style={styles.heading}>2. Payment Information</Text>
+            <Text style={styles.heading}>2. On-Device Storage</Text>
             <Text style={styles.paragraph}>
-              All payment transactions are encrypted and processed through Razorpay (RBI-authorized payment aggregator). UniVerse does not store card numbers, UPI PINs, or netbanking credentials.
+              The app stores your cart, recent order history, customer details (name, phone, email), and selected campus location locally on your device using on-device storage. This data remains on your device and is used to enhance your ordering experience.
+            </Text>
+
+            <Text style={styles.heading}>3. Payment Information</Text>
+            <Text style={styles.paragraph}>
+              All payment transactions are encrypted and processed through Razorpay (RBI-authorized payment aggregator). UniVerse does not store card numbers, UPI PINs, or netbanking credentials. Only payment status and transaction reference are retained for order fulfillment and dispute resolution.
+            </Text>
+
+            <Text style={styles.heading}>4. Push Notifications</Text>
+            <Text style={styles.paragraph}>
+              The app may request permission to send push notifications for order status updates. You can disable notifications at any time through your device settings.
+            </Text>
+
+            <Text style={styles.heading}>5. Data Sharing & Vendor Isolation</Text>
+            <Text style={styles.paragraph}>
+              UniVerse enforces strict data isolation. Vendors only receive essential order data (items, order number, and order type) for kitchen preparation. Your personal details including name, phone number, and payment information are never shared with or displayed on vendor dashboards.
+            </Text>
+
+            <Text style={styles.heading}>6. Data Not Collected</Text>
+            <Text style={styles.paragraph}>
+              The app does not collect location data (GPS), contact lists, browsing history, photos, or any biometric data.
+            </Text>
+
+            <Text style={styles.heading}>7. Data Deletion</Text>
+            <Text style={styles.paragraph}>
+              You may clear all locally stored data by clearing the app's data from your device settings or by uninstalling the app. For server-side data deletion requests, contact us at uni24verse@gmail.com.
+            </Text>
+
+            <Text style={styles.heading}>Grievance Officer</Text>
+            <Text style={styles.paragraph}>
+              Company: Universe{'\n'}
+              Address: Lovely Professional University, Phagwara, Punjab, India{'\n'}
+              Email: uni24verse@gmail.com{'\n'}
+              Phone: 7985397373 / 8295886832{'\n'}
+              Hours: Mon - Fri (9:00 - 18:00)
+            </Text>
+
+            <Text style={[styles.paragraph, { marginTop: 14, fontStyle: 'italic' }]}>
+              For the full privacy policy, visit https://food.universeorder.co.in/privacy-policy
             </Text>
           </View>
         )}
