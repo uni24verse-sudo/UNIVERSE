@@ -129,7 +129,7 @@ export default function ProfileScreen() {
   const [editEmployeeFormData, setEditEmployeeFormData] = useState({ name: '', password: '' });
   const [updatingEmployee, setUpdatingEmployee] = useState(false);
 
-  const isEmployee = user?.role === 'employee';
+  const isEmployee = user?.role === 'employee' || user?.role === 'staff';
   const displayStore = activeStore || store;
   const storeId = displayStore?.id || displayStore?._id || user?.storeId || user?.id;
 
@@ -1209,24 +1209,26 @@ export default function ProfileScreen() {
               </Text>
             </View>
 
-            {/* Payout UPI ID (Synced with Super Admin Panel) */}
-            <View style={styles.ownerInfoRow}>
-              <Text style={styles.infoLabel}>Payout UPI ID</Text>
-              <View style={{ flex: 1, alignItems: 'flex-end', marginLeft: 8 }}>
-                {store?.upiId ? (
-                  <View style={styles.upiBadge}>
-                    <Ionicons name="card" size={12} color="#2563EB" style={{ marginRight: 4 }} />
-                    <Text style={styles.upiBadgeText} numberOfLines={1}>
-                      {store.upiId}
-                    </Text>
-                  </View>
-                ) : (
-                  <TouchableOpacity onPress={() => setShowEditOwnerModal(true)}>
-                    <Text style={styles.upiUnsetLink}>+ Set Payout UPI ID</Text>
-                  </TouchableOpacity>
-                )}
+            {/* Payout UPI ID (Synced with Super Admin Panel) - Vendor Owner Only */}
+            {!isEmployee && (
+              <View style={styles.ownerInfoRow}>
+                <Text style={styles.infoLabel}>Payout UPI ID</Text>
+                <View style={{ flex: 1, alignItems: 'flex-end', marginLeft: 8 }}>
+                  {store?.upiId ? (
+                    <View style={styles.upiBadge}>
+                      <Ionicons name="card" size={12} color="#2563EB" style={{ marginRight: 4 }} />
+                      <Text style={styles.upiBadgeText} numberOfLines={1}>
+                        {store.upiId}
+                      </Text>
+                    </View>
+                  ) : (
+                    <TouchableOpacity onPress={() => setShowEditOwnerModal(true)}>
+                      <Text style={styles.upiUnsetLink}>+ Set Payout UPI ID</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
               </View>
-            </View>
+            )}
 
             {/* Account Role */}
             <View style={[styles.ownerInfoRow, { borderBottomWidth: 0, paddingBottom: 0 }]}>

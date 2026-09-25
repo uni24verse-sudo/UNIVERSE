@@ -96,7 +96,7 @@ io.on('connection', (socket) => {
   console.log(`User Connected: ${socket.id}`);
 
   // Join Store Room with Server-Side Authorization
-  socket.on('join_store_room', (data) => {
+  socket.on('join_store_room', async (data) => {
     const token = socket.handshake.auth.token;
     if (!token) {
       console.log(`WARN: Socket ${socket.id} attempted to join store room without token`);
@@ -107,18 +107,53 @@ io.on('connection', (socket) => {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       socket.user = decoded;
       
-      const authorizedStoreId = socket.user.storeId || socket.user._id || socket.user.id;
-      const requestedStoreId = data.storeId || data;
+      const requestedStoreId = (data && data.storeId) ? data.storeId : data;
+      if (!requestedStoreId) return;
+      const reqIdStr = requestedStoreId.toString();
 
-      if (!authorizedStoreId || requestedStoreId.toString() !== authorizedStoreId.toString()) {
-        console.log(`WARN: Socket ${socket.id} attempted to join unauthorized room ${requestedStoreId}`);
+      // SuperAdmin can join any store room
+      if (socket.user.role === 'superadmin') {
+        socket.join(reqIdStr);
+        console.log(`Socket ${socket.id} (SuperAdmin) joined room ${reqIdStr}`);
         return;
       }
 
-      socket.join(authorizedStoreId.toString());
-      console.log(`Socket ${socket.id} securely joined authorized room ${authorizedStoreId}`);
+      // Staff / Employee can ONLY join their assigned store room
+      if (socket.user.role === 'staff' || socket.user.role === 'employee') {
+        const staffStoreId = socket.user.storeId;
+        if (staffStoreId && reqIdStr === staffStoreId.toString()) {
+          socket.join(reqIdStr);
+          console.log(`Socket ${socket.id} (Staff) joined assigned room ${reqIdStr}`);
+        } else {
+          console.log(`WARN: Staff socket ${socket.id} attempted unauthorized room ${reqIdStr}`);
+        }
+        return;
+      }
+
+      // Cart Owner / Vendor: can join their primary store OR any store they own
+      const adminId = socket.user.id || socket.user._id;
+      if (socket.user.storeId && reqIdStr === socket.user.storeId.toString()) {
+        socket.join(reqIdStr);
+        console.log(`Socket ${socket.id} (Vendor) joined primary room ${reqIdStr}`);
+        return;
+      }
+
+      // Check DB to verify vendor owns this store
+      if (adminId) {
+        const store = await prisma.store.findUnique({
+          where: { id: reqIdStr },
+          select: { adminId: true }
+        });
+        if (store && store.adminId === adminId) {
+          socket.join(reqIdStr);
+          console.log(`Socket ${socket.id} (Vendor) joined owned multi-stall room ${reqIdStr}`);
+          return;
+        }
+      }
+
+      console.log(`WARN: Socket ${socket.id} attempted to join unauthorized room ${reqIdStr}`);
     } catch (err) {
-      console.log(`WARN: Socket ${socket.id} provided invalid token for store room`);
+      console.log(`WARN: Socket ${socket.id} provided invalid token for store room:`, err.message);
     }
   });
 

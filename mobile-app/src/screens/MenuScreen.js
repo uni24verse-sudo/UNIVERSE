@@ -39,7 +39,7 @@ export default function MenuScreen() {
   const insets = useSafeAreaInsets();
   const { user, stores, activeStore, switchActiveStore } = useContext(AuthContext);
   const { socket } = useContext(SocketContext);
-  const isEmployee = user?.role === 'employee';
+  const isEmployee = user?.role === 'employee' || user?.role === 'staff';
 
   const [store, setStore] = useState(activeStore || null);
   const [showStallModal, setShowStallModal] = useState(false);

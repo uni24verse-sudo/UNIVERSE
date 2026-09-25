@@ -52,7 +52,7 @@ export default function AnalyticsScreen() {
   const [storeName, setStoreName] = useState(activeStore?.name || '');
   const [chartMetric, setChartMetric] = useState('revenue'); // 'revenue' | 'orders'
 
-  const isEmployee = user?.role === 'employee';
+  const isEmployee = user?.role === 'employee' || user?.role === 'staff';
   const currentStoreId = activeStore?._id || activeStore?.id || user?.storeId || user?.id;
 
   // ---------------------------------------------------------

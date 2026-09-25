@@ -13,7 +13,8 @@ import {
   Dimensions,
   Switch,
   Vibration,
-  Modal
+  Modal,
+  Platform
 } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -298,20 +299,24 @@ export default function LiveOrdersScreen({ navigation }) {
     if (isEmployee) return;
     setShowStallSwitcherModal(false);
     setOrders([]);
-    if (typeof targetStore === 'object' && targetStore !== null) {
-      setStoreData(targetStore);
-      setIsStoreOpen(targetStore.isOpen !== false);
-      setAutoAcceptOrders(Boolean(targetStore.autoAcceptOrders));
+    const targetStoreObj = typeof targetStore === 'object' && targetStore !== null 
+      ? targetStore 
+      : (stores || []).find(s => String(s.id || s._id) === String(targetStore));
+
+    if (targetStoreObj) {
+      setStoreData(targetStoreObj);
+      setIsStoreOpen(targetStoreObj.isOpen !== false);
+      setAutoAcceptOrders(Boolean(targetStoreObj.autoAcceptOrders));
     }
-    await switchActiveStore(targetStore);
-    const targetId = typeof targetStore === 'string' ? targetStore : (targetStore.id || targetStore._id);
-    setOtherStallPendingCounts(prev => ({
-      ...prev,
-      [targetId]: 0
-    }));
-    if (crossStallNotification?.storeId === targetId) {
-      setCrossStallNotification(null);
+    await switchActiveStore(targetStoreObj || targetStore);
+    const targetId = typeof targetStore === 'string' ? targetStore : (targetStore?.id || targetStore?._id);
+    if (targetId) {
+      setOtherStallPendingCounts(prev => ({
+        ...prev,
+        [targetId]: 0
+      }));
     }
+    setCrossStallNotification(null);
   };
 
   const handleCreateNewStall = async () => {
@@ -523,28 +528,36 @@ export default function LiveOrdersScreen({ navigation }) {
     if (!socket) return;
 
     const handleNewOrder = (newOrder) => {
-      const isForActiveStall = (newOrder.storeId === currentStoreId);
+      const orderStoreId = String(newOrder.storeId || '');
+      const activeId = String(currentStoreId || '');
+      const isForActiveStall = Boolean(orderStoreId && activeId && orderStoreId === activeId);
 
       if (isForActiveStall) {
         setOrders((prev) => {
-          if (prev.some((o) => o._id === newOrder._id || o.id === newOrder.id)) return prev;
+          if (prev.some((o) => (o._id || o.id) === (newOrder._id || newOrder.id))) return prev;
           return [newOrder, ...prev];
         });
         speakOrderAlert(activeStore?.name || 'your stall', newOrder.orderNumber);
+        try {
+          Vibration.vibrate([0, 500, 200, 500]);
+        } catch (e) {}
       } else if (!isEmployee) {
         // Multi-stall cross alert: ONLY for Cart Owner!
-        const targetStore = (stores || []).find(s => (s.id || s._id) === newOrder.storeId);
+        const targetStore = (stores || []).find(s => String(s.id || s._id) === orderStoreId);
         const storeName = targetStore?.name || 'Another Stall';
 
         speakOrderAlert(storeName, newOrder.orderNumber);
+        try {
+          Vibration.vibrate([0, 500, 200, 500]);
+        } catch (e) {}
 
         setOtherStallPendingCounts(prev => ({
           ...prev,
-          [newOrder.storeId]: (prev[newOrder.storeId] || 0) + 1
+          [orderStoreId]: (prev[orderStoreId] || 0) + 1
         }));
 
         setCrossStallNotification({
-          storeId: newOrder.storeId,
+          storeId: orderStoreId,
           storeName,
           orderNumber: newOrder.orderNumber,
           timestamp: Date.now()
@@ -553,40 +566,42 @@ export default function LiveOrdersScreen({ navigation }) {
     };
 
     const handleStatusUpdate = (updatedOrder) => {
-      if (updatedOrder.storeId === currentStoreId) {
+      if (String(updatedOrder.storeId) === String(currentStoreId)) {
         cancelAnnouncement(updatedOrder._id); 
-        setOrders((prev) => prev.map((o) => (o._id === updatedOrder._id ? updatedOrder : o)));
+        setOrders((prev) => prev.map((o) => ((o._id || o.id) === (updatedOrder._id || updatedOrder.id) ? updatedOrder : o)));
       } else if (!isEmployee) {
         if (['Completed', 'Cancelled', 'Confirmed', 'Cooking'].includes(updatedOrder.status)) {
+          const uStoreId = String(updatedOrder.storeId);
           setOtherStallPendingCounts(prev => ({
             ...prev,
-            [updatedOrder.storeId]: Math.max(0, (prev[updatedOrder.storeId] || 0) - 1)
+            [uStoreId]: Math.max(0, (prev[uStoreId] || 0) - 1)
           }));
         }
       }
     };
 
     const handleCancelled = (cancelledOrder) => {
-      if (cancelledOrder.storeId === currentStoreId) {
+      if (String(cancelledOrder.storeId) === String(currentStoreId)) {
         cancelAnnouncement(cancelledOrder._id); 
-        setOrders((prev) => prev.map((o) => (o._id === cancelledOrder._id ? cancelledOrder : o)));
+        setOrders((prev) => prev.map((o) => ((o._id || o.id) === (cancelledOrder._id || cancelledOrder.id) ? cancelledOrder : o)));
       } else if (!isEmployee) {
+        const cStoreId = String(cancelledOrder.storeId);
         setOtherStallPendingCounts(prev => ({
           ...prev,
-          [cancelledOrder.storeId]: Math.max(0, (prev[cancelledOrder.storeId] || 0) - 1)
+          [cStoreId]: Math.max(0, (prev[cStoreId] || 0) - 1)
         }));
       }
     };
 
     const handleStoreStatus = ({ storeId, isOpen }) => {
-      if (storeId === currentStoreId) {
+      if (String(storeId) === String(currentStoreId)) {
         setIsStoreOpen(isOpen);
       }
       refreshStores();
     };
 
     const handleAutoAcceptUpdate = ({ storeId, autoAcceptOrders: newStatus }) => {
-      if (storeId === currentStoreId) {
+      if (String(storeId) === String(currentStoreId)) {
         setAutoAcceptOrders(Boolean(newStatus));
       }
       refreshStores();
@@ -605,7 +620,7 @@ export default function LiveOrdersScreen({ navigation }) {
       socket.off('store_status_update', handleStoreStatus);
       socket.off('store_auto_accept_update', handleAutoAcceptUpdate);
     };
-  }, [socket, cancelAnnouncement, currentStoreId, activeStore, stores, speakOrderAlert, refreshStores]);
+  }, [socket, cancelAnnouncement, currentStoreId, activeStore, stores, speakOrderAlert, refreshStores, isEmployee]);
 
   const updateStatus = async (orderId, currentStatus, newStatus, force = false) => {
     try {
@@ -1015,13 +1030,45 @@ export default function LiveOrdersScreen({ navigation }) {
   const renderItem = ({ item }) => {
     const preOrderInfo = getPreOrderInfo(item);
     const statusColor = getStatusColor(item.status);
+    const isTakeaway = String(item.orderType || '').toLowerCase().includes('take') || String(item.orderType || '').toLowerCase().includes('pack');
+    const tableClean = item.tableNumber ? String(item.tableNumber).toUpperCase().replace(/DINE IN/i, '').trim() : '';
     
     return (
       <View style={[
         styles.card,
+        isTakeaway ? styles.takeawayCard : styles.dineInCard,
         item.status === 'Pending' && styles.pendingCard,
         item.isPreOrder && styles.preOrderCard
       ]}>
+        {/* Top High-Visibility Order Type Banner (Dine In vs Packing) */}
+        {isTakeaway ? (
+          <View style={styles.packingBanner}>
+            <View style={styles.packingBannerLeft}>
+              <View style={styles.packingIconBox}>
+                <Ionicons name="bag-handle" size={17} color="#FFFFFF" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.packingBannerTitle}>PACKING / TAKEAWAY</Text>
+                <Text style={styles.packingBannerSubtitle}>Pack in parcel bag • Disposable containers</Text>
+              </View>
+            </View>
+          </View>
+        ) : (
+          <View style={styles.dineInBanner}>
+            <View style={styles.dineInBannerLeft}>
+              <View style={styles.dineInIconBox}>
+                <Ionicons name="restaurant" size={17} color="#FFFFFF" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.dineInBannerTitle}>
+                  DINE IN {tableClean ? `• TABLE ${tableClean}` : ''}
+                </Text>
+                <Text style={styles.dineInBannerSubtitle}>Serve on tray / plate • Counter dining</Text>
+              </View>
+            </View>
+          </View>
+        )}
+
         {/* Top Meta Header */}
         <View style={styles.cardHeader}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -1037,16 +1084,6 @@ export default function LiveOrdersScreen({ navigation }) {
         
         {/* Tags Row */}
         <View style={styles.tagsRow}>
-          {item.orderType === 'Take Away' ? (
-            <View style={[styles.tagBadge, { backgroundColor: '#FFF7ED', borderColor: '#FFEDD5' }]}>
-              <Text style={[styles.tagText, { color: '#C2410C' }]}>🛍️ Take Away</Text>
-            </View>
-          ) : (
-            <View style={[styles.tagBadge, { backgroundColor: '#FAF5FF', borderColor: '#F3E8FF' }]}>
-              <Text style={[styles.tagText, { color: '#7E22CE' }]}>🍽️ Dine In</Text>
-            </View>
-          )}
-
           {item.isPreOrder && (
             <View style={[styles.tagBadge, { backgroundColor: '#FDF2F8', borderColor: '#FCE7F3' }]}>
               <Text style={[styles.tagText, { color: '#BE185D' }]}>⏰ Pre-Order: {item.scheduledTime}</Text>
@@ -1206,7 +1243,7 @@ export default function LiveOrdersScreen({ navigation }) {
           >
             <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 8 }}>
               <View style={styles.crossStallIconCircle}>
-                <Ionicons name="notifications" size={13} color="#EA580C" />
+                <Ionicons name="notifications" size={15} color="#EA580C" />
               </View>
               <View style={{ marginLeft: 8, flex: 1 }}>
                 <Text style={styles.crossStallTitle} numberOfLines={1}>
@@ -1215,9 +1252,21 @@ export default function LiveOrdersScreen({ navigation }) {
                 <Text style={styles.crossStallSub}>Tap to switch stall in 1-tap</Text>
               </View>
             </View>
-            <View style={styles.crossStallSwitchBtn}>
-              <Text style={styles.crossStallSwitchBtnText}>Switch</Text>
-              <Ionicons name="arrow-forward" size={11} color="#FFFFFF" style={{ marginLeft: 3 }} />
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <View style={styles.crossStallSwitchBtn}>
+                <Text style={styles.crossStallSwitchBtnText}>Switch</Text>
+                <Ionicons name="arrow-forward" size={11} color="#FFFFFF" style={{ marginLeft: 3 }} />
+              </View>
+              <TouchableOpacity 
+                style={styles.crossStallDismissBtn}
+                onPress={(e) => {
+                  e.stopPropagation();
+                  setCrossStallNotification(null);
+                }}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons name="close" size={16} color="#9A3412" />
+              </TouchableOpacity>
             </View>
           </TouchableOpacity>
         )}
@@ -2017,6 +2066,14 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 2,
   },
+  takeawayCard: {
+    borderLeftWidth: 6,
+    borderLeftColor: '#EA580C',
+  },
+  dineInCard: {
+    borderLeftWidth: 6,
+    borderLeftColor: '#2563EB',
+  },
   pendingCard: {
     borderColor: '#F59E0B',
     borderWidth: 1.5,
@@ -2024,6 +2081,110 @@ const styles = StyleSheet.create({
   },
   preOrderCard: {
     borderColor: '#F472B6',
+  },
+  packingBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFF7ED',
+    borderWidth: 1.5,
+    borderColor: '#FDBA74',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 12,
+  },
+  packingBannerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  packingIconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: '#EA580C',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  packingBannerTitle: {
+    fontSize: 13,
+    fontWeight: '900',
+    color: '#9A3412',
+    letterSpacing: 0.3,
+  },
+  packingBannerSubtitle: {
+    fontSize: 10.5,
+    fontWeight: '600',
+    color: '#C2410C',
+    marginTop: 1,
+  },
+  packingPill: {
+    backgroundColor: '#FFEDD5',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#FB923C',
+  },
+  packingPillText: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: '#9A3412',
+    letterSpacing: 0.5,
+  },
+  dineInBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1.5,
+    borderColor: '#93C5FD',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 12,
+  },
+  dineInBannerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  dineInIconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: '#2563EB',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dineInBannerTitle: {
+    fontSize: 13,
+    fontWeight: '900',
+    color: '#1E40AF',
+    letterSpacing: 0.3,
+  },
+  dineInBannerSubtitle: {
+    fontSize: 10.5,
+    fontWeight: '600',
+    color: '#2563EB',
+    marginTop: 1,
+  },
+  dineInPill: {
+    backgroundColor: '#DBEAFE',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#60A5FA',
+  },
+  dineInPillText: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: '#1E40AF',
+    letterSpacing: 0.5,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -2377,6 +2538,14 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 11,
     fontWeight: '800',
+  },
+  crossStallDismissBtn: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: '#FED7AA',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   /* Switcher & Create Stall Modal Styles */

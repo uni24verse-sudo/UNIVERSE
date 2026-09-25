@@ -20,6 +20,9 @@ const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
 function MainTabNavigator() {
+  const { user } = useContext(AuthContext);
+  const isEmployee = user?.role === 'employee' || user?.role === 'staff';
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -68,11 +71,13 @@ function MainTabNavigator() {
         component={MenuScreen} 
         options={{ title: 'Menu' }} 
       />
-      <Tab.Screen 
-        name="Analytics" 
-        component={AnalyticsScreen} 
-        options={{ title: 'Analytics' }} 
-      />
+      {!isEmployee && (
+        <Tab.Screen 
+          name="Analytics" 
+          component={AnalyticsScreen} 
+          options={{ title: 'Analytics' }} 
+        />
+      )}
       <Tab.Screen 
         name="Profile" 
         component={ProfileScreen} 
