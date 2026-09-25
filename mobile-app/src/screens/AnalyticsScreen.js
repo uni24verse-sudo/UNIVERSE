@@ -336,28 +336,10 @@ export default function AnalyticsScreen() {
       {/* =================================================== */}
       <View style={styles.header}>
         <View style={styles.headerTop}>
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Text style={styles.headerTitle}>Analytics & Payouts</Text>
-              <View style={styles.liveSyncBadge}>
-                <View style={styles.liveSyncDot} />
-                <Text style={styles.liveSyncText}>LIVE</Text>
-              </View>
-            </View>
-            <View style={styles.storeRow}>
-              <Ionicons name="storefront" size={13} color="#EF4123" style={{ marginRight: 5 }} />
-              <Text style={styles.storeName}>{storeName || 'UniVerse Kitchen'}</Text>
-            </View>
-
-          <View style={[styles.roleBadge, isEmployee ? styles.employeeBadge : styles.ownerBadge]}>
-            <Ionicons
-              name={isEmployee ? 'shield-checkmark' : 'sparkles'}
-              size={12}
-              color={isEmployee ? '#7E22CE' : '#2563EB'}
-              style={{ marginRight: 4 }}
-            />
-            <Text style={[styles.roleBadgeText, isEmployee ? styles.employeeBadgeText : styles.ownerBadgeText]}>
-              {isEmployee ? 'KITCHEN OPS' : 'CART OWNER'}
-            </Text>
+          <Text style={styles.headerTitle}>Analytics & Payouts</Text>
+          <View style={styles.storeBadge}>
+            <Ionicons name="storefront" size={13} color="#EF4123" style={{ marginRight: 5 }} />
+            <Text style={styles.storeName}>{storeName || 'UniVerse Kitchen'}</Text>
           </View>
         </View>
 
@@ -1100,6 +1082,16 @@ const styles = StyleSheet.create({
     color: '#0F172A',
     letterSpacing: -0.5,
   },
+  storeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
   storeRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1108,7 +1100,7 @@ const styles = StyleSheet.create({
   storeName: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#64748B',
+    color: '#0F172A',
   },
   roleBadge: {
     flexDirection: 'row',

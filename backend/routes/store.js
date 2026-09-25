@@ -429,6 +429,20 @@ router.post('/:storeId/product', auth, upload.single('imageFile'), async (req, r
     }
     
     const adminId = req.admin.id || req.admin._id;
+
+    // Check if stall is at a Pure Veg location
+    const targetStore = await prisma.store.findUnique({
+      where: { id: req.params.storeId },
+      include: { location: true }
+    });
+    const isVegLocation = targetStore?.location?.dietaryType === 'veg' ||
+      (targetStore?.location?.name && (targetStore.location.name.toLowerCase().includes('lpu') || targetStore.location.name.toLowerCase().includes('lovely'))) ||
+      targetStore?.dietaryType === 'veg';
+
+    if (isVegLocation && (dietaryPreference === 'non-veg' || (name && /(chicken|mutton|beef|pork|fish|prawn|meat)/i.test(name)))) {
+      return res.status(400).json({ message: 'Non-veg items are strictly prohibited at this Pure Veg campus location.' });
+    }
+
     const store = await storeRepository.addProduct(req.params.storeId, adminId, {
       name,
       description: description || '',
@@ -467,7 +481,24 @@ router.post('/:storeId/products/batch', auth, async (req, res) => {
     }
 
     const adminId = req.admin.id || req.admin._id;
-    const store = await storeRepository.addProductsBatch(req.params.storeId, adminId, products);
+
+    // Check if stall is at a Pure Veg location
+    const targetStore = await prisma.store.findUnique({
+      where: { id: req.params.storeId },
+      include: { location: true }
+    });
+    const isVegLocation = targetStore?.location?.dietaryType === 'veg' ||
+      (targetStore?.location?.name && (targetStore.location.name.toLowerCase().includes('lpu') || targetStore.location.name.toLowerCase().includes('lovely'))) ||
+      targetStore?.dietaryType === 'veg';
+
+    const sanitizedProducts = products.map(item => {
+      if (isVegLocation && (item.dietaryPreference === 'non-veg' || (item.name && /(chicken|mutton|beef|pork|fish|prawn|meat)/i.test(item.name)))) {
+        return { ...item, dietaryPreference: 'veg' };
+      }
+      return item;
+    });
+
+    const store = await storeRepository.addProductsBatch(req.params.storeId, adminId, sanitizedProducts);
     if (!store) return res.status(404).json({ message: 'Store not found or unauthorized' });
 
     const io = req.app.get('io');
@@ -509,7 +540,12 @@ router.delete('/:storeId/product/:productId', auth, async (req, res) => {
 router.put('/:storeId/product/:productId/toggle', auth, async (req, res) => {
   try {
     const adminId = req.admin.id || req.admin._id;
-    const result = await storeRepository.toggleProduct(req.params.storeId, adminId, req.params.productId);
+    const isStaff = req.admin.role === 'staff' || req.admin.role === 'employee';
+    if (isStaff && req.admin.storeId && String(req.admin.storeId) !== String(req.params.storeId)) {
+      return res.status(403).json({ message: 'Unauthorized: Staff not assigned to this store' });
+    }
+    const effectiveAdminId = (isStaff || req.admin.role === 'superadmin') ? null : adminId;
+    const result = await storeRepository.toggleProduct(req.params.storeId, effectiveAdminId, req.params.productId);
     if (!result) return res.status(404).json({ message: 'Product or store not found' });
 
     const io = req.app.get('io');
@@ -698,7 +734,15 @@ router.put('/:storeId/toggle-auto-accept', auth, async (req, res) => {
 router.put('/:storeId/update-details', auth, async (req, res) => {
   try {
     const adminId = req.admin.id || req.admin._id;
-    let store = await storeRepository.updateStoreDetails(req.params.storeId, adminId, req.body);
+    const updatePayload = { ...req.body };
+
+    // Strictly protect Location and Market: ONLY Super Admin can reassign campus location or market zone
+    if (req.admin.role !== 'superadmin') {
+      delete updatePayload.locationId;
+      delete updatePayload.market;
+    }
+
+    let store = await storeRepository.updateStoreDetails(req.params.storeId, adminId, updatePayload);
     if (!store) return res.status(404).json({ message: 'Store not found' });
 
     // If automated mode is active or was toggled, instantly evaluate open/close status

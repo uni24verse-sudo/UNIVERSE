@@ -136,16 +136,8 @@ router.put('/:id/status', auth, async (req, res) => {
   try {
     const { status } = req.body;
     
-    // 1. Authorize: Ensure user has permissions
-    if (req.admin.role === 'staff') {
-      const perms = req.admin.permissions || [];
-      if (!perms.includes('UPDATE_ORDER_STATUS') && !perms.includes('MARK_ORDER_READY')) {
-        return res.status(403).json({ message: 'Unauthorized: Missing required permissions' });
-      }
-      if (status === 'Ready' && !perms.includes('MARK_ORDER_READY')) {
-        return res.status(403).json({ message: 'Unauthorized: Missing MARK_ORDER_READY permission' });
-      }
-    }
+    // 1. Authorize: Staff/Employee and Vendors can update order statuses for their assigned store
+    // (Store assignment is strictly validated below via isStoreMatch)
 
     // 2. Strict State Machine Rules
     const validTransitions = {

@@ -78,7 +78,7 @@ const getMarketsForLocation = (locationObj) => {
   return [locationObj.name || 'Campus Market'];
 };
 
-export default function ProfileScreen() {
+export default function ProfileScreen({ navigation }) {
   const { user, logout, updateUser, stores, activeStore, switchActiveStore, refreshStores } = useContext(AuthContext);
   const { socket } = useContext(SocketContext);
   const isFocused = useIsFocused();
@@ -132,6 +132,44 @@ export default function ProfileScreen() {
   const isEmployee = user?.role === 'employee' || user?.role === 'staff';
   const displayStore = activeStore || store;
   const storeId = displayStore?.id || displayStore?._id || user?.storeId || user?.id;
+
+  // Track if any bottom sheet modal is open to hide bottom tab bar and eliminate peeking gap
+  const isAnyModalOpen = Boolean(
+    showEditStoreModal ||
+    showAddStallModal ||
+    showEditTimingModal ||
+    showEditOwnerModal ||
+    showAddEmployeeModal ||
+    showEditEmployeeModal
+  );
+
+  const defaultTabBarStyle = useMemo(() => ({
+    backgroundColor: '#FFFFFF',
+    borderTopColor: '#F1F5F9',
+    borderTopWidth: 1,
+    height: Platform.OS === 'ios' ? 86 : 64,
+    paddingBottom: Platform.OS === 'ios' ? 28 : 10,
+    paddingTop: 8,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 6,
+  }), []);
+
+  useEffect(() => {
+    if (isAnyModalOpen) {
+      navigation?.getParent()?.setOptions({ tabBarStyle: { display: 'none' } });
+    } else {
+      navigation?.getParent()?.setOptions({ tabBarStyle: defaultTabBarStyle });
+    }
+  }, [isAnyModalOpen, navigation, defaultTabBarStyle]);
+
+  useEffect(() => {
+    return () => {
+      navigation?.getParent()?.setOptions({ tabBarStyle: defaultTabBarStyle });
+    };
+  }, [navigation, defaultTabBarStyle]);
 
   // Format 24h HH:mm to 12h AM/PM
   const formatTime12h = (hhmm) => {
@@ -950,17 +988,6 @@ export default function ProfileScreen() {
                   </Text>
                 </View>
               </View>
-
-              {!isEmployee && (
-                <TouchableOpacity
-                  style={styles.editStallBtn}
-                  onPress={() => setShowEditStoreModal(true)}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons name="pencil" size={13} color="#0F172A" />
-                  <Text style={styles.editStallBtnText}>Edit Stall</Text>
-                </TouchableOpacity>
-              )}
             </View>
 
             {/* Quick Open/Closed Toggle Switch */}
@@ -1063,8 +1090,10 @@ export default function ProfileScreen() {
 
         {/* =================================================== */}
         {/* 2. AUTOMATED STALL TIMING & SCHEDULE CARD           */}
+        {/* (Strictly hidden for Kitchen Staff & Employees)     */}
         {/* =================================================== */}
-        <View style={styles.sectionCard}>
+        {!isEmployee && (
+          <View style={styles.sectionCard}>
           <View style={styles.sectionHeaderRow}>
             <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
               <View style={[styles.sectionIconBg, { backgroundColor: 'rgba(239, 65, 35, 0.1)' }]}>
@@ -1165,6 +1194,7 @@ export default function ProfileScreen() {
             </Text>
           </View>
         </View>
+        )}
 
         {/* =================================================== */}
         {/* 3. OWNER & ACCOUNT DETAILS SECTION                  */}
@@ -1444,7 +1474,7 @@ export default function ProfileScreen() {
       {/* =================================================== */}
       {/* MODAL 0: ADD NEW STALL / COUNTER                    */}
       {/* =================================================== */}
-      <Modal visible={showAddStallModal} transparent animationType="slide">
+      <Modal visible={showAddStallModal} transparent animationType="slide" statusBarTranslucent={true}>
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
@@ -1588,7 +1618,7 @@ export default function ProfileScreen() {
       {/* =================================================== */}
       {/* MODAL 1: EDIT STALL DETAILS (WITH MARKET SELECTOR)  */}
       {/* =================================================== */}
-      <Modal visible={showEditStoreModal} transparent animationType="slide">
+      <Modal visible={showEditStoreModal} transparent animationType="slide" statusBarTranslucent={true}>
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
@@ -1721,7 +1751,7 @@ export default function ProfileScreen() {
       {/* =================================================== */}
       {/* MODAL 1B: EDIT AUTOMATED STALL TIMING & SCHEDULE    */}
       {/* =================================================== */}
-      <Modal visible={showEditTimingModal} transparent animationType="slide">
+      <Modal visible={showEditTimingModal} transparent animationType="slide" statusBarTranslucent={true}>
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
@@ -1857,7 +1887,7 @@ export default function ProfileScreen() {
       {/* =================================================== */}
       {/* MODAL 2: EDIT OWNER & PAYOUT UPI ID                 */}
       {/* =================================================== */}
-      <Modal visible={showEditOwnerModal} transparent animationType="slide">
+      <Modal visible={showEditOwnerModal} transparent animationType="slide" statusBarTranslucent={true}>
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
@@ -1918,7 +1948,7 @@ export default function ProfileScreen() {
       {/* =================================================== */}
       {/* MODAL 3: ADD NEW EMPLOYEE                           */}
       {/* =================================================== */}
-      <Modal visible={showAddEmployeeModal} transparent animationType="slide">
+      <Modal visible={showAddEmployeeModal} transparent animationType="slide" statusBarTranslucent={true}>
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
@@ -1987,7 +2017,7 @@ export default function ProfileScreen() {
       {/* =================================================== */}
       {/* MODAL 4: EDIT EMPLOYEE (NAME / PASSWORD RESET)       */}
       {/* =================================================== */}
-      <Modal visible={showEditEmployeeModal} transparent animationType="slide">
+      <Modal visible={showEditEmployeeModal} transparent animationType="slide" statusBarTranslucent={true}>
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
@@ -2569,13 +2599,19 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(15, 23, 42, 0.65)',
     justifyContent: 'flex-end',
+    margin: 0,
+    padding: 0,
   },
   modalCard: {
     backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
     padding: 22,
-    paddingBottom: Platform.OS === 'ios' ? 40 : 24,
+    paddingBottom: Platform.OS === 'ios' ? 44 : 32,
+    margin: 0,
+    width: '100%',
   },
   modalHeader: {
     flexDirection: 'row',
