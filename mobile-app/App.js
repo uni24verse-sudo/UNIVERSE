@@ -37,7 +37,19 @@ TaskManager.defineTask(BACKGROUND_NOTIFICATION_TASK, async ({ data, error, execu
   }
 });
 
-Notifications.registerTaskAsync(BACKGROUND_NOTIFICATION_TASK);
+let isExpoGo = false;
+try {
+  const { isRunningInExpoGo } = require('expo');
+  if (isRunningInExpoGo && isRunningInExpoGo()) isExpoGo = true;
+} catch (e) {}
+
+if (!isExpoGo) {
+  try {
+    Notifications.registerTaskAsync(BACKGROUND_NOTIFICATION_TASK);
+  } catch (err) {
+    console.log('[App] Background notification task registration skipped:', err.message);
+  }
+}
 
 export default function App() {
   return (

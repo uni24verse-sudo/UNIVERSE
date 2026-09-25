@@ -35,7 +35,7 @@ const detectDietaryPreference = (name) => {
   return 'veg';
 };
 
-export default function MenuScreen() {
+export default function MenuScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const { user, stores, activeStore, switchActiveStore } = useContext(AuthContext);
   const { socket } = useContext(SocketContext);
@@ -68,6 +68,53 @@ export default function MenuScreen() {
   const [showScanReviewModal, setShowScanReviewModal] = useState(false);
   const [scannedItems, setScannedItems] = useState([]);
   const [isImportingScanned, setIsImportingScanned] = useState(false);
+
+  // Check if current stall location is pure veg
+  const currentStore = activeStore || store;
+  const isVegOnlyLocation = useMemo(() => {
+    const loc = currentStore?.location;
+    if (loc?.dietaryType === 'veg') return true;
+    if (currentStore?.dietaryType === 'veg') return true;
+    const locName = (loc?.name || '').toLowerCase();
+    if (locName.includes('lpu') || locName.includes('lovely')) return true;
+    return false;
+  }, [currentStore]);
+
+  // Tab bar hiding when any modal/sheet is open
+  const isAnyModalOpen = Boolean(
+    showAddModal ||
+    showScanPickerModal ||
+    isScanningMenu ||
+    showScanReviewModal
+  );
+
+  const defaultTabBarStyle = useMemo(() => ({
+    backgroundColor: '#FFFFFF',
+    borderTopColor: '#F1F5F9',
+    borderTopWidth: 1,
+    height: Platform.OS === 'ios' ? 86 : 64,
+    paddingBottom: Platform.OS === 'ios' ? 28 : 10,
+    paddingTop: 8,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 6,
+  }), []);
+
+  useEffect(() => {
+    if (isAnyModalOpen) {
+      navigation?.getParent()?.setOptions({ tabBarStyle: { display: 'none' } });
+    } else {
+      navigation?.getParent()?.setOptions({ tabBarStyle: defaultTabBarStyle });
+    }
+  }, [isAnyModalOpen, navigation, defaultTabBarStyle]);
+
+  useEffect(() => {
+    return () => {
+      navigation?.getParent()?.setOptions({ tabBarStyle: defaultTabBarStyle });
+    };
+  }, [navigation, defaultTabBarStyle]);
 
   // Fetch Vendor Store Data
   const fetchStore = useCallback(async () => {
@@ -301,6 +348,11 @@ export default function MenuScreen() {
     const parsedPrice = parseFloat(newItem.price);
     if (!newItem.price || isNaN(parsedPrice) || parsedPrice <= 0) {
       Alert.alert('Validation Error', 'Please enter a valid price greater than 0.');
+      return;
+    }
+
+    if (isVegOnlyLocation && (newItem.dietaryPreference === 'non-veg' || (newItem.name && /(chicken|mutton|beef|pork|fish|prawn|meat)/i.test(newItem.name)))) {
+      Alert.alert('Pure Veg Restriction', 'Non-veg items are strictly prohibited at this Pure Veg campus location.');
       return;
     }
 
@@ -732,6 +784,7 @@ export default function MenuScreen() {
         visible={showAddModal}
         animationType="slide"
         transparent={true}
+        statusBarTranslucent={true}
         onRequestClose={() => setShowAddModal(false)}
       >
         <KeyboardAvoidingView 
@@ -776,14 +829,32 @@ export default function MenuScreen() {
               />
 
               {/* Dietary Preference */}
-              <Text style={styles.inputLabel}>Dietary Preference</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, marginBottom: 4 }}>
+                <Text style={[styles.inputLabel, { marginTop: 0, marginBottom: 0 }]}>Dietary Preference</Text>
+                {isVegOnlyLocation && (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#ECFDF5', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, borderWidth: 1, borderColor: '#A7F3D0' }}>
+                    <Ionicons name="leaf" size={11} color="#059669" style={{ marginRight: 4 }} />
+                    <Text style={{ fontSize: 10, fontWeight: '700', color: '#059669' }}>PURE VEG LOCATION</Text>
+                  </View>
+                )}
+              </View>
+              {isVegOnlyLocation && (
+                <Text style={{ fontSize: 11, color: '#059669', marginBottom: 8, fontWeight: '500' }}>
+                  🌿 This stall is at a pure veg campus location. Non-veg items are prohibited.
+                </Text>
+              )}
               <View style={styles.dietarySelectRow}>
-                {[
+                {(isVegOnlyLocation ? [
+                  { key: 'veg', label: 'Pure Veg', color: '#10B981' },
+                  { key: 'none', label: 'Drink / Other', color: '#64748B' }
+                ] : [
                   { key: 'veg', label: 'Veg', color: '#10B981' },
                   { key: 'non-veg', label: 'Non-Veg', color: '#EF4444' },
                   { key: 'none', label: 'None / Other', color: '#64748B' }
-                ].map(opt => {
-                  const isSelected = newItem.dietaryPreference === opt.key;
+                ]).map(opt => {
+                  const isSelected = (isVegOnlyLocation && newItem.dietaryPreference === 'non-veg') 
+                    ? opt.key === 'veg' 
+                    : newItem.dietaryPreference === opt.key;
                   return (
                     <TouchableOpacity
                       key={opt.key}
@@ -860,6 +931,7 @@ export default function MenuScreen() {
         visible={showScanPickerModal}
         transparent={true}
         animationType="fade"
+        statusBarTranslucent={true}
         onRequestClose={() => setShowScanPickerModal(false)}
       >
         <TouchableOpacity 
@@ -919,6 +991,7 @@ export default function MenuScreen() {
         visible={isScanningMenu}
         transparent={true}
         animationType="fade"
+        statusBarTranslucent={true}
       >
         <View style={styles.loadingOverlay}>
           <View style={styles.loadingBox}>
@@ -935,6 +1008,7 @@ export default function MenuScreen() {
       <Modal
         visible={showScanReviewModal}
         animationType="slide"
+        statusBarTranslucent={true}
         onRequestClose={() => {
           if (!isImportingScanned) setShowScanReviewModal(false);
         }}
@@ -1037,7 +1111,9 @@ export default function MenuScreen() {
                         { borderColor: item.dietaryPreference === 'non-veg' ? '#EF4444' : item.dietaryPreference === 'egg' ? '#F59E0B' : '#10B981' }
                       ]}
                       onPress={() => {
-                        const next = item.dietaryPreference === 'veg' ? 'non-veg' : item.dietaryPreference === 'non-veg' ? 'egg' : 'veg';
+                        const next = isVegOnlyLocation
+                          ? (item.dietaryPreference === 'veg' ? 'egg' : 'veg')
+                          : (item.dietaryPreference === 'veg' ? 'non-veg' : item.dietaryPreference === 'non-veg' ? 'egg' : 'veg');
                         setScannedItems(prev => prev.map((it, idx) => idx === index ? { ...it, dietaryPreference: next } : it));
                       }}
                     >
@@ -1448,13 +1524,19 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(15, 23, 42, 0.6)',
     justifyContent: 'flex-end',
+    margin: 0,
+    padding: 0,
   },
   modalContent: {
     backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
     maxHeight: '85%',
-    paddingBottom: 30,
+    paddingBottom: Platform.OS === 'ios' ? 44 : 32,
+    margin: 0,
+    width: '100%',
   },
   modalHeader: {
     flexDirection: 'row',

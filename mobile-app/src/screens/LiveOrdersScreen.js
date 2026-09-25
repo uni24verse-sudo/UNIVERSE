@@ -215,6 +215,35 @@ export default function LiveOrdersScreen({ navigation }) {
     upiId: '',
   });
   const [creatingStall, setCreatingStall] = useState(false);
+  const isAnyModalOpen = Boolean(showStallSwitcherModal || showQuickAddStallModal);
+
+  const defaultTabBarStyle = useMemo(() => ({
+    backgroundColor: '#FFFFFF',
+    borderTopColor: '#F1F5F9',
+    borderTopWidth: 1,
+    height: Platform.OS === 'ios' ? 86 : 64,
+    paddingBottom: Platform.OS === 'ios' ? 28 : 10,
+    paddingTop: 8,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 6,
+  }), []);
+
+  useEffect(() => {
+    if (isAnyModalOpen) {
+      navigation?.getParent()?.setOptions({ tabBarStyle: { display: 'none' } });
+    } else {
+      navigation?.getParent()?.setOptions({ tabBarStyle: defaultTabBarStyle });
+    }
+  }, [isAnyModalOpen, navigation, defaultTabBarStyle]);
+
+  useEffect(() => {
+    return () => {
+      navigation?.getParent()?.setOptions({ tabBarStyle: defaultTabBarStyle });
+    };
+  }, [navigation, defaultTabBarStyle]);
 
   // Fetch campus locations on mount
   useEffect(() => {
@@ -1276,14 +1305,6 @@ export default function LiveOrdersScreen({ navigation }) {
           <Text style={styles.headerTitle}>Kitchen Orders</Text>
 
           <View style={styles.badgesCluster}>
-            {/* Live Status Pill */}
-            <View style={[styles.syncStatusPill, { backgroundColor: isConnected ? '#ECFDF5' : '#FEF2F2' }]}>
-              <View style={[styles.dot, { backgroundColor: isConnected ? '#10B981' : '#EF4444' }]} />
-              <Text style={[styles.syncStatusText, { color: isConnected ? '#059669' : '#DC2626' }]}>
-                {isConnected ? 'LIVE' : 'OFFLINE'}
-              </Text>
-            </View>
-
             {/* Compact Auto-Accept Chip */}
             <TouchableOpacity 
               style={[
@@ -1521,6 +1542,7 @@ export default function LiveOrdersScreen({ navigation }) {
         visible={!isEmployee && showStallSwitcherModal}
         transparent={true}
         animationType="fade"
+        statusBarTranslucent={true}
         onRequestClose={() => setShowStallSwitcherModal(false)}
       >
         <View style={styles.modalBackdrop}>
@@ -1606,6 +1628,7 @@ export default function LiveOrdersScreen({ navigation }) {
         visible={!isEmployee && showQuickAddStallModal}
         transparent={true}
         animationType="slide"
+        statusBarTranslucent={true}
         onRequestClose={() => setShowQuickAddStallModal(false)}
       >
         <View style={styles.modalBackdrop}>
@@ -2553,14 +2576,20 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(15, 23, 42, 0.65)',
     justifyContent: 'flex-end',
+    margin: 0,
+    padding: 0,
   },
   switcherModalContent: {
     backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
     paddingHorizontal: 20,
     paddingTop: 20,
-    paddingBottom: 36,
+    paddingBottom: Platform.OS === 'ios' ? 44 : 32,
+    margin: 0,
+    width: '100%',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.15,
