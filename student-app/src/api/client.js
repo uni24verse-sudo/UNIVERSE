@@ -42,13 +42,22 @@ export const getSocketUrl = () => {
   return getBaseUrl().replace(/\/api\/?$/, '');
 };
 
+export const getAssetUrl = (path, fallback = '') => {
+  if (!path) return fallback;
+  if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('data:')) return path;
+  const base = getBaseUrl().replace(/\/api\/?$/, '');
+  return `${base}${path.startsWith('/') ? '' : '/'}${path}`;
+};
+
 const apiClient = axios.create({
+  baseURL: getBaseUrl(),
   timeout: 15000,
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
   },
 });
+apiClient.defaults.baseURL = getBaseUrl();
 
 apiClient.interceptors.request.use((config) => {
   config.baseURL = getBaseUrl();

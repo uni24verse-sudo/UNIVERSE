@@ -170,6 +170,7 @@ class StoreRepository {
     if (details.category) data.category = details.category;
     if (details.packagingCharge !== undefined) data.packagingCharge = Number(details.packagingCharge);
     if (details.market) data.market = details.market;
+    if (details.locationId !== undefined) data.locationId = details.locationId || null;
     if (details.upiId !== undefined) data.upiId = details.upiId;
     if (details.telegramChatId !== undefined) data.telegramChatId = details.telegramChatId;
     if (details.telegramBotToken !== undefined) data.telegramBotToken = details.telegramBotToken;
