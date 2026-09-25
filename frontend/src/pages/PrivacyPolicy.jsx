@@ -78,7 +78,7 @@ const PrivacyPolicy = () => {
         }}>
           <section style={{ marginBottom: '2.5rem' }}>
             <p style={{ marginBottom: '1.5rem' }}>
-              This Privacy Policy describes how <b>UNIVERSE</b> and its affiliates (collectively "Universe, we, our, us") collect, use, share, protect or otherwise process your information/ personal data through our website <span style={{ color: 'var(--primary)' }}>https://food.universeorder.co.in</span> (including universeorder.co.in and uat.food.universeorder.co.in, hereinafter referred to as Platform) and our mobile applications including the <b>UniVerse Vendor</b> app (available on Google Play Store) used by merchant partners and their authorized staff.
+              This Privacy Policy describes how <b>UNIVERSE</b> and its affiliates (collectively "Universe, we, our, us") collect, use, share, protect or otherwise process your information/ personal data through our website <span style={{ color: 'var(--primary)' }}>https://food.universeorder.co.in</span> (including universeorder.co.in and uat.food.universeorder.co.in, hereinafter referred to as Platform) and our mobile applications — the <b>UniVerse Food</b> app (customer ordering app) and the <b>UniVerse Vendor</b> app (merchant partner and staff management app), both available on Google Play Store.
             </p>
             <p style={{ marginBottom: '1.5rem' }}>
               By visiting this Platform, using our mobile applications, providing your information or availing any product/service offered on the Platform, you expressly agree to be bound by the terms and conditions of this Privacy Policy and the Terms of Use. If you do not agree please do not use or access our Platform or mobile applications.
@@ -171,11 +171,11 @@ const PrivacyPolicy = () => {
             <b>UNIVERSE</b> enforces strict data isolation between customers and vendors. To protect your privacy, we ensure that vendors only receive essential order data (items, order number, and order type) required for kitchen preparation. Personal identifiers including customer names, phone numbers, and payment details are strictly withheld from vendor dashboards, alerts, and merchant communications.
           </p>
 
-          {/* NEW: Mobile Application Data Section */}
-          <h2 style={{ color: 'var(--text-primary)', fontSize: '1.5rem', fontWeight: '800', marginBottom: '1.25rem' }}>10. Mobile Application Data</h2>
+          {/* Mobile Application Data - Vendor App */}
+          <h2 style={{ color: 'var(--text-primary)', fontSize: '1.5rem', fontWeight: '800', marginBottom: '1.25rem' }}>10. UniVerse Vendor App Data</h2>
           <div style={{ marginBottom: '2.5rem' }}>
             <p style={{ marginBottom: '1.25rem' }}>
-              When you use the <b>UniVerse Vendor</b> mobile application, the following additional data practices apply:
+              When you use the <b>UniVerse Vendor</b> mobile application (merchant partner and staff app), the following additional data practices apply:
             </p>
             
             <div style={{ display: 'grid', gap: '1.25rem', marginBottom: '1.5rem' }}>
@@ -227,6 +227,56 @@ const PrivacyPolicy = () => {
 
             <p style={{ fontSize: '0.9rem', fontStyle: 'italic', color: 'var(--text-secondary)' }}>
               The UniVerse Vendor app does <strong style={{ color: 'var(--text-primary)' }}>not</strong> collect location data, contact lists, browsing history, or any data beyond what is described above.
+            </p>
+          </div>
+
+          {/* Mobile Application Data - Customer App */}
+          <h2 style={{ color: 'var(--text-primary)', fontSize: '1.5rem', fontWeight: '800', marginBottom: '1.25rem' }}>11. UniVerse Food App Data (Customer App)</h2>
+          <div style={{ marginBottom: '2.5rem' }}>
+            <p style={{ marginBottom: '1.25rem' }}>
+              When you use the <b>UniVerse Food</b> mobile application (student / customer ordering app), the following data practices apply:
+            </p>
+            
+            <div style={{ display: 'grid', gap: '1.25rem', marginBottom: '1.5rem' }}>
+              <div style={{ background: '#f8fafc', padding: '1.5rem', borderRadius: '16px', border: '1px solid var(--surface-border)' }}>
+                <h4 style={{ color: 'var(--text-primary)', fontSize: '1.05rem', fontWeight: '700', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <Smartphone size={18} color="var(--primary)" /> Guest Ordering (No Account Required)
+                </h4>
+                <p style={{ fontSize: '0.9rem', margin: 0 }}>
+                  The UniVerse Food app does not require you to create an account or log in. Your name, phone number, and email address are collected at checkout solely to identify your order and facilitate pickup. These details are stored locally on your device for convenience on future orders.
+                </p>
+              </div>
+
+              <div style={{ background: '#f8fafc', padding: '1.5rem', borderRadius: '16px', border: '1px solid var(--surface-border)' }}>
+                <h4 style={{ color: 'var(--text-primary)', fontSize: '1.05rem', fontWeight: '700', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <Database size={18} color="var(--primary)" /> On-Device Storage
+                </h4>
+                <p style={{ fontSize: '0.9rem', margin: 0 }}>
+                  The app stores your cart contents, recent order history, customer details (name, phone, email), and selected campus location locally on your device. This data is used to enhance your ordering experience and is not transmitted to our servers except when placing an order.
+                </p>
+              </div>
+
+              <div style={{ background: '#f8fafc', padding: '1.5rem', borderRadius: '16px', border: '1px solid var(--surface-border)' }}>
+                <h4 style={{ color: 'var(--text-primary)', fontSize: '1.05rem', fontWeight: '700', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <Bell size={18} color="var(--primary)" /> Push Notifications
+                </h4>
+                <p style={{ fontSize: '0.9rem', margin: 0 }}>
+                  The app may request permission to send push notifications for order status updates (e.g., when your order is ready for pickup). You can disable notifications at any time through your device settings.
+                </p>
+              </div>
+
+              <div style={{ background: '#f8fafc', padding: '1.5rem', borderRadius: '16px', border: '1px solid var(--surface-border)' }}>
+                <h4 style={{ color: 'var(--text-primary)', fontSize: '1.05rem', fontWeight: '700', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <Lock size={18} color="var(--primary)" /> Payment Processing
+                </h4>
+                <p style={{ fontSize: '0.9rem', margin: 0 }}>
+                  All payments are processed securely through Razorpay (RBI-authorized payment aggregator). UniVerse does not store your card numbers, UPI PINs, or banking credentials. Only payment confirmation status and transaction references are retained for order fulfillment.
+                </p>
+              </div>
+            </div>
+
+            <p style={{ fontSize: '0.9rem', fontStyle: 'italic', color: 'var(--text-secondary)' }}>
+              The UniVerse Food app does <strong style={{ color: 'var(--text-primary)' }}>not</strong> collect location data (GPS), contact lists, browsing history, photos, login credentials, or any biometric data. You may clear all locally stored data by clearing the app's data from your device settings or by uninstalling the app.
             </p>
           </div>
 
