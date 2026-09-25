@@ -9,7 +9,7 @@ import { getSocketUrl } from '../api/client';
 export const SocketContext = createContext();
 
 export const SocketProvider = ({ children }) => {
-  const { user } = useContext(AuthContext);
+  const { user, stores } = useContext(AuthContext);
   const [socket, setSocket] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
   const [socketError, setSocketError] = useState(null);
@@ -44,9 +44,18 @@ export const SocketProvider = ({ children }) => {
         console.log('Socket connected:', newSocket.id);
         setIsConnected(true);
         setSocketError(null);
-        // The server validates this against the JWT, but we still send it
-        const storeIdToJoin = user.storeId || user.id;
-        newSocket.emit('join_store_room', storeIdToJoin);
+
+        // Join rooms for all vendor owned stores
+        if (stores && stores.length > 0) {
+          stores.forEach(s => {
+            const sid = s.id || s._id;
+            if (sid) newSocket.emit('join_store_room', sid);
+          });
+        }
+        const defaultStoreId = user.storeId || user.id;
+        if (defaultStoreId) {
+          newSocket.emit('join_store_room', defaultStoreId);
+        }
       });
 
       newSocket.on('disconnect', () => {
@@ -70,6 +79,18 @@ export const SocketProvider = ({ children }) => {
       }
     };
   }, [user]);
+
+  // Keep all store rooms joined whenever stores list refreshes or changes
+  useEffect(() => {
+    if (socket && isConnected && stores && stores.length > 0) {
+      stores.forEach(s => {
+        const sid = s.id || s._id;
+        if (sid) {
+          socket.emit('join_store_room', sid);
+        }
+      });
+    }
+  }, [socket, isConnected, stores]);
 
   return (
     <SocketContext.Provider value={{ socket, isConnected, socketError }}>

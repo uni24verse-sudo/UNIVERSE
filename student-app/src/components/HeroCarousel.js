@@ -11,18 +11,16 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
-import apiClient from '../api/client';
+import apiClient, { getAssetUrl } from '../api/client';
 import { useLocation } from '../context/LocationContext';
+import { useSocket } from '../context/SocketContext';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const BANNER_WIDTH = Math.min(SCREEN_WIDTH - 24, 480);
 const BANNER_HEIGHT = 220;
 
 const getBannerImageUrl = (img) => {
-  if (!img) return 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=1200&q=80';
-  if (img.startsWith('http://') || img.startsWith('https://') || img.startsWith('data:')) return img;
-  const base = apiClient.defaults.baseURL?.replace('/api', '') || 'http://localhost:5000';
-  return `${base}${img.startsWith('/') ? '' : '/'}${img}`;
+  return getAssetUrl(img, 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=1200&q=80');
 };
 
 // Exact default campus slides from webapp (frontend/src/components/HeroCarousel.jsx)
@@ -95,6 +93,7 @@ const CITY_SLIDES = [
 
 const HeroCarousel = ({ navigation, onExplore, hubName = 'Campus', hubType }) => {
   const { currentLocation } = useLocation();
+  const { socket } = useSocket();
   const [paidBanners, setPaidBanners] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const flatListRef = useRef(null);
@@ -141,10 +140,20 @@ const HeroCarousel = ({ navigation, onExplore, hubName = 'Campus', hubType }) =>
     };
 
     fetchActiveBanners();
+
+    if (socket) {
+      socket.on('banner_published', fetchActiveBanners);
+      socket.on('banner_status_changed', fetchActiveBanners);
+    }
+
     return () => {
       isMounted = false;
+      if (socket) {
+        socket.off('banner_published', fetchActiveBanners);
+        socket.off('banner_status_changed', fetchActiveBanners);
+      }
     };
-  }, [currentLocation, hubName, effectiveHubType]);
+  }, [currentLocation, hubName, effectiveHubType, socket]);
 
   // Combine paid banners with fallback defaults matching webapp line 117
   const slides = paidBanners.length > 0 ? paidBanners : defaultSlides;

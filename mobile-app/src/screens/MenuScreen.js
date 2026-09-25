@@ -37,12 +37,13 @@ const detectDietaryPreference = (name) => {
 
 export default function MenuScreen() {
   const insets = useSafeAreaInsets();
-  const { user } = useContext(AuthContext);
+  const { user, stores, activeStore, switchActiveStore } = useContext(AuthContext);
   const { socket } = useContext(SocketContext);
   const isEmployee = user?.role === 'employee';
 
-  const [store, setStore] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [store, setStore] = useState(activeStore || null);
+  const [showStallModal, setShowStallModal] = useState(false);
+  const [loading, setLoading] = useState(!activeStore);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
@@ -69,11 +70,12 @@ export default function MenuScreen() {
   const [isImportingScanned, setIsImportingScanned] = useState(false);
 
   // Fetch Vendor Store Data
-  const fetchStore = async () => {
+  const fetchStore = useCallback(async () => {
     try {
       const res = await apiClient.get('/store/my-stores');
       if (res.data && res.data.length > 0) {
-        setStore(res.data[0]); // Default to primary store
+        const found = activeStore ? res.data.find(s => (s.id || s._id) === (activeStore.id || activeStore._id)) : null;
+        setStore(found || res.data[0]);
       }
     } catch (error) {
       console.error('Failed to fetch store:', error);
@@ -82,16 +84,20 @@ export default function MenuScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [activeStore]);
 
   useEffect(() => {
+    if (activeStore) {
+      setStore(activeStore);
+      setLoading(false);
+    }
     fetchStore();
-  }, []);
+  }, [activeStore, fetchStore]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     fetchStore();
-  }, []);
+  }, [fetchStore]);
 
   // Real-time WebSocket synchronization
   useEffect(() => {

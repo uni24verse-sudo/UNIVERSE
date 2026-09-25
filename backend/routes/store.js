@@ -29,8 +29,33 @@ const bufferToStream = (buffer) => {
 // Create a Store
 router.post('/create', auth, async (req, res) => {
   try {
-    const { name, category, market, upiId, telegramChatId, locationId } = req.body;
+    let { name, category, market, upiId, telegramChatId, locationId } = req.body;
     let finalMarket = market || 'BH1 Market';
+    const adminId = req.admin.id || req.admin._id;
+
+    // Smart location resolution: if locationId not provided, infer from market or vendor's other stalls
+    if (!locationId) {
+      if (market) {
+        const allLocs = await prisma.location.findMany().catch(() => []);
+        const matched = allLocs.find(l => {
+          if (!l.markets) return false;
+          const mList = l.markets.split(',').map(m => m.trim());
+          return mList.includes(market.trim());
+        });
+        if (matched) {
+          locationId = matched.id;
+        }
+      }
+      if (!locationId) {
+        const vendorStores = await prisma.store.findMany({
+          where: { adminId: String(adminId), locationId: { not: null } },
+          take: 1
+        }).catch(() => []);
+        if (vendorStores.length > 0 && vendorStores[0].locationId) {
+          locationId = vendorStores[0].locationId;
+        }
+      }
+    }
 
     if (locationId) {
       const loc = await prisma.location.findUnique({ where: { id: String(locationId) } }).catch(() => null);
@@ -39,7 +64,6 @@ router.post('/create', auth, async (req, res) => {
       }
     }
 
-    const adminId = req.admin.id || req.admin._id;
     const savedStore = await storeRepository.createStore({
       adminId,
       name,
@@ -50,16 +74,29 @@ router.post('/create', auth, async (req, res) => {
       telegramChatId: telegramChatId || ''
     });
 
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('store_created', savedStore);
+      io.to('superadmin_room').emit('superadmin:store_created', savedStore);
+    }
+
     res.status(201).json(savedStore);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 });
 
-// Get Vendor's own stores (Multiple)
+// Get Vendor's own stores (Multiple) - Employees strictly locked to their single assigned stall
 router.get('/my-stores', auth, async (req, res) => {
   try {
     const adminId = req.admin.id || req.admin._id;
+    const isStaff = req.admin.role === 'staff' || req.admin.role === 'employee';
+
+    if (isStaff && req.admin.storeId) {
+      const singleStore = await storeRepository.getStoreById(req.admin.storeId);
+      return res.json(singleStore ? [singleStore] : []);
+    }
+
     const storesWithBilling = await storeRepository.getVendorStores(adminId);
     res.json(storesWithBilling);
   } catch (err) {

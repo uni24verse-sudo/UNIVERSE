@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useAudioPlayer, setAudioModeAsync } from 'expo-audio';
+import { Platform } from 'react-native';
+import * as Speech from 'expo-speech';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export const useAudioAlerts = () => {
@@ -79,6 +81,42 @@ export const useAudioAlerts = () => {
     }
   }, [player1, player2, isAudioEnabled]);
 
+  // Voice announcement synthesis with cross-platform fallback
+  const speakAnnouncement = useCallback((text) => {
+    if (!isAudioEnabled || !text) return;
+    try {
+      if (Platform.OS === 'web' && typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'en-IN';
+        utterance.rate = 0.95;
+        window.speechSynthesis.speak(utterance);
+      } else if (Speech && typeof Speech.speak === 'function') {
+        Speech.stop();
+        Speech.speak(text, {
+          language: 'en-IN',
+          pitch: 1.02,
+          rate: 0.92,
+        });
+      }
+    } catch (err) {
+      console.log('[useAudioAlerts] Speech error:', err?.message || err);
+    }
+  }, [isAudioEnabled]);
+
+  // Crisp chime followed by voice announcement for specific store order
+  const speakOrderAlert = useCallback((storeName, orderNumber) => {
+    if (!isAudioEnabled) return;
+    playDoubleDing();
+
+    setTimeout(() => {
+      const storePhrase = storeName ? `for ${storeName}` : '';
+      const orderPhrase = orderNumber ? `Order number ${orderNumber}` : '';
+      const fullText = `New order received ${storePhrase}. ${orderPhrase}`.replace(/\s+/g, ' ').trim();
+      speakAnnouncement(fullText);
+    }, 450);
+  }, [isAudioEnabled, playDoubleDing, speakAnnouncement]);
+
   // Starts or stops the reminder loop based on pending orders count
   const syncPendingOrders = useCallback((count = 0) => {
     const prevCount = pendingCountRef.current;
@@ -152,7 +190,7 @@ export const useAudioAlerts = () => {
     playDoubleDing();
   }, [playDoubleDing]);
 
-  // Test sound: plays the new crisp double-ding (ding.ding)
+  // Test sound: plays the new crisp double-ding (ding.ding) and brief test speech
   const playTestSound = useCallback(async () => {
     try {
       if (!isAudioEnabled) {
@@ -160,10 +198,13 @@ export const useAudioAlerts = () => {
         await AsyncStorage.setItem('universe_audio_enabled', 'true');
       }
       playDoubleDing();
+      setTimeout(() => {
+        speakAnnouncement('UniVerse audio alerts are active');
+      }, 500);
     } catch (err) {
       console.log('Test sound playback error:', err?.message || err);
     }
-  }, [playDoubleDing, isAudioEnabled]);
+  }, [playDoubleDing, isAudioEnabled, speakAnnouncement]);
 
   return { 
     isAudioEnabled, 
@@ -174,6 +215,8 @@ export const useAudioAlerts = () => {
     playSingleDing: playDoubleDing, // aliased for backwards compatibility
     queueAnnouncement, 
     cancelAnnouncement,
-    queuePreOrderReminder
+    queuePreOrderReminder,
+    speakAnnouncement,
+    speakOrderAlert
   };
 };

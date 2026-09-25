@@ -16,14 +16,49 @@ import {
   Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useIsFocused } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import { AuthContext } from '../context/AuthContext';
 import { SocketContext } from '../context/SocketContext';
 import apiClient from '../api/client';
+import * as SecureStore from 'expo-secure-store';
+
+const getStorageItem = async (key) => {
+  if (Platform.OS === 'web') return localStorage.getItem(key);
+  try {
+    return await SecureStore.getItemAsync(key);
+  } catch (e) {
+    return null;
+  }
+};
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
+const DEFAULT_CAMPUS_LOCATIONS = [
+  {
+    id: '69e7913ddcad79aeb3f8ce23',
+    name: 'Lovely Professional University',
+    type: 'College',
+    city: 'Phagwara',
+    markets: 'BH1 Market, Block34 Market, LIT Market, Mall Market, BH6 Market, Apartment Market',
+  },
+  {
+    id: '69e7a49ce6811d655c964f1b',
+    name: 'LAW GATE',
+    type: 'External',
+    city: 'Phagwara',
+    markets: 'LAW GATE',
+  },
+  {
+    id: 'b5c86748-913d-404e-a2ce-10c5e7f87960',
+    name: 'Chandigarh University',
+    type: 'College',
+    city: 'Chandhigarh',
+    markets: 'Test, Test2',
+  },
+];
 
 const DEFAULT_LPU_MARKETS = [
   'BH1 Market',
@@ -34,12 +69,22 @@ const DEFAULT_LPU_MARKETS = [
   'Apartment Market',
 ];
 
+const getMarketsForLocation = (locationObj) => {
+  if (!locationObj) return DEFAULT_LPU_MARKETS;
+  if (locationObj.markets && typeof locationObj.markets === 'string' && locationObj.markets.trim()) {
+    const list = locationObj.markets.split(',').map((m) => m.trim()).filter(Boolean);
+    if (list.length > 0) return list;
+  }
+  return [locationObj.name || 'Campus Market'];
+};
+
 export default function ProfileScreen() {
-  const { user, logout, updateUser } = useContext(AuthContext);
+  const { user, logout, updateUser, stores, activeStore, switchActiveStore, refreshStores } = useContext(AuthContext);
   const { socket } = useContext(SocketContext);
-  const [store, setStore] = useState(null);
+  const isFocused = useIsFocused();
+  const [store, setStore] = useState(activeStore || null);
   const [employees, setEmployees] = useState([]);
-  const [allLocations, setAllLocations] = useState([]);
+  const [allLocations, setAllLocations] = useState(DEFAULT_CAMPUS_LOCATIONS);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -47,8 +92,19 @@ export default function ProfileScreen() {
 
   // Modals
   const [showEditStoreModal, setShowEditStoreModal] = useState(false);
-  const [storeFormData, setStoreFormData] = useState({ name: '', category: '', market: '' });
+  const [storeFormData, setStoreFormData] = useState({ name: '', category: '', market: '', locationId: '' });
   const [savingStore, setSavingStore] = useState(false);
+
+  // Multi-stall Creation Modal State
+  const [showAddStallModal, setShowAddStallModal] = useState(false);
+  const [newStallFormData, setNewStallFormData] = useState({
+    name: '',
+    category: 'Fast Food',
+    locationId: '69e7913ddcad79aeb3f8ce23',
+    market: 'BH1 Market',
+    upiId: ''
+  });
+  const [creatingStall, setCreatingStall] = useState(false);
 
   // Automated Stall Timing State
   const [showEditTimingModal, setShowEditTimingModal] = useState(false);
@@ -74,7 +130,8 @@ export default function ProfileScreen() {
   const [updatingEmployee, setUpdatingEmployee] = useState(false);
 
   const isEmployee = user?.role === 'employee';
-  const storeId = user?.storeId || user?.id;
+  const displayStore = activeStore || store;
+  const storeId = displayStore?.id || displayStore?._id || user?.storeId || user?.id;
 
   // Format 24h HH:mm to 12h AM/PM
   const formatTime12h = (hhmm) => {
@@ -97,16 +154,41 @@ export default function ProfileScreen() {
       if (isPull) setRefreshing(true);
       else setLoading(true);
 
-      // 1. Fetch Store Information
+      // 1. Fetch Locations list for configured markets
+      try {
+        const locRes = await apiClient.get('/store/locations/list');
+        if (locRes.data && Array.isArray(locRes.data) && locRes.data.length > 0) {
+          setAllLocations(locRes.data);
+        }
+      } catch (e) {
+        console.log('Locations list fetch error:', e.message);
+      }
+
+      // 2. Fetch Store Information
       try {
         const storeRes = await apiClient.get('/store/my-stores');
         if (storeRes.data && storeRes.data.length > 0) {
-          const currentStore = storeRes.data[0];
+          const storeList = storeRes.data;
+          const preferredId = await getStorageItem('preferred_store_id');
+          // Prefer preferredId first so switching stalls persists across screens and refreshes
+          let currentStore = null;
+          if (preferredId) {
+            currentStore = storeList.find(s => (s.id || s._id) === preferredId);
+          }
+          if (!currentStore && activeStore) {
+            const curId = activeStore.id || activeStore._id;
+            currentStore = storeList.find(s => (s.id || s._id) === curId);
+          }
+          if (!currentStore) {
+            currentStore = storeList[0];
+          }
+
           setStore(currentStore);
           setStoreFormData({
             name: currentStore.name || '',
             category: currentStore.category || '',
             market: currentStore.market || '',
+            locationId: currentStore.locationId || '',
           });
           setOwnerFormData({
             name: user.name || '',
@@ -117,25 +199,20 @@ export default function ProfileScreen() {
             openingTime: currentStore.openingTime || '10:00',
             closingTime: currentStore.closingTime || '22:00',
           });
+
+          if (currentStore && (!activeStore || (activeStore.id || activeStore._id) !== (currentStore.id || currentStore._id))) {
+            await switchActiveStore(currentStore);
+          }
         }
       } catch (err) {
         console.log('Store fetch error:', err.message);
       }
 
-      // 2. Fetch Locations list for configured markets
-      try {
-        const locRes = await apiClient.get('/store/locations/list');
-        if (locRes.data && Array.isArray(locRes.data)) {
-          setAllLocations(locRes.data);
-        }
-      } catch (e) {
-        console.log('Locations list fetch error:', e.message);
-      }
-
       // 3. Fetch Employees (Only for Cart Owner / Vendor)
-      if (!isEmployee && storeId) {
+      const currentTargetStoreId = activeStore?.id || activeStore?._id || store?.id || store?._id || user?.storeId || user?.id;
+      if (!isEmployee && currentTargetStoreId) {
         try {
-          const empRes = await apiClient.get(`/employees/${storeId}`);
+          const empRes = await apiClient.get(`/employees/${currentTargetStoreId}`);
           setEmployees(empRes.data || []);
         } catch (err) {
           console.log('Employees fetch error:', err.message);
@@ -147,11 +224,38 @@ export default function ProfileScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [user, isEmployee, storeId]);
+  }, [user, isEmployee]);
 
+  // Synchronize state immediately when activeStore switches
   useEffect(() => {
-    fetchProfileData();
-  }, [fetchProfileData]);
+    if (activeStore) {
+      setStore(activeStore);
+      setStoreFormData({
+        name: activeStore.name || '',
+        category: activeStore.category || '',
+        market: activeStore.market || '',
+        locationId: activeStore.locationId || '',
+      });
+      setTimingFormData({
+        isAutomated: Boolean(activeStore.isAutomated),
+        openingTime: activeStore.openingTime || '10:00',
+        closingTime: activeStore.closingTime || '22:00',
+      });
+      if (activeStore.upiId !== undefined) {
+        setOwnerFormData(prev => ({
+          ...prev,
+          upiId: activeStore.upiId || '',
+        }));
+      }
+    }
+  }, [activeStore]);
+
+  // Refetch latest profile data when tab is focused
+  useEffect(() => {
+    if (isFocused) {
+      fetchProfileData();
+    }
+  }, [isFocused, fetchProfileData]);
 
   // Real-time synchronization via WebSockets (Super Admin & Automation sync)
   useEffect(() => {
@@ -215,6 +319,30 @@ export default function ProfileScreen() {
     // 3. Default to LPU market zones
     return DEFAULT_LPU_MARKETS;
   }, [store, allLocations]);
+
+  // Location & Market state for Create Stall Modal
+  const selectedCreateLocationId = newStallFormData.locationId || store?.locationId || activeStore?.locationId || (allLocations.length > 0 ? allLocations[0].id : '');
+  const selectedCreateLocation = allLocations.find(l => l.id === selectedCreateLocationId) || allLocations[0];
+  const modalCreateMarkets = useMemo(() => {
+    if (!selectedCreateLocation) return DEFAULT_LPU_MARKETS;
+    if (selectedCreateLocation.markets && typeof selectedCreateLocation.markets === 'string' && selectedCreateLocation.markets.trim()) {
+      const list = selectedCreateLocation.markets.split(',').map(m => m.trim()).filter(Boolean);
+      if (list.length > 0) return list;
+    }
+    return [selectedCreateLocation.name || 'Campus Market'];
+  }, [selectedCreateLocation]);
+
+  // Location & Market state for Edit Stall Modal
+  const selectedEditLocationId = storeFormData.locationId || store?.locationId || activeStore?.locationId || (allLocations.length > 0 ? allLocations[0].id : '');
+  const selectedEditLocation = allLocations.find(l => l.id === selectedEditLocationId) || allLocations[0];
+  const modalEditMarkets = useMemo(() => {
+    if (!selectedEditLocation) return DEFAULT_LPU_MARKETS;
+    if (selectedEditLocation.markets && typeof selectedEditLocation.markets === 'string' && selectedEditLocation.markets.trim()) {
+      const list = selectedEditLocation.markets.split(',').map(m => m.trim()).filter(Boolean);
+      if (list.length > 0) return list;
+    }
+    return [selectedEditLocation.name || 'Campus Market'];
+  }, [selectedEditLocation]);
 
   // ---------------------------------------------------------
   // 1. Stall Image Upload / Change in Real-Time
@@ -290,12 +418,16 @@ export default function ProfileScreen() {
       return;
     }
 
+    const finalLocationId = storeFormData.locationId || selectedEditLocationId || null;
+    const finalMarket = storeFormData.market.trim() || modalEditMarkets[0] || 'BH1 Market';
+
     setSavingStore(true);
     try {
       const payload = {
         name: storeFormData.name.trim(),
         category: storeFormData.category.trim() || 'General',
-        market: storeFormData.market.trim() || availableMarkets[0] || 'BH1 Market',
+        market: finalMarket,
+        locationId: finalLocationId,
       };
 
       const res = await apiClient.put(`/store/${currentStoreId}/update-details`, payload);
@@ -306,7 +438,9 @@ export default function ProfileScreen() {
           name: res.data.name || storeFormData.name,
           category: res.data.category || storeFormData.category,
           market: res.data.market || storeFormData.market,
+          locationId: res.data.locationId || finalLocationId,
         }));
+        await refreshStores();
         setShowEditStoreModal(false);
         Alert.alert('Updated', 'Stall details updated in real-time!');
       }
@@ -631,7 +765,83 @@ export default function ProfileScreen() {
   };
 
   // ---------------------------------------------------------
-  // 9. Logout
+  // 9. Multi-Stall Management: Create New Stall & Switch Stall
+  // ---------------------------------------------------------
+  const handleCreateStall = async () => {
+    if (!newStallFormData.name.trim()) {
+      Alert.alert('Required', 'Please enter a stall name.');
+      return;
+    }
+    const finalLocationId = newStallFormData.locationId || selectedCreateLocationId || (allLocations.length > 0 ? allLocations[0].id : null);
+    const finalMarket = newStallFormData.market || modalCreateMarkets[0] || 'BH1 Market';
+
+    setCreatingStall(true);
+    try {
+      const res = await apiClient.post('/store/create', {
+        name: newStallFormData.name.trim(),
+        category: newStallFormData.category || 'General',
+        market: finalMarket,
+        locationId: finalLocationId,
+        upiId: newStallFormData.upiId ? newStallFormData.upiId.trim() : ''
+      });
+
+      Alert.alert('Success! 🎉', `Stall "${res.data.name}" has been created and synced with Super Admin.`);
+      setShowAddStallModal(false);
+      setNewStallFormData({ name: '', category: 'Fast Food', market: '', locationId: '', upiId: '' });
+
+      const freshStores = await refreshStores();
+      const newOne = (freshStores || []).find(s => (s.id || s._id) === (res.data.id || res.data._id));
+      if (newOne) {
+        await handleSwitchStall(newOne);
+      } else {
+        await fetchProfileData();
+      }
+    } catch (err) {
+      console.error('Failed to create stall:', err);
+      Alert.alert('Error', err.response?.data?.message || err.message || 'Failed to create stall.');
+    } finally {
+      setCreatingStall(false);
+    }
+  };
+
+  const handleSwitchStall = async (targetStore) => {
+    // 1. Immediately update local Profile state so there's zero UI lag or mismatch
+    setStore(targetStore);
+    setStoreFormData({
+      name: targetStore.name || '',
+      category: targetStore.category || '',
+      market: targetStore.market || '',
+      locationId: targetStore.locationId || '',
+    });
+    setTimingFormData({
+      isAutomated: Boolean(targetStore.isAutomated),
+      openingTime: targetStore.openingTime || '10:00',
+      closingTime: targetStore.closingTime || '22:00',
+    });
+    if (targetStore.upiId !== undefined) {
+      setOwnerFormData(prev => ({
+        ...prev,
+        upiId: targetStore.upiId || '',
+      }));
+    }
+
+    // 2. Persist switch in AuthContext
+    await switchActiveStore(targetStore);
+
+    // 3. Load employees for the switched stall
+    const targetId = targetStore.id || targetStore._id;
+    if (!isEmployee && targetId) {
+      try {
+        const empRes = await apiClient.get(`/employees/${targetId}`);
+        setEmployees(empRes.data || []);
+      } catch (err) {
+        console.log('Employees fetch error:', err.message);
+      }
+    }
+  };
+
+  // ---------------------------------------------------------
+  // 10. Logout
   // ---------------------------------------------------------
   const handleLogout = () => {
     Alert.alert('Logout', 'Are you sure you want to log out of UniVerse Vendor OS?', [
@@ -660,8 +870,8 @@ export default function ProfileScreen() {
         {/* =================================================== */}
         <View style={styles.heroCardContainer}>
           <View style={styles.imageWrapper}>
-            {store?.image ? (
-              <Image source={{ uri: store.image }} style={styles.stallImage} resizeMode="cover" />
+            {displayStore?.image ? (
+              <Image source={{ uri: displayStore.image }} style={styles.stallImage} resizeMode="cover" />
             ) : (
               <LinearGradient
                 colors={['#1E293B', '#0F172A']}
@@ -669,7 +879,7 @@ export default function ProfileScreen() {
               >
                 <Ionicons name="storefront" size={54} color="#94A3B8" />
                 <Text style={styles.placeholderStallText}>
-                  {store?.name || 'Your Food Stall'}
+                  {displayStore?.name || 'Your Food Stall'}
                 </Text>
                 <Text style={styles.placeholderSub}>Tap 'Change Photo' to upload stall banner</Text>
               </LinearGradient>
@@ -686,22 +896,22 @@ export default function ProfileScreen() {
               <View
                 style={[
                   styles.statusPill,
-                  store?.isOpen ? styles.statusPillOpen : styles.statusPillClosed,
+                  displayStore?.isOpen ? styles.statusPillOpen : styles.statusPillClosed,
                 ]}
               >
                 <View
                   style={[
                     styles.statusDot,
-                    store?.isOpen ? styles.statusDotOpen : styles.statusDotClosed,
+                    displayStore?.isOpen ? styles.statusDotOpen : styles.statusDotClosed,
                   ]}
                 />
                 <Text
                   style={[
                     styles.statusPillText,
-                    store?.isOpen ? styles.statusPillTextOpen : styles.statusPillTextClosed,
+                    displayStore?.isOpen ? styles.statusPillTextOpen : styles.statusPillTextClosed,
                   ]}
                 >
-                  {store?.isOpen ? 'OPEN FOR ORDERS' : 'CURRENTLY CLOSED'}
+                  {displayStore?.isOpen ? 'OPEN FOR ORDERS' : 'CURRENTLY CLOSED'}
                 </Text>
               </View>
             </View>
@@ -731,12 +941,12 @@ export default function ProfileScreen() {
             <View style={styles.stallTitleRow}>
               <View style={{ flex: 1, marginRight: 10 }}>
                 <Text style={styles.stallNameText} numberOfLines={1}>
-                  {store?.name || 'UniVerse Kitchen Stall'}
+                  {displayStore?.name || 'UniVerse Kitchen Stall'}
                 </Text>
                 <View style={styles.stallLocationRow}>
                   <Ionicons name="location-sharp" size={13} color="#EF4123" style={{ marginRight: 4 }} />
                   <Text style={styles.stallLocationText} numberOfLines={1}>
-                    {store?.market || 'Select Market'} • {store?.category || 'Fast Food'}
+                    {displayStore?.market || 'Select Market'} • {displayStore?.category || 'Fast Food'}
                   </Text>
                 </View>
               </View>
@@ -758,17 +968,17 @@ export default function ProfileScreen() {
               <View style={styles.quickToggleRow}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 10 }}>
                   <Ionicons
-                    name={store?.isOpen ? 'restaurant' : 'moon'}
+                    name={displayStore?.isOpen ? 'restaurant' : 'moon'}
                     size={16}
-                    color={store?.isOpen ? '#10B981' : '#64748B'}
+                    color={displayStore?.isOpen ? '#10B981' : '#64748B'}
                     style={{ marginRight: 8 }}
                   />
                   <Text style={styles.quickToggleLabel} numberOfLines={1}>
-                    {store?.isOpen ? 'Accepting customer orders' : 'Stall is offline and closed'}
+                    {displayStore?.isOpen ? 'Accepting customer orders' : 'Stall is offline and closed'}
                   </Text>
                 </View>
                 <Switch
-                  value={Boolean(store?.isOpen)}
+                  value={Boolean(displayStore?.isOpen)}
                   onValueChange={handleToggleStoreStatus}
                   disabled={togglingStatus}
                   trackColor={{ false: '#E2E8F0', true: '#10B981' }}
@@ -778,6 +988,78 @@ export default function ProfileScreen() {
             )}
           </View>
         </View>
+
+        {/* =================================================== */}
+        {/* 1.5 MY STALLS & COUNTERS (MULTI-STALL HUB)          */}
+        {/* =================================================== */}
+        {!isEmployee && (
+          <View style={styles.sectionCard}>
+            <View style={styles.sectionHeaderRow}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                <View style={[styles.sectionIconBg, { backgroundColor: 'rgba(239, 65, 35, 0.1)' }]}>
+                  <Ionicons name="storefront" size={17} color="#EF4123" />
+                </View>
+                <View style={{ marginLeft: 8, flex: 1 }}>
+                  <Text style={styles.sectionTitle}>My Stalls & Outlets</Text>
+                  <Text style={styles.sectionSubtitle}>
+                    Manage all your food counters with isolated menus
+                  </Text>
+                </View>
+              </View>
+
+              <TouchableOpacity
+                style={styles.addStallHeaderBtn}
+                onPress={() => setShowAddStallModal(true)}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="add" size={14} color="#FFFFFF" style={{ marginRight: 2 }} />
+                <Text style={styles.addStallHeaderBtnText}>Add Stall</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={{ marginTop: 10 }}>
+              {(stores || []).map((s) => {
+                const sId = String(s.id || s._id || '');
+                const activeStallId = String(displayStore?.id || displayStore?._id || '');
+                const isActive = Boolean(sId && activeStallId && sId === activeStallId);
+                return (
+                  <TouchableOpacity
+                    key={sId}
+                    style={[styles.stallRowCard, isActive && styles.stallRowCardActive]}
+                    onPress={() => handleSwitchStall(s)}
+                    activeOpacity={0.75}
+                  >
+                    <View style={[styles.stallRowIcon, isActive && styles.stallRowIconActive]}>
+                      <Ionicons name="storefront" size={18} color={isActive ? '#EF4123' : '#64748B'} />
+                    </View>
+                    <View style={{ flex: 1, marginLeft: 10 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <Text style={[styles.stallRowName, isActive && styles.stallRowNameActive]} numberOfLines={1}>
+                          {s.name}
+                        </Text>
+                        {isActive && (
+                          <View style={styles.activeBadgePill}>
+                            <Text style={styles.activeBadgePillText}>ACTIVE</Text>
+                          </View>
+                        )}
+                      </View>
+                      <Text style={styles.stallRowSub}>
+                        {s.market || 'Market'} • {s.isOpen !== false ? '🟢 Open' : '⚪ Closed'}
+                      </Text>
+                    </View>
+                    {!isActive ? (
+                      <View style={styles.switchStallBtn}>
+                        <Text style={styles.switchStallBtnText}>Switch</Text>
+                      </View>
+                    ) : (
+                      <Ionicons name="checkmark-circle" size={20} color="#10B981" />
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        )}
 
         {/* =================================================== */}
         {/* 2. AUTOMATED STALL TIMING & SCHEDULE CARD           */}
@@ -1158,6 +1440,150 @@ export default function ProfileScreen() {
       </ScrollView>
 
       {/* =================================================== */}
+      {/* MODAL 0: ADD NEW STALL / COUNTER                    */}
+      {/* =================================================== */}
+      <Modal visible={showAddStallModal} transparent animationType="slide">
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <View>
+                <Text style={styles.modalTitle}>Add New Stall</Text>
+                <Text style={styles.modalSubtitle}>Launch another food counter on your account</Text>
+              </View>
+              <TouchableOpacity onPress={() => setShowAddStallModal(false)}>
+                <Ionicons name="close" size={22} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 420 }}>
+              <Text style={styles.inputLabel}>Stall Name *</Text>
+              <TextInput
+                style={styles.textInput}
+                value={newStallFormData.name}
+                onChangeText={(text) => setNewStallFormData((prev) => ({ ...prev, name: text }))}
+                placeholder="e.g. Fresh Juice Bar, Dosa Hub"
+                placeholderTextColor="#94A3B8"
+              />
+
+              <Text style={styles.inputLabel}>Food Category</Text>
+              <TextInput
+                style={styles.textInput}
+                value={newStallFormData.category}
+                onChangeText={(text) => setNewStallFormData((prev) => ({ ...prev, category: text }))}
+                placeholder="e.g. Fast Food, Beverages, South Indian"
+                placeholderTextColor="#94A3B8"
+              />
+
+              {/* CAMPUS HUB / LOCATION SELECTION (WRAPPED PILLS JUST LIKE MARKETS) */}
+              <Text style={[styles.inputLabel, { marginTop: 10 }]}>Select Campus / Location *</Text>
+              <View style={styles.marketPillsContainer}>
+                {allLocations.map((loc) => {
+                  const isSelected = selectedCreateLocationId === loc.id;
+                  return (
+                    <TouchableOpacity
+                      key={loc.id}
+                      style={[styles.marketSelectPill, isSelected && styles.marketSelectPillActive]}
+                      onPress={() => {
+                        const locMarkets = getMarketsForLocation(loc);
+                        setNewStallFormData((prev) => ({
+                          ...prev,
+                          locationId: loc.id,
+                          market: locMarkets[0] || loc.name,
+                        }));
+                      }}
+                      activeOpacity={0.75}
+                    >
+                      <Ionicons
+                        name={isSelected ? 'checkmark-circle' : 'business-outline'}
+                        size={13}
+                        color={isSelected ? '#FFFFFF' : '#64748B'}
+                        style={{ marginRight: 5 }}
+                      />
+                      <Text
+                        style={[
+                          styles.marketSelectPillText,
+                          isSelected && styles.marketSelectPillTextActive,
+                        ]}
+                      >
+                        {loc.name}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {/* MARKET / CAMPUS ZONE SELECTION (DYNAMIC PILLS FOR SELECTED LOCATION) */}
+              <Text style={[styles.inputLabel, { marginTop: 10 }]}>Select Campus Market / Zone *</Text>
+              <View style={styles.marketPillsContainer}>
+                {modalCreateMarkets.map((marketName) => {
+                  const isSelected = (newStallFormData.market || modalCreateMarkets[0]) === marketName;
+                  return (
+                    <TouchableOpacity
+                      key={marketName}
+                      style={[
+                        styles.marketSelectPill,
+                        isSelected && styles.marketSelectPillActive,
+                      ]}
+                      onPress={() =>
+                        setNewStallFormData((prev) => ({ ...prev, market: marketName }))
+                      }
+                      activeOpacity={0.75}
+                    >
+                      <Ionicons
+                        name={isSelected ? 'checkmark-circle' : 'location-outline'}
+                        size={13}
+                        color={isSelected ? '#FFFFFF' : '#64748B'}
+                        style={{ marginRight: 5 }}
+                      />
+                      <Text
+                        style={[
+                          styles.marketSelectPillText,
+                          isSelected && styles.marketSelectPillTextActive,
+                        ]}
+                      >
+                        {marketName}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {/* UPI ID (FOR PAYMENTS) */}
+              <Text style={[styles.inputLabel, { marginTop: 10 }]}>UPI ID (for payments)</Text>
+              <TextInput
+                style={styles.textInput}
+                value={newStallFormData.upiId}
+                onChangeText={(text) => setNewStallFormData((prev) => ({ ...prev, upiId: text }))}
+                placeholder="e.g. yourname@oksbi"
+                placeholderTextColor="#94A3B8"
+                autoCapitalize="none"
+              />
+            </ScrollView>
+
+            <View style={styles.modalBtnRow}>
+              <TouchableOpacity
+                style={styles.modalCancelBtn}
+                onPress={() => setShowAddStallModal(false)}
+              >
+                <Text style={styles.modalCancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalSaveBtn, { backgroundColor: '#EF4123' }]}
+                onPress={handleCreateStall}
+                disabled={creatingStall}
+              >
+                {creatingStall ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.modalSaveBtnText}>Create Stall</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* =================================================== */}
       {/* MODAL 1: EDIT STALL DETAILS (WITH MARKET SELECTOR)  */}
       {/* =================================================== */}
       <Modal visible={showEditStoreModal} transparent animationType="slide">
@@ -1192,11 +1618,49 @@ export default function ProfileScreen() {
                 placeholderTextColor="#94A3B8"
               />
 
-              {/* MARKET SELECTOR PILLS (NO TYPING!) */}
-              <Text style={styles.inputLabel}>Select Campus Market / Location</Text>
+              {/* CAMPUS HUB / LOCATION SELECTION (WRAPPED PILLS JUST LIKE MARKETS) */}
+              <Text style={[styles.inputLabel, { marginTop: 10 }]}>Select Campus / Location *</Text>
               <View style={styles.marketPillsContainer}>
-                {availableMarkets.map((marketName) => {
-                  const isSelected = storeFormData.market === marketName;
+                {allLocations.map((loc) => {
+                  const isSelected = selectedEditLocationId === loc.id;
+                  return (
+                    <TouchableOpacity
+                      key={loc.id}
+                      style={[styles.marketSelectPill, isSelected && styles.marketSelectPillActive]}
+                      onPress={() => {
+                        const locMarkets = getMarketsForLocation(loc);
+                        setStoreFormData((prev) => ({
+                          ...prev,
+                          locationId: loc.id,
+                          market: locMarkets[0] || loc.name,
+                        }));
+                      }}
+                      activeOpacity={0.75}
+                    >
+                      <Ionicons
+                        name={isSelected ? 'checkmark-circle' : 'business-outline'}
+                        size={13}
+                        color={isSelected ? '#FFFFFF' : '#64748B'}
+                        style={{ marginRight: 5 }}
+                      />
+                      <Text
+                        style={[
+                          styles.marketSelectPillText,
+                          isSelected && styles.marketSelectPillTextActive,
+                        ]}
+                      >
+                        {loc.name}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {/* MARKET / CAMPUS ZONE SELECTION */}
+              <Text style={[styles.inputLabel, { marginTop: 10 }]}>Select Campus Market / Zone *</Text>
+              <View style={styles.marketPillsContainer}>
+                {modalEditMarkets.map((marketName) => {
+                  const isSelected = (storeFormData.market || modalEditMarkets[0]) === marketName;
                   return (
                     <TouchableOpacity
                       key={marketName}
@@ -2154,6 +2618,39 @@ const styles = StyleSheet.create({
     color: '#0F172A',
   },
 
+  /* Campus Hub Location Chips */
+  locationChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    marginRight: 8,
+  },
+  locationChipActive: {
+    backgroundColor: '#EF4123',
+    borderColor: '#EF4123',
+  },
+  locationChipTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  locationChipTitleActive: {
+    color: '#FFFFFF',
+  },
+  locationChipSub: {
+    fontSize: 10,
+    color: '#64748B',
+    marginTop: 1,
+  },
+  locationChipSubActive: {
+    color: 'rgba(255, 255, 255, 0.85)',
+  },
+
   /* Market Selector Pills */
   marketPillsContainer: {
     flexDirection: 'row',
@@ -2371,5 +2868,87 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '800',
     color: '#FFFFFF',
+  },
+
+  /* Multi-Stall Card & Button Styles */
+  addStallHeaderBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EF4123',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  addStallHeaderBtnText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  stallRowCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    marginBottom: 8,
+  },
+  stallRowCardActive: {
+    backgroundColor: '#FFF7ED',
+    borderColor: '#EF4123',
+  },
+  stallRowIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: '#E2E8F0',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stallRowIconActive: {
+    backgroundColor: '#FFEDD5',
+  },
+  stallRowName: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#1E293B',
+  },
+  stallRowNameActive: {
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  activeBadgePill: {
+    backgroundColor: '#10B981',
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    marginLeft: 6,
+  },
+  activeBadgePillText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  stallRowSub: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: '#64748B',
+    marginTop: 2,
+  },
+  switchStallBtn: {
+    backgroundColor: '#F1F5F9',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  switchStallBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#334155',
   },
 });

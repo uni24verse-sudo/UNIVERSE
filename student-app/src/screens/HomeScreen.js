@@ -93,8 +93,31 @@ const HomeScreen = ({ navigation }) => {
       ));
     };
 
+    const handleStoreTiming = ({ storeId, isOpen, openingTime, closingTime, isAutomated }) => {
+      setStores(prev => prev.map(s => 
+        (String(s._id) === String(storeId) || String(s.id) === String(storeId)) 
+          ? { ...s, isOpen: isOpen !== undefined ? isOpen : s.isOpen, openingTime, closingTime, isAutomated } 
+          : s
+      ));
+    };
+
+    const handleStoreHidden = ({ storeId, isHidden }) => {
+      if (isHidden) {
+        setStores(prev => prev.filter(s => String(s._id) !== String(storeId) && String(s.id) !== String(storeId)));
+      } else {
+        fetchStores();
+      }
+    };
+
     socket.on('store_status_update', handleStoreStatus);
-    return () => socket.off('store_status_update', handleStoreStatus);
+    socket.on('store_timing_update', handleStoreTiming);
+    socket.on('store_hidden_update', handleStoreHidden);
+
+    return () => {
+      socket.off('store_status_update', handleStoreStatus);
+      socket.off('store_timing_update', handleStoreTiming);
+      socket.off('store_hidden_update', handleStoreHidden);
+    };
   }, [socket, connected]);
 
   const onRefresh = () => {

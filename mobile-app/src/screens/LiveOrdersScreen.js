@@ -12,7 +12,8 @@ import {
   ScrollView,
   Dimensions,
   Switch,
-  Vibration
+  Vibration,
+  Modal
 } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -31,6 +32,48 @@ const getNotifications = () => {
   } catch (e) {
     return null;
   }
+};
+
+const DEFAULT_CAMPUS_LOCATIONS = [
+  {
+    id: '69e7913ddcad79aeb3f8ce23',
+    name: 'Lovely Professional University',
+    type: 'College',
+    city: 'Phagwara',
+    markets: 'BH1 Market, Block34 Market, LIT Market, Mall Market, BH6 Market, Apartment Market',
+  },
+  {
+    id: '69e7a49ce6811d655c964f1b',
+    name: 'LAW GATE',
+    type: 'External',
+    city: 'Phagwara',
+    markets: 'LAW GATE',
+  },
+  {
+    id: 'b5c86748-913d-404e-a2ce-10c5e7f87960',
+    name: 'Chandigarh University',
+    type: 'College',
+    city: 'Chandhigarh',
+    markets: 'Test, Test2',
+  },
+];
+
+const DEFAULT_LPU_MARKETS = [
+  'BH1 Market',
+  'Block34 Market',
+  'LIT Market',
+  'Mall Market',
+  'BH6 Market',
+  'Apartment Market',
+];
+
+const getMarketsForLocation = (locationObj) => {
+  if (!locationObj) return DEFAULT_LPU_MARKETS;
+  if (locationObj.markets && typeof locationObj.markets === 'string' && locationObj.markets.trim()) {
+    const list = locationObj.markets.split(',').map((m) => m.trim()).filter(Boolean);
+    if (list.length > 0) return list;
+  }
+  return [locationObj.name || 'Campus Market'];
 };
 
 // Real-Time Auto-Cancellation Countdown Timer
@@ -140,8 +183,9 @@ function EmptyQueueState({ type }) {
 }
 
 export default function LiveOrdersScreen({ navigation }) {
-  const { user } = useContext(AuthContext);
+  const { user, stores, activeStore, switchActiveStore, refreshStores } = useContext(AuthContext);
   const { socket, isConnected, socketError } = useContext(SocketContext);
+  const isEmployee = user?.role === 'employee' || user?.role === 'staff';
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -156,11 +200,79 @@ export default function LiveOrdersScreen({ navigation }) {
   const [togglingStatus, setTogglingStatus] = useState(false);
   const [togglingAutoAccept, setTogglingAutoAccept] = useState(false);
   
-  const { isAudioEnabled, toggleAudio, playTestSound, syncPendingOrders, queueAnnouncement, cancelAnnouncement, queuePreOrderReminder } = useAudioAlerts();
+  // Multi-stall interactive switcher & cross-stall notifications
+  const [showStallSwitcherModal, setShowStallSwitcherModal] = useState(false);
+  const [crossStallNotification, setCrossStallNotification] = useState(null);
+  const [otherStallPendingCounts, setOtherStallPendingCounts] = useState({});
+  const [showQuickAddStallModal, setShowQuickAddStallModal] = useState(false);
+  const [allLocations, setAllLocations] = useState(DEFAULT_CAMPUS_LOCATIONS);
+  const [newStallForm, setNewStallForm] = useState({
+    name: '',
+    category: 'Fast Food',
+    market: 'BH1 Market',
+    locationId: '69e7913ddcad79aeb3f8ce23',
+    upiId: '',
+  });
+  const [creatingStall, setCreatingStall] = useState(false);
+
+  // Fetch campus locations on mount
+  useEffect(() => {
+    const fetchLocations = async () => {
+      try {
+        const res = await apiClient.get('/store/locations/list');
+        if (res.data && Array.isArray(res.data) && res.data.length > 0) {
+          setAllLocations(res.data);
+        }
+      } catch (err) {
+        console.log('Failed to fetch locations in LiveOrdersScreen:', err.message);
+      }
+    };
+    fetchLocations();
+  }, []);
+
+  const { 
+    isAudioEnabled, 
+    toggleAudio, 
+    playTestSound, 
+    syncPendingOrders, 
+    queueAnnouncement, 
+    cancelAnnouncement, 
+    queuePreOrderReminder,
+    speakOrderAlert 
+  } = useAudioAlerts();
   const alertedPreOrdersRef = useRef(new Set());
 
-  // Role check: employees must not see financial/revenue summaries for privacy
-  const isEmployee = user?.role === 'employee';
+  // Current active store identification
+  const currentStoreId = activeStore?._id || activeStore?.id || storeData?._id || storeData?.id || user?.storeId || user?.id;
+
+  // Selected Location & Dynamic Markets for Quick Add Modal
+  const selectedLiveLocationId = newStallForm.locationId || storeData?.locationId || activeStore?.locationId || (allLocations.length > 0 ? allLocations[0].id : '69e7913ddcad79aeb3f8ce23');
+  const selectedLiveLocation = allLocations.find(l => l.id === selectedLiveLocationId) || allLocations[0];
+  const liveModalMarkets = useMemo(() => {
+    return getMarketsForLocation(selectedLiveLocation);
+  }, [selectedLiveLocation]);
+
+  // Calculate pending orders across all other stalls
+  const totalOtherPending = useMemo(() => {
+    return Object.entries(otherStallPendingCounts).reduce((sum, [sId, count]) => {
+      if (sId !== currentStoreId) {
+        return sum + (count || 0);
+      }
+      return sum;
+    }, 0);
+  }, [otherStallPendingCounts, currentStoreId]);
+
+  // Sync active store attributes to local state
+  useEffect(() => {
+    if (activeStore) {
+      setStoreData(activeStore);
+      setIsStoreOpen(activeStore.isOpen !== false);
+      setAutoAcceptOrders(Boolean(activeStore.autoAcceptOrders));
+    }
+  }, [activeStore]);
+
+  // Role check: employees must not switch stalls or see financial/revenue summaries for privacy
+  const isEmployee = user?.role === 'employee' || user?.role === 'staff';
 
   const isFocused = useIsFocused();
 
@@ -174,17 +286,78 @@ export default function LiveOrdersScreen({ navigation }) {
     try {
       const res = await apiClient.get('/store/my-stores');
       if (res.data && res.data.length > 0) {
-        setStoreData(res.data[0]);
-        setIsStoreOpen(res.data[0].isOpen !== false);
-        setAutoAcceptOrders(Boolean(res.data[0].autoAcceptOrders));
+        const found = activeStore ? res.data.find(s => (s.id || s._id) === (activeStore.id || activeStore._id)) : null;
+        const current = found || res.data[0];
+        setStoreData(current);
+        setIsStoreOpen(current.isOpen !== false);
+        setAutoAcceptOrders(Boolean(current.autoAcceptOrders));
       }
     } catch (e) {
       console.error('Failed to fetch store status:', e.message);
     }
-  }, []);
+  }, [activeStore]);
+
+  const handleSwitchStore = async (targetStore) => {
+    if (isEmployee) return;
+    setShowStallSwitcherModal(false);
+    setOrders([]);
+    if (typeof targetStore === 'object' && targetStore !== null) {
+      setStoreData(targetStore);
+      setIsStoreOpen(targetStore.isOpen !== false);
+      setAutoAcceptOrders(Boolean(targetStore.autoAcceptOrders));
+    }
+    await switchActiveStore(targetStore);
+    const targetId = typeof targetStore === 'string' ? targetStore : (targetStore.id || targetStore._id);
+    setOtherStallPendingCounts(prev => ({
+      ...prev,
+      [targetId]: 0
+    }));
+    if (crossStallNotification?.storeId === targetId) {
+      setCrossStallNotification(null);
+    }
+  };
+
+  const handleCreateNewStall = async () => {
+    if (isEmployee) {
+      Alert.alert('Permission Denied', 'Only the Cart Owner can create new stalls.');
+      return;
+    }
+    if (!newStallForm.name.trim()) {
+      Alert.alert('Required', 'Please enter a name for the new stall.');
+      return;
+    }
+    const finalLocationId = newStallForm.locationId || selectedLiveLocationId || (allLocations.length > 0 ? allLocations[0].id : null);
+    const finalMarket = newStallForm.market || liveModalMarkets[0] || 'BH1 Market';
+
+    setCreatingStall(true);
+    try {
+      const res = await apiClient.post('/store/create', {
+        name: newStallForm.name.trim(),
+        category: newStallForm.category || 'General',
+        market: finalMarket,
+        locationId: finalLocationId,
+        upiId: newStallForm.upiId ? newStallForm.upiId.trim() : ''
+      });
+      
+      Alert.alert('Stall Created! 🎉', `"${res.data.name}" is now live and linked to ${selectedLiveLocation?.name || 'campus'}.`);
+      setShowQuickAddStallModal(false);
+      setNewStallForm({ name: '', category: 'Fast Food', market: '', locationId: '', upiId: '' });
+      
+      const updatedStores = await refreshStores();
+      const created = (updatedStores || []).find(s => (s.id || s._id) === (res.data.id || res.data._id));
+      if (created) {
+        await handleSwitchStore(created);
+      }
+    } catch (err) {
+      console.error('Failed to create stall:', err);
+      Alert.alert('Creation Failed', err.response?.data?.message || err.message || 'Could not create stall.');
+    } finally {
+      setCreatingStall(false);
+    }
+  };
 
   const handleToggleStoreStatus = async (forceCancel = false) => {
-    const storeId = storeData?._id || storeData?.id || user?.storeId || user?.id;
+    const storeId = currentStoreId;
     if (!storeId || togglingStatus) return;
 
     // Instant optimistic UI update so switch slides over immediately
@@ -224,6 +397,7 @@ export default function LiveOrdersScreen({ navigation }) {
       if (res.data?.isOpen !== undefined) {
         setIsStoreOpen(res.data.isOpen);
       }
+      refreshStores();
     } catch (error) {
       console.error('Failed to toggle stall status:', error);
       setIsStoreOpen(previousState);
@@ -234,7 +408,7 @@ export default function LiveOrdersScreen({ navigation }) {
   };
 
   const handleToggleAutoAccept = async () => {
-    const storeId = storeData?._id || storeData?.id || user?.storeId || user?.id;
+    const storeId = currentStoreId;
     if (!storeId || togglingAutoAccept) return;
 
     // Instant optimistic UI update
@@ -248,6 +422,7 @@ export default function LiveOrdersScreen({ navigation }) {
       if (res.data?.autoAcceptOrders !== undefined) {
         setAutoAcceptOrders(Boolean(res.data.autoAcceptOrders));
       }
+      refreshStores();
     } catch (error) {
       console.error('Failed to toggle auto-accept:', error);
       setAutoAcceptOrders(previousState);
@@ -314,14 +489,14 @@ export default function LiveOrdersScreen({ navigation }) {
   }, [orders]);
 
   const fetchOrders = useCallback(async (isPullRefresh = false) => {
+    if (!currentStoreId) return;
     try {
       if (isPullRefresh) {
         setRefreshing(true);
       } else {
         setLoading(true);
       }
-      const storeId = user?.storeId || user?.id;
-      const response = await apiClient.get(`/orders/${storeId}/vendor-orders`);
+      const response = await apiClient.get(`/orders/${currentStoreId}/vendor-orders`);
       setOrders(response.data || []);
     } catch (error) {
       console.error('Failed to fetch orders:', error);
@@ -329,56 +504,95 @@ export default function LiveOrdersScreen({ navigation }) {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [user]);
+  }, [currentStoreId]);
 
+  // Refetch when focused or active stall changes
   useEffect(() => {
-    if (isFocused) {
+    if (isFocused && currentStoreId) {
       fetchOrders();
       fetchStoreStatus();
     }
-  }, [isFocused, fetchOrders, fetchStoreStatus]);
+  }, [isFocused, currentStoreId, fetchOrders, fetchStoreStatus]);
 
   useEffect(() => {
-    if (isConnected) {
+    if (isConnected && currentStoreId) {
       fetchOrders();
       fetchStoreStatus();
     }
-  }, [isConnected, fetchOrders, fetchStoreStatus]);
+  }, [isConnected, currentStoreId, fetchOrders, fetchStoreStatus]);
 
-  // Socket listeners for real-time order lifecycle
+  // Socket listeners for real-time order lifecycle with multi-stall cross-alerting
   useEffect(() => {
     if (!socket) return;
 
     const handleNewOrder = (newOrder) => {
-      setOrders((prev) => {
-        if (prev.some((o) => o._id === newOrder._id)) return prev;
-        queueAnnouncement(newOrder); 
-        return [newOrder, ...prev];
-      });
+      const isForActiveStall = (newOrder.storeId === currentStoreId);
+
+      if (isForActiveStall) {
+        setOrders((prev) => {
+          if (prev.some((o) => o._id === newOrder._id || o.id === newOrder.id)) return prev;
+          return [newOrder, ...prev];
+        });
+        speakOrderAlert(activeStore?.name || 'your stall', newOrder.orderNumber);
+      } else if (!isEmployee) {
+        // Multi-stall cross alert: ONLY for Cart Owner!
+        const targetStore = (stores || []).find(s => (s.id || s._id) === newOrder.storeId);
+        const storeName = targetStore?.name || 'Another Stall';
+
+        speakOrderAlert(storeName, newOrder.orderNumber);
+
+        setOtherStallPendingCounts(prev => ({
+          ...prev,
+          [newOrder.storeId]: (prev[newOrder.storeId] || 0) + 1
+        }));
+
+        setCrossStallNotification({
+          storeId: newOrder.storeId,
+          storeName,
+          orderNumber: newOrder.orderNumber,
+          timestamp: Date.now()
+        });
+      }
     };
 
     const handleStatusUpdate = (updatedOrder) => {
-      cancelAnnouncement(updatedOrder._id); 
-      setOrders((prev) => prev.map((o) => (o._id === updatedOrder._id ? updatedOrder : o)));
+      if (updatedOrder.storeId === currentStoreId) {
+        cancelAnnouncement(updatedOrder._id); 
+        setOrders((prev) => prev.map((o) => (o._id === updatedOrder._id ? updatedOrder : o)));
+      } else if (!isEmployee) {
+        if (['Completed', 'Cancelled', 'Confirmed', 'Cooking'].includes(updatedOrder.status)) {
+          setOtherStallPendingCounts(prev => ({
+            ...prev,
+            [updatedOrder.storeId]: Math.max(0, (prev[updatedOrder.storeId] || 0) - 1)
+          }));
+        }
+      }
     };
 
     const handleCancelled = (cancelledOrder) => {
-      cancelAnnouncement(cancelledOrder._id); 
-      setOrders((prev) => prev.map((o) => (o._id === cancelledOrder._id ? cancelledOrder : o)));
+      if (cancelledOrder.storeId === currentStoreId) {
+        cancelAnnouncement(cancelledOrder._id); 
+        setOrders((prev) => prev.map((o) => (o._id === cancelledOrder._id ? cancelledOrder : o)));
+      } else if (!isEmployee) {
+        setOtherStallPendingCounts(prev => ({
+          ...prev,
+          [cancelledOrder.storeId]: Math.max(0, (prev[cancelledOrder.storeId] || 0) - 1)
+        }));
+      }
     };
 
     const handleStoreStatus = ({ storeId, isOpen }) => {
-      const currentStoreId = storeData?._id || storeData?.id || user?.storeId || user?.id;
-      if (!currentStoreId || storeId === currentStoreId) {
+      if (storeId === currentStoreId) {
         setIsStoreOpen(isOpen);
       }
+      refreshStores();
     };
 
     const handleAutoAcceptUpdate = ({ storeId, autoAcceptOrders: newStatus }) => {
-      const currentStoreId = storeData?._id || storeData?.id || user?.storeId || user?.id;
-      if (!currentStoreId || storeId === currentStoreId) {
+      if (storeId === currentStoreId) {
         setAutoAcceptOrders(Boolean(newStatus));
       }
+      refreshStores();
     };
 
     socket.on('new_order', handleNewOrder);
@@ -394,7 +608,7 @@ export default function LiveOrdersScreen({ navigation }) {
       socket.off('store_status_update', handleStoreStatus);
       socket.off('store_auto_accept_update', handleAutoAcceptUpdate);
     };
-  }, [socket, queueAnnouncement, cancelAnnouncement, user, storeData]);
+  }, [socket, cancelAnnouncement, currentStoreId, activeStore, stores, speakOrderAlert, refreshStores]);
 
   const updateStatus = async (orderId, currentStatus, newStatus, force = false) => {
     try {
@@ -921,14 +1135,30 @@ export default function LiveOrdersScreen({ navigation }) {
     <SafeAreaView style={styles.container}>
       {/* Executive Kitchen Command Header */}
       <View style={styles.header}>
-        {/* Tier 1: Stall Identity on Left, Audio & Stall Switch on Right */}
+        {/* Tier 1: Stall Identity Switcher Pill on Left, Audio & Stall Switch on Right */}
         <View style={styles.headerTier1}>
-          <View style={styles.stallChip}>
-            <Ionicons name="storefront" size={13} color="#EF4123" style={{ marginRight: 6 }} />
+          <TouchableOpacity 
+            style={[styles.stallChip, !isEmployee && totalOtherPending > 0 && styles.stallChipWithAlert]}
+            onPress={() => {
+              if (isEmployee) return;
+              setShowStallSwitcherModal(true);
+            }}
+            disabled={isEmployee}
+            activeOpacity={isEmployee ? 1 : 0.7}
+          >
+            <Ionicons name="storefront" size={13} color="#EF4123" style={{ marginRight: 5 }} />
             <Text style={styles.stallChipText} numberOfLines={1}>
-              {storeData?.name || 'UniVerse Stall'}
+              {activeStore?.name || storeData?.name || 'UniVerse Stall'}
             </Text>
-          </View>
+            {!isEmployee && (
+              <Ionicons name="chevron-down" size={12} color="#64748B" style={{ marginLeft: 3 }} />
+            )}
+            {!isEmployee && totalOtherPending > 0 && (
+              <View style={styles.headerAlertBadge}>
+                <Text style={styles.headerAlertBadgeText}>{totalOtherPending}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
 
           <View style={styles.headerControls}>
             {/* Audio Alert Speaker Toggle */}
@@ -969,6 +1199,31 @@ export default function LiveOrdersScreen({ navigation }) {
             </View>
           </View>
         </View>
+
+        {/* Real-time Cross-Stall Incoming Order Banner (Owner Only) */}
+        {!isEmployee && crossStallNotification && (
+          <TouchableOpacity 
+            style={styles.crossStallBanner}
+            onPress={() => handleSwitchStore(crossStallNotification.storeId)}
+            activeOpacity={0.85}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 8 }}>
+              <View style={styles.crossStallIconCircle}>
+                <Ionicons name="notifications" size={13} color="#EA580C" />
+              </View>
+              <View style={{ marginLeft: 8, flex: 1 }}>
+                <Text style={styles.crossStallTitle} numberOfLines={1}>
+                  New Order #{crossStallNotification.orderNumber || ''} for {crossStallNotification.storeName}!
+                </Text>
+                <Text style={styles.crossStallSub}>Tap to switch stall in 1-tap</Text>
+              </View>
+            </View>
+            <View style={styles.crossStallSwitchBtn}>
+              <Text style={styles.crossStallSwitchBtnText}>Switch</Text>
+              <Ionicons name="arrow-forward" size={11} color="#FFFFFF" style={{ marginLeft: 3 }} />
+            </View>
+          </TouchableOpacity>
+        )}
 
         {/* Tier 2: Title + Live Sync Pill + Compact Auto-Accept Toggle */}
         <View style={styles.headerTier2}>
@@ -1215,6 +1470,249 @@ export default function LiveOrdersScreen({ navigation }) {
           </LinearGradient>
         </TouchableOpacity>
       )}
+      {/* Stall Switcher Bottom Sheet / Modal */}
+      <Modal
+        visible={!isEmployee && showStallSwitcherModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowStallSwitcherModal(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.switcherModalContent}>
+            <View style={styles.modalHeaderRow}>
+              <View>
+                <Text style={styles.modalTitle}>Switch Stall</Text>
+                <Text style={styles.modalSub}>Select a stall to manage orders & menu</Text>
+              </View>
+              <TouchableOpacity 
+                style={styles.modalCloseBtn}
+                onPress={() => setShowStallSwitcherModal(false)}
+              >
+                <Ionicons name="close" size={20} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={{ maxHeight: 320 }} showsVerticalScrollIndicator={false}>
+              {(stores || []).map((store) => {
+                const sId = store.id || store._id;
+                const isActive = (sId === currentStoreId);
+                const pendingCount = otherStallPendingCounts[sId] || 0;
+
+                return (
+                  <TouchableOpacity
+                    key={sId}
+                    style={[styles.stallOptionItem, isActive && styles.stallOptionItemActive]}
+                    onPress={() => handleSwitchStore(store)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={[styles.stallOptionIconBox, isActive && styles.stallOptionIconBoxActive]}>
+                      <Ionicons name="storefront" size={20} color={isActive ? '#EF4123' : '#64748B'} />
+                    </View>
+                    <View style={{ flex: 1, marginLeft: 12 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <Text style={[styles.stallOptionName, isActive && styles.stallOptionNameActive]} numberOfLines={1}>
+                          {store.name}
+                        </Text>
+                        {isActive && (
+                          <View style={styles.activePill}>
+                            <Text style={styles.activePillText}>ACTIVE</Text>
+                          </View>
+                        )}
+                      </View>
+                      <Text style={styles.stallOptionMeta}>
+                        {store.market || 'Market'} • {store.isOpen !== false ? '🟢 Open' : '⚪ Closed'}
+                      </Text>
+                    </View>
+
+                    {pendingCount > 0 && (
+                      <View style={styles.stallOptionPendingBadge}>
+                        <Text style={styles.stallOptionPendingText}>{pendingCount} pending</Text>
+                      </View>
+                    )}
+
+                    {isActive && (
+                      <Ionicons name="checkmark-circle" size={22} color="#EF4123" style={{ marginLeft: 8 }} />
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+
+            {!isEmployee && (
+              <TouchableOpacity
+                style={styles.modalAddStallBtn}
+                onPress={() => {
+                  setShowStallSwitcherModal(false);
+                  setShowQuickAddStallModal(true);
+                }}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="add-circle-outline" size={18} color="#EF4123" style={{ marginRight: 6 }} />
+                <Text style={styles.modalAddStallText}>+ Add New Stall</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* Quick Add Stall Modal */}
+      <Modal
+        visible={!isEmployee && showQuickAddStallModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowQuickAddStallModal(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.switcherModalContent}>
+            <View style={styles.modalHeaderRow}>
+              <View>
+                <Text style={styles.modalTitle}>Add New Stall</Text>
+                <Text style={styles.modalSub}>Instantly launch another food counter</Text>
+              </View>
+              <TouchableOpacity 
+                style={styles.modalCloseBtn}
+                onPress={() => setShowQuickAddStallModal(false)}
+              >
+                <Ionicons name="close" size={20} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Stall Name *</Text>
+              <TextInput
+                style={styles.textInput}
+                placeholder="e.g. Fresh Juice Bar, Dosa Corner"
+                placeholderTextColor="#94A3B8"
+                value={newStallForm.name}
+                onChangeText={(val) => setNewStallForm(p => ({ ...p, name: val }))}
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Food Category</Text>
+              <TextInput
+                style={styles.textInput}
+                placeholder="e.g. Fast Food, Beverages, South Indian"
+                placeholderTextColor="#94A3B8"
+                value={newStallForm.category}
+                onChangeText={(val) => setNewStallForm(p => ({ ...p, category: val }))}
+              />
+            </View>
+
+            {/* Select Campus / Location * (Wrapped pills just like markets) */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Select Campus / Location *</Text>
+              <View style={styles.marketPillsContainer}>
+                {allLocations.map((loc) => {
+                  const isSelected = selectedLiveLocationId === loc.id;
+                  return (
+                    <TouchableOpacity
+                      key={loc.id}
+                      style={[styles.marketSelectPill, isSelected && styles.marketSelectPillActive]}
+                      onPress={() => {
+                        const locMarkets = getMarketsForLocation(loc);
+                        setNewStallForm((prev) => ({
+                          ...prev,
+                          locationId: loc.id,
+                          market: locMarkets[0] || loc.name,
+                        }));
+                      }}
+                      activeOpacity={0.75}
+                    >
+                      <Ionicons
+                        name={isSelected ? 'checkmark-circle' : 'business-outline'}
+                        size={13}
+                        color={isSelected ? '#FFFFFF' : '#64748B'}
+                        style={{ marginRight: 5 }}
+                      />
+                      <Text
+                        style={[
+                          styles.marketSelectPillText,
+                          isSelected && styles.marketSelectPillTextActive,
+                        ]}
+                      >
+                        {loc.name}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+
+            {/* Select Campus Market / Zone * (Dynamic wrapped pills for selected location) */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Select Campus Market / Zone *</Text>
+              <View style={styles.marketPillsContainer}>
+                {liveModalMarkets.map((marketName) => {
+                  const isSelected = (newStallForm.market || liveModalMarkets[0]) === marketName;
+                  return (
+                    <TouchableOpacity
+                      key={marketName}
+                      style={[
+                        styles.marketSelectPill,
+                        isSelected && styles.marketSelectPillActive,
+                      ]}
+                      onPress={() =>
+                        setNewStallForm((prev) => ({ ...prev, market: marketName }))
+                      }
+                      activeOpacity={0.75}
+                    >
+                      <Ionicons
+                        name={isSelected ? 'checkmark-circle' : 'location-outline'}
+                        size={13}
+                        color={isSelected ? '#FFFFFF' : '#64748B'}
+                        style={{ marginRight: 5 }}
+                      />
+                      <Text
+                        style={[
+                          styles.marketSelectPillText,
+                          isSelected && styles.marketSelectPillTextActive,
+                        ]}
+                      >
+                        {marketName}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+
+            {/* UPI ID (for payments) */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>UPI ID (for payments)</Text>
+              <TextInput
+                style={styles.textInput}
+                placeholder="e.g. yourname@oksbi"
+                placeholderTextColor="#94A3B8"
+                autoCapitalize="none"
+                value={newStallForm.upiId}
+                onChangeText={(val) => setNewStallForm(p => ({ ...p, upiId: val }))}
+              />
+            </View>
+
+            <View style={styles.modalBtnRow}>
+              <TouchableOpacity
+                style={styles.modalCancelBtn}
+                onPress={() => setShowQuickAddStallModal(false)}
+              >
+                <Text style={styles.modalCancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalSaveBtn, { backgroundColor: '#EF4123' }]}
+                onPress={handleCreateNewStall}
+                disabled={creatingStall}
+                activeOpacity={0.8}
+              >
+                {creatingStall ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.modalSaveBtnText}>Create Stall</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -1814,4 +2312,342 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
+  /* Multi-Stall Switcher & Cross-Stall Alert Styles */
+  stallChipWithAlert: {
+    borderColor: '#FDBA74',
+    backgroundColor: '#FFF7ED',
+  },
+  headerAlertBadge: {
+    backgroundColor: '#EF4444',
+    borderRadius: 10,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    marginLeft: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerAlertBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  crossStallBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFF7ED',
+    borderWidth: 1.5,
+    borderColor: '#FDBA74',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    marginBottom: 8,
+    shadowColor: '#EA580C',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  crossStallIconCircle: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: '#FED7AA',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  crossStallTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#9A3412',
+    letterSpacing: -0.2,
+  },
+  crossStallSub: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: '#C2410C',
+    marginTop: 1,
+  },
+  crossStallSwitchBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EF4123',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  crossStallSwitchBtnText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+
+  /* Switcher & Create Stall Modal Styles */
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.65)',
+    justifyContent: 'flex-end',
+  },
+  switcherModalContent: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 36,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    elevation: 20,
+  },
+  modalHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#0F172A',
+    letterSpacing: -0.3,
+  },
+  modalSub: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#64748B',
+    marginTop: 2,
+  },
+  modalCloseBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stallOptionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 14,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    marginBottom: 10,
+  },
+  stallOptionItemActive: {
+    backgroundColor: '#FFF7ED',
+    borderColor: '#EF4123',
+  },
+  stallOptionIconBox: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: '#E2E8F0',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stallOptionIconBoxActive: {
+    backgroundColor: '#FFEDD5',
+  },
+  stallOptionName: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#1E293B',
+  },
+  stallOptionNameActive: {
+    color: '#0F172A',
+    fontWeight: '800',
+  },
+  activePill: {
+    backgroundColor: '#10B981',
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    marginLeft: 6,
+  },
+  activePillText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  stallOptionMeta: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#64748B',
+    marginTop: 2,
+  },
+  stallOptionPendingBadge: {
+    backgroundColor: '#FEF3C7',
+    borderWidth: 1,
+    borderColor: '#FCD34D',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    marginLeft: 6,
+  },
+  stallOptionPendingText: {
+    color: '#B45309',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  modalAddStallBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFF7ED',
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderColor: '#FDBA74',
+    borderRadius: 14,
+    paddingVertical: 13,
+    marginTop: 8,
+  },
+  modalAddStallText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#EF4123',
+  },
+  inputGroup: {
+    marginBottom: 12,
+  },
+  inputLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#334155',
+    marginBottom: 5,
+  },
+  textInput: {
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: '#0F172A',
+    fontWeight: '500',
+  },
+  createSubmitBtn: {
+    backgroundColor: '#EF4123',
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 10,
+    shadowColor: '#EF4123',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  createSubmitBtnText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '800',
+    letterSpacing: 0.2,
+  },
+
+  /* Campus Hub Location Chips */
+  locationChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    marginRight: 8,
+  },
+  locationChipActive: {
+    backgroundColor: '#EF4123',
+    borderColor: '#EF4123',
+  },
+  locationChipTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  locationChipTitleActive: {
+    color: '#FFFFFF',
+  },
+  locationChipSub: {
+    fontSize: 10,
+    color: '#64748B',
+    marginTop: 1,
+  },
+  locationChipSubActive: {
+    color: 'rgba(255, 255, 255, 0.85)',
+  },
+
+  /* Market Selector Pills */
+  marketPillsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 4,
+    marginBottom: 4,
+  },
+  marketSelectPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    backgroundColor: '#F1F5F9',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+  },
+  marketSelectPillActive: {
+    backgroundColor: '#0F172A',
+    borderColor: '#0F172A',
+  },
+  marketSelectPillText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#475569',
+  },
+  marketSelectPillTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+  },
+  modalBtnRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 18,
+  },
+  modalCancelBtn: {
+    flex: 1,
+    backgroundColor: '#F1F5F9',
+    paddingVertical: 12,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalCancelBtnText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#64748B',
+  },
+  modalSaveBtn: {
+    flex: 1,
+    backgroundColor: '#0F172A',
+    paddingVertical: 12,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalSaveBtnText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
 });

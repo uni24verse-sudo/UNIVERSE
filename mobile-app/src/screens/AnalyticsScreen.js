@@ -11,9 +11,11 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useIsFocused } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { AuthContext } from '../context/AuthContext';
+import { SocketContext } from '../context/SocketContext';
 import apiClient from '../api/client';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -34,7 +36,9 @@ const SETTLEMENT_FILTERS = [
 ];
 
 export default function AnalyticsScreen() {
-  const { user } = useContext(AuthContext);
+  const { user, stores, activeStore, switchActiveStore } = useContext(AuthContext);
+  const { socket, isConnected } = useContext(SocketContext);
+  const isFocused = useIsFocused();
   const [mainTab, setMainTab] = useState('insights'); // 'insights' | 'settlements'
   const [orders, setOrders] = useState([]);
   const [financeData, setFinanceData] = useState(null);
@@ -45,46 +49,37 @@ export default function AnalyticsScreen() {
   const [settlementFilter, setSettlementFilter] = useState('all');
   const [showPrevBreakup, setShowPrevBreakup] = useState(false);
   const [expandedSettlementIds, setExpandedSettlementIds] = useState({});
-  const [storeName, setStoreName] = useState('');
+  const [storeName, setStoreName] = useState(activeStore?.name || '');
   const [chartMetric, setChartMetric] = useState('revenue'); // 'revenue' | 'orders'
 
   const isEmployee = user?.role === 'employee';
-  const storeId = user?.storeId || user?.id;
+  const currentStoreId = activeStore?._id || activeStore?.id || user?.storeId || user?.id;
 
   // ---------------------------------------------------------
-  // Fetch Analytics & Finance Data
+  // Fetch Analytics & Finance Data (Scoped to active stall)
   // ---------------------------------------------------------
   const fetchAllData = useCallback(async (isPull = false) => {
-    if (!user) return;
+    if (!user || !currentStoreId) return;
     try {
       if (isPull) setRefreshing(true);
       else setLoading(true);
 
-      // 1. Fetch store name
-      try {
-        const storeRes = await apiClient.get('/store/my-stores');
-        if (storeRes.data && storeRes.data.length > 0) {
-          setStoreName(storeRes.data[0].name || '');
-        }
-      } catch (e) {
-        console.log('Store fetch error:', e.message);
-      }
+      // 1. Set store name
+      setStoreName(activeStore?.name || '');
 
       // 2. Fetch vendor orders for performance & insights
-      if (storeId) {
-        try {
-          const res = await apiClient.get(`/orders/${storeId}/vendor-orders`);
-          setOrders(res.data || []);
-        } catch (e) {
-          console.log('Orders fetch error:', e.message);
-        }
+      try {
+        const res = await apiClient.get(`/orders/${currentStoreId}/vendor-orders`);
+        setOrders(res.data || []);
+      } catch (e) {
+        console.log('Orders fetch error:', e.message);
       }
 
       // 3. Fetch finance / settlements data (vendor only)
-      if (!isEmployee && storeId) {
+      if (!isEmployee) {
         try {
           setLoadingFinance(true);
-          const finRes = await apiClient.get(`/finance/my-settlements/${storeId}`);
+          const finRes = await apiClient.get(`/finance/my-settlements/${currentStoreId}`);
           setFinanceData(finRes.data);
         } catch (e) {
           console.log('Finance fetch error:', e.message);
@@ -98,11 +93,80 @@ export default function AnalyticsScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [user, isEmployee, storeId]);
+  }, [user, currentStoreId, activeStore, isEmployee]);
 
   useEffect(() => {
     fetchAllData();
   }, [fetchAllData]);
+
+  // Refetch latest analytics whenever tab is focused
+  useEffect(() => {
+    if (isFocused && currentStoreId) {
+      fetchAllData();
+    }
+  }, [isFocused, currentStoreId, fetchAllData]);
+
+  // Real-time socket listeners for instant order & revenue analytics updates
+  useEffect(() => {
+    if (!socket || !currentStoreId) return;
+
+    const handleNewOrder = (newOrder) => {
+      if (String(newOrder.storeId) === String(currentStoreId)) {
+        setOrders((prev) => {
+          if (prev.some((o) => (o._id || o.id) === (newOrder._id || newOrder.id))) return prev;
+          return [newOrder, ...prev];
+        });
+        if (!isEmployee) {
+          apiClient
+            .get(`/finance/my-settlements/${currentStoreId}`)
+            .then((res) => setFinanceData(res.data))
+            .catch(() => {});
+        }
+      }
+    };
+
+    const handleStatusUpdate = (updatedOrder) => {
+      if (String(updatedOrder.storeId) === String(currentStoreId)) {
+        setOrders((prev) =>
+          prev.map((o) =>
+            (o._id || o.id) === (updatedOrder._id || updatedOrder.id) ? { ...o, ...updatedOrder } : o
+          )
+        );
+        if (!isEmployee && ['Completed', 'Delivered', 'Cancelled'].includes(updatedOrder.status)) {
+          apiClient
+            .get(`/finance/my-settlements/${currentStoreId}`)
+            .then((res) => setFinanceData(res.data))
+            .catch(() => {});
+        }
+      }
+    };
+
+    const handleCancelled = (cancelledOrder) => {
+      if (String(cancelledOrder.storeId) === String(currentStoreId)) {
+        setOrders((prev) =>
+          prev.map((o) =>
+            (o._id || o.id) === (cancelledOrder._id || cancelledOrder.id) ? { ...o, ...cancelledOrder } : o
+          )
+        );
+        if (!isEmployee) {
+          apiClient
+            .get(`/finance/my-settlements/${currentStoreId}`)
+            .then((res) => setFinanceData(res.data))
+            .catch(() => {});
+        }
+      }
+    };
+
+    socket.on('new_order', handleNewOrder);
+    socket.on('order_status_update', handleStatusUpdate);
+    socket.on('order_cancelled', handleCancelled);
+
+    return () => {
+      socket.off('new_order', handleNewOrder);
+      socket.off('order_status_update', handleStatusUpdate);
+      socket.off('order_cancelled', handleCancelled);
+    };
+  }, [socket, currentStoreId, isEmployee]);
 
   // Toggle individual settlement card breakup
   const toggleSettlementBreakup = (id) => {
@@ -272,13 +336,17 @@ export default function AnalyticsScreen() {
       {/* =================================================== */}
       <View style={styles.header}>
         <View style={styles.headerTop}>
-          <View>
-            <Text style={styles.headerTitle}>Analytics & Payouts</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text style={styles.headerTitle}>Analytics & Payouts</Text>
+              <View style={styles.liveSyncBadge}>
+                <View style={styles.liveSyncDot} />
+                <Text style={styles.liveSyncText}>LIVE</Text>
+              </View>
+            </View>
             <View style={styles.storeRow}>
               <Ionicons name="storefront" size={13} color="#EF4123" style={{ marginRight: 5 }} />
               <Text style={styles.storeName}>{storeName || 'UniVerse Kitchen'}</Text>
             </View>
-          </View>
 
           <View style={[styles.roleBadge, isEmployee ? styles.employeeBadge : styles.ownerBadge]}>
             <Ionicons
@@ -1891,5 +1959,29 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#E2E8F0',
+  },
+  liveSyncBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ECFDF5',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+    marginLeft: 8,
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+  },
+  liveSyncDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#10B981',
+    marginRight: 4,
+  },
+  liveSyncText: {
+    fontSize: 9.5,
+    fontWeight: '800',
+    color: '#065F46',
+    letterSpacing: 0.5,
   },
 });
