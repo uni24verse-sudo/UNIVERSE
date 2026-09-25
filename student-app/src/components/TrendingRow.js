@@ -42,7 +42,7 @@ const TrendingRow = ({ navigation }) => {
   const getImageUrl = (img) => {
     if (!img) return 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=500&q=80';
     if (img.startsWith('http://') || img.startsWith('https://') || img.startsWith('data:')) return img;
-    const base = apiClient.defaults.baseURL?.replace('/api', '') || 'http://localhost:5000';
+    const base = apiClient.defaults.baseURL?.replace('/api', '') || 'https://food.universeorder.co.in';
     return `${base}${img.startsWith('/') ? '' : '/'}${img}`;
   };
 

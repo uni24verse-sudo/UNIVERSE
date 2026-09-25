@@ -23,8 +23,7 @@
       "permissions": [
         "VIBRATE",
         "WAKE_LOCK",
-        "POST_NOTIFICATIONS",
-        "RECORD_AUDIO"
+        "POST_NOTIFICATIONS"
       ],
       "adaptiveIcon": {
         "backgroundColor": "#FFFFFF",

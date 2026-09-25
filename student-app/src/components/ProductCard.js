@@ -12,7 +12,7 @@ const getDishImageUrl = (img) => {
   if (!img) return null;
   if (img.startsWith('http://') || img.startsWith('https://') || img.startsWith('data:')) return img;
   const cleanPath = img.startsWith('/') ? img : `/${img}`;
-  const baseUrl = apiClient.defaults.baseURL?.replace('/api', '') || 'http://localhost:5000';
+  const baseUrl = apiClient.defaults.baseURL?.replace('/api', '') || 'https://food.universeorder.co.in';
   return `${baseUrl}${cleanPath}`;
 };
 
