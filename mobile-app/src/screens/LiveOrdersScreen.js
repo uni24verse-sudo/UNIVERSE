@@ -271,9 +271,6 @@ export default function LiveOrdersScreen({ navigation }) {
     }
   }, [activeStore]);
 
-  // Role check: employees must not switch stalls or see financial/revenue summaries for privacy
-  const isEmployee = user?.role === 'employee' || user?.role === 'staff';
-
   const isFocused = useIsFocused();
 
   // Continuously monitor pending orders and repeat single bell ding every 10s until accepted or rejected
