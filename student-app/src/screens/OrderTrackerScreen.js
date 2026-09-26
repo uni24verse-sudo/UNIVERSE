@@ -344,15 +344,6 @@ const OrderTrackerScreen = ({ route, navigation }) => {
 
         <View style={styles.headerRightGroup}>
           <TouchableOpacity
-            onPress={handleWhatsAppSupport}
-            style={[styles.headerBtn, { backgroundColor: 'rgba(37, 211, 102, 0.12)', borderColor: 'rgba(37, 211, 102, 0.35)' }]}
-            activeOpacity={0.8}
-            accessibilityLabel="Contact Support on WhatsApp"
-          >
-            <Ionicons name="headset-outline" size={18} color="#059669" />
-          </TouchableOpacity>
-
-          <TouchableOpacity
             onPress={() => shareOrder(order)}
             style={styles.headerBtn}
             activeOpacity={0.8}
@@ -613,16 +604,11 @@ const OrderTrackerScreen = ({ route, navigation }) => {
             </View>
           </View>
 
-          {/* Direct Actions: WhatsApp Stall & WhatsApp Support */}
+          {/* Direct Action: Need Support via WhatsApp */}
           <View style={styles.stallContactRow}>
-            <TouchableOpacity style={styles.whatsappStallBtn} onPress={handleWhatsAppStall} activeOpacity={0.8}>
-              <Ionicons name="logo-whatsapp" size={16} color="#059669" />
-              <Text style={styles.whatsappStallBtnText}>WhatsApp Stall</Text>
-            </TouchableOpacity>
-
             <TouchableOpacity style={styles.whatsappBtn} onPress={handleWhatsAppSupport} activeOpacity={0.8}>
-              <Ionicons name="logo-whatsapp" size={16} color="#FFFFFF" />
-              <Text style={styles.whatsappBtnText}>WhatsApp Support</Text>
+              <Ionicons name="logo-whatsapp" size={18} color="#FFFFFF" />
+              <Text style={styles.whatsappBtnText}>Need Support</Text>
             </TouchableOpacity>
           </View>
 
@@ -1361,40 +1347,22 @@ const styles = StyleSheet.create({
     color: THEME.colors.primary,
   },
   stallContactRow: {
-    flexDirection: 'row',
-    gap: 10,
     width: '100%',
     marginVertical: 8,
   },
-  whatsappStallBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#ECFDF5',
-    borderWidth: 1.5,
-    borderColor: '#A7F3D0',
-    paddingVertical: 11,
-    borderRadius: 14,
-    gap: 6,
-  },
-  whatsappStallBtnText: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: '#059669',
-  },
   whatsappBtn: {
-    flex: 1,
+    width: '100%',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#25D366',
-    paddingVertical: 11,
+    paddingVertical: 13,
     borderRadius: 14,
-    gap: 6,
+    gap: 8,
+    ...THEME.shadows.card,
   },
   whatsappBtnText: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '800',
     color: '#FFFFFF',
   },

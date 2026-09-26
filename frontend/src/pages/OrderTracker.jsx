@@ -568,26 +568,6 @@ const OrderTracker = () => {
           </button>
           <h1 style={{ fontSize: '1.5rem', fontWeight: '800', margin: 0, color: 'var(--text-primary)' }}>Track Order</h1>
         </div>
-        <button
-          onClick={handleWhatsAppSupport}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.45rem',
-            padding: '0.5rem 0.9rem',
-            borderRadius: '12px',
-            background: 'rgba(37, 211, 102, 0.1)',
-            color: '#059669',
-            border: '1.5px solid rgba(37, 211, 102, 0.3)',
-            cursor: 'pointer',
-            fontWeight: '700',
-            fontSize: '0.85rem'
-          }}
-          title="Contact Support on WhatsApp"
-        >
-          <MessageCircle size={17} color="#25D366" />
-          <span>Support</span>
-        </button>
       </header>
 
       <div className="glass-card" style={{ padding: '2rem', borderRadius: '28px', textAlign: 'center', marginBottom: '2rem' }}>
@@ -830,36 +810,11 @@ const OrderTracker = () => {
            </div>
         </div>
 
-        <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '0.75rem' }}>
-          {order.store?.phone ? (
-            <a
-              href={`https://wa.me/${order.store.phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Hi, I placed Order #${order.orderNumber} on UniVerse. Checking on pickup status.`)}`}
-              target="_blank"
-              rel="noreferrer"
-              style={{
-                flex: 1,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '0.5rem',
-                height: '48px',
-                borderRadius: '14px',
-                background: '#ecfdf5',
-                border: '1.5px solid #a7f3d0',
-                color: '#059669',
-                fontWeight: '800',
-                fontSize: '0.85rem',
-                textDecoration: 'none'
-              }}
-            >
-              <MessageCircle size={18} color="#059669" /> WhatsApp Stall
-            </a>
-          ) : null}
-
+        <div style={{ marginBottom: '0.75rem', width: '100%' }}>
           <button
             onClick={handleWhatsAppSupport}
             style={{
-              flex: 1,
+              width: '100%',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -870,11 +825,12 @@ const OrderTracker = () => {
               border: 'none',
               color: '#ffffff',
               fontWeight: '800',
-              fontSize: '0.85rem',
-              cursor: 'pointer'
+              fontSize: '0.9rem',
+              cursor: 'pointer',
+              boxShadow: '0 4px 12px rgba(37, 211, 102, 0.25)'
             }}
           >
-            <MessageCircle size={18} color="#ffffff" /> WhatsApp Support
+            <MessageCircle size={18} color="#ffffff" /> Need Support
           </button>
         </div>
 
