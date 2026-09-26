@@ -410,7 +410,7 @@ export default function MenuScreen({ navigation }) {
         }
         result = await ImagePicker.launchCameraAsync({
           mediaTypes: ['images'],
-          quality: 0.8,
+          quality: 0.6,
           base64: true,
         });
       } else {
@@ -421,7 +421,7 @@ export default function MenuScreen({ navigation }) {
         }
         result = await ImagePicker.launchImageLibraryAsync({
           mediaTypes: ['images'],
-          quality: 0.8,
+          quality: 0.6,
           base64: true,
         });
       }

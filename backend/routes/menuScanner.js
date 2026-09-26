@@ -3,13 +3,22 @@ const router = express.Router();
 const multer = require('multer');
 const Groq = require('groq-sdk');
 
-const upload = multer({ storage: multer.memoryStorage() });
+const upload = multer({ 
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 50 * 1024 * 1024 }
+});
 
 router.post('/scan', (req, res, next) => {
   if (req.is('application/json')) {
     return next();
   }
-  upload.single('menuImage')(req, res, next);
+  upload.single('menuImage')(req, res, (err) => {
+    if (err) {
+      console.error('[menuScanner] Multer upload error:', err);
+      return res.status(400).json({ message: 'Image upload failed: ' + (err.message || 'File too large') });
+    }
+    next();
+  });
 }, async (req, res) => {
   try {
     let base64Image = null;

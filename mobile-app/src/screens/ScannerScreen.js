@@ -49,13 +49,13 @@ export default function ScannerScreen({ navigation }) {
           toValue: SCAN_BOX_SIZE - 6,
           duration: 2000,
           easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
+          useNativeDriver: Platform.OS !== 'web',
         }),
         Animated.timing(laserAnim, {
           toValue: 4,
           duration: 2000,
           easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
+          useNativeDriver: Platform.OS !== 'web',
         }),
       ])
     );
