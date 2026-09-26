@@ -26,7 +26,8 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const STATUS_STEPS = [
   { key: 'Pending', label: 'Pending', desc: 'Vendor is reviewing your order' },
-  { key: 'Confirmed', label: 'Confirmed', desc: 'Great! Your order is being prepared' },
+  { key: 'Confirmed', label: 'Confirmed', desc: 'Order confirmed! Waiting for kitchen to start' },
+  { key: 'Cooking', label: 'Cooking', desc: 'Your food is sizzling hot in the kitchen!' },
   { key: 'Ready', label: 'Ready', desc: 'Order is ready for collection!' },
   { key: 'Completed', label: 'Completed', desc: 'Order handed over successfully' },
 ];
@@ -299,7 +300,8 @@ const OrderTrackerScreen = ({ route, navigation }) => {
     switch (currentStatus) {
       case 'Pending': return '#F59E0B';
       case 'Confirmed': return '#3B82F6';
-      case 'Ready': return '#8B5CF6';
+      case 'Cooking': return '#8B5CF6';
+      case 'Ready': return '#EC4899';
       case 'Completed': return '#10B981';
       case 'Cancelled': return '#EF4444';
       default: return THEME.colors.primary;
@@ -361,10 +363,12 @@ const OrderTrackerScreen = ({ route, navigation }) => {
                 <Feather name="x" size={48} color="#EF4444" />
               ) : isPaymentPending ? (
                 <Feather name="clock" size={48} color="#F59E0B" />
+              ) : currentStatus === 'Cooking' ? (
+                <MaterialCommunityIcons name="chef-hat" size={48} color="#8B5CF6" />
               ) : currentStatus === 'Confirmed' ? (
-                <MaterialCommunityIcons name="chef-hat" size={48} color="#3B82F6" />
+                <Ionicons name="receipt-outline" size={48} color="#3B82F6" />
               ) : currentStatus === 'Ready' ? (
-                <Feather name="package" size={48} color="#8B5CF6" />
+                <Feather name="package" size={48} color="#EC4899" />
               ) : (
                 <Feather name="clock" size={48} color="#F59E0B" />
               )}
@@ -451,11 +455,7 @@ const OrderTrackerScreen = ({ route, navigation }) => {
                     width:
                       currentStepIndex <= 0
                         ? '0%'
-                        : currentStepIndex === 1
-                        ? '25%'
-                        : currentStepIndex === 2
-                        ? '50%'
-                        : '75%',
+                        : `${Math.min(100, (currentStepIndex / 4) * 100)}%`,
                   },
                 ]}
               />
@@ -479,8 +479,10 @@ const OrderTrackerScreen = ({ route, navigation }) => {
                         ) : idx === 0 ? (
                           <Feather name="clock" size={16} color={isActive ? '#FFFFFF' : '#94A3B8'} />
                         ) : idx === 1 ? (
-                          <MaterialCommunityIcons name="chef-hat" size={17} color={isActive ? '#FFFFFF' : '#94A3B8'} />
+                          <Ionicons name="receipt-outline" size={16} color={isActive ? '#FFFFFF' : '#94A3B8'} />
                         ) : idx === 2 ? (
+                          <MaterialCommunityIcons name="chef-hat" size={17} color={isActive ? '#FFFFFF' : '#94A3B8'} />
+                        ) : idx === 3 ? (
                           <Feather name="package" size={16} color={isActive ? '#FFFFFF' : '#94A3B8'} />
                         ) : (
                           <Ionicons name="checkmark-circle-outline" size={18} color={isActive ? '#FFFFFF' : '#94A3B8'} />

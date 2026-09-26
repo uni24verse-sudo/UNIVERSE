@@ -692,17 +692,6 @@ const Home = () => {
                         {store.category || 'Specialty Campus Kitchen'}
                       </p>
 
-                      {/* Real-Time Live Stall Deal Highlight */}
-                      {bestOffer && (
-                        <div className="campus-stall-offer-highlight">
-                          <Sparkles size={12} color="#ea580c" />
-                          <span className="offer-title">{bestOffer.title}</span>
-                          {activeOffers.length > 1 && (
-                            <span className="offer-extra-count">+{activeOffers.length - 1} more</span>
-                          )}
-                        </div>
-                      )}
-
                       {/* Footer Row */}
                       <div className="campus-stall-footer-row">
                         <div className="campus-stall-meta-stats">

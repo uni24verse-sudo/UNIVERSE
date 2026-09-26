@@ -236,8 +236,9 @@ const OrderTracker = () => {
 
   const statusSteps = [
     { label: 'Pending', icon: Clock, color: '#f59e0b', desc: 'Vendor is reviewing your order' },
-    { label: 'Confirmed', icon: ChefHat, color: '#3b82f6', desc: 'Great! Your order is being prepared' },
-    { label: 'Ready', icon: PackageCheck, color: '#8b5cf6', desc: 'Order is ready for collection!' },
+    { label: 'Confirmed', icon: Receipt, color: '#3b82f6', desc: 'Order confirmed! Waiting for kitchen to start' },
+    { label: 'Cooking', icon: ChefHat, color: '#8b5cf6', desc: 'Your food is sizzling hot in the kitchen!' },
+    { label: 'Ready', icon: PackageCheck, color: '#ec4899', desc: 'Order is ready for collection!' },
     { label: 'Completed', icon: CheckCircle2, color: '#10b981', desc: 'Order handed over successfully' }
   ];
 
@@ -674,7 +675,7 @@ const OrderTracker = () => {
         {order.status !== 'Payment Pending' && order.status !== 'Cancelled' && (
           <div style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', marginBottom: '3rem', padding: '0 1rem' }}>
              <div style={{ position: 'absolute', top: '24px', left: '10%', right: '10%', height: '2px', background: 'var(--surface-border)', zIndex: 0 }}></div>
-             <div style={{ position: 'absolute', top: '24px', left: '10%', width: currentStepIndex === 0 ? '0%' : currentStepIndex === 1 ? '40%' : '80%', height: '2px', background: 'var(--primary)', zIndex: 1, transition: 'width 1s ease' }}></div>
+             <div style={{ position: 'absolute', top: '24px', left: '10%', width: currentStepIndex <= 0 ? '0%' : `${Math.min(80, (currentStepIndex / 4) * 80)}%`, height: '2px', background: 'var(--primary)', zIndex: 1, transition: 'width 1s ease' }}></div>
              
              {statusSteps.map((step, idx) => {
                const Icon = step.icon;
