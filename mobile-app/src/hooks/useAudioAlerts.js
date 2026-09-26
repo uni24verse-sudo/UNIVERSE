@@ -81,100 +81,14 @@ export const useAudioAlerts = () => {
     }
   }, [player1, player2, isAudioEnabled]);
 
-  const [voiceAlertMode, setVoiceAlertMode] = useState('male'); // 'male' or 'chime_only'
-
-  // Load saved voice mode preference
-  useEffect(() => {
-    AsyncStorage.getItem('universe_voice_mode').then((mode) => {
-      if (mode) setVoiceAlertMode(mode);
-    }).catch(() => {});
-  }, []);
-
-  const updateVoiceAlertMode = useCallback(async (newMode) => {
-    setVoiceAlertMode(newMode);
-    try {
-      await AsyncStorage.setItem('universe_voice_mode', newMode);
-    } catch (e) {}
-  }, []);
-
-  // Voice announcement synthesis with cross-platform fallback - strictly male voice
-  const speakAnnouncement = useCallback(async (text) => {
-    if (!isAudioEnabled || !text || voiceAlertMode === 'chime_only') return;
-    try {
-      if (Platform.OS === 'web' && typeof window !== 'undefined' && 'speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = 'en-IN';
-        utterance.rate = 0.90;
-        utterance.pitch = 0.82; // Deep, confident masculine baritone
-
-        const voices = window.speechSynthesis.getVoices();
-        const maleVoice = voices.find(v => 
-          (v.lang.includes('en') || v.lang.includes('hi')) && 
-          (v.name.toLowerCase().includes('male') || 
-           v.name.toLowerCase().includes('david') || 
-           v.name.toLowerCase().includes('guy') || 
-           v.name.toLowerCase().includes('george') || 
-           v.name.toLowerCase().includes('ravi') || 
-           v.name.toLowerCase().includes('prabhat'))
-        );
-        if (maleVoice) utterance.voice = maleVoice;
-
-        window.speechSynthesis.speak(utterance);
-      } else if (Speech && typeof Speech.speak === 'function') {
-        Speech.stop();
-        
-        let targetVoiceId = null;
-        try {
-          const availableVoices = await Speech.getAvailableVoicesAsync();
-          if (Array.isArray(availableVoices) && availableVoices.length > 0) {
-            // Find male voice
-            const male = availableVoices.find(v => {
-              const str = `${v.name || ''} ${v.identifier || ''}`.toLowerCase();
-              return (
-                str.includes('male') || 
-                str.includes('en-in-x-ahp') || 
-                str.includes('en-in-x-end') || 
-                str.includes('en-in-x-cxx') ||
-                str.includes('david') ||
-                str.includes('guy') ||
-                str.includes('rishi') ||
-                str.includes('prabhat')
-              );
-            });
-            if (male) targetVoiceId = male.identifier;
-          }
-        } catch (voiceErr) {
-          // fallback to pitch adjustment
-        }
-
-        Speech.speak(text, {
-          language: 'en-IN',
-          voice: targetVoiceId || undefined,
-          pitch: 0.80, // Low masculine pitch (avoids default female voice tone)
-          rate: 0.90,
-        });
-      }
-    } catch (err) {
-      console.log('[useAudioAlerts] Speech error:', err?.message || err);
-    }
-  }, [isAudioEnabled, voiceAlertMode]);
-
-  // Crisp chime followed by voice announcement for specific store order
+  // Crisp chime alert for incoming orders (no spoken voice)
   const speakOrderAlert = useCallback((storeName, orderNumber) => {
     if (!isAudioEnabled) return;
     playDoubleDing();
+  }, [isAudioEnabled, playDoubleDing]);
 
-    // If user prefers only chime sound without spoken voice, stop after chime
-    if (voiceAlertMode === 'chime_only') return;
-
-    setTimeout(() => {
-      const storePhrase = storeName ? `for ${storeName}` : '';
-      const orderPhrase = orderNumber ? `Order number ${orderNumber}` : '';
-      const fullText = `New order received ${storePhrase}. ${orderPhrase}`.replace(/\s+/g, ' ').trim();
-      speakAnnouncement(fullText);
-    }, 450);
-  }, [isAudioEnabled, playDoubleDing, speakAnnouncement, voiceAlertMode]);
+  // Voice announcement disabled - crisp sound chime only
+  const speakAnnouncement = useCallback(() => {}, []);
 
   // Starts or stops the reminder loop based on pending orders count
   const syncPendingOrders = useCallback((count = 0) => {
@@ -249,7 +163,7 @@ export const useAudioAlerts = () => {
     playDoubleDing();
   }, [playDoubleDing]);
 
-  // Test sound: plays the new crisp double-ding (ding.ding) and brief test speech
+  // Test sound: plays the crisp double-ding chime
   const playTestSound = useCallback(async () => {
     try {
       if (!isAudioEnabled) {
@@ -257,13 +171,10 @@ export const useAudioAlerts = () => {
         await AsyncStorage.setItem('universe_audio_enabled', 'true');
       }
       playDoubleDing();
-      setTimeout(() => {
-        speakAnnouncement('UniVerse audio alerts are active');
-      }, 500);
     } catch (err) {
       console.log('Test sound playback error:', err?.message || err);
     }
-  }, [playDoubleDing, isAudioEnabled, speakAnnouncement]);
+  }, [playDoubleDing, isAudioEnabled]);
 
   return { 
     isAudioEnabled, 
@@ -275,8 +186,6 @@ export const useAudioAlerts = () => {
     queueAnnouncement, 
     cancelAnnouncement,
     queuePreOrderReminder,
-    voiceAlertMode,
-    updateVoiceAlertMode,
     speakAnnouncement,
     speakOrderAlert
   };
