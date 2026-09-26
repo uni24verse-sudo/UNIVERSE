@@ -851,30 +851,6 @@ export default function AnalyticsScreen() {
                     )}
                   </View>
 
-                  {/* Card 2: Next Settlement */}
-                  <View style={styles.financeOverviewCard}>
-                    <View style={styles.finCardHeader}>
-                      <View style={[styles.finIconBox, { backgroundColor: 'rgba(59, 130, 246, 0.12)' }]}>
-                        <Ionicons name="time" size={18} color="#2563EB" />
-                      </View>
-                      <View style={{ flex: 1, marginLeft: 8 }}>
-                        <Text style={styles.finCardTitle}>Next settlement</Text>
-                        <Text style={styles.finCardSub}>
-                          {financeData?.nextSettlement?.periodEnd
-                            ? `Pending for period ending ${new Date(financeData.nextSettlement.periodEnd).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })}`
-                            : 'Pending midnight batch'}
-                        </Text>
-                      </View>
-                    </View>
-
-                    <Text style={styles.finCardAmount}>
-                      ₹{financeData?.nextSettlement ? Number(financeData.nextSettlement.netPayable).toFixed(2) : '0.00'}
-                    </Text>
-                    <Text style={styles.finCardHint}>
-                      Automated deposit processed by next business day
-                    </Text>
-                  </View>
-
                   {/* Card 3: Live Unsettled Balance */}
                   <View style={[styles.financeOverviewCard, { borderLeftColor: '#F59E0B', borderLeftWidth: 4 }]}>
                     <View style={styles.finCardHeader}>
