@@ -411,6 +411,7 @@ export default function MenuScreen({ navigation }) {
         result = await ImagePicker.launchCameraAsync({
           mediaTypes: ['images'],
           quality: 0.8,
+          base64: true,
         });
       } else {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -421,13 +422,14 @@ export default function MenuScreen({ navigation }) {
         result = await ImagePicker.launchImageLibraryAsync({
           mediaTypes: ['images'],
           quality: 0.8,
+          base64: true,
         });
       }
 
       if (result.canceled || !result.assets || !result.assets[0]) return;
 
       const asset = result.assets[0];
-      processMenuImage(asset.uri);
+      processMenuImage(asset.uri, asset);
     } catch (err) {
       console.error('Pick menu image error:', err);
       Alert.alert('Error', 'Could not open camera or gallery.');
@@ -435,25 +437,45 @@ export default function MenuScreen({ navigation }) {
   };
 
   // Upload Photo to AI Scanner
-  const processMenuImage = async (imageUri) => {
+  const processMenuImage = async (imageUri, asset = null) => {
     setIsScanningMenu(true);
     try {
-      const formData = new FormData();
-      const filename = imageUri.split('/').pop() || 'menu.jpg';
+      const filename = imageUri ? (imageUri.split('/').pop() || 'menu.jpg') : 'menu.jpg';
       const match = /\.(\w+)$/.exec(filename);
       const fileType = match ? `image/${match[1].toLowerCase()}` : 'image/jpeg';
 
-      formData.append('menuImage', {
-        uri: Platform.OS === 'android' ? imageUri : imageUri.replace('file://', ''),
-        name: filename,
-        type: fileType,
-      });
-
-      const res = await apiClient.post('/scan-menu/scan', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+      let res;
+      // 1. Primary: Direct Base64 JSON (eliminates web browser multipart boundary mismatch)
+      if (asset?.base64) {
+        res = await apiClient.post('/scan-menu/scan', {
+          imageBase64: asset.base64,
+          mimeType: fileType
+        });
+      } else {
+        // 2. Fallback: Multipart FormData
+        const formData = new FormData();
+        if (Platform.OS === 'web') {
+          if (asset?.file) {
+            formData.append('menuImage', asset.file);
+          } else {
+            const blobRes = await fetch(imageUri);
+            const blob = await blobRes.blob();
+            formData.append('menuImage', blob, filename);
+          }
+          res = await apiClient.post('/scan-menu/scan', formData);
+        } else {
+          formData.append('menuImage', {
+            uri: Platform.OS === 'android' ? imageUri : imageUri.replace('file://', ''),
+            name: filename,
+            type: fileType,
+          });
+          res = await apiClient.post('/scan-menu/scan', formData, {
+            headers: {
+              'Content-Type': 'multipart/form-data',
+            },
+          });
+        }
+      }
 
       if (!Array.isArray(res.data) || res.data.length === 0) {
         Alert.alert('No Items Detected', 'The AI could not clearly detect items and prices from this image. Please take a clear, well-lit photo of your menu.');
