@@ -82,7 +82,7 @@ const getMarketsForLocation = (locationObj) => {
 export default function ProfileScreen({ navigation }) {
   const { user, logout, updateUser, stores, activeStore, switchActiveStore, refreshStores } = useContext(AuthContext);
   const { socket } = useContext(SocketContext);
-  const { isAudioEnabled, toggleAudio, playTestSound } = useAudioAlerts();
+  const { isAudioEnabled, toggleAudio, playTestSound, voiceAlertMode, updateVoiceAlertMode } = useAudioAlerts();
   const isFocused = useIsFocused();
   const [store, setStore] = useState(activeStore || null);
   const [employees, setEmployees] = useState([]);
@@ -911,12 +911,41 @@ export default function ProfileScreen({ navigation }) {
               styles.audioIconBtn,
               isAudioEnabled && styles.audioIconBtnActive
             ]}
-            onPress={playTestSound}
+            onPress={() => {
+              Alert.alert(
+                '🔔 Kitchen Order Sound Alerts',
+                `Current Mode: ${!isAudioEnabled ? 'Muted' : (voiceAlertMode === 'chime_only' ? 'Chimes Only (No Voice)' : 'Male Voice + Chimes')}\n\nSelect your order notification sound preference:`,
+                [
+                  {
+                    text: 'Male Voice + Chimes',
+                    onPress: async () => {
+                      if (!isAudioEnabled) await toggleAudio();
+                      await updateVoiceAlertMode('male');
+                      playTestSound();
+                    }
+                  },
+                  {
+                    text: 'Chimes Only (No Voice)',
+                    onPress: async () => {
+                      if (!isAudioEnabled) await toggleAudio();
+                      await updateVoiceAlertMode('chime_only');
+                      playTestSound();
+                    }
+                  },
+                  {
+                    text: isAudioEnabled ? 'Mute All Audio' : 'Unmute All Audio',
+                    onPress: toggleAudio,
+                    style: 'destructive'
+                  },
+                  { text: 'Cancel', style: 'cancel' }
+                ]
+              );
+            }}
             onLongPress={toggleAudio}
             activeOpacity={0.7}
           >
             <Ionicons 
-              name={isAudioEnabled ? 'volume-high' : 'volume-mute'} 
+              name={!isAudioEnabled ? 'volume-mute' : (voiceAlertMode === 'chime_only' ? 'musical-notes' : 'volume-high')} 
               size={16} 
               color={isAudioEnabled ? '#EF4123' : '#94A3B8'} 
             />

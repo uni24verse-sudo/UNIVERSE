@@ -2023,6 +2023,7 @@ const styles = StyleSheet.create({
   },
   list: {
     paddingHorizontal: 20,
+    paddingTop: 16,
     paddingBottom: 110,
   },
   card: {

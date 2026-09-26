@@ -144,6 +144,10 @@ apiClient.interceptors.response.use(
       }
     }
 
+    if (__DEV__ && error) {
+      console.warn(`[apiClient] Request failed: ${originalRequest?.method?.toUpperCase()} ${originalRequest?.baseURL}${originalRequest?.url} - ${error.message}`);
+    }
+
     if (error.response?.status === 401) {
       console.warn('[apiClient] 401 Unauthorized received. Triggering session refresh/logout.');
       if (typeof onUnauthorizedCallback === 'function') {

@@ -517,21 +517,6 @@ const HomeScreen = ({ navigation }) => {
                     {store.category || (hubType === 'College' ? 'Specialty Campus Kitchen' : 'Quality Fast Food & Kitchen')}
                   </Text>
 
-                  {/* Real-Time Live Stall Deal Highlight */}
-                  {bestOffer && (
-                    <View style={styles.storeOfferHighlight}>
-                      <Ionicons name="sparkles" size={12} color="#EA580C" />
-                      <Text style={styles.storeOfferTitle} numberOfLines={1}>
-                        {bestOffer.title}
-                      </Text>
-                      {activeOffers.length > 1 && (
-                        <View style={styles.storeOfferCountBadge}>
-                          <Text style={styles.storeOfferCountText}>+{activeOffers.length - 1}</Text>
-                        </View>
-                      )}
-                    </View>
-                  )}
-
                   {/* Footer Stats & Action */}
                   <View style={styles.storeFooter}>
                     <View style={styles.statsRow}>
