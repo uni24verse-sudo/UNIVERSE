@@ -1,8 +1,3 @@
-const dns = require('dns');
-if (dns.setDefaultResultOrder) {
-  dns.setDefaultResultOrder('ipv4first');
-}
-
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
@@ -23,7 +18,7 @@ const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
     origin: '*',
-    methods: ['GET', 'POST', 'PUT', 'DELETE']
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
   }
 });
 
@@ -35,11 +30,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.use(cors({
-  origin: (origin, callback) => {
-    callback(null, true);
-  },
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  origin: true,
   credentials: true
 }));
 
@@ -61,6 +52,9 @@ prisma.$connect()
 
 // Health check endpoint
 app.get('/ping', (req, res) => res.status(200).send('pong'));
+app.get('/api/ping', (req, res) => res.status(200).send('pong'));
+app.get('/health', (req, res) => res.status(200).json({ status: 'ok', time: new Date().toISOString() }));
+app.get('/api/health', (req, res) => res.status(200).json({ status: 'ok', time: new Date().toISOString() }));
 
 // Route Registrations
 app.use('/api/auth', require('./routes/auth'));
@@ -73,6 +67,7 @@ app.use('/api/super-admin/partners', require('./routes/partners'));
 app.use('/api/super-admin/channels', require('./routes/channelSettings'));
 app.use('/api/super-admin/broadcasting', require('./routes/broadcasting'));
 app.use('/api/super-admin/customers', require('./routes/superAdminCustomers'));
+app.use('/api/super-admin/offers', require('./routes/superAdminOffers'));
 app.use('/api/super-admin', require('./routes/superAdmin'));
 app.use('/api/payments', require('./routes/payments'));
 app.use('/api/whatsapp', require('./routes/whatsapp'));

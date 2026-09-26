@@ -6,7 +6,7 @@ import {
   Trash2, Plus, Minus, ArrowLeft, CreditCard, Coins, ShoppingBag,
   ChevronRight, ShieldCheck, Store, Clock, User, Phone, Mail,
   CheckCircle, AlertCircle, X, Utensils,
-  Sun, CloudSun, Moon, Coffee, Sparkles
+  Sun, CloudSun, Moon, Coffee, Sparkles, Tag, Flame, Zap
 } from 'lucide-react';
 import { useStoreTheme } from '../hooks/useStoreTheme';
 
@@ -22,7 +22,16 @@ const Cart = () => {
     hasOutOfStockItems,
     outOfStockItems,
     removeOutOfStockItems,
-    isStoreClosed
+    isStoreClosed,
+    offers,
+    selectedOfferId,
+    setSelectedOfferId,
+    appliedOffer,
+    discountAmount,
+    eligibleOffers,
+    ineligibleOffers,
+    applyCoupon,
+    removeCoupon
   } = useContext(CartContext);
   const navigate = useNavigate();
   const [store, setStore] = useState(null);
@@ -38,18 +47,43 @@ const Cart = () => {
   const [scheduledTime, setScheduledTime] = useState('');
   const [availableSlots, setAvailableSlots] = useState([]);
   const [pairings, setPairings] = useState([]);
+
+  // Coupon search and dropdown state
+  const [couponInput, setCouponInput] = useState('');
+  const [couponFeedback, setCouponFeedback] = useState(null);
+  const [showOffersDropdown, setShowOffersDropdown] = useState(false);
+
+  const handleApplyCoupon = () => {
+    if (!couponInput.trim()) {
+      setCouponFeedback({ type: 'error', message: 'Please enter a coupon code' });
+      return;
+    }
+    const res = applyCoupon(couponInput);
+    if (res.success) {
+      setCouponFeedback({ type: 'success', message: res.message });
+      setCouponInput('');
+      setShowOffersDropdown(false);
+    } else {
+      setCouponFeedback({ type: 'error', message: res.message });
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    removeCoupon();
+    setCouponFeedback({ type: 'success', message: 'Coupon removed' });
+    setTimeout(() => setCouponFeedback(null), 3000);
+  };
   const { addToCart } = useContext(CartContext);
   
   // Apply Dynamic Brand Theme
   useStoreTheme(store);
 
-
-
-  // Calculate order totals
+  // Calculate order totals with vendor offers
   const subtotal = total;
+  const offerDiscount = discountAmount || 0;
   const deliveryFee = orderType === 'Take Away' ? (store?.packagingCharge || 0) : 0;
   const platformFee = 0;
-  const finalTotal = subtotal + deliveryFee + platformFee;
+  const finalTotal = Math.max(0, subtotal - offerDiscount + deliveryFee + platformFee);
 
   useEffect(() => {
     if (storeId) {
@@ -216,6 +250,9 @@ const Cart = () => {
           freeItems: item.freeItems
         })),
         totalAmount: finalTotal,
+        discountAmount: offerDiscount,
+        appliedOffer: appliedOffer || null,
+        selectedOfferId: appliedOffer?.id || selectedOfferId || null,
         paymentMethod: 'Razorpay',
         customerPhone,
         customerName,
@@ -496,11 +533,382 @@ const Cart = () => {
                 })}
               </div>
 
-              <div style={{ marginTop: '2rem', padding: '1.25rem', background: '#f8fafc', borderRadius: '16px', border: '1px solid var(--surface-border)' }}>
+              {/* Zomato/Swiggy-style Search Coupon & Smart Offers Drawer */}
+              {offers && offers.length > 0 && (
+                <div style={{
+                  marginTop: '1.5rem',
+                  background: '#ffffff',
+                  borderRadius: '20px',
+                  border: '1.5px solid #fed7aa',
+                  padding: '1.25rem',
+                  boxShadow: '0 8px 24px rgba(234, 88, 12, 0.06)'
+                }}>
+                  {/* Header Row */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                      <div style={{
+                        width: '32px',
+                        height: '32px',
+                        borderRadius: '10px',
+                        background: 'linear-gradient(135deg, #ffedd5 0%, #fed7aa 100%)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: '#ea580c'
+                      }}>
+                        <Tag size={18} />
+                      </div>
+                      <div>
+                        <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: '900', color: '#1e293b' }}>
+                          Coupons & Platform Deals
+                        </h4>
+                        <p style={{ margin: 0, fontSize: '0.72rem', color: '#64748b', fontWeight: '600' }}>
+                          {offers.filter(o => o.isActive !== false).length} exclusive offers available for this cart
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 1. COUPON SEARCH & INPUT BAR */}
+                  <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                    <div style={{ flex: 1, position: 'relative' }}>
+                      <Tag size={15} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                      <input 
+                        type="text"
+                        placeholder="Enter coupon code (e.g. CAMPUS10, WELCOME30)"
+                        value={couponInput}
+                        onChange={(e) => { setCouponInput(e.target.value); setCouponFeedback(null); }}
+                        onKeyDown={(e) => { if (e.key === 'Enter') handleApplyCoupon(); }}
+                        style={{
+                          width: '100%',
+                          padding: '0.65rem 0.85rem 0.65rem 2.25rem',
+                          borderRadius: '10px',
+                          border: '1.5px solid #e2e8f0',
+                          fontSize: '0.85rem',
+                          fontWeight: '700',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.04em',
+                          outline: 'none',
+                          boxSizing: 'border-box'
+                        }}
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleApplyCoupon}
+                      style={{
+                        background: 'var(--primary)',
+                        color: '#ffffff',
+                        border: 'none',
+                        borderRadius: '10px',
+                        padding: '0 1.25rem',
+                        fontSize: '0.82rem',
+                        fontWeight: '800',
+                        cursor: 'pointer',
+                        whiteSpace: 'nowrap',
+                        transition: 'opacity 0.15s ease'
+                      }}
+                    >
+                      APPLY
+                    </button>
+                  </div>
+
+                  {/* Coupon Validation Feedback Banner */}
+                  {couponFeedback && (
+                    <div style={{
+                      padding: '0.5rem 0.75rem',
+                      borderRadius: '8px',
+                      marginBottom: '0.75rem',
+                      fontSize: '0.78rem',
+                      fontWeight: '700',
+                      background: couponFeedback.type === 'success' ? '#ecfdf5' : '#fef2f2',
+                      color: couponFeedback.type === 'success' ? '#059669' : '#dc2626',
+                      border: couponFeedback.type === 'success' ? '1px solid #a7f3d0' : '1px solid #fecaca',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between'
+                    }}>
+                      <span>{couponFeedback.message}</span>
+                      <button 
+                        type="button"
+                        onClick={() => setCouponFeedback(null)} 
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', padding: 0 }}
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  )}
+
+                  {/* 2. ONLY APPLIED COUPON IS VISIBLE BY DEFAULT */}
+                  {appliedOffer ? (
+                    <div style={{
+                      background: 'linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%)',
+                      border: '1.5px solid #10b981',
+                      borderRadius: '12px',
+                      padding: '0.85rem 1rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '0.75rem',
+                      boxShadow: '0 2px 8px rgba(16, 185, 129, 0.08)'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <div style={{
+                          width: '36px', height: '36px', borderRadius: '10px',
+                          background: '#10b981', color: '#ffffff',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          flexShrink: 0
+                        }}>
+                          <Sparkles size={18} />
+                        </div>
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+                            <span style={{
+                              background: '#059669', color: '#ffffff', fontSize: '0.7rem',
+                              fontWeight: '900', padding: '0.15rem 0.45rem', borderRadius: '4px'
+                            }}>
+                              {appliedOffer.code || appliedOffer.badgeText}
+                            </span>
+                            {appliedOffer.isGlobal && (
+                              <span style={{
+                                background: '#e0f2fe', color: '#0369a1', fontSize: '0.65rem',
+                                fontWeight: '800', padding: '0.15rem 0.4rem', borderRadius: '4px'
+                              }}>
+                                CAMPUS DEAL
+                              </span>
+                            )}
+                            <span style={{ fontSize: '0.85rem', fontWeight: '800', color: '#065f46' }}>
+                              {appliedOffer.title}
+                            </span>
+                          </div>
+                          <p style={{ margin: '0.15rem 0 0 0', fontSize: '0.75rem', color: '#047857', fontWeight: '700' }}>
+                            🎉 You saved ₹{offerDiscount.toFixed(2)} on this order!
+                          </p>
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexShrink: 0 }}>
+                        <button
+                          type="button"
+                          onClick={() => setShowOffersDropdown(prev => !prev)}
+                          style={{
+                            background: '#ffffff', border: '1px solid #a7f3d0', borderRadius: '6px',
+                            padding: '0.35rem 0.6rem', fontSize: '0.72rem', fontWeight: '800',
+                            color: '#047857', cursor: 'pointer'
+                          }}
+                        >
+                          {showOffersDropdown ? 'Hide Deals ▴' : 'Switch Deal ▾'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleRemoveCoupon}
+                          style={{
+                            background: '#fee2e2', border: 'none', borderRadius: '6px',
+                            padding: '0.35rem 0.6rem', fontSize: '0.72rem', fontWeight: '800',
+                            color: '#dc2626', cursor: 'pointer'
+                          }}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <button
+                        type="button"
+                        onClick={() => setShowOffersDropdown(prev => !prev)}
+                        style={{
+                          background: 'none', border: 'none', color: '#ea580c',
+                          fontSize: '0.8rem', fontWeight: '800', cursor: 'pointer',
+                          display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.25rem 0'
+                        }}
+                      >
+                        <Tag size={14} />
+                        <span>{showOffersDropdown ? 'Hide available offers ▴' : `View available offers (${offers.filter(o => o.isActive !== false).length} available) ▾`}</span>
+                      </button>
+                    </div>
+                  )}
+
+                  {/* 3. COLLAPSIBLE OFFERS DROPDOWN / LIST */}
+                  {showOffersDropdown && (
+                    <div style={{
+                      marginTop: '0.85rem',
+                      paddingTop: '0.85rem',
+                      borderTop: '1px solid #f1f5f9',
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+                      gap: '0.85rem'
+                    }}>
+                      {offers.filter(o => o.isActive !== false).map((offer) => {
+                        const isEligible = eligibleOffers && eligibleOffers.some(e => String(e.id) === String(offer.id));
+                        const isApplied = appliedOffer && String(appliedOffer.id) === String(offer.id);
+                        const ineligibility = ineligibleOffers && ineligibleOffers.find(ie => String(ie.offer?.id) === String(offer.id) || String(ie.id) === String(offer.id));
+                        const isFullCartOffer = offer.discountType === 'PERCENTAGE_CART' || offer.discountType === 'FLAT_DISCOUNT_CART';
+
+                        return (
+                          <div
+                            key={offer.id}
+                            style={{
+                              border: isApplied 
+                                ? '2px solid #10b981' 
+                                : isEligible 
+                                ? '1.5px solid #fed7aa' 
+                                : '1.5px dashed #cbd5e1',
+                              borderRadius: '14px',
+                              padding: '0.85rem 1rem',
+                              background: isApplied ? '#f0fdf4' : isEligible ? '#fffaf5' : '#f8fafc',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              justifyContent: 'space-between',
+                              transition: 'all 0.2s ease',
+                              opacity: isEligible ? 1 : 0.85
+                            }}
+                          >
+                            <div>
+                              {/* Badges Row */}
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', marginBottom: '0.4rem', flexWrap: 'wrap' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                  <span style={{
+                                    background: isApplied ? '#10b981' : 'linear-gradient(135deg, #ef4444 0%, #ea580c 100%)',
+                                    color: '#ffffff',
+                                    fontSize: '0.72rem',
+                                    fontWeight: '900',
+                                    padding: '0.2rem 0.55rem',
+                                    borderRadius: '6px',
+                                    letterSpacing: '0.03em'
+                                  }}>
+                                    {offer.badgeText || (offer.discountType?.includes('PERCENTAGE') ? `${offer.discountValue}% OFF` : `₹${offer.discountValue} OFF`)}
+                                  </span>
+                                  {offer.code && (
+                                    <span style={{
+                                      background: '#ffffff',
+                                      border: '1px dashed #ea580c',
+                                      color: '#c2410c',
+                                      fontSize: '0.7rem',
+                                      fontWeight: '900',
+                                      padding: '0.15rem 0.45rem',
+                                      borderRadius: '6px'
+                                    }}>
+                                      {offer.code}
+                                    </span>
+                                  )}
+                                </div>
+
+                                {offer.isGlobal ? (
+                                  <span style={{
+                                    background: '#e0f2fe',
+                                    color: '#0369a1',
+                                    fontSize: '0.65rem',
+                                    fontWeight: '800',
+                                    padding: '0.15rem 0.45rem',
+                                    borderRadius: '6px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.25rem'
+                                  }}>
+                                    <Sparkles size={10} /> CAMPUS-WIDE
+                                  </span>
+                                ) : isFullCartOffer ? (
+                                  <span style={{
+                                    background: '#e0f2fe',
+                                    color: '#0369a1',
+                                    fontSize: '0.65rem',
+                                    fontWeight: '800',
+                                    padding: '0.15rem 0.45rem',
+                                    borderRadius: '6px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.25rem'
+                                  }}>
+                                    <Zap size={10} /> ENTIRE CART
+                                  </span>
+                                ) : null}
+                              </div>
+
+                              {/* Title & Description */}
+                              <h5 style={{ margin: '0.25rem 0 0.15rem 0', fontSize: '0.88rem', fontWeight: '800', color: '#1e293b' }}>
+                                {offer.title}
+                              </h5>
+                              <p style={{ margin: '0 0 0.4rem 0', fontSize: '0.72rem', color: '#64748b', lineHeight: '1.3' }}>
+                                {offer.description || (isFullCartOffer ? 'Valid on total cart value' : 'Applicable on select items')}
+                              </p>
+
+                              {/* Terms / Min Order info */}
+                              <div style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: '600' }}>
+                                {offer.minOrderValue > 0 ? `Min. order ₹${offer.minOrderValue}` : 'No minimum order'}
+                                {offer.maxDiscountCap > 0 ? ` • Max discount ₹${offer.maxDiscountCap}` : ''}
+                              </div>
+                            </div>
+
+                            {/* Bottom Action / Status Row */}
+                            <div style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              marginTop: '0.65rem',
+                              paddingTop: '0.5rem',
+                              borderTop: '1px solid rgba(0,0,0,0.06)'
+                            }}>
+                              {isEligible ? (
+                                <>
+                                  <span style={{ fontSize: '0.75rem', fontWeight: '800', color: '#059669' }}>
+                                    {isApplied ? `✓ Applied (Saving ₹${offerDiscount.toFixed(2)})` : `Save on this order!`}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      if (isApplied) {
+                                        handleRemoveCoupon();
+                                      } else {
+                                        setSelectedOfferId(offer.id);
+                                        setShowOffersDropdown(false);
+                                        setCouponFeedback({ type: 'success', message: `Coupon "${offer.code || offer.title}" applied!` });
+                                      }
+                                    }}
+                                    style={{
+                                      background: isApplied ? '#10b981' : '#ffffff',
+                                      color: isApplied ? '#ffffff' : '#ea580c',
+                                      border: isApplied ? 'none' : '1.5px solid #ea580c',
+                                      padding: '0.35rem 0.85rem',
+                                      borderRadius: '8px',
+                                      fontSize: '0.75rem',
+                                      fontWeight: '800',
+                                      cursor: 'pointer',
+                                      transition: 'all 0.15s ease'
+                                    }}
+                                  >
+                                    {isApplied ? 'APPLIED ✓' : 'APPLY'}
+                                  </button>
+                                </>
+                              ) : (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: '#ea580c', fontSize: '0.72rem', fontWeight: '700' }}>
+                                  <Flame size={13} />
+                                  <span>{ineligibility ? ineligibility.reason : `Add ₹${Math.max(0, (offer.minOrderValue || 0) - total)} more to unlock`}</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div style={{ marginTop: '1.5rem', padding: '1.25rem', background: '#f8fafc', borderRadius: '16px', border: '1px solid var(--surface-border)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
                   <span style={{ color: 'var(--text-secondary)' }}>Item Total</span>
                   <span>₹{total}</span>
                 </div>
+
+                {offerDiscount > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', color: '#10b981', fontWeight: '800' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                      <Tag size={15} /> Stall Offer ({appliedOffer?.badgeText || 'Discount'})
+                    </span>
+                    <span>-₹{offerDiscount.toFixed(2)}</span>
+                  </div>
+                )}
+
                 {orderType === 'Take Away' && deliveryFee > 0 && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
                     <span style={{ color: 'var(--text-secondary)' }}>Packaging Fee</span>
@@ -513,7 +921,7 @@ const Cart = () => {
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.25rem', fontWeight: '800', borderTop: '1px dashed var(--surface-border)', paddingTop: '1rem' }}>
                   <span>To Pay</span>
-                  <span>₹{finalTotal}</span>
+                  <span style={{ color: 'var(--primary)' }}>₹{finalTotal}</span>
                 </div>
               </div>
             </div>

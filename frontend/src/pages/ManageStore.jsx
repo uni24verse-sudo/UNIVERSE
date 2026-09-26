@@ -6,10 +6,12 @@ import { QRCodeSVG } from 'qrcode.react';
 import { 
   ArrowLeft, Store, LayoutDashboard, QrCode, LogOut, Plus, Pencil, Trash2, Eye, EyeOff, Save, X, Image as LucideImage, Download, ExternalLink, ShoppingBag, Tag, Sparkles, Loader2, Check, Menu, Globe, Upload, Link as LucideLink, Zap
 } from 'lucide-react';
+import VendorOfferManager from '../components/VendorOfferManager';
 
 const ManageStore = () => {
   const { token, vendor, logout, updateVendor } = useContext(AuthContext);
   const navigate = useNavigate();
+  const [activeSubTab, setActiveSubTab] = useState('menu');
   const [stores, setStores] = useState([]);
   const [store, setStore] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -746,7 +748,53 @@ const ManageStore = () => {
           </div>
         </header>
 
-        <div className="manage-store-grid" style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 2fr', gap: '2rem' }}>
+        {/* Navigation Tabs: Menu vs Offers */}
+        <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '2rem', borderBottom: '1px solid var(--surface-border)', paddingBottom: '0.75rem', flexWrap: 'wrap' }}>
+          <button
+            onClick={() => setActiveSubTab('menu')}
+            style={{
+              padding: '0.65rem 1.4rem',
+              borderRadius: '100px',
+              border: 'none',
+              background: activeSubTab === 'menu' ? 'var(--primary)' : 'rgba(0,0,0,0.05)',
+              color: activeSubTab === 'menu' ? '#fff' : 'var(--text-secondary)',
+              fontWeight: '800',
+              fontSize: '0.9rem',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              transition: 'var(--transition)'
+            }}
+          >
+            <ShoppingBag size={16} /> Stall & Menu ({store.products?.length || 0})
+          </button>
+
+          <button
+            onClick={() => setActiveSubTab('offers')}
+            style={{
+              padding: '0.65rem 1.4rem',
+              borderRadius: '100px',
+              border: 'none',
+              background: activeSubTab === 'offers' ? 'var(--primary)' : 'rgba(0,0,0,0.05)',
+              color: activeSubTab === 'offers' ? '#fff' : 'var(--text-secondary)',
+              fontWeight: '800',
+              fontSize: '0.9rem',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              transition: 'var(--transition)'
+            }}
+          >
+            <Zap size={16} /> Offers & Deals Engine ({store.offers?.length || 0})
+          </button>
+        </div>
+
+        {activeSubTab === 'offers' ? (
+          <VendorOfferManager store={store} onStoreUpdate={(updated) => setStore(updated)} />
+        ) : (
+          <div className="manage-store-grid" style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 2fr', gap: '2rem' }}>
           
           {/* Left Column: QR & Details */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
@@ -1708,8 +1756,7 @@ const ManageStore = () => {
             </div>
           </div>
         </div>
-
-
+        )}
 
       </main>
 

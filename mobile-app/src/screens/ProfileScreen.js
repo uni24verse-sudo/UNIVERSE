@@ -24,6 +24,7 @@ import { AuthContext } from '../context/AuthContext';
 import { SocketContext } from '../context/SocketContext';
 import apiClient from '../api/client';
 import * as SecureStore from 'expo-secure-store';
+import { useAudioAlerts } from '../hooks/useAudioAlerts';
 
 const getStorageItem = async (key) => {
   if (Platform.OS === 'web') return localStorage.getItem(key);
@@ -81,6 +82,7 @@ const getMarketsForLocation = (locationObj) => {
 export default function ProfileScreen({ navigation }) {
   const { user, logout, updateUser, stores, activeStore, switchActiveStore, refreshStores } = useContext(AuthContext);
   const { socket } = useContext(SocketContext);
+  const { isAudioEnabled, toggleAudio, playTestSound } = useAudioAlerts();
   const isFocused = useIsFocused();
   const [store, setStore] = useState(activeStore || null);
   const [employees, setEmployees] = useState([]);
@@ -891,7 +893,58 @@ export default function ProfileScreen({ navigation }) {
   if (!user) return null;
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: '#0F172A' }]} edges={['top']}>
+      {/* Top Header Bar with Audio & Cart Controls */}
+      <View style={styles.topHeaderBar}>
+        <View style={styles.topHeaderLeft}>
+          <Text style={styles.topHeaderTitle}>Store Profile</Text>
+          <View style={styles.storeBadge}>
+            <Ionicons name="storefront" size={12} color="#EF4123" style={{ marginRight: 4 }} />
+            <Text style={styles.storeName} numberOfLines={1}>{displayStore?.name || 'UniVerse Stall'}</Text>
+          </View>
+        </View>
+
+        <View style={styles.topHeaderControls}>
+          {/* Audio Alert Speaker Toggle */}
+          <TouchableOpacity 
+            style={[
+              styles.audioIconBtn,
+              isAudioEnabled && styles.audioIconBtnActive
+            ]}
+            onPress={playTestSound}
+            onLongPress={toggleAudio}
+            activeOpacity={0.7}
+          >
+            <Ionicons 
+              name={isAudioEnabled ? 'volume-high' : 'volume-mute'} 
+              size={16} 
+              color={isAudioEnabled ? '#EF4123' : '#94A3B8'} 
+            />
+          </TouchableOpacity>
+
+          {/* Instant Cart On/Off Switch */}
+          <View style={[
+            styles.stallSwitchCard,
+            displayStore?.isOpen ? styles.stallSwitchCardOpen : styles.stallSwitchCardClosed
+          ]}>
+            <View style={[styles.miniStatusDot, { backgroundColor: displayStore?.isOpen ? '#10B981' : '#94A3B8' }]} />
+            <Text style={[styles.stallSwitchText, { color: displayStore?.isOpen ? '#059669' : '#64748B' }]}>
+              {displayStore?.isOpen ? 'OPEN' : 'CLOSED'}
+            </Text>
+            <Switch
+              value={Boolean(displayStore?.isOpen)}
+              onValueChange={handleToggleStoreStatus}
+              disabled={togglingStatus}
+              trackColor={{ false: '#334155', true: '#A7F3D0' }}
+              thumbColor={displayStore?.isOpen ? '#10B981' : '#94A3B8'}
+              ios_backgroundColor="#334155"
+              style={{ transform: [{ scaleX: 0.72 }, { scaleY: 0.72 }], marginLeft: 2, marginRight: -4 }}
+            />
+          </View>
+        </View>
+      </View>
+
+      <View style={{ flex: 1, backgroundColor: '#F8FAFC' }}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
@@ -1086,6 +1139,37 @@ export default function ProfileScreen({ navigation }) {
               })}
             </View>
           </View>
+        )}
+
+        {/* =================================================== */}
+        {/* SHOP OFFERS & REAL-TIME DEALS CARD                  */}
+        {/* (Strictly hidden for Kitchen Staff & Employees)     */}
+        {/* =================================================== */}
+        {!isEmployee && (
+          <TouchableOpacity 
+            style={styles.sectionCard}
+            onPress={() => navigation.navigate('Offers')}
+            activeOpacity={0.8}
+          >
+            <View style={styles.sectionHeaderRow}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, paddingRight: 8 }}>
+                <View style={[styles.sectionIconBg, { backgroundColor: 'rgba(239, 65, 35, 0.1)' }]}>
+                  <Ionicons name="pricetag" size={17} color="#EF4123" />
+                </View>
+                <View style={{ marginLeft: 8, flex: 1 }}>
+                  <Text style={styles.sectionTitle}>Shop Offers & Deals</Text>
+                  <Text style={styles.sectionSubtitle} numberOfLines={2}>
+                    Run % discounts or flat ₹ deals live on student carts
+                  </Text>
+                </View>
+              </View>
+              <View
+                style={[styles.editTimingBtn, { backgroundColor: '#EF4123', paddingHorizontal: 14, paddingVertical: 7, borderRadius: 8 }]}
+              >
+                <Text style={[styles.editTimingBtnText, { color: '#FFFFFF', fontWeight: '800' }]}>Manage</Text>
+              </View>
+            </View>
+          </TouchableOpacity>
         )}
 
         {/* =================================================== */}
@@ -1470,6 +1554,7 @@ export default function ProfileScreen({ navigation }) {
 
         <Text style={styles.footerNote}>UNIVERSE Vendor OS • v1.1.0 • Supabase Cloud DB</Text>
       </ScrollView>
+      </View>
 
       {/* =================================================== */}
       {/* MODAL 0: ADD NEW STALL / COUNTER                    */}
@@ -2079,6 +2164,95 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F8FAFC',
+  },
+  topHeaderBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 10,
+    backgroundColor: '#0F172A',
+    borderBottomWidth: 1,
+    borderBottomColor: '#1E293B',
+  },
+  topHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+    marginRight: 8,
+  },
+  topHeaderTitle: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: '#F8FAFC',
+    letterSpacing: -0.4,
+  },
+  storeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1E293B',
+    paddingVertical: 4.5,
+    paddingHorizontal: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#334155',
+    maxWidth: 110,
+  },
+  storeName: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#F1F5F9',
+  },
+  topHeaderControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  audioIconBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#1E293B',
+    borderWidth: 1.5,
+    borderColor: '#334155',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  audioIconBtnActive: {
+    backgroundColor: '#334155',
+    borderColor: '#EF4123',
+  },
+  stallSwitchCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1E293B',
+    paddingVertical: 2,
+    paddingLeft: 8,
+    paddingRight: 4,
+    borderRadius: 18,
+    borderWidth: 1.5,
+    borderColor: '#334155',
+    gap: 4,
+  },
+  stallSwitchCardOpen: {
+    borderColor: '#059669',
+    backgroundColor: '#064E3B',
+  },
+  stallSwitchCardClosed: {
+    borderColor: '#334155',
+    backgroundColor: '#1E293B',
+  },
+  miniStatusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  stallSwitchText: {
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 0.3,
   },
   scrollContent: {
     padding: 16,

@@ -146,6 +146,7 @@ const Home = () => {
   const [sortBy, setSortBy] = useState('rating'); // 'rating', 'items', 'name'
   const [filterOpen, setFilterOpen] = useState(false);
   const [filterType, setFilterType] = useState('All');
+  const [onlyOffers, setOnlyOffers] = useState(false);
   const hubType = localStorage.getItem('universe_location_type') || 'College';
   const navigate = useNavigate();
 
@@ -244,6 +245,12 @@ const Home = () => {
 
       // Filter by store type
       if (filterType !== 'All' && store.storeType !== filterType) return false;
+
+      // Filter by active offers
+      if (onlyOffers) {
+        const hasOffers = store.offers && Array.isArray(store.offers) && store.offers.some(o => o.isActive !== false);
+        if (!hasOffers) return false;
+      }
 
       return true;
     })
@@ -468,31 +475,70 @@ const Home = () => {
             {/* Dynamic Trending Row */}
             <TrendingRow />
 
-            {/* Campus Market Navigation Filters (Only rendered if campus has configured zones or multiple stalls) */}
-            {availableMarkets.length > 0 && (
-              <div className="market-filter-wrapper animate-fade-in-up">
-                <div className="market-filter-scroll">
-                  {['All', ...availableMarkets].map(market => {
-                    const isActive = selectedMarket === market;
-                    return (
-                      <button
-                        key={market}
-                        onClick={() => setSelectedMarket(market)}
-                        className={`market-filter-pill ${isActive ? 'active' : ''}`}
-                      >
-                        {isActive && <span className="market-pill-dot" />}
-                        <span className="market-pill-label">
-                          {market === 'All' ? 'All Areas' : market.replace(' Market', '')}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
+            {/* Campus Market Navigation Filters (Rendered with all market zones and live offers filter) */}
+            <div className="market-filter-wrapper animate-fade-in-up">
+              <div className="market-filter-scroll">
+                <button
+                  onClick={() => { setSelectedMarket('All'); setOnlyOffers(false); }}
+                  className={`market-filter-pill ${selectedMarket === 'All' && !onlyOffers ? 'active' : ''}`}
+                >
+                  {selectedMarket === 'All' && !onlyOffers && <span className="market-pill-dot" />}
+                  <span className="market-pill-label">All Stalls</span>
+                </button>
+
+                <button
+                  onClick={() => setOnlyOffers(prev => !prev)}
+                  className={`market-filter-pill ${onlyOffers ? 'active' : ''}`}
+                  style={{
+                    background: onlyOffers ? 'linear-gradient(135deg, #ef4444 0%, #ea580c 100%)' : '#fff',
+                    color: onlyOffers ? '#fff' : '#c2410c',
+                    borderColor: onlyOffers ? '#ea580c' : 'rgba(234, 88, 12, 0.35)',
+                    fontWeight: '800'
+                  }}
+                >
+                  <Sparkles size={12} color={onlyOffers ? '#fff' : '#ea580c'} />
+                  <span className="market-pill-label">⚡ Deals & Offers</span>
+                </button>
+
+                {availableMarkets.map(market => {
+                  if (market === 'All') return null;
+                  const isActive = selectedMarket === market && !onlyOffers;
+                  return (
+                    <button
+                      key={market}
+                      onClick={() => { setSelectedMarket(market); setOnlyOffers(false); }}
+                      className={`market-filter-pill ${isActive ? 'active' : ''}`}
+                    >
+                      {isActive && <span className="market-pill-dot" />}
+                      <span className="market-pill-label">
+                        {market.replace(' Market', '')}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
-            )}
+            </div>
           </>
         ) : (
           <>
+            {/* External Hub: Quick Deals Filter Pill */}
+            <div style={{ display: 'flex', gap: '0.6rem', marginBottom: '1.25rem' }} className="animate-fade-in-up">
+              <button
+                onClick={() => setOnlyOffers(prev => !prev)}
+                className={`market-filter-pill ${onlyOffers ? 'active' : ''}`}
+                style={{
+                  background: onlyOffers ? 'linear-gradient(135deg, #ef4444 0%, #ea580c 100%)' : '#fff',
+                  color: onlyOffers ? '#fff' : '#c2410c',
+                  borderColor: onlyOffers ? '#ea580c' : 'rgba(234, 88, 12, 0.35)',
+                  fontWeight: '800',
+                  padding: '0.45rem 1rem'
+                }}
+              >
+                <Sparkles size={13} color={onlyOffers ? '#fff' : '#ea580c'} />
+                <span className="market-pill-label">⚡ Live Deals & Offers</span>
+              </button>
+            </div>
+
             {/* External Hub: Category Cravings Bento Grid First */}
             <div className="category-grid-premium animate-fade-in-up" style={{ marginBottom: '2.5rem' }}>
               {[
@@ -578,6 +624,8 @@ const Home = () => {
           <div className="campus-stalls-grid">
             {filteredStores.map((store, idx) => {
               const isOpen = store.isOpen !== false;
+              const activeOffers = (store.offers || []).filter(o => o.isActive !== false);
+              const bestOffer = activeOffers[0];
               return (
                 <Link 
                   key={store._id || store.id || idx} 
@@ -604,15 +652,26 @@ const Home = () => {
                           <span>{store.rating || '4.5'}</span>
                         </div>
 
-                        {isOpen ? (
-                          <div className="campus-stall-status-badge live">
-                            <span className="live-pulse-beacon" /> OPEN NOW
-                          </div>
-                        ) : (
-                          <div className="campus-stall-status-badge closed">
-                            <Lock size={10} style={{ marginRight: '2px' }} /> CLOSED
-                          </div>
-                        )}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                          {bestOffer && (
+                            <div className="campus-stall-deal-badge">
+                              <Zap size={10} fill="#ffffff" />
+                              <span>
+                                {bestOffer.badgeText || (bestOffer.discountType?.includes('PERCENTAGE') ? `${bestOffer.discountValue}% OFF` : (bestOffer.discountType?.includes('FLAT_PRICE') ? `DEALS @ ₹${bestOffer.discountValue}` : `₹${bestOffer.discountValue} OFF`))}
+                              </span>
+                            </div>
+                          )}
+
+                          {isOpen ? (
+                            <div className="campus-stall-status-badge live">
+                              <span className="live-pulse-beacon" /> OPEN NOW
+                            </div>
+                          ) : (
+                            <div className="campus-stall-status-badge closed">
+                              <Lock size={10} style={{ marginRight: '2px' }} /> CLOSED
+                            </div>
+                          )}
+                        </div>
                       </div>
 
                       {/* Bottom Market Pill Over Photo */}
@@ -632,6 +691,17 @@ const Home = () => {
                       <p className="campus-stall-cuisine">
                         {store.category || 'Specialty Campus Kitchen'}
                       </p>
+
+                      {/* Real-Time Live Stall Deal Highlight */}
+                      {bestOffer && (
+                        <div className="campus-stall-offer-highlight">
+                          <Sparkles size={12} color="#ea580c" />
+                          <span className="offer-title">{bestOffer.title}</span>
+                          {activeOffers.length > 1 && (
+                            <span className="offer-extra-count">+{activeOffers.length - 1} more</span>
+                          )}
+                        </div>
+                      )}
 
                       {/* Footer Row */}
                       <div className="campus-stall-footer-row">

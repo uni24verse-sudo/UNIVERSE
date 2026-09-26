@@ -27,8 +27,16 @@ import { Ionicons } from '@expo/vector-icons';
 const getNotifications = () => {
   if (Platform.OS === 'web') return null;
   try {
+    const Constants = require('expo-constants')?.default;
+    const { ExecutionEnvironment } = require('expo-constants') || {};
     const { isRunningInExpoGo } = require('expo');
-    if (isRunningInExpoGo && isRunningInExpoGo()) return null;
+    const isExpoGo = Boolean(
+      (typeof isRunningInExpoGo === 'function' && isRunningInExpoGo()) ||
+      Constants?.appOwnership === 'expo' ||
+      Constants?.executionEnvironment === ExecutionEnvironment?.StoreClient ||
+      Constants?.executionEnvironment === 'storeClient'
+    );
+    if (isExpoGo) return null;
     return require('expo-notifications');
   } catch (e) {
     return null;
@@ -1195,72 +1203,46 @@ export default function LiveOrdersScreen({ navigation }) {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: '#0F172A' }]} edges={['top']}>
       {/* Executive Kitchen Command Header */}
       <View style={styles.header}>
-        {/* Tier 1: Stall Identity Switcher Pill on Left, Audio & Stall Switch on Right */}
-        <View style={styles.headerTier1}>
-          <TouchableOpacity 
-            style={[styles.stallChip, !isEmployee && totalOtherPending > 0 && styles.stallChipWithAlert]}
-            onPress={() => {
-              if (isEmployee) return;
-              setShowStallSwitcherModal(true);
-            }}
-            disabled={isEmployee}
-            activeOpacity={isEmployee ? 1 : 0.7}
-          >
-            <Ionicons name="storefront" size={13} color="#EF4123" style={{ marginRight: 5 }} />
-            <Text style={styles.stallChipText} numberOfLines={1}>
-              {activeStore?.name || storeData?.name || 'UniVerse Stall'}
-            </Text>
-            {!isEmployee && (
-              <Ionicons name="chevron-down" size={12} color="#64748B" style={{ marginLeft: 3 }} />
-            )}
-            {!isEmployee && totalOtherPending > 0 && (
-              <View style={styles.headerAlertBadge}>
-                <Text style={styles.headerAlertBadgeText}>{totalOtherPending}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
+        <View style={styles.headerRow}>
+          {/* Left / Center-left: Title + Carts Dropdown */}
+          <View style={styles.headerLeftGroup}>
+            <Text style={styles.headerTitle}>Kitchen Orders</Text>
 
-          <View style={styles.headerControls}>
-            {/* Audio Alert Speaker Toggle */}
-            <TouchableOpacity 
-              style={[
-                styles.audioIconBtn,
-                isAudioEnabled && styles.audioIconBtnActive
-              ]}
-              onPress={playTestSound}
-              onLongPress={toggleAudio}
-              activeOpacity={0.7}
-            >
-              <Ionicons 
-                name={isAudioEnabled ? 'volume-high' : 'volume-mute'} 
-                size={16} 
-                color={isAudioEnabled ? '#EF4123' : '#94A3B8'} 
-              />
-            </TouchableOpacity>
-
-            {/* Instant Stall On/Off Switch */}
-            <View style={[
-              styles.stallSwitchCard,
-              isStoreOpen ? styles.stallSwitchCardOpen : styles.stallSwitchCardClosed
-            ]}>
-              <View style={[styles.miniStatusDot, { backgroundColor: isStoreOpen ? '#10B981' : '#94A3B8' }]} />
-              <Text style={[styles.stallSwitchText, { color: isStoreOpen ? '#059669' : '#64748B' }]}>
-                {isStoreOpen ? 'OPEN' : 'CLOSED'}
+            {/* Active Cart Name Badge */}
+            <View style={styles.activeCartBadge}>
+              <Ionicons name="storefront" size={12} color="#EF4123" style={{ marginRight: 4 }} />
+              <Text style={styles.activeCartBadgeText} numberOfLines={1}>
+                {activeStore?.name || storeData?.name || 'UniVerse Stall'}
               </Text>
-              <Switch
-                value={isStoreOpen}
-                onValueChange={() => handleToggleStoreStatus(false)}
-                disabled={togglingStatus}
-                trackColor={{ false: '#CBD5E1', true: '#A7F3D0' }}
-                thumbColor={isStoreOpen ? '#10B981' : '#94A3B8'}
-                ios_backgroundColor="#CBD5E1"
-                style={{ transform: [{ scaleX: 0.72 }, { scaleY: 0.72 }], marginLeft: 2, marginRight: -4 }}
-              />
             </View>
           </View>
+
+          {/* Right: Auto-Accept Toggle Button */}
+          <TouchableOpacity 
+            style={[
+              styles.autoAcceptChip,
+              autoAcceptOrders ? styles.autoAcceptChipActive : styles.autoAcceptChipInactive
+            ]}
+            onPress={handleToggleAutoAccept}
+            disabled={togglingAutoAccept}
+            activeOpacity={0.75}
+          >
+            <Ionicons 
+              name={autoAcceptOrders ? "flash" : "flash-outline"} 
+              size={11} 
+              color={autoAcceptOrders ? '#EF4123' : '#94A3B8'} 
+              style={{ marginRight: 4 }} 
+            />
+            <Text style={[
+              styles.autoAcceptChipText,
+              { color: autoAcceptOrders ? '#EF4123' : '#94A3B8' }
+            ]}>
+              {autoAcceptOrders ? 'Auto: ON' : 'Auto: OFF'}
+            </Text>
+          </TouchableOpacity>
         </View>
 
         {/* Real-time Cross-Stall Incoming Order Banner (Owner Only) */}
@@ -1300,91 +1282,62 @@ export default function LiveOrdersScreen({ navigation }) {
           </TouchableOpacity>
         )}
 
-        {/* Tier 2: Title + Live Sync Pill + Compact Auto-Accept Toggle */}
-        <View style={styles.headerTier2}>
-          <Text style={styles.headerTitle}>Kitchen Orders</Text>
+        {/* Modern 4-Tab Filter Bar inside Header */}
+        <View style={styles.tabsContainer}>
+          {[
+            { key: 'Active', label: 'Active', count: counts.active, color: '#3B82F6' },
+            { key: 'Pre-Orders', label: 'Pre-Orders', count: counts.preOrders, color: '#8B5CF6' },
+            { key: 'Ready', label: 'Ready', count: counts.ready, color: '#EF4123' },
+            { key: 'History', label: 'History', count: counts.history, color: '#64748B' },
+          ].map((tab, idx) => {
+            const isActive = filter === tab.key;
+            return (
+              <TouchableOpacity 
+                key={tab.key} 
+                style={[styles.tab, isActive && styles.tabActive]}
+                onPress={() => {
+                  setFilter(tab.key);
+                  scrollViewRef.current?.scrollTo({ x: idx * screenWidth, animated: true });
+                }}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.tabText, isActive && styles.activeTabText]}>
+                  {tab.label}
+                </Text>
+                <View style={[
+                  styles.tabBadge, 
+                  isActive ? [styles.tabBadgeActive, { backgroundColor: tab.color }] : styles.tabBadgeInactive
+                ]}>
+                  <Text style={[styles.tabBadgeText, isActive && styles.tabBadgeTextActive]}>
+                    {tab.count}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
 
-          <View style={styles.badgesCluster}>
-            {/* Compact Auto-Accept Chip */}
-            <TouchableOpacity 
-              style={[
-                styles.autoAcceptChip,
-                autoAcceptOrders ? styles.autoAcceptChipActive : styles.autoAcceptChipInactive
-              ]}
-              onPress={handleToggleAutoAccept}
-              disabled={togglingAutoAccept}
-              activeOpacity={0.75}
-            >
-              <Ionicons 
-                name={autoAcceptOrders ? "flash" : "flash-outline"} 
-                size={11} 
-                color={autoAcceptOrders ? '#EF4123' : '#64748B'} 
-                style={{ marginRight: 4 }} 
-              />
-              <Text style={[
-                styles.autoAcceptChipText,
-                { color: autoAcceptOrders ? '#EF4123' : '#64748B' }
-              ]}>
-                {autoAcceptOrders ? 'Auto: ON' : 'Auto: OFF'}
-              </Text>
+        {/* Quick Search Bar inside Header */}
+        <View style={styles.searchContainer}>
+          <Ionicons name="search-outline" size={16} color="#94A3B8" style={styles.searchIcon} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder={`Search ${filter.toLowerCase()} orders, token, customer...`}
+            placeholderTextColor="#64748B"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearSearchBtn}>
+              <Ionicons name="close-circle" size={16} color="#94A3B8" />
             </TouchableOpacity>
-          </View>
+          )}
         </View>
       </View>
 
-      {/* Modern 4-Tab Filter Bar */}
-      <View style={styles.tabsContainer}>
-        {[
-          { key: 'Active', label: 'Active', count: counts.active, color: '#3B82F6' },
-          { key: 'Pre-Orders', label: 'Pre-Orders', count: counts.preOrders, color: '#8B5CF6' },
-          { key: 'Ready', label: 'Ready', count: counts.ready, color: '#EF4123' },
-          { key: 'History', label: 'History', count: counts.history, color: '#64748B' },
-        ].map((tab, idx) => {
-          const isActive = filter === tab.key;
-          return (
-            <TouchableOpacity 
-              key={tab.key} 
-              style={[styles.tab, isActive && styles.tabActive]}
-              onPress={() => {
-                setFilter(tab.key);
-                scrollViewRef.current?.scrollTo({ x: idx * screenWidth, animated: true });
-              }}
-              activeOpacity={0.8}
-            >
-              <Text style={[styles.tabText, isActive && styles.activeTabText]}>
-                {tab.label}
-              </Text>
-              <View style={[
-                styles.tabBadge, 
-                isActive ? [styles.tabBadgeActive, { backgroundColor: tab.color }] : styles.tabBadgeInactive
-              ]}>
-                <Text style={[styles.tabBadgeText, isActive && styles.tabBadgeTextActive]}>
-                  {tab.count}
-                </Text>
-              </View>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-
-      {/* Quick Search Bar */}
-      <View style={styles.searchContainer}>
-        <Ionicons name="search-outline" size={18} color="#94A3B8" style={styles.searchIcon} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder={`Search ${filter.toLowerCase()} orders, token, customer...`}
-          placeholderTextColor="#94A3B8"
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-        />
-        {searchQuery.length > 0 && (
-          <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearSearchBtn}>
-            <Ionicons name="close-circle" size={18} color="#94A3B8" />
-          </TouchableOpacity>
-        )}
-      </View>
-
-      {/* History Stats Header (Hidden for Stall Employees for Privacy) */}
+      {/* Main Content Body */}
+      <View style={{ flex: 1, backgroundColor: '#F8FAFC' }}>
+        {/* History Stats Header (Hidden for Stall Employees for Privacy) */}
       {filter === 'History' && (
         <View style={styles.historyStatsCard}>
           <View style={styles.historyStatCol}>
@@ -1537,6 +1490,7 @@ export default function LiveOrdersScreen({ navigation }) {
           </LinearGradient>
         </TouchableOpacity>
       )}
+      </View>
       {/* Stall Switcher Bottom Sheet / Modal */}
       <Modal
         visible={!isEmployee && showStallSwitcherModal}
@@ -1800,51 +1754,47 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: 16,
     paddingTop: 8,
-    paddingBottom: 12,
-    backgroundColor: '#FFFFFF',
+    paddingBottom: 10,
+    backgroundColor: '#0F172A',
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-    marginBottom: 10,
+    borderBottomColor: '#1E293B',
+    marginBottom: 8,
   },
-  headerTier1: {
+  headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 10,
   },
-  stallChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-    paddingVertical: 4.5,
-    paddingHorizontal: 10,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    maxWidth: '55%',
-  },
-  stallChipText: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#0F172A',
-    letterSpacing: -0.2,
-  },
-  headerControls: {
+  headerLeftGroup: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-  },
-  headerTier2: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingTop: 2,
+    flex: 1,
+    marginRight: 8,
   },
   headerTitle: {
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: '900',
-    color: '#0F172A',
-    letterSpacing: -0.5,
+    color: '#F8FAFC',
+    letterSpacing: -0.4,
+  },
+  activeCartBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1E293B',
+    paddingVertical: 4.5,
+    paddingHorizontal: 9,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#334155',
+    maxWidth: 130,
+  },
+  activeCartBadgeText: {
+    fontSize: 11.5,
+    fontWeight: '800',
+    color: '#F8FAFC',
+    letterSpacing: -0.2,
   },
   badgesCluster: {
     flexDirection: 'row',
@@ -1873,12 +1823,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   autoAcceptChipActive: {
-    backgroundColor: 'rgba(239, 65, 35, 0.08)',
-    borderColor: 'rgba(239, 65, 35, 0.3)',
+    backgroundColor: 'rgba(239, 65, 35, 0.18)',
+    borderColor: 'rgba(239, 65, 35, 0.4)',
   },
   autoAcceptChipInactive: {
-    backgroundColor: '#F8FAFC',
-    borderColor: '#E2E8F0',
+    backgroundColor: '#1E293B',
+    borderColor: '#334155',
   },
   autoAcceptChipText: {
     fontSize: 10.5,
@@ -1889,35 +1839,35 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#1E293B',
     borderWidth: 1.5,
-    borderColor: '#E2E8F0',
+    borderColor: '#334155',
     alignItems: 'center',
     justifyContent: 'center',
   },
   audioIconBtnActive: {
-    backgroundColor: 'rgba(239, 65, 35, 0.08)',
-    borderColor: 'rgba(239, 65, 35, 0.25)',
+    backgroundColor: '#334155',
+    borderColor: '#EF4123',
   },
   stallSwitchCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#1E293B',
     paddingVertical: 2,
     paddingLeft: 8,
     paddingRight: 4,
     borderRadius: 18,
     borderWidth: 1.5,
-    borderColor: '#E2E8F0',
+    borderColor: '#334155',
     gap: 4,
   },
   stallSwitchCardOpen: {
-    borderColor: '#A7F3D0',
-    backgroundColor: '#ECFDF5',
+    borderColor: '#059669',
+    backgroundColor: '#064E3B',
   },
   stallSwitchCardClosed: {
-    borderColor: '#E2E8F0',
-    backgroundColor: '#F8FAFC',
+    borderColor: '#334155',
+    backgroundColor: '#1E293B',
   },
   miniStatusDot: {
     width: 6,
@@ -1941,54 +1891,53 @@ const styles = StyleSheet.create({
   },
   tabsContainer: {
     flexDirection: 'row',
-    paddingHorizontal: 16,
-    marginBottom: 10,
+    marginBottom: 8,
     gap: 6,
   },
   tab: {
     flex: 1,
     flexDirection: 'row',
-    paddingVertical: 8,
+    paddingVertical: 6.5,
     paddingHorizontal: 2,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 12,
-    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    backgroundColor: '#1E293B',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#334155',
   },
   tabActive: {
-    backgroundColor: '#0F172A',
-    borderColor: '#0F172A',
+    backgroundColor: '#334155',
+    borderColor: '#475569',
   },
   tabText: {
-    color: '#64748B',
+    color: '#94A3B8',
     fontWeight: '700',
     fontSize: 11,
   },
   activeTabText: {
-    color: '#FFFFFF',
+    color: '#F8FAFC',
     fontWeight: '800',
   },
   tabBadge: {
     marginLeft: 3,
     paddingHorizontal: 4.5,
     paddingVertical: 1,
-    borderRadius: 8,
+    borderRadius: 7,
     minWidth: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },
   tabBadgeInactive: {
-    backgroundColor: '#F1F5F9',
+    backgroundColor: '#0F172A',
   },
   tabBadgeActive: {
     backgroundColor: 'rgba(255,255,255,0.25)',
   },
   tabBadgeText: {
-    fontSize: 10,
+    fontSize: 9.5,
     fontWeight: '800',
-    color: '#475569',
+    color: '#94A3B8',
   },
   tabBadgeTextActive: {
     color: '#FFFFFF',
@@ -2014,23 +1963,23 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    marginHorizontal: 16,
-    marginBottom: 12,
-    paddingHorizontal: 14,
-    borderRadius: 12,
+    backgroundColor: '#1E293B',
+    paddingHorizontal: 12,
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    height: 44,
+    borderColor: '#334155',
+    height: 38,
+    marginBottom: 2,
   },
   searchIcon: {
-    marginRight: 8,
+    marginRight: 6,
   },
   searchInput: {
     flex: 1,
-    fontSize: 14,
-    color: '#0F172A',
+    fontSize: 13,
+    color: '#F8FAFC',
     fontWeight: '500',
+    paddingVertical: 0,
   },
   clearSearchBtn: {
     padding: 4,

@@ -9,6 +9,7 @@ import { Html5QrcodeScanner } from 'html5-qrcode';
 import VendorFinance from '../components/VendorFinance';
 import EmployeeManagement from '../components/EmployeeManagement';
 import VendorPromotionManager from '../components/VendorPromotionManager';
+import VendorOfferManager from '../components/VendorOfferManager';
 import { 
   LayoutDashboard, 
   Store, 
@@ -1382,7 +1383,18 @@ const Dashboard = () => {
         ) : activeTab === 'employees' ? (
           <EmployeeManagement storeId={store?._id || store?.id} />
         ) : activeTab === 'promotions' ? (
-          <VendorPromotionManager store={store} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
+            <VendorOfferManager store={store} onStoreUpdate={(updated) => setStore(updated)} />
+            <div style={{ borderTop: '1px solid var(--surface-border)', paddingTop: '2rem' }}>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: '900', color: 'var(--text-primary)', marginBottom: '0.4rem' }}>
+                Homepage Featured Spotlight Banners
+              </h3>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '1.5rem' }}>
+                Book spotlight flyers on the UniVerse app homepage.
+              </p>
+              <VendorPromotionManager store={store} />
+            </div>
+          </div>
         ) : activeTab === 'kds' ? (
           <div style={{ padding: isMobile ? '0' : '1rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>

@@ -786,4 +786,147 @@ router.put('/:storeId/update-details', auth, async (req, res) => {
   }
 });
 
+// ===================== STORE OFFERS & DEALS ROUTES =====================
+const pricingEngine = require('../utils/pricingEngine');
+const globalOfferRepository = require('../repositories/globalOfferRepository');
+
+// 1. Get Store Offers (Combined with active platform-wide Global Offers)
+router.get('/:storeId/offers', async (req, res) => {
+  try {
+    const [store, globalOffers] = await Promise.all([
+      storeRepository.getStoreById(req.params.storeId),
+      globalOfferRepository.getActive(req.params.storeId).catch(() => [])
+    ]);
+
+    const storeOffers = (store && Array.isArray(store.offers)) 
+      ? store.offers.map(o => ({ ...o, isGlobal: false })) 
+      : [];
+
+    // Combine store offers and global offers
+    const seenCodes = new Set();
+    const combined = [];
+
+    for (const off of [...storeOffers, ...globalOffers]) {
+      const codeKey = (off.code || off.id || '').toUpperCase();
+      if (codeKey && seenCodes.has(codeKey)) continue;
+      if (codeKey) seenCodes.add(codeKey);
+      combined.push(off);
+    }
+
+    res.json(combined);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 2. Real-Time Pricing & Offer Evaluation (Public Cart preview endpoint)
+router.post('/:storeId/calculate-pricing', async (req, res) => {
+  try {
+    const store = await storeRepository.getStoreById(req.params.storeId);
+    if (!store) return res.status(404).json({ message: 'Store not found' });
+
+    const { items, orderType, selectedOfferId, couponCode, removeOffer } = req.body;
+    const globalOffers = await globalOfferRepository.getActive(req.params.storeId).catch(() => []);
+    
+    const result = pricingEngine.calculateCartPricing(store, items, { 
+      orderType, 
+      selectedOfferId, 
+      couponCode,
+      removeOffer,
+      globalOffers 
+    });
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 3. Create a Store Offer (Protected)
+router.post('/:storeId/offers', auth, async (req, res) => {
+  try {
+    const adminId = req.admin.id || req.admin._id;
+    const result = await storeRepository.createStoreOffer(req.params.storeId, adminId, req.body);
+    if (!result) return res.status(404).json({ message: 'Store not found or unauthorized' });
+
+    const io = req.app.get('io');
+    if (io) {
+      const sId = String(req.params.storeId);
+      io.emit('store_offers_update', { storeId: sId, offers: result.offers, updatedOffer: result.offer });
+      io.to(sId).emit('store_offers_update', { storeId: sId, offers: result.offers, updatedOffer: result.offer });
+      io.emit('store_menu_update', { storeId: sId, _id: sId, store: result.store });
+      io.to(sId).emit('store_menu_update', { storeId: sId, _id: sId, store: result.store });
+    }
+
+    res.status(201).json(result);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 4. Update a Store Offer (Protected)
+router.put('/:storeId/offers/:offerId', auth, async (req, res) => {
+  try {
+    const adminId = req.admin.id || req.admin._id;
+    const result = await storeRepository.updateStoreOffer(req.params.storeId, adminId, req.params.offerId, req.body);
+    if (!result) return res.status(404).json({ message: 'Store or offer not found or unauthorized' });
+
+    const io = req.app.get('io');
+    if (io) {
+      const sId = String(req.params.storeId);
+      io.emit('store_offers_update', { storeId: sId, offers: result.offers, updatedOffer: result.offer });
+      io.to(sId).emit('store_offers_update', { storeId: sId, offers: result.offers, updatedOffer: result.offer });
+      io.emit('store_menu_update', { storeId: sId, _id: sId, store: result.store });
+      io.to(sId).emit('store_menu_update', { storeId: sId, _id: sId, store: result.store });
+    }
+
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 5. Toggle a Store Offer ON/OFF (Protected)
+router.put('/:storeId/offers/:offerId/toggle', auth, async (req, res) => {
+  try {
+    const adminId = req.admin.id || req.admin._id;
+    const result = await storeRepository.toggleStoreOffer(req.params.storeId, adminId, req.params.offerId);
+    if (!result) return res.status(404).json({ message: 'Store or offer not found or unauthorized' });
+
+    const io = req.app.get('io');
+    if (io) {
+      const sId = String(req.params.storeId);
+      io.emit('store_offers_update', { storeId: sId, offers: result.offers, updatedOffer: result.offer, isToggled: true });
+      io.to(sId).emit('store_offers_update', { storeId: sId, offers: result.offers, updatedOffer: result.offer, isToggled: true });
+      io.emit('store_menu_update', { storeId: sId, _id: sId, store: result.store });
+      io.to(sId).emit('store_menu_update', { storeId: sId, _id: sId, store: result.store });
+    }
+
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 6. Delete a Store Offer (Protected)
+router.delete('/:storeId/offers/:offerId', auth, async (req, res) => {
+  try {
+    const adminId = req.admin.id || req.admin._id;
+    const result = await storeRepository.deleteStoreOffer(req.params.storeId, adminId, req.params.offerId);
+    if (!result) return res.status(404).json({ message: 'Store or offer not found or unauthorized' });
+
+    const io = req.app.get('io');
+    if (io) {
+      const sId = String(req.params.storeId);
+      io.emit('store_offers_update', { storeId: sId, offers: result.offers, deletedOfferId: req.params.offerId });
+      io.to(sId).emit('store_offers_update', { storeId: sId, offers: result.offers, deletedOfferId: req.params.offerId });
+      io.emit('store_menu_update', { storeId: sId, _id: sId, store: result.store });
+      io.to(sId).emit('store_menu_update', { storeId: sId, _id: sId, store: result.store });
+    }
+
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 module.exports = router;

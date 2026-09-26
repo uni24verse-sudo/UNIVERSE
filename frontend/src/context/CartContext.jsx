@@ -1,4 +1,5 @@
-import React, { createContext, useState, useEffect } from 'react';
+import React, { createContext, useState, useEffect, useMemo } from 'react';
+import axios from 'axios';
 import { useSocket } from './SocketContext';
 
 export const CartContext = createContext();
@@ -21,6 +22,28 @@ export const CartProvider = ({ children }) => {
   });
 
   const [isStoreClosed, setIsStoreClosed] = useState(false);
+  const [offers, setOffers] = useState([]);
+  const [selectedOfferId, setSelectedOfferId] = useState(null);
+
+  // Fetch offers for active cart store
+  useEffect(() => {
+    if (!storeId || storeId === 'null' || storeId === 'undefined') {
+      setOffers([]);
+      return;
+    }
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+    axios.get(`${apiUrl}/api/store/${storeId}/offers`)
+      .then(res => {
+        if (Array.isArray(res.data)) {
+          setOffers(res.data);
+        } else {
+          setOffers([]);
+        }
+      })
+      .catch(() => {
+        setOffers([]);
+      });
+  }, [storeId]);
 
   // Persist to localStorage whenever cart, storeId, or cartLocationId changes
   useEffect(() => {
@@ -88,14 +111,23 @@ export const CartProvider = ({ children }) => {
       }
     };
 
+    // When vendor updates or toggles offers live
+    const handleOffersUpdate = ({ storeId: updatedStoreId, offers: newOffers }) => {
+      if (storeId && String(storeId) === String(updatedStoreId) && Array.isArray(newOffers)) {
+        setOffers(newOffers);
+      }
+    };
+
     socket.on('product_availability_update', handleProductAvailability);
     socket.on('store_menu_update', handleStoreMenu);
     socket.on('store_status_update', handleStoreStatus);
+    socket.on('store_offers_update', handleOffersUpdate);
 
     return () => {
       socket.off('product_availability_update', handleProductAvailability);
       socket.off('store_menu_update', handleStoreMenu);
       socket.off('store_status_update', handleStoreStatus);
+      socket.off('store_offers_update', handleOffersUpdate);
     };
   }, [socket, connected, storeId]);
 
@@ -208,7 +240,132 @@ export const CartProvider = ({ children }) => {
   const hasOutOfStockItems = cart.some(item => item.isAvailable === false);
   const outOfStockItems = cart.filter(item => item.isAvailable === false);
 
-  const total = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+  const total = cart.reduce((acc, item) => acc + ((Number(item.price) || 0) * (Number(item.quantity) || 1)), 0);
+
+  // Deterministic Client-side Pricing Engine for Offers & Deals
+  const pricing = useMemo(() => {
+    let originalSubtotal = 0;
+    cart.forEach(item => {
+      originalSubtotal += (Number(item.price) || 0) * (Number(item.quantity) || 1);
+    });
+
+    const activeOffers = (Array.isArray(offers) ? offers : []).filter(o => o && o.isActive !== false);
+    const eligibleOffers = [];
+    const ineligibleOffers = [];
+
+    for (const offer of activeOffers) {
+      const minOrder = Number(offer.minOrderValue) || 0;
+      const val = Number(offer.discountValue) || 0;
+      const maxCap = Number(offer.maxDiscountCap) || 0;
+      const targetCats = Array.isArray(offer.targetCategories)
+        ? offer.targetCategories.map(c => c.toLowerCase().trim())
+        : [];
+
+      if (originalSubtotal < minOrder) {
+        ineligibleOffers.push({
+          ...offer,
+          shortfall: minOrder - originalSubtotal,
+          reason: `Add ₹${Math.round(minOrder - originalSubtotal)} more to unlock this offer`
+        });
+        continue;
+      }
+
+      let discount = 0;
+      if (offer.discountType === 'PERCENTAGE_CART') {
+        const raw = originalSubtotal * (val / 100);
+        discount = maxCap > 0 ? Math.min(raw, maxCap) : raw;
+      } else if (offer.discountType === 'PERCENTAGE_CATEGORY') {
+        let catSubtotal = 0;
+        cart.forEach(item => {
+          if (targetCats.includes((item.category || '').toLowerCase().trim())) {
+            catSubtotal += (Number(item.price) || 0) * (Number(item.quantity) || 1);
+          }
+        });
+        if (catSubtotal > 0) {
+          const raw = catSubtotal * (val / 100);
+          discount = maxCap > 0 ? Math.min(raw, maxCap) : raw;
+        }
+      } else if (offer.discountType === 'FLAT_PRICE_CATEGORY') {
+        cart.forEach(item => {
+          if (targetCats.includes((item.category || '').toLowerCase().trim())) {
+            const unitPrice = Number(item.price) || 0;
+            if (unitPrice > val) {
+              discount += (unitPrice - val) * (Number(item.quantity) || 1);
+            }
+          }
+        });
+        if (maxCap > 0 && discount > maxCap) discount = maxCap;
+      } else if (offer.discountType === 'FLAT_DISCOUNT_CART') {
+        discount = Math.min(val, originalSubtotal);
+      }
+
+      if (discount > 0) {
+        eligibleOffers.push({
+          ...offer,
+          potentialDiscount: Math.round(discount * 100) / 100
+        });
+      }
+    }
+
+    let selectedEvaluation = null;
+    if (selectedOfferId === 'NONE') {
+      selectedEvaluation = null;
+    } else if (selectedOfferId) {
+      selectedEvaluation = eligibleOffers.find(e => String(e.id) === String(selectedOfferId));
+    }
+
+    if (!selectedEvaluation && selectedOfferId !== 'NONE' && eligibleOffers.length > 0) {
+      selectedEvaluation = eligibleOffers.reduce((best, curr) => curr.potentialDiscount > best.potentialDiscount ? curr : best);
+    }
+
+    const discountAmount = selectedEvaluation ? selectedEvaluation.potentialDiscount : 0;
+    const discountedSubtotal = Math.max(0, originalSubtotal - discountAmount);
+
+    return {
+      originalSubtotal,
+      discountAmount,
+      discountedSubtotal,
+      appliedOffer: selectedEvaluation ? {
+        id: selectedEvaluation.id,
+        code: selectedEvaluation.code || '',
+        title: selectedEvaluation.title,
+        discountType: selectedEvaluation.discountType,
+        discountValue: selectedEvaluation.discountValue,
+        badgeText: selectedEvaluation.badgeText || (
+          selectedEvaluation.discountType.includes('PERCENTAGE') 
+            ? `${selectedEvaluation.discountValue}% OFF` 
+            : `₹${selectedEvaluation.discountValue} OFF`
+        ),
+        discountAmount,
+        isGlobal: Boolean(selectedEvaluation.isGlobal)
+      } : null,
+      eligibleOffers,
+      ineligibleOffers
+    };
+  }, [cart, offers, selectedOfferId]);
+
+  const applyCoupon = (code) => {
+    if (!code || !code.trim()) {
+      return { success: false, message: 'Please enter a coupon code' };
+    }
+    const cleanCode = code.trim().toUpperCase();
+    const activeOffers = (Array.isArray(offers) ? offers : []).filter(o => o && o.isActive !== false);
+    const matched = activeOffers.find(o => (o.code || '').toUpperCase() === cleanCode);
+    if (!matched) {
+      return { success: false, message: `Coupon code "${cleanCode}" is invalid or expired` };
+    }
+    const eligible = pricing.eligibleOffers.find(e => String(e.id) === String(matched.id));
+    if (!eligible) {
+      const inelig = pricing.ineligibleOffers.find(ie => String(ie.id) === String(matched.id));
+      return { success: false, message: inelig?.reason || `Minimum order requirement not met for "${cleanCode}"` };
+    }
+    setSelectedOfferId(matched.id);
+    return { success: true, message: `Coupon "${cleanCode}" applied! Saved ₹${eligible.potentialDiscount}` };
+  };
+
+  const removeCoupon = () => {
+    setSelectedOfferId('NONE');
+  };
 
   return (
     <CartContext.Provider value={{ 
@@ -224,7 +381,17 @@ export const CartProvider = ({ children }) => {
       hasOutOfStockItems,
       outOfStockItems,
       removeOutOfStockItems,
-      isStoreClosed
+      isStoreClosed,
+      offers,
+      selectedOfferId,
+      setSelectedOfferId,
+      appliedOffer: pricing.appliedOffer,
+      discountAmount: pricing.discountAmount,
+      discountedSubtotal: pricing.discountedSubtotal,
+      eligibleOffers: pricing.eligibleOffers,
+      ineligibleOffers: pricing.ineligibleOffers,
+      applyCoupon,
+      removeCoupon
     }}>
       {children}
     </CartContext.Provider>

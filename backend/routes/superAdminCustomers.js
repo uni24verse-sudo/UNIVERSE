@@ -90,9 +90,15 @@ router.get('/:userId', async (req, res) => {
       return res.status(404).json({ message: 'Customer not found' });
     }
 
-    // Fetch full historical order ledger from PostgreSQL
+    // Fetch full historical order ledger from PostgreSQL (matched by userId or phone)
+    const cleanPhone = (customer.phone || '').replace(/\D/g, '').slice(-10);
     const pgOrders = await prisma.order.findMany({
-      where: { userId },
+      where: {
+        OR: [
+          { userId },
+          ...(cleanPhone ? [{ customerPhone: { contains: cleanPhone } }] : [])
+        ]
+      },
       include: { store: true },
       orderBy: { createdAt: 'desc' }
     });
@@ -103,11 +109,52 @@ router.get('/:userId', async (req, res) => {
       orderBy: { createdAt: 'desc' }
     });
 
+    const normalizedOrders = pgOrders.map(normalizeOrder);
+
+    // Extract promotional intelligence: orders where coupons/discounts were applied
+    let totalDiscountSaved = 0;
+    const offersHistory = [];
+    const usedCouponsMap = {};
+
+    normalizedOrders.forEach(ord => {
+      const discount = Number(ord.discountAmount) || 0;
+      const offer = (ord.appliedOffer && typeof ord.appliedOffer === 'object' && Object.keys(ord.appliedOffer).length > 0) ? ord.appliedOffer : null;
+      const hasOffer = Boolean(offer && (offer.code || offer.title || offer.id)) || discount > 0;
+
+      if (hasOffer) {
+        totalDiscountSaved += discount;
+        const code = (offer?.code || offer?.badgeText || 'SPECIAL OFFER').toUpperCase();
+        usedCouponsMap[code] = (usedCouponsMap[code] || 0) + 1;
+
+        offersHistory.push({
+          orderId: ord.id,
+          orderNumber: ord.orderNumber,
+          storeId: ord.storeId,
+          storeName: ord.store?.name || 'Campus Counter',
+          date: ord.createdAt,
+          orderTotal: ord.totalAmount,
+          discountAmount: discount,
+          appliedOffer: offer || { badgeText: `Saved ₹${discount}` },
+          orderStatus: ord.status,
+          paymentStatus: ord.paymentStatus
+        });
+      }
+    });
+
+    const promoIntelligence = {
+      totalDiscountSaved: Math.round(totalDiscountSaved * 100) / 100,
+      totalPromotionalOrders: offersHistory.length,
+      offersHistory,
+      favoriteCoupons: Object.entries(usedCouponsMap).map(([code, count]) => ({ code, count }))
+    };
+
     res.json({
       success: true,
       customer: normalizeCustomer(customer),
-      orders: pgOrders.map(normalizeOrder),
-      refunds: pgRefunds.map(normalizeRefund)
+      orders: normalizedOrders,
+      refunds: pgRefunds.map(normalizeRefund),
+      promoIntelligence,
+      offersHistory
     });
   } catch (err) {
     console.error('[superAdminCustomers] Error getting customer 360:', err);

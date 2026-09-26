@@ -63,17 +63,31 @@ function parseScheduledTimeIST(scheduledTimeStr) {
   };
 }
 
+const pricingEngine = require('../utils/pricingEngine');
+const globalOfferRepository = require('../repositories/globalOfferRepository');
+
 // Create a new Order (Public Customer endpoint)
 // NOTE: For Razorpay checkouts, use /api/payments/razorpay/verify
 router.post('/create', async (req, res) => {
   try {
-    const { storeId, items, totalAmount, paymentMethod, customerPhone, customerName, orderType, packagingChargeApplied, isPreOrder, scheduledTime, isQRScan } = req.body;
+    const { storeId, items, totalAmount, paymentMethod, customerPhone, customerName, orderType, packagingChargeApplied, isPreOrder, scheduledTime, isQRScan, selectedOfferId, couponCode, removeOffer } = req.body;
 
     const store = await prisma.store.findUnique({
       where: { id: String(storeId) },
       include: { admin: true }
     });
     if (!store) return res.status(404).json({ message: 'Store not found' });
+
+    const globalOffers = await globalOfferRepository.getActive(storeId).catch(() => []);
+
+    // Deterministic price evaluation through unified pricing engine
+    const pricing = pricingEngine.calculateCartPricing(store, items, {
+      orderType: orderType || 'Dine In',
+      selectedOfferId,
+      couponCode,
+      removeOffer,
+      globalOffers
+    });
 
     let deadlineMinutes = isPreOrder ? 15 : (isQRScan ? null : 5);
     let acceptDeadline = deadlineMinutes ? new Date(Date.now() + deadlineMinutes * 60 * 1000) : null;
@@ -87,12 +101,14 @@ router.post('/create', async (req, res) => {
         storeId: String(storeId),
         orderNumber,
         items: Array.isArray(items) ? items : [],
-        totalAmount: Number(totalAmount) || 0,
+        totalAmount: pricing.finalTotal > 0 ? pricing.finalTotal : (Number(totalAmount) || 0),
+        discountAmount: pricing.discountAmount || 0,
+        appliedOffer: pricing.appliedOffer || {},
         paymentMethod: paymentMethod || 'UPI',
         customerPhone: String(customerPhone || ''),
         customerName: customerName || 'UniVerse Student',
         orderType: orderType || 'Dine In',
-        packagingChargeApplied: Number(packagingChargeApplied) || 0,
+        packagingChargeApplied: pricing.packagingFee,
         status: 'Payment Pending',
         paymentStatus: 'Pending',
         isPreOrder: Boolean(isPreOrder),
