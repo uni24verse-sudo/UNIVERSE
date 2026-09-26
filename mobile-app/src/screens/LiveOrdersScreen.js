@@ -855,15 +855,11 @@ export default function LiveOrdersScreen({ navigation }) {
     const query = searchQuery.trim().toLowerCase();
 
     return orders.filter(o => {
-      // 1. Search query filter
+      // 1. Search query filter (Order ID only)
       if (query) {
         const orderNum = (o.orderNumber || '').toString().toLowerCase();
-        const custName = (o.customerName || '').toLowerCase();
-        const itemNames = (o.items || []).map(i => i.name?.toLowerCase()).join(' ');
-
-        const match = orderNum.includes(query) || 
-                      custName.includes(query) || 
-                      itemNames.includes(query);
+        const orderId = (o._id || o.id || '').toString().toLowerCase();
+        const match = orderNum.includes(query) || orderId.includes(query);
         if (!match) return false;
       }
 
@@ -1322,10 +1318,12 @@ export default function LiveOrdersScreen({ navigation }) {
           <Ionicons name="search-outline" size={16} color="#94A3B8" style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
-            placeholder={`Search ${filter.toLowerCase()} orders, token, customer...`}
+            placeholder="Enter Order ID only..."
             placeholderTextColor="#64748B"
             value={searchQuery}
-            onChangeText={setSearchQuery}
+            onChangeText={(text) => setSearchQuery(text.replace(/[^0-9]/g, ''))}
+            keyboardType="number-pad"
+            inputMode="numeric"
           />
           {searchQuery.length > 0 && (
             <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearSearchBtn}>
