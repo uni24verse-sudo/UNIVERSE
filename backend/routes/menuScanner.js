@@ -5,22 +5,28 @@ const Groq = require('groq-sdk');
 
 const upload = multer({ storage: multer.memoryStorage() });
 
-router.post('/scan', upload.single('menuImage'), async (req, res) => {
+router.post('/scan', (req, res, next) => {
+  if (req.is('application/json')) {
+    return next();
+  }
+  upload.single('menuImage')(req, res, next);
+}, async (req, res) => {
   try {
-    if (!req.file) {
-      return res.status(400).json({ message: 'No image uploaded' });
+    let base64Image = null;
+    let mimeType = 'image/jpeg';
+
+    if (req.file) {
+      base64Image = req.file.buffer.toString('base64');
+      mimeType = req.file.mimetype || 'image/jpeg';
+    } else if (req.body && req.body.imageBase64) {
+      base64Image = req.body.imageBase64.replace(/^data:image\/[a-zA-Z0-9+.-]+;base64,/, '');
+      if (req.body.mimeType) mimeType = req.body.mimeType;
     }
 
-    const apiKey = process.env.GROQ_API_KEY;
-    if (!apiKey || apiKey === 'your_groq_api_key_here') {
-      return res.status(401).json({ message: 'Groq API Key (GROQ_API_KEY) is missing on the server settings' });
+    if (!base64Image) {
+      console.warn('[menuScanner] No image uploaded in request. req.file:', !!req.file, 'req.body keys:', Object.keys(req.body || {}));
+      return res.status(400).json({ message: 'No image uploaded. Please choose or capture a photo of your menu.' });
     }
-
-    const groq = new Groq({ apiKey });
-
-    // Convert buffer to base64
-    const base64Image = req.file.buffer.toString('base64');
-    const mimeType = req.file.mimetype;
 
     const prompt = `Extract all menu items from this restaurant menu image. 
     Format the output as a JSON array of objects with exactly these keys: 
@@ -33,6 +39,13 @@ router.post('/scan', upload.single('menuImage'), async (req, res) => {
     - Ensure price is a raw number (e.g., 150 instead of "₹150").
     - If no price is found, use 0.
     - Return ONLY the clean JSON array. No markdown, no explanation, no backticks.`;
+
+    const apiKey = process.env.GROQ_API_KEY;
+    if (!apiKey || apiKey === 'your_groq_api_key_here') {
+      return res.status(401).json({ message: 'Groq API Key (GROQ_API_KEY) is missing on the server settings' });
+    }
+
+    const groq = new Groq({ apiKey });
 
     const chatCompletion = await groq.chat.completions.create({
       messages: [
