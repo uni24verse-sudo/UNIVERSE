@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import axios from 'axios';
 import { QRCodeSVG } from 'qrcode.react';
 import { 
@@ -56,6 +57,11 @@ const SuperAdminRefunds = ({ token, socket }) => {
   // Bulk / Single Delete State
   const [selectedRefundIds, setSelectedRefundIds] = useState([]);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [topBarTarget, setTopBarTarget] = useState(null);
+
+  useEffect(() => {
+    setTopBarTarget(document.getElementById('superadmin-topbar-actions'));
+  }, []);
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
   const authConfig = { headers: { Authorization: `Bearer ${token}` } };
@@ -276,57 +282,33 @@ const SuperAdminRefunds = ({ token, socket }) => {
 
   return (
     <div>
-      {/* Header & Controls */}
-      <header style={{ 
-        position: 'sticky', 
-        top: 0, 
-        zIndex: 20, 
-        background: '#f8fafc', 
-        paddingTop: '0.25rem', 
-        paddingBottom: '1.25rem', 
-        marginBottom: '1.5rem', 
-        borderBottom: '1px solid #e2e8f0', 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center', 
-        flexWrap: 'wrap', 
-        gap: '1rem' 
-      }}>
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: 'linear-gradient(135deg, #ef4444, #dc2626)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ffffff', boxShadow: '0 4px 14px rgba(239, 68, 68, 0.3)' }}>
-              <RotateCcw size={22} />
-            </div>
-            <div>
-              <h1 style={{ fontSize: '1.75rem', fontWeight: '900', margin: 0, color: 'var(--text-primary)' }}>Instant Direct Refunds</h1>
-              <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Direct UPI fulfillment desk with 1-tap mobile payment & WhatsApp alerts</p>
-            </div>
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+      {/* Topbar Actions Portal */}
+      {topBarTarget && createPortal(
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
           <button 
             onClick={openConfigModal}
             style={{
-              display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.65rem 1.25rem',
-              borderRadius: '12px', background: '#ffffff', border: '1px solid var(--surface-border)',
-              color: 'var(--text-primary)', fontWeight: '700', fontSize: '0.85rem', cursor: 'pointer',
-              boxShadow: '0 2px 6px rgba(0,0,0,0.03)'
+              display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.45rem 0.85rem',
+              borderRadius: '8px', background: '#ffffff', border: '1px solid #e2e8f0',
+              color: '#0f172a', fontWeight: '700', fontSize: '0.8rem', cursor: 'pointer',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
             }}
           >
-            <Settings size={16} color="var(--primary)" /> Team Alert Settings
+            <Settings size={14} color="var(--primary)" /> Team Alert Settings
           </button>
           <button 
             onClick={() => { fetchPendingRefunds(); if (activeSubTab === 'history') fetchRefundHistory(); }}
             style={{
-              padding: '0.65rem 1rem', borderRadius: '12px', background: '#ffffff',
-              border: '1px solid var(--surface-border)', cursor: 'pointer', fontWeight: '700', fontSize: '0.85rem'
+              padding: '0.45rem 0.85rem', borderRadius: '8px', background: '#ffffff',
+              border: '1px solid #e2e8f0', cursor: 'pointer', fontWeight: '700', fontSize: '0.8rem',
+              color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.35rem'
             }}
           >
-            🔄 Refresh
+            <RotateCcw size={13} /> Refresh
           </button>
-        </div>
-      </header>
+        </div>,
+        topBarTarget
+      )}
 
       {/* Metrics Row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1.25rem', marginBottom: '2rem' }}>
