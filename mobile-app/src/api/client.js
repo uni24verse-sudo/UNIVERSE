@@ -1,6 +1,7 @@
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import { Platform, NativeModules } from 'react-native';
+import Constants from 'expo-constants';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -46,6 +47,14 @@ export const getBaseUrl = () => {
   // 2. Native Mobile (Android/iOS) running in Expo Go / Development
   // Automatically extract the active Metro host IP the phone is connected to
   if (__DEV__) {
+    const hostUri = Constants?.expoConfig?.hostUri || Constants?.manifest?.debuggerHost || '';
+    if (hostUri) {
+      const devHost = hostUri.split(':')[0];
+      if (devHost && devHost !== 'localhost' && devHost !== '127.0.0.1') {
+        return `http://${devHost}:5000/api`;
+      }
+    }
+
     try {
       const scriptURL = NativeModules?.SourceCode?.scriptURL || '';
       const match = scriptURL.match(/https?:\/\/([^/:]+)/);
@@ -58,7 +67,7 @@ export const getBaseUrl = () => {
     if (process.env.EXPO_PUBLIC_API_URL) {
       return process.env.EXPO_PUBLIC_API_URL;
     }
-    return 'http://10.36.104.120:5000/api';
+    return 'http://10.194.0.50:5000/api';
   }
 
   if (process.env.EXPO_PUBLIC_API_URL) {

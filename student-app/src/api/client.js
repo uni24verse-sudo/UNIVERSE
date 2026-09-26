@@ -51,7 +51,7 @@ export const getBaseUrl = () => {
     if (process.env.EXPO_PUBLIC_API_URL) {
       return process.env.EXPO_PUBLIC_API_URL;
     }
-    return 'http://10.36.104.120:5000/api';
+    return 'http://10.194.0.50:5000/api';
   }
 
   if (process.env.EXPO_PUBLIC_API_URL) {
