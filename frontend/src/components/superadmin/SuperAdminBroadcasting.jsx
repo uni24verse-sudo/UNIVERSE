@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import axios from 'axios';
 import { 
   Send, 
@@ -42,6 +43,11 @@ const SuperAdminBroadcasting = ({ token, socket }) => {
   const [liveProgress, setLiveProgress] = useState(null);
   const [selectedCampaignIds, setSelectedCampaignIds] = useState([]);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [topBarTarget, setTopBarTarget] = useState(null);
+
+  useEffect(() => {
+    setTopBarTarget(document.getElementById('superadmin-topbar-actions'));
+  }, []);
 
   // Wizard Modal State
   const [showWizard, setShowWizard] = useState(false);
@@ -485,45 +491,34 @@ const SuperAdminBroadcasting = ({ token, socket }) => {
 
   return (
     <div>
-      {/* Header */}
-      <header style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
-        <div>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'rgba(239, 65, 35, 0.08)', color: 'var(--primary)', padding: '4px 12px', borderRadius: '100px', fontSize: '0.78rem', fontWeight: '800', marginBottom: '0.5rem' }}>
-            <Zap size={14} /> Multi-Channel Campus Broadcasting
-          </div>
-          <h1 style={{ fontSize: '1.9rem', fontWeight: '900', margin: 0, color: '#0f172a', letterSpacing: '-0.02em' }}>
-            Broadcasting Studio
-          </h1>
-          <p style={{ color: 'var(--text-secondary)', marginTop: '0.35rem', fontSize: '0.95rem' }}>
-            Launch high-impact announcements, flash deals, and campus updates via connected WhatsApp devices and verified Email senders.
-          </p>
-        </div>
-
-        {/* CREATE BROADCAST BUTTON */}
+      {/* Topbar Action Portal */}
+      {topBarTarget && createPortal(
         <button
           onClick={handleOpenWizard}
           style={{
-            padding: '0.85rem 1.6rem',
-            borderRadius: '14px',
-            border: 'none',
-            background: 'linear-gradient(135deg, #ef4123, #ea580c)',
-            color: '#ffffff',
-            fontWeight: '900',
-            fontSize: '1rem',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            cursor: 'pointer',
-            boxShadow: '0 6px 20px rgba(239, 65, 35, 0.35)',
-            transition: 'transform 0.15s ease'
+            display: 'flex', alignItems: 'center', gap: '6px', padding: '0.45rem 0.9rem',
+            background: 'linear-gradient(135deg, #ef4123, #ea580c)', color: '#ffffff',
+            border: 'none', borderRadius: '8px', fontWeight: '700', fontSize: '0.78rem',
+            cursor: 'pointer', boxShadow: '0 2px 8px rgba(239, 65, 35, 0.25)'
           }}
         >
-          <Plus size={20} /> Create Broadcast
-        </button>
-      </header>
+          <Plus size={14} /> Create Broadcast
+        </button>,
+        topBarTarget
+      )}
 
-      {/* 4 Stat Overview Tiles */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.25rem', marginBottom: '2rem' }}>
+      {/* 4 Stat Overview Tiles (Sticky) */}
+      <div style={{
+        position: 'sticky',
+        top: 0,
+        zIndex: 10,
+        background: '#f8fafc',
+        paddingTop: '0.25rem',
+        paddingBottom: '0.75rem',
+        marginBottom: '1rem',
+        borderBottom: '1px solid #e2e8f0'
+      }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
         <div style={{ background: '#ffffff', padding: '1.4rem', borderRadius: '20px', border: '1px solid var(--surface-border)', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#64748b', fontSize: '0.8rem', fontWeight: '700', marginBottom: '6px' }}>
             <Radio size={16} color="var(--primary)" /> Total Broadcasts
@@ -556,6 +551,7 @@ const SuperAdminBroadcasting = ({ token, socket }) => {
           <span style={{ fontSize: '0.72rem', color: '#64748b' }}>Pre-approved messaging designs</span>
         </div>
       </div>
+    </div>
 
       {/* Live Dispatch Progress Monitor */}
       {liveProgress && (

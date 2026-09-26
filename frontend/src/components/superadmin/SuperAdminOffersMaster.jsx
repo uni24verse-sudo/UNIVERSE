@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import axios from 'axios';
 import { 
   Tag, 
@@ -41,6 +42,11 @@ const SuperAdminOffersMaster = ({ token, socket }) => {
   const [storeFilter, setStoreFilter] = useState('all');
   const [selectedOfferKeys, setSelectedOfferKeys] = useState([]);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [topBarTarget, setTopBarTarget] = useState(null);
+
+  useEffect(() => {
+    setTopBarTarget(document.getElementById('superadmin-topbar-actions'));
+  }, []);
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -291,93 +297,66 @@ const SuperAdminOffersMaster = ({ token, socket }) => {
   }, [globalOffers, storeOffers, activeTab, storeFilter, search]);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-      {/* Top Banner / Header */}
-      <div style={{
-        background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
-        borderRadius: '24px',
-        padding: '2.5rem',
-        color: '#ffffff',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        flexWrap: 'wrap',
-        gap: '1.5rem',
-        boxShadow: '0 20px 40px rgba(0,0,0,0.12)'
-      }}>
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
-            <div style={{
-              background: 'linear-gradient(135deg, #ef4123 0%, #ea580c 100%)',
-              padding: '0.6rem',
-              borderRadius: '14px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 4px 12px rgba(239, 65, 35, 0.4)'
-            }}>
-              <Tag size={26} color="#ffffff" />
-            </div>
-            <div>
-              <span style={{ fontSize: '0.75rem', fontWeight: '900', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#fed7aa' }}>
-                PROMOTIONS COMMAND CENTER
-              </span>
-              <h1 style={{ fontSize: '2rem', fontWeight: '900', margin: 0, letterSpacing: '-0.02em', color: '#ffffff' }}>
-                Offers & Deals Master
-              </h1>
-            </div>
-          </div>
-          <p style={{ margin: 0, color: '#94a3b8', fontSize: '0.95rem', maxWidth: '600px', lineHeight: '1.5' }}>
-            Centrally manage, create, and dispatch platform-wide campus coupons valid for all carts, or configure stall-specific promotional discounts with real-time sync across buyers' web and mobile apps.
-          </p>
-        </div>
-
-        <div style={{ display: 'flex', gap: '0.85rem', flexWrap: 'wrap' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+      {/* Topbar Action Portal */}
+      {topBarTarget && createPortal(
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <button
             onClick={() => handleOpenCreate('global')}
             style={{
               background: 'linear-gradient(135deg, #ef4123 0%, #ea580c 100%)',
               color: '#ffffff',
               border: 'none',
-              borderRadius: '14px',
-              padding: '0.9rem 1.6rem',
-              fontWeight: '800',
-              fontSize: '0.95rem',
+              borderRadius: '8px',
+              padding: '0.45rem 0.9rem',
+              fontWeight: '700',
+              fontSize: '0.78rem',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
-              gap: '0.6rem',
-              boxShadow: '0 8px 20px rgba(239, 65, 35, 0.35)',
-              transition: 'transform 0.15s ease'
+              gap: '5px',
+              boxShadow: '0 2px 8px rgba(239, 65, 35, 0.25)'
             }}
           >
-            <Sparkles size={18} />
-            + New Global Campus Deal
+            <Sparkles size={14} /> + Global Deal
           </button>
           <button
             onClick={() => handleOpenCreate('store')}
             style={{
-              background: 'rgba(255, 255, 255, 0.1)',
-              color: '#ffffff',
-              border: '1px solid rgba(255, 255, 255, 0.2)',
-              borderRadius: '14px',
-              padding: '0.9rem 1.4rem',
-              fontWeight: '800',
-              fontSize: '0.95rem',
+              background: '#ffffff',
+              color: '#0f172a',
+              border: '1px solid #cbd5e1',
+              borderRadius: '8px',
+              padding: '0.45rem 0.85rem',
+              fontWeight: '700',
+              fontSize: '0.78rem',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
-              gap: '0.6rem'
+              gap: '5px'
             }}
           >
-            <Store size={18} />
-            + New Stall Deal
+            <Store size={14} /> + Stall Deal
           </button>
-        </div>
-      </div>
+        </div>,
+        topBarTarget
+      )}
 
-      {/* KPI Stats Row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.25rem' }}>
+      {/* Sticky KPI Stats & Filter Strip */}
+      <div style={{
+        position: 'sticky',
+        top: 0,
+        zIndex: 10,
+        background: '#f8fafc',
+        paddingTop: '0.25rem',
+        paddingBottom: '0.75rem',
+        borderBottom: '1px solid #e2e8f0',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '0.75rem'
+      }}>
+        {/* KPI Stats Row */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
         <div style={{
           background: '#ffffff', borderRadius: '18px', padding: '1.5rem',
           border: '1px solid var(--surface-border)', boxShadow: '0 4px 12px rgba(0,0,0,0.03)'
@@ -582,6 +561,7 @@ const SuperAdminOffersMaster = ({ token, socket }) => {
           </button>
         </div>
       </div>
+    </div>
 
       {/* BULK ACTION BAR */}
       {selectedOfferKeys.length > 0 && (

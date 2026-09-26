@@ -187,164 +187,120 @@ const SuperAdminHeroPromotions = ({ token, socket }) => {
 
   return (
     <div style={{ color: '#0f172a', fontFamily: 'inherit' }}>
-      {/* Top Header Card with Clean Light Aesthetic */}
-      <div style={{ 
-        background: '#ffffff',
-        borderRadius: '24px',
-        border: '1px solid var(--surface-border, #e2e8f0)',
-        padding: '2rem',
-        marginBottom: '2rem',
-        boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.03)',
-        position: 'relative',
-        overflow: 'hidden'
+      {/* Pinned Metrics & Location Filter Strip (Sticky) */}
+      <div style={{
+        position: 'sticky',
+        top: 0,
+        zIndex: 10,
+        background: '#f8fafc',
+        paddingTop: '0.25rem',
+        paddingBottom: '0.75rem',
+        marginBottom: '1.25rem',
+        borderBottom: '1px solid #e2e8f0'
       }}>
-        {/* Subtle decorative glow */}
-        <div style={{
-          position: 'absolute',
-          top: 0,
-          right: 0,
-          width: '320px',
-          height: '100%',
-          background: 'radial-gradient(circle at top right, rgba(239, 65, 35, 0.06) 0%, rgba(99, 102, 241, 0.04) 50%, transparent 80%)',
-          pointerEvents: 'none'
-        }} />
-
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '2rem', position: 'relative', zIndex: 1 }}>
-          <div style={{ maxWidth: '650px' }}>
-            <div style={{ 
-              display: 'inline-flex', 
-              alignItems: 'center', 
-              gap: '0.45rem', 
-              background: 'rgba(239, 65, 35, 0.08)', 
-              border: '1px solid rgba(239, 65, 35, 0.2)', 
-              padding: '0.35rem 0.85rem', 
-              borderRadius: '100px', 
-              fontSize: '0.75rem', 
-              fontWeight: '800', 
-              color: '#ef4123', 
-              marginBottom: '0.75rem',
-              letterSpacing: '0.04em'
-            }}>
-              <Sparkles size={14} /> HERO PROMOTIONS ENGINE • ₹799/MO SLOTS
+        {/* Quick Metrics Cards */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '0.75rem' }}>
+          {/* Total Ad Revenue */}
+          <div style={{ 
+            background: 'linear-gradient(135deg, #ffffff 0%, rgba(16, 185, 129, 0.05) 100%)', 
+            padding: '1rem 1.25rem', 
+            borderRadius: '16px', 
+            border: '1px solid rgba(16, 185, 129, 0.25)',
+            boxShadow: '0 2px 8px rgba(16, 185, 129, 0.04)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
+              <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Ad Revenue</span>
+              <div style={{ width: '24px', height: '24px', borderRadius: '6px', background: 'rgba(16, 185, 129, 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#10b981' }}>
+                <Coins size={14} />
+              </div>
             </div>
-            <h1 style={{ fontSize: '2.1rem', fontWeight: '900', margin: 0, letterSpacing: '-0.03em', color: '#0f172a' }}>
-              Location Hero Promotions
-            </h1>
-            <p style={{ color: '#64748b', margin: '0.5rem 0 0 0', fontSize: '0.95rem', lineHeight: '1.5' }}>
-              Monetize premium homepage banner real estate. Review vendor flyers, format to master 1920×768 canvases, and simulate Desktop & Mobile viewports before broadcasting.
-            </p>
+            <h3 style={{ margin: 0, fontSize: '1.45rem', fontWeight: '900', color: '#0f172a' }}>
+              ₹{totalPaidRevenue.toLocaleString()}
+            </h3>
+            <span style={{ fontSize: '0.68rem', color: '#059669', fontWeight: '700', marginTop: '0.15rem', display: 'inline-block' }}>
+              100% Platform Direct
+            </span>
           </div>
 
-          {/* Quick Metrics Cards */}
-          <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-            {/* Total Ad Revenue */}
-            <div style={{ 
-              background: 'linear-gradient(135deg, #ffffff 0%, rgba(16, 185, 129, 0.05) 100%)', 
-              padding: '1.25rem 1.5rem', 
-              borderRadius: '20px', 
-              border: '1px solid rgba(16, 185, 129, 0.25)',
-              boxShadow: '0 4px 12px rgba(16, 185, 129, 0.04)',
-              minWidth: '160px'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
-                <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Ad Revenue</span>
-                <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: 'rgba(16, 185, 129, 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#10b981' }}>
-                  <Coins size={16} />
-                </div>
+          {/* Active Slides */}
+          <div style={{ 
+            background: 'linear-gradient(135deg, #ffffff 0%, rgba(99, 102, 241, 0.05) 100%)', 
+            padding: '1rem 1.25rem', 
+            borderRadius: '16px', 
+            border: '1px solid rgba(99, 102, 241, 0.25)',
+            boxShadow: '0 2px 8px rgba(99, 102, 241, 0.04)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
+              <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Active Slides</span>
+              <div style={{ width: '24px', height: '24px', borderRadius: '6px', background: 'rgba(99, 102, 241, 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6366f1' }}>
+                <Layers size={14} />
               </div>
-              <h3 style={{ margin: 0, fontSize: '1.75rem', fontWeight: '900', color: '#0f172a' }}>
-                ₹{totalPaidRevenue.toLocaleString()}
-              </h3>
-              <span style={{ fontSize: '0.7rem', color: '#059669', fontWeight: '700', marginTop: '0.2rem', display: 'inline-block' }}>
-                100% Platform Direct
-              </span>
             </div>
+            <h3 style={{ margin: 0, fontSize: '1.45rem', fontWeight: '900', color: '#0f172a' }}>
+              {activeBanners.length} / 5
+            </h3>
+            <div style={{ display: 'flex', gap: '4px', marginTop: '0.35rem' }}>
+              {[1, 2, 3, 4, 5].map(idx => (
+                <div 
+                  key={idx} 
+                  style={{ 
+                    width: '16px', 
+                    height: '4px', 
+                    borderRadius: '2px', 
+                    background: idx <= activeBanners.length ? '#6366f1' : '#e2e8f0' 
+                  }} 
+                />
+              ))}
+            </div>
+          </div>
 
-            {/* Active Slides */}
-            <div style={{ 
-              background: 'linear-gradient(135deg, #ffffff 0%, rgba(99, 102, 241, 0.05) 100%)', 
-              padding: '1.25rem 1.5rem', 
-              borderRadius: '20px', 
-              border: '1px solid rgba(99, 102, 241, 0.25)',
-              boxShadow: '0 4px 12px rgba(99, 102, 241, 0.04)',
-              minWidth: '160px'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
-                <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Active Slides</span>
-                <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: 'rgba(99, 102, 241, 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6366f1' }}>
-                  <Layers size={16} />
-                </div>
-              </div>
-              <h3 style={{ margin: 0, fontSize: '1.75rem', fontWeight: '900', color: '#0f172a' }}>
-                {activeBanners.length} / 5
-              </h3>
-              {/* Mini 5-dot occupancy indicator */}
-              <div style={{ display: 'flex', gap: '4px', marginTop: '0.4rem' }}>
-                {[1, 2, 3, 4, 5].map(idx => (
-                  <div 
-                    key={idx} 
-                    style={{ 
-                      width: '18px', 
-                      height: '5px', 
-                      borderRadius: '3px', 
-                      background: idx <= activeBanners.length ? '#6366f1' : '#e2e8f0' 
-                    }} 
-                  />
-                ))}
+          {/* Design Queue */}
+          <div style={{ 
+            background: 'linear-gradient(135deg, #ffffff 0%, rgba(245, 158, 11, 0.05) 100%)', 
+            padding: '1rem 1.25rem', 
+            borderRadius: '16px', 
+            border: '1px solid rgba(245, 158, 11, 0.25)',
+            boxShadow: '0 2px 8px rgba(245, 158, 11, 0.04)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
+              <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Design Queue</span>
+              <div style={{ width: '24px', height: '24px', borderRadius: '6px', background: 'rgba(245, 158, 11, 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#f59e0b' }}>
+                <Clock size={14} />
               </div>
             </div>
-
-            {/* Design Queue */}
-            <div style={{ 
-              background: 'linear-gradient(135deg, #ffffff 0%, rgba(245, 158, 11, 0.05) 100%)', 
-              padding: '1.25rem 1.5rem', 
-              borderRadius: '20px', 
-              border: '1px solid rgba(245, 158, 11, 0.25)',
-              boxShadow: '0 4px 12px rgba(245, 158, 11, 0.04)',
-              minWidth: '160px'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
-                <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Design Queue</span>
-                <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: 'rgba(245, 158, 11, 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#f59e0b' }}>
-                  <Clock size={16} />
-                </div>
-              </div>
-              <h3 style={{ margin: 0, fontSize: '1.75rem', fontWeight: '900', color: '#0f172a' }}>
-                {pendingQueue.length}
-              </h3>
-              <span style={{ fontSize: '0.7rem', color: pendingQueue.length > 0 ? '#d97706' : '#10b981', fontWeight: '700', marginTop: '0.2rem', display: 'inline-block' }}>
-                {pendingQueue.length > 0 ? 'Requires Action' : 'All Clear'}
-              </span>
-            </div>
+            <h3 style={{ margin: 0, fontSize: '1.45rem', fontWeight: '900', color: '#0f172a' }}>
+              {pendingQueue.length}
+            </h3>
+            <span style={{ fontSize: '0.68rem', color: pendingQueue.length > 0 ? '#d97706' : '#10b981', fontWeight: '700', marginTop: '0.15rem', display: 'inline-block' }}>
+              {pendingQueue.length > 0 ? 'Requires Action' : 'All Clear'}
+            </span>
           </div>
         </div>
 
         {/* Location Hub Filter Pills */}
         <div style={{ 
           display: 'flex', 
-          gap: '0.5rem', 
+          gap: '0.4rem', 
           overflowX: 'auto', 
-          marginTop: '1.75rem', 
-          paddingTop: '1rem',
-          borderTop: '1px solid var(--surface-border, #e2e8f0)',
-          alignItems: 'center'
+          alignItems: 'center',
+          scrollbarWidth: 'thin'
         }}>
-          <span style={{ fontSize: '0.8rem', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', marginRight: '0.5rem' }}>
+          <span style={{ fontSize: '0.75rem', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', marginRight: '0.35rem' }}>
             Location Hub:
           </span>
           <button 
             onClick={() => setSelectedHub('All')}
             style={{ 
-              padding: '0.45rem 1.1rem',
+              padding: '0.35rem 0.9rem',
               borderRadius: '100px',
               border: selectedHub === 'All' ? 'none' : '1px solid var(--surface-border, #e2e8f0)',
               background: selectedHub === 'All' ? '#0f172a' : '#ffffff',
               color: selectedHub === 'All' ? '#ffffff' : '#64748b',
               fontWeight: '800',
-              fontSize: '0.85rem',
+              fontSize: '0.78rem',
               cursor: 'pointer',
               whiteSpace: 'nowrap',
-              boxShadow: selectedHub === 'All' ? '0 2px 8px rgba(15,23,42,0.15)' : 'none',
+              boxShadow: selectedHub === 'All' ? '0 2px 6px rgba(15,23,42,0.15)' : 'none',
               transition: 'all 0.15s ease'
             }}
           >
@@ -355,23 +311,23 @@ const SuperAdminHeroPromotions = ({ token, socket }) => {
               key={loc._id || loc.id}
               onClick={() => setSelectedHub(loc.name)}
               style={{ 
-                padding: '0.45rem 1.1rem',
+                padding: '0.35rem 0.9rem',
                 borderRadius: '100px',
                 border: selectedHub === loc.name ? 'none' : '1px solid var(--surface-border, #e2e8f0)',
                 background: selectedHub === loc.name ? '#0f172a' : '#ffffff',
                 color: selectedHub === loc.name ? '#ffffff' : '#64748b',
                 fontWeight: '800',
-                fontSize: '0.85rem',
+                fontSize: '0.78rem',
                 cursor: 'pointer',
                 whiteSpace: 'nowrap',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '0.4rem',
-                boxShadow: selectedHub === loc.name ? '0 2px 8px rgba(15,23,42,0.15)' : 'none',
+                gap: '0.35rem',
+                boxShadow: selectedHub === loc.name ? '0 2px 6px rgba(15,23,42,0.15)' : 'none',
                 transition: 'all 0.15s ease'
               }}
             >
-              <MapPin size={13} /> {loc.name}
+              <MapPin size={12} /> {loc.name}
             </button>
           ))}
         </div>

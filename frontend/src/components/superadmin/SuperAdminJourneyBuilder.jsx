@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import axios from 'axios';
 import { 
   GitBranch, 
@@ -84,6 +85,11 @@ const SuperAdminJourneyBuilder = ({ token }) => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [topBarTarget, setTopBarTarget] = useState(null);
+
+  useEffect(() => {
+    setTopBarTarget(document.getElementById('superadmin-topbar-actions'));
+  }, []);
 
   // Freeform Dragging & Zoom Engine
   const [nodePositions, setNodePositions] = useState({});
@@ -797,72 +803,9 @@ const SuperAdminJourneyBuilder = ({ token }) => {
   return (
     <div style={{ paddingBottom: '1rem', width: '100%', height: isFullscreen ? '100vh' : 'auto' }}>
       
-      {/* Top Strip: Flow Selector & Management (Never Clipped) */}
-      <div style={{
-        background: '#ffffff',
-        borderRadius: '16px',
-        border: '1px solid var(--surface-border)',
-        padding: '0.6rem 1rem',
-        marginBottom: '0.75rem',
-        boxShadow: '0 2px 10px rgba(0,0,0,0.02)',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        gap: '12px',
-        flexWrap: 'nowrap'
-      }}>
-        {/* Left: Studio Branding & Flow Selector Pills */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: 0, overflow: 'hidden' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', paddingRight: '12px', borderRight: '1px solid #e2e8f0', flexShrink: 0 }}>
-            <div style={{ background: 'linear-gradient(135deg, #ef4123, #ea580c)', color: 'white', padding: '6px', borderRadius: '10px', display: 'flex' }}>
-              <Workflow size={16} />
-            </div>
-            <div>
-              <div style={{ fontSize: '0.86rem', fontWeight: '900', color: '#0f172a', lineHeight: 1.1 }}>Journey Studio</div>
-              <div style={{ fontSize: '0.64rem', color: '#10b981', fontWeight: '800' }}>AWS RDS Engine</div>
-            </div>
-          </div>
-
-          {/* Horizontal Flow Selector Pills */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflowX: 'auto', flex: 1, paddingBottom: '2px', scrollbarWidth: 'thin' }}>
-            {journeys.map(j => {
-              const isSelected = selectedJourney?._id === j._id;
-              const isActive = j.status === 'Active';
-
-              return (
-                <button
-                  key={j._id}
-                  onClick={() => setSelectedJourney(j)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    padding: '0.35rem 0.8rem',
-                    borderRadius: '10px',
-                    border: isSelected ? '1.5px solid var(--primary)' : '1px solid #e2e8f0',
-                    background: isSelected ? 'rgba(239, 65, 35, 0.08)' : '#f8fafc',
-                    color: isSelected ? 'var(--primary)' : '#334155',
-                    fontWeight: isSelected ? '900' : '700',
-                    fontSize: '0.78rem',
-                    cursor: 'pointer',
-                    whiteSpace: 'nowrap',
-                    flexShrink: 0,
-                    transition: 'all 0.15s'
-                  }}
-                >
-                  <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: isActive ? '#10b981' : '#94a3b8' }} />
-                  {j.name}
-                  <span style={{ fontSize: '0.65rem', background: isSelected ? 'rgba(239, 65, 35, 0.15)' : '#e2e8f0', color: isSelected ? 'var(--primary)' : '#64748b', padding: '1px 5px', borderRadius: '6px', fontWeight: '800' }}>
-                    {j.nodes?.length || 0}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Right: Actions (1-Click Lifecycle Flow Preset + New Journey) */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+      {/* Topbar Action Portal */}
+      {topBarTarget && createPortal(
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <button
             onClick={handleLoadFullOrderLifecyclePreset}
             title="Load the 5-Stage Live Order Lifecycle (Placed -> Accepted/Rejected -> Ready -> Completed -> Feedback)"
@@ -871,18 +814,18 @@ const SuperAdminJourneyBuilder = ({ token }) => {
               alignItems: 'center',
               gap: '6px',
               padding: '0.45rem 0.85rem',
-              borderRadius: '10px',
+              borderRadius: '8px',
               border: '1px solid #fed7aa',
               background: '#fff7ed',
               color: '#c2410c',
-              fontWeight: '800',
+              fontWeight: '700',
               fontSize: '0.76rem',
               cursor: 'pointer',
               whiteSpace: 'nowrap',
               transition: 'all 0.15s'
             }}
           >
-            <Sparkles size={14} color="#ea580c" /> ⚡ Full Lifecycle Flow Preset
+            <Sparkles size={13} color="#ea580c" /> ⚡ Lifecycle Preset
           </button>
 
           <button
@@ -892,11 +835,11 @@ const SuperAdminJourneyBuilder = ({ token }) => {
               alignItems: 'center',
               gap: '5px',
               padding: '0.45rem 0.9rem',
-              borderRadius: '10px',
+              borderRadius: '8px',
               border: 'none',
               background: 'linear-gradient(135deg, #ef4123, #ea580c)',
               color: '#ffffff',
-              fontWeight: '800',
+              fontWeight: '700',
               fontSize: '0.78rem',
               cursor: 'pointer',
               whiteSpace: 'nowrap',
@@ -905,6 +848,61 @@ const SuperAdminJourneyBuilder = ({ token }) => {
           >
             <Plus size={14} /> New Journey
           </button>
+        </div>,
+        topBarTarget
+      )}
+
+      {/* Top Strip: Flow Selector & Management (Sticky) */}
+      <div style={{
+        position: 'sticky',
+        top: 0,
+        zIndex: 10,
+        background: '#ffffff',
+        borderRadius: '16px',
+        border: '1px solid var(--surface-border)',
+        padding: '0.6rem 1rem',
+        marginBottom: '0.75rem',
+        boxShadow: '0 2px 10px rgba(0,0,0,0.02)',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '12px',
+        flexWrap: 'nowrap'
+      }}>
+        {/* Horizontal Flow Selector Pills */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflowX: 'auto', flex: 1, paddingBottom: '2px', scrollbarWidth: 'thin' }}>
+          {journeys.map(j => {
+            const isSelected = selectedJourney?._id === j._id;
+            const isActive = j.status === 'Active';
+
+            return (
+              <button
+                key={j._id}
+                onClick={() => setSelectedJourney(j)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '0.35rem 0.8rem',
+                  borderRadius: '10px',
+                  border: isSelected ? '1.5px solid var(--primary)' : '1px solid #e2e8f0',
+                  background: isSelected ? 'rgba(239, 65, 35, 0.08)' : '#f8fafc',
+                  color: isSelected ? 'var(--primary)' : '#334155',
+                  fontWeight: isSelected ? '900' : '700',
+                  fontSize: '0.78rem',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                  flexShrink: 0,
+                  transition: 'all 0.15s'
+                }}
+              >
+                <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: isActive ? '#10b981' : '#94a3b8' }} />
+                {j.name}
+                <span style={{ fontSize: '0.65rem', background: isSelected ? 'rgba(239, 65, 35, 0.15)' : '#e2e8f0', color: isSelected ? 'var(--primary)' : '#64748b', padding: '1px 5px', borderRadius: '6px', fontWeight: '800' }}>
+                  {j.nodes?.length || 0}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </div>
 

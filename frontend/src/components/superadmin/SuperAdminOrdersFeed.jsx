@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import axios from 'axios';
 import { 
   Search, 
@@ -240,6 +241,11 @@ const SuperAdminOrdersFeed = ({ token, socket, stores = [], locations = [] }) =>
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [selectedOrderIds, setSelectedOrderIds] = useState([]);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [topBarTarget, setTopBarTarget] = useState(null);
+
+  useEffect(() => {
+    setTopBarTarget(document.getElementById('superadmin-topbar-actions'));
+  }, []);
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
   const authConfig = useMemo(() => ({ headers: { Authorization: `Bearer ${token}` } }), [token]);
@@ -558,112 +564,98 @@ const SuperAdminOrdersFeed = ({ token, socket, stores = [], locations = [] }) =>
 
   return (
     <div>
-      {/* Top Header & Overview KPI Cards */}
-      <div style={{ marginBottom: '2rem' }}>
-        <div style={{ 
-          position: 'sticky', 
-          top: 0, 
-          zIndex: 20, 
-          background: '#f8fafc', 
-          paddingTop: '0.25rem', 
-          paddingBottom: '1.25rem', 
-          marginBottom: '1.5rem', 
-          borderBottom: '1px solid #e2e8f0', 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center', 
-          flexWrap: 'wrap', 
-          gap: '1rem' 
-        }}>
-          <div>
-            <h1 style={{ fontSize: '2rem', fontWeight: '900', margin: '0 0 0.25rem 0', letterSpacing: '-0.02em', color: '#0f172a' }}>
-              Global Orders Control Feed
-            </h1>
-            <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
-              Real-time platform ledger with live telemetry, custom date ranges, and full ledger export.
-            </p>
-          </div>
+      {/* Topbar Action Portal */}
+      {topBarTarget && createPortal(
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <button
+            onClick={handleExportCSV}
+            disabled={exporting}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.4rem',
+              padding: '0.45rem 0.85rem',
+              borderRadius: '8px',
+              border: '1.5px solid rgba(16, 185, 129, 0.4)',
+              background: 'linear-gradient(135deg, #ffffff 0%, rgba(16, 185, 129, 0.05) 100%)',
+              color: '#059669',
+              fontWeight: '700',
+              fontSize: '0.78rem',
+              cursor: exporting ? 'not-allowed' : 'pointer',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            {exporting ? (
+              <>
+                <Loader2 size={13} className="animate-spin" /> Exporting...
+              </>
+            ) : (
+              <>
+                <FileSpreadsheet size={14} color="#10b981" /> Export CSV ({totalOrders.toLocaleString()})
+              </>
+            )}
+          </button>
+          <button
+            onClick={fetchOrders}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.4rem',
+              padding: '0.45rem 0.85rem',
+              borderRadius: '8px',
+              border: 'none',
+              background: 'var(--primary, #ef4123)',
+              color: '#ffffff',
+              fontWeight: '700',
+              fontSize: '0.78rem',
+              cursor: 'pointer',
+              boxShadow: '0 2px 6px rgba(239, 65, 35, 0.25)'
+            }}
+          >
+            <RotateCcw size={13} /> Refresh
+          </button>
+        </div>,
+        topBarTarget
+      )}
 
-          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
-            <button
-              onClick={handleExportCSV}
-              disabled={exporting}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                padding: '0.7rem 1.4rem',
-                borderRadius: '14px',
-                border: '1.5px solid rgba(16, 185, 129, 0.4)',
-                background: 'linear-gradient(135deg, #ffffff 0%, rgba(16, 185, 129, 0.05) 100%)',
-                color: '#059669',
-                fontWeight: '800',
-                fontSize: '0.85rem',
-                cursor: exporting ? 'not-allowed' : 'pointer',
-                boxShadow: '0 2px 8px rgba(16, 185, 129, 0.08)',
-                transition: 'all 0.15s ease'
-              }}
-            >
-              {exporting ? (
-                <>
-                  <Loader2 size={16} className="animate-spin" /> Exporting All...
-                </>
-              ) : (
-                <>
-                  <FileSpreadsheet size={16} color="#10b981" /> Download All ({totalOrders.toLocaleString()})
-                </>
-              )}
-            </button>
-            <button
-              onClick={fetchOrders}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                padding: '0.7rem 1.25rem',
-                borderRadius: '14px',
-                border: 'none',
-                background: 'var(--primary, #ef4123)',
-                color: '#ffffff',
-                fontWeight: '800',
-                fontSize: '0.85rem',
-                cursor: 'pointer',
-                boxShadow: '0 4px 14px rgba(239, 65, 35, 0.25)'
-              }}
-            >
-              <RotateCcw size={16} /> Refresh Feed
-            </button>
-          </div>
-        </div>
-
-        {/* Financial Metrics Cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
-          <div style={{ background: '#ffffff', padding: '1.25rem', borderRadius: '18px', border: '1px solid var(--surface-border)', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
-            <span style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Filtered Transactions</span>
-            <div style={{ fontSize: '1.75rem', fontWeight: '900', color: 'var(--text-primary)', marginTop: '0.25rem' }}>{totalOrders.toLocaleString()}</div>
-            <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '600' }}>
+      {/* Sticky Financial Metrics Cards Strip */}
+      <div style={{
+        position: 'sticky',
+        top: 0,
+        zIndex: 10,
+        background: '#f8fafc',
+        paddingTop: '0.25rem',
+        paddingBottom: '0.75rem',
+        marginBottom: '1rem',
+        borderBottom: '1px solid #e2e8f0'
+      }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+          <div style={{ background: '#ffffff', padding: '0.9rem 1.1rem', borderRadius: '14px', border: '1px solid var(--surface-border)', boxShadow: '0 2px 6px rgba(0,0,0,0.02)' }}>
+            <span style={{ fontSize: '0.72rem', fontWeight: '800', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Filtered Transactions</span>
+            <div style={{ fontSize: '1.4rem', fontWeight: '900', color: 'var(--text-primary)', marginTop: '0.15rem' }}>{totalOrders.toLocaleString()}</div>
+            <span style={{ fontSize: '0.68rem', color: '#64748b', fontWeight: '600' }}>
               {dateFilter === 'custom' && startDate && endDate ? `${startDate} to ${endDate}` : 'Matching active range'}
             </span>
           </div>
 
-          <div style={{ background: '#ffffff', padding: '1.25rem', borderRadius: '18px', border: '1px solid var(--surface-border)', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
-            <span style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Gross Volume</span>
-            <div style={{ fontSize: '1.75rem', fontWeight: '900', color: '#10b981', marginTop: '0.25rem' }}>₹{metrics.totalRevenue.toLocaleString()}</div>
-            <span style={{ fontSize: '0.75rem', color: '#059669', fontWeight: '700' }}>{metrics.completedOrders} Completed Orders</span>
+          <div style={{ background: '#ffffff', padding: '0.9rem 1.1rem', borderRadius: '14px', border: '1px solid var(--surface-border)', boxShadow: '0 2px 6px rgba(0,0,0,0.02)' }}>
+            <span style={{ fontSize: '0.72rem', fontWeight: '800', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Gross Volume</span>
+            <div style={{ fontSize: '1.4rem', fontWeight: '900', color: '#10b981', marginTop: '0.15rem' }}>₹{metrics.totalRevenue.toLocaleString()}</div>
+            <span style={{ fontSize: '0.68rem', color: '#059669', fontWeight: '700' }}>{metrics.completedOrders} Completed</span>
           </div>
 
-          <div style={{ background: '#ffffff', padding: '1.25rem', borderRadius: '18px', border: '1px solid var(--surface-border)', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
-            <span style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Average Order Value</span>
-            <div style={{ fontSize: '1.75rem', fontWeight: '900', color: '#6366f1', marginTop: '0.25rem' }}>₹{metrics.aov}</div>
-            <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '600' }}>Per completed order</span>
+          <div style={{ background: '#ffffff', padding: '0.9rem 1.1rem', borderRadius: '14px', border: '1px solid var(--surface-border)', boxShadow: '0 2px 6px rgba(0,0,0,0.02)' }}>
+            <span style={{ fontSize: '0.72rem', fontWeight: '800', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Average Order Value</span>
+            <div style={{ fontSize: '1.4rem', fontWeight: '900', color: '#6366f1', marginTop: '0.15rem' }}>₹{metrics.aov}</div>
+            <span style={{ fontSize: '0.68rem', color: '#64748b', fontWeight: '600' }}>Per completed order</span>
           </div>
 
-          <div style={{ background: '#ffffff', padding: '1.25rem', borderRadius: '18px', border: '1px solid var(--surface-border)', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
-            <span style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Pagination View</span>
-            <div style={{ fontSize: '1.75rem', fontWeight: '900', color: '#f59e0b', marginTop: '0.25rem' }}>
-              Page {page} <span style={{ fontSize: '1rem', fontWeight: '600', color: 'var(--text-secondary)' }}>/ {totalPages}</span>
+          <div style={{ background: '#ffffff', padding: '0.9rem 1.1rem', borderRadius: '14px', border: '1px solid var(--surface-border)', boxShadow: '0 2px 6px rgba(0,0,0,0.02)' }}>
+            <span style={{ fontSize: '0.72rem', fontWeight: '800', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Pagination View</span>
+            <div style={{ fontSize: '1.4rem', fontWeight: '900', color: '#f59e0b', marginTop: '0.15rem' }}>
+              Page {page} <span style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-secondary)' }}>/ {totalPages}</span>
             </div>
-            <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '600' }}>{limit} orders per view</span>
+            <span style={{ fontSize: '0.68rem', color: '#64748b', fontWeight: '600' }}>{limit} orders per view</span>
           </div>
         </div>
       </div>
