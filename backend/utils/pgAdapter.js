@@ -28,6 +28,7 @@ function normalizeStore(store) {
     location: loc,
     locationId: store.locationId || null,
     products: Array.isArray(store.products) ? store.products : [],
+    offers: Array.isArray(store.offers) ? store.offers : [],
     categoryImages: Array.isArray(store.categoryImages) ? store.categoryImages : []
   };
 }
@@ -59,6 +60,8 @@ function normalizeOrder(order) {
     store: order.store ? normalizeStore(order.store) : order.storeId,
     storeId: order.storeId,
     items: Array.isArray(order.items) ? order.items : [],
+    discountAmount: Number(order.discountAmount) || 0,
+    appliedOffer: order.appliedOffer || {},
     cancelledBy: order.cancelledBy || {},
     acceptDeadline
   };

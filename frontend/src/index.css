@@ -3284,6 +3284,54 @@ h1 {
   z-index: 10 !important;
 }
 
+/* Real-Time Offers & Deals on Stalls */
+.campus-stall-deal-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  background: linear-gradient(135deg, #ef4444 0%, #ea580c 100%);
+  color: #ffffff;
+  padding: 0.22rem 0.65rem;
+  border-radius: 100px;
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+  text-transform: uppercase;
+}
+
+.campus-stall-offer-highlight {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  background: linear-gradient(135deg, rgba(254, 242, 242, 0.95) 0%, rgba(255, 237, 213, 0.95) 100%);
+  border: 1px dashed rgba(239, 68, 68, 0.4);
+  border-radius: 10px;
+  padding: 0.4rem 0.65rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #c2410c;
+}
+
+.campus-stall-offer-highlight .offer-title {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.campus-stall-offer-highlight .offer-extra-count {
+  background: #ea580c;
+  color: #ffffff;
+  font-size: 0.65rem;
+  padding: 1px 6px;
+  border-radius: 10px;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+
 
 
 

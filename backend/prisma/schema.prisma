@@ -74,6 +74,7 @@ model Store {
   accentColor        String       @default("#ef4123")
   storeType          String       @default("FastFood") // "FastFood" | "Restaurant"
   products           Json         @default("[]")
+  offers             Json?        @default("[]")
   createdAt          DateTime     @default(now())
   updatedAt          DateTime     @updatedAt
 
@@ -129,6 +130,8 @@ model Order {
   isSettled              Boolean      @default(false)
   isPreOrder             Boolean      @default(false)
   scheduledTime          String?      @default("")
+  discountAmount         Float?       @default(0)
+  appliedOffer           Json?        @default("{}")
 
   createdAt              DateTime     @default(now())
   updatedAt              DateTime     @updatedAt

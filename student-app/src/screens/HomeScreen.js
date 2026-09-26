@@ -50,6 +50,7 @@ const HomeScreen = ({ navigation }) => {
   const [refreshing, setRefreshing] = useState(false);
   const [selectedMarket, setSelectedMarket] = useState('All');
   const [selectedCategory, setSelectedCategory] = useState('All');
+  const [onlyOffers, setOnlyOffers] = useState(false);
   const [locationModalVisible, setLocationModalVisible] = useState(false);
   const [fetchError, setFetchError] = useState(null);
 
@@ -60,6 +61,7 @@ const HomeScreen = ({ navigation }) => {
   useEffect(() => {
     setSelectedMarket('All');
     setSelectedCategory('All');
+    setOnlyOffers(false);
   }, [locationId, hubType]);
 
   const fetchStores = useCallback(async () => {
@@ -154,6 +156,13 @@ const HomeScreen = ({ navigation }) => {
             if (!cat.includes(sel) && !sel.includes(cat)) return false;
           }
         }
+
+        // Active offers filter
+        if (onlyOffers) {
+          const hasOffers = store.offers && Array.isArray(store.offers) && store.offers.some(o => o.isActive !== false);
+          if (!hasOffers) return false;
+        }
+
         return true;
       })
       .sort((a, b) => {
@@ -228,44 +237,83 @@ const HomeScreen = ({ navigation }) => {
             {/* Dynamic Trending Row from Web */}
             <TrendingRow navigation={navigation} />
 
-            {/* Campus Market Zones Filter (Only rendered if campus has multiple zones) */}
-            {availableMarkets.length > 1 && (
-              <View style={styles.sectionWrapper}>
-                <View style={styles.sectionHeaderRow}>
-                  <Text style={styles.sectionTitle}>Campus Market Zones</Text>
-                  <Text style={styles.sectionCounter}>{availableMarkets.length - 1} areas</Text>
-                </View>
-
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.pillsList}
-                >
-                  {availableMarkets.map((market) => {
-                    const isSelected = selectedMarket === market;
-                    const label = market === 'All' ? 'All Areas' : market.replace(' Market', '');
-
-                    return (
-                      <TouchableOpacity
-                        key={market}
-                        style={[styles.marketPill, isSelected && styles.activeMarketPill]}
-                        onPress={() => setSelectedMarket(market)}
-                        activeOpacity={0.8}
-                      >
-                        {isSelected && <View style={styles.activeDot} />}
-                        <Text style={[styles.marketPillText, isSelected && styles.activeMarketPillText]}>
-                          {label}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </ScrollView>
+            {/* Campus Market Zones Filter (Always accessible with live offers filter) */}
+            <View style={styles.sectionWrapper}>
+              <View style={styles.sectionHeaderRow}>
+                <Text style={styles.sectionTitle}>Campus Market Zones</Text>
+                <Text style={styles.sectionCounter}>{availableMarkets.length > 1 ? `${availableMarkets.length - 1} areas` : 'All stalls'}</Text>
               </View>
-            )}
+
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.pillsList}
+              >
+                <TouchableOpacity
+                  style={[styles.marketPill, selectedMarket === 'All' && !onlyOffers && styles.activeMarketPill]}
+                  onPress={() => {
+                    setSelectedMarket('All');
+                    setOnlyOffers(false);
+                  }}
+                  activeOpacity={0.8}
+                >
+                  {selectedMarket === 'All' && !onlyOffers && <View style={styles.activeDot} />}
+                  <Text style={[styles.marketPillText, selectedMarket === 'All' && !onlyOffers && styles.activeMarketPillText]}>
+                    All Areas
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.marketPill, onlyOffers && styles.activeOfferPill, !onlyOffers && { borderColor: 'rgba(234, 88, 12, 0.4)', backgroundColor: 'rgba(254, 242, 242, 0.7)' }]}
+                  onPress={() => setOnlyOffers(prev => !prev)}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="sparkles" size={13} color={onlyOffers ? '#FFFFFF' : '#EA580C'} />
+                  <Text style={[styles.marketPillText, onlyOffers ? styles.activeOfferPillText : { color: '#EA580C', fontWeight: '800' }]}>
+                    ⚡ Deals & Offers
+                  </Text>
+                </TouchableOpacity>
+
+                {availableMarkets.map((market) => {
+                  if (market === 'All') return null;
+                  const isSelected = selectedMarket === market && !onlyOffers;
+                  const label = market.replace(' Market', '');
+
+                  return (
+                    <TouchableOpacity
+                      key={market}
+                      style={[styles.marketPill, isSelected && styles.activeMarketPill]}
+                      onPress={() => {
+                        setSelectedMarket(market);
+                        setOnlyOffers(false);
+                      }}
+                      activeOpacity={0.8}
+                    >
+                      {isSelected && <View style={styles.activeDot} />}
+                      <Text style={[styles.marketPillText, isSelected && styles.activeMarketPillText]}>
+                        {label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
           </>
         ) : (
-          /* ─── EXTERNAL HUB LAYOUT: Category Cravings Horizontal Track -> TrendingRow -> Stalls ─── */
+          /* ─── EXTERNAL HUB LAYOUT: Deals Pill -> Category Cravings Horizontal Track -> TrendingRow -> Stalls ─── */
           <>
+            <View style={{ paddingHorizontal: 16, marginTop: 10, marginBottom: 2 }}>
+              <TouchableOpacity
+                style={[styles.marketPill, onlyOffers && styles.activeOfferPill, !onlyOffers && { borderColor: 'rgba(234, 88, 12, 0.4)', backgroundColor: 'rgba(254, 242, 242, 0.7)' }, { alignSelf: 'flex-start' }]}
+                onPress={() => setOnlyOffers(prev => !prev)}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="sparkles" size={13} color={onlyOffers ? '#FFFFFF' : '#EA580C'} />
+                <Text style={[styles.marketPillText, onlyOffers ? styles.activeOfferPillText : { color: '#EA580C', fontWeight: '800' }]}>
+                  ⚡ Live Deals & Offers
+                </Text>
+              </TouchableOpacity>
+            </View>
             {/* Category Cravings Horizontal Track matching webapp category-grid-premium */}
             <View style={styles.categoryTrackWrapper}>
               <ScrollView
@@ -400,6 +448,8 @@ const HomeScreen = ({ navigation }) => {
         ) : (
           filteredStores.map((store) => {
             const isOpen = store.isOpen !== false;
+            const activeOffers = (store.offers || []).filter(o => o.isActive !== false);
+            const bestOffer = activeOffers[0];
             return (
               <TouchableOpacity
                 key={store._id || store.id}
@@ -423,17 +473,28 @@ const HomeScreen = ({ navigation }) => {
                       <Text style={styles.ratingText}>{store.rating || '4.5'}</Text>
                     </View>
 
-                    {isOpen ? (
-                      <View style={styles.openBadge}>
-                        <View style={styles.pulseDot} />
-                        <Text style={styles.openBadgeText}>OPEN NOW</Text>
-                      </View>
-                    ) : (
-                      <View style={styles.closedBadge}>
-                        <Feather name="lock" size={10} color="#FFFFFF" style={{ marginRight: 2 }} />
-                        <Text style={styles.closedBadgeText}>CLOSED</Text>
-                      </View>
-                    )}
+                    <View style={styles.cardTopRightRow}>
+                      {bestOffer && (
+                        <View style={styles.dealBadge}>
+                          <Ionicons name="flash" size={10} color="#FFFFFF" />
+                            <Text style={styles.dealBadgeText}>
+                              {bestOffer.badgeText || (bestOffer.discountType?.includes('PERCENTAGE') ? `${bestOffer.discountValue}% OFF` : (bestOffer.discountType?.includes('FLAT_PRICE') ? `DEALS @ ₹${bestOffer.discountValue}` : `₹${bestOffer.discountValue} OFF`))}
+                            </Text>
+                        </View>
+                      )}
+
+                      {isOpen ? (
+                        <View style={styles.openBadge}>
+                          <View style={styles.pulseDot} />
+                          <Text style={styles.openBadgeText}>OPEN NOW</Text>
+                        </View>
+                      ) : (
+                        <View style={styles.closedBadge}>
+                          <Feather name="lock" size={10} color="#FFFFFF" style={{ marginRight: 2 }} />
+                          <Text style={styles.closedBadgeText}>CLOSED</Text>
+                        </View>
+                      )}
+                    </View>
                   </View>
 
                   {/* Bottom Market/Location Chip */}
@@ -455,6 +516,21 @@ const HomeScreen = ({ navigation }) => {
                   <Text style={styles.storeCategory} numberOfLines={1}>
                     {store.category || (hubType === 'College' ? 'Specialty Campus Kitchen' : 'Quality Fast Food & Kitchen')}
                   </Text>
+
+                  {/* Real-Time Live Stall Deal Highlight */}
+                  {bestOffer && (
+                    <View style={styles.storeOfferHighlight}>
+                      <Ionicons name="sparkles" size={12} color="#EA580C" />
+                      <Text style={styles.storeOfferTitle} numberOfLines={1}>
+                        {bestOffer.title}
+                      </Text>
+                      {activeOffers.length > 1 && (
+                        <View style={styles.storeOfferCountBadge}>
+                          <Text style={styles.storeOfferCountText}>+{activeOffers.length - 1}</Text>
+                        </View>
+                      )}
+                    </View>
+                  )}
 
                   {/* Footer Stats & Action */}
                   <View style={styles.storeFooter}>
@@ -567,6 +643,14 @@ const styles = StyleSheet.create({
     color: THEME.colors.textSecondary,
   },
   activeMarketPillText: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+  },
+  activeOfferPill: {
+    backgroundColor: '#EA580C',
+    borderColor: '#EA580C',
+  },
+  activeOfferPillText: {
     color: '#FFFFFF',
     fontWeight: '800',
   },
@@ -845,6 +929,31 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: THEME.colors.textPrimary,
   },
+  cardTopRightRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  dealBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EA580C',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 100,
+    gap: 3,
+    shadowColor: '#EA580C',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.35,
+    shadowRadius: 5,
+    elevation: 3,
+  },
+  dealBadgeText: {
+    fontSize: 9.5,
+    fontWeight: '900',
+    color: '#FFFFFF',
+    letterSpacing: 0.3,
+  },
   openBadge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -926,7 +1035,37 @@ const styles = StyleSheet.create({
     color: THEME.colors.textSecondary,
     fontWeight: '500',
     marginTop: 2,
-    marginBottom: 10,
+    marginBottom: 8,
+  },
+  storeOfferHighlight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(254, 242, 242, 0.95)',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.35)',
+    borderStyle: 'dashed',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    gap: 5,
+    marginBottom: 8,
+  },
+  storeOfferTitle: {
+    flex: 1,
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#C2410C',
+  },
+  storeOfferCountBadge: {
+    backgroundColor: '#EA580C',
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 8,
+  },
+  storeOfferCountText: {
+    color: '#FFFFFF',
+    fontSize: 9.5,
+    fontWeight: '800',
   },
   storeFooter: {
     flexDirection: 'row',

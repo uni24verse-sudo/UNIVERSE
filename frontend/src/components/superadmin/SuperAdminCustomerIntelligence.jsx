@@ -29,7 +29,8 @@ import {
   Banknote,
   Receipt,
   Layers,
-  ShoppingBag
+  ShoppingBag,
+  Tag
 } from 'lucide-react';
 
 const SuperAdminCustomerIntelligence = ({ token, socket }) => {
@@ -604,7 +605,7 @@ const SuperAdminCustomerIntelligence = ({ token, socket }) => {
                 <h3 style={{ fontSize: '1.1rem', fontWeight: '900', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <TrendingUp size={18} color="var(--primary)" /> Financial Performance
                 </h3>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.85rem' }}>
                   <div style={{ padding: '1rem', background: '#ffffff', borderRadius: '16px', border: '1px solid var(--surface-border)', textAlign: 'center' }}>
                     <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: '700', textTransform: 'uppercase' }}>Orders</p>
                     <p style={{ margin: '0.25rem 0 0', fontSize: '1.4rem', fontWeight: '900', color: 'var(--text-primary)' }}>
@@ -621,6 +622,12 @@ const SuperAdminCustomerIntelligence = ({ token, socket }) => {
                     <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: '700', textTransform: 'uppercase' }}>GMV Spent</p>
                     <p style={{ margin: '0.25rem 0 0', fontSize: '1.4rem', fontWeight: '900', color: 'var(--secondary)' }}>
                       ₹{customer360.customer.metrics?.totalSpent?.toLocaleString('en-IN') || 0}
+                    </p>
+                  </div>
+                  <div style={{ padding: '1rem', background: 'rgba(16, 185, 129, 0.08)', borderRadius: '16px', border: '1px solid #a7f3d0', textAlign: 'center' }}>
+                    <p style={{ margin: 0, fontSize: '0.75rem', color: '#059669', fontWeight: '800', textTransform: 'uppercase' }}>Promo Saved</p>
+                    <p style={{ margin: '0.25rem 0 0', fontSize: '1.4rem', fontWeight: '900', color: '#059669' }}>
+                      ₹{customer360.promoIntelligence?.totalDiscountSaved?.toLocaleString('en-IN') || 0}
                     </p>
                   </div>
                   <div style={{ padding: '1rem', background: 'rgba(239, 68, 68, 0.05)', borderRadius: '16px', border: '1px solid rgba(239, 68, 68, 0.2)', textAlign: 'center' }}>
@@ -685,7 +692,25 @@ const SuperAdminCustomerIntelligence = ({ token, socket }) => {
                                   {ord.customerName}
                                 </td>
                                 <td style={{ padding: '0.9rem', fontWeight: '900', color: 'var(--primary)' }}>
-                                  ₹{ord.totalAmount}
+                                  <div>₹{ord.totalAmount}</div>
+                                  {(ord.discountAmount > 0 || ord.appliedOffer?.code || ord.appliedOffer?.badgeText) && (
+                                    <div style={{
+                                      fontSize: '0.68rem',
+                                      color: '#059669',
+                                      fontWeight: '800',
+                                      marginTop: '3px',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '3px',
+                                      background: '#ecfdf5',
+                                      padding: '1px 5px',
+                                      borderRadius: '4px',
+                                      border: '1px solid #a7f3d0'
+                                    }}>
+                                      <Tag size={9} />
+                                      {ord.appliedOffer?.code || ord.appliedOffer?.badgeText || 'OFFER'} (-₹{ord.discountAmount || 0})
+                                    </div>
+                                  )}
                                 </td>
                                 <td style={{ padding: '0.9rem' }}>
                                   <span style={{
@@ -1026,6 +1051,70 @@ WhatsApp Alert   : Dispatched to ${ord.customerPhone}
                   </table>
                 </div>
               </div>
+
+              {/* OFFERS & PROMOTIONS CLAIMED HISTORY */}
+              {customer360.offersHistory && customer360.offersHistory.length > 0 && (
+                <div>
+                  <h3 style={{ fontSize: '1.1rem', fontWeight: '900', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <Tag size={18} color="var(--primary)" /> Coupons & Promotional Deals Claimed ({customer360.offersHistory.length})
+                  </h3>
+                  <p style={{ margin: '0 0 1rem 0', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                    Complete evidentiary ledger of special promotional coupons, student discounts, and campus offers claimed by this customer.
+                  </p>
+
+                  <div style={{ background: '#ffffff', borderRadius: '16px', border: '1.5px solid #a7f3d0', overflow: 'hidden', boxShadow: '0 2px 10px rgba(16, 185, 129, 0.05)' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
+                      <thead>
+                        <tr style={{ background: '#f0fdf4', borderBottom: '1px solid #a7f3d0' }}>
+                          <th style={{ padding: '0.8rem 1rem', color: '#065f46', fontWeight: '800', fontSize: '0.75rem' }}>Order #</th>
+                          <th style={{ padding: '0.8rem 1rem', color: '#065f46', fontWeight: '800', fontSize: '0.75rem' }}>Stall Outlet</th>
+                          <th style={{ padding: '0.8rem 1rem', color: '#065f46', fontWeight: '800', fontSize: '0.75rem' }}>Coupon Code & Offer</th>
+                          <th style={{ padding: '0.8rem 1rem', color: '#065f46', fontWeight: '800', fontSize: '0.75rem' }}>Savings Enjoyed</th>
+                          <th style={{ padding: '0.8rem 1rem', color: '#065f46', fontWeight: '800', fontSize: '0.75rem' }}>Order Total</th>
+                          <th style={{ padding: '0.8rem 1rem', color: '#065f46', fontWeight: '800', fontSize: '0.75rem' }}>Redeemed At</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {customer360.offersHistory.map((promo, idx) => (
+                          <tr key={`promo-${idx}`} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                            <td style={{ padding: '0.8rem 1rem', fontWeight: '800', color: 'var(--text-primary)' }}>
+                              #{promo.orderNumber}
+                            </td>
+                            <td style={{ padding: '0.8rem 1rem', color: 'var(--text-primary)', fontWeight: '600' }}>
+                              {promo.storeName}
+                            </td>
+                            <td style={{ padding: '0.8rem 1rem' }}>
+                              <span style={{
+                                background: '#ecfdf5',
+                                border: '1px solid #a7f3d0',
+                                color: '#059669',
+                                fontWeight: '800',
+                                fontSize: '0.75rem',
+                                padding: '0.2rem 0.5rem',
+                                borderRadius: '6px'
+                              }}>
+                                {promo.appliedOffer?.code || promo.appliedOffer?.badgeText || 'SPECIAL DEAL'}
+                              </span>
+                              <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginLeft: '0.5rem' }}>
+                                {promo.appliedOffer?.title}
+                              </span>
+                            </td>
+                            <td style={{ padding: '0.8rem 1rem', fontWeight: '900', color: '#059669' }}>
+                              ₹{Number(promo.discountAmount).toFixed(2)}
+                            </td>
+                            <td style={{ padding: '0.8rem 1rem', fontWeight: '700', color: 'var(--text-primary)' }}>
+                              ₹{promo.orderTotal}
+                            </td>
+                            <td style={{ padding: '0.8rem 1rem', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                              {new Date(promo.date).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' })}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
 
             </div>
           </div>

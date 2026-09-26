@@ -25,12 +25,54 @@ const ProductCard = ({
   onShare,
   storeClosed = false,
   viewMode = 'list',
+  activeOffers = [],
 }) => {
   const [imageError, setImageError] = useState(false);
   const hasVariants = product.variants && product.variants.length > 0;
   const minPrice = hasVariants ? Math.min(...product.variants.map(v => v.price)) : product.price;
   const isUnavailable = product.isAvailable === false;
   const imageUrl = getDishImageUrl(product.image);
+
+  const productCategory = (product.category || '').toLowerCase().trim();
+  const productId = String(product._id || product.id || '');
+
+  const applicableOffer = React.useMemo(() => {
+    if (!Array.isArray(activeOffers) || activeOffers.length === 0) return null;
+    for (const offer of activeOffers) {
+      if (!offer || offer.isActive === false) continue;
+      const targetCats = Array.isArray(offer.targetCategories) ? offer.targetCategories.map(c => c.toLowerCase().trim()) : [];
+      const targetProductIds = Array.isArray(offer.targetProductIds) ? offer.targetProductIds.map(p => String(p).trim()) : [];
+
+      if (offer.discountType === 'FLAT_PRICE_CATEGORY' && targetCats.includes(productCategory)) {
+        const flatPrice = Number(offer.discountValue);
+        if (minPrice > flatPrice) {
+          return {
+            type: 'FLAT_PRICE',
+            discountedPrice: flatPrice,
+            badge: offer.badgeText || `AT ₹${flatPrice}`
+          };
+        }
+      } else if (offer.discountType === 'FLAT_PRICE_ITEMS' && targetProductIds.includes(productId)) {
+        const flatPrice = Number(offer.discountValue);
+        if (minPrice > flatPrice) {
+          return {
+            type: 'FLAT_PRICE',
+            discountedPrice: flatPrice,
+            badge: offer.badgeText || `AT ₹${flatPrice}`
+          };
+        }
+      } else if (offer.discountType === 'PERCENTAGE_CATEGORY' && targetCats.includes(productCategory)) {
+        const pct = Number(offer.discountValue);
+        const discounted = Math.round(minPrice * (1 - pct / 100));
+        return {
+          type: 'PERCENTAGE',
+          discountedPrice: discounted,
+          badge: offer.badgeText || `${pct}% OFF`
+        };
+      }
+    }
+    return null;
+  }, [activeOffers, productCategory, productId, minPrice]);
 
   const handleAdd = () => {
     if (storeClosed || isUnavailable) return;
@@ -112,9 +154,19 @@ const ProductCard = ({
             {product.name}
           </Text>
 
-          <Text style={styles.gridPrice}>
-            {hasVariants ? `From ₹${minPrice}` : `₹${product.price}`}
-          </Text>
+          {applicableOffer ? (
+            <View style={styles.gridPriceRow}>
+              <Text style={styles.gridDealPrice}>₹{applicableOffer.discountedPrice}</Text>
+              <Text style={styles.gridOriginalPrice}>₹{minPrice}</Text>
+              <View style={styles.dealBadge}>
+                <Text style={styles.dealBadgeText}>{applicableOffer.badge}</Text>
+              </View>
+            </View>
+          ) : (
+            <Text style={styles.gridPrice}>
+              {hasVariants ? `From ₹${minPrice}` : `₹${product.price}`}
+            </Text>
+          )}
         </View>
       </View>
     );
@@ -157,9 +209,19 @@ const ProductCard = ({
 
         <Text style={styles.name} numberOfLines={2}>{product.name}</Text>
         
-        <Text style={styles.price}>
-          {hasVariants ? `From ₹${minPrice}` : `₹${product.price}`}
-        </Text>
+        {applicableOffer ? (
+          <View style={styles.listPriceRow}>
+            <Text style={styles.dealPrice}>₹{applicableOffer.discountedPrice}</Text>
+            <Text style={styles.originalPrice}>₹{minPrice}</Text>
+            <View style={styles.dealBadge}>
+              <Text style={styles.dealBadgeText}>{applicableOffer.badge}</Text>
+            </View>
+          </View>
+        ) : (
+          <Text style={styles.price}>
+            {hasVariants ? `From ₹${minPrice}` : `₹${product.price}`}
+          </Text>
+        )}
 
         {product.description ? (
           <Text style={styles.description} numberOfLines={2}>
@@ -448,6 +510,52 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '900',
     color: THEME.colors.textPrimary,
+  },
+  gridPriceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    flexWrap: 'wrap',
+  },
+  gridDealPrice: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: '#10B981',
+  },
+  gridOriginalPrice: {
+    fontSize: 11,
+    color: '#94A3B8',
+    textDecorationLine: 'line-through',
+    fontWeight: '600',
+  },
+  listPriceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flexWrap: 'wrap',
+    marginBottom: 6,
+  },
+  dealPrice: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: '#10B981',
+  },
+  originalPrice: {
+    fontSize: 12,
+    color: '#94A3B8',
+    textDecorationLine: 'line-through',
+    fontWeight: '600',
+  },
+  dealBadge: {
+    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+    paddingHorizontal: 5,
+    paddingVertical: 1.5,
+    borderRadius: 4,
+  },
+  dealBadgeText: {
+    fontSize: 9,
+    fontWeight: '900',
+    color: '#10B981',
   },
 });
 

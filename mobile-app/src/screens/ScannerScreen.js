@@ -137,7 +137,7 @@ export default function ScannerScreen({ navigation }) {
           />
 
           {/* Mask Overlay: Darkened surrounds with transparent center window */}
-          <View style={[StyleSheet.absoluteFill, styles.overlayWrapper]} pointerEvents="box-none">
+          <View style={[StyleSheet.absoluteFill, styles.overlayWrapper, { pointerEvents: 'box-none' }]}>
             {/* Top Dark Mask */}
             <View style={styles.maskDark} />
 
@@ -178,7 +178,7 @@ export default function ScannerScreen({ navigation }) {
           </View>
 
           {/* Top Bar Controls (Safe Area protected) */}
-          <SafeAreaView edges={['top']} style={styles.safeHeader} pointerEvents="box-none">
+          <SafeAreaView edges={['top']} style={[styles.safeHeader, { pointerEvents: 'box-none' }]}>
             <View style={styles.topControlBar}>
               <TouchableOpacity 
                 onPress={() => setTorch(t => !t)} 

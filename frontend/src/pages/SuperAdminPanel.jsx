@@ -35,7 +35,8 @@ import {
   PieChart,
   Clock,
   Phone,
-  Mail
+  Mail,
+  Tag
 } from 'lucide-react';
 import SuperAdmin3DAnalytics from '../components/superadmin/SuperAdmin3DAnalytics';
 import SuperAdminMasterTemplates from '../components/superadmin/SuperAdminMasterTemplates';
@@ -48,6 +49,7 @@ import SuperAdminRefunds from '../components/superadmin/SuperAdminRefunds';
 import SuperAdminHeroPromotions from '../components/superadmin/SuperAdminHeroPromotions';
 import SuperAdminOrdersFeed from '../components/superadmin/SuperAdminOrdersFeed';
 import SuperAdminPartnerEquity from '../components/superadmin/SuperAdminPartnerEquity';
+import SuperAdminOffersMaster from '../components/superadmin/SuperAdminOffersMaster';
 import { useSocket } from '../context/SocketContext';
 
 const SuperAdminPanel = () => {
@@ -448,6 +450,7 @@ const SuperAdminPanel = () => {
             { id: 'broadcasting', icon: Radio, label: 'Broadcasting Hub' },
             { id: 'journey_builder', icon: GitBranch, label: 'Journey Builder' },
             { id: 'hero_promotions', icon: Sparkles, label: 'Hero Promotions', badge: '5 SLOTS' },
+            { id: 'offers_master', icon: Tag, label: 'Offers & Deals Master', badge: 'CAMPUS' },
             { id: 'channel_settings', icon: Sliders, label: 'Channels & Devices', badge: '5 SLOTS' },
             { id: 'overview', icon: Activity, label: 'Platform Overview' },
             { id: 'vendors', icon: Users, label: 'Vendor Registry', badge: pendingVendors.length > 0 ? `${pendingVendors.length} PENDING` : null },
@@ -549,6 +552,11 @@ const SuperAdminPanel = () => {
         {/* HERO PROMOTIONS & BANNER MANAGEMENT TAB */}
         {activeTab === 'hero_promotions' && (
           <SuperAdminHeroPromotions token={token} socket={socket} />
+        )}
+
+        {/* OFFERS & DEALS MASTER TAB */}
+        {activeTab === 'offers_master' && (
+          <SuperAdminOffersMaster token={token} socket={socket} />
         )}
 
         {/* OVERVIEW TAB */}

@@ -4,8 +4,27 @@ import { SocketProvider } from './src/context/SocketContext';
 import AppNavigator from './src/navigation/AppNavigator';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as TaskManager from 'expo-task-manager';
-import * as Notifications from 'expo-notifications';
+import { Platform } from 'react-native';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 import apiClient from './src/api/client';
+
+const isExpoGo = Boolean(
+  Platform.OS === 'web' ||
+  Constants?.appOwnership === 'expo' ||
+  Constants?.executionEnvironment === ExecutionEnvironment?.StoreClient ||
+  Constants?.executionEnvironment === 'storeClient'
+);
+
+const getNotifications = () => {
+  if (isExpoGo) return null;
+  try {
+    const { isRunningInExpoGo } = require('expo');
+    if (isRunningInExpoGo && isRunningInExpoGo()) return null;
+    return require('expo-notifications');
+  } catch (e) {
+    return null;
+  }
+};
 
 const BACKGROUND_NOTIFICATION_TASK = 'BACKGROUND-NOTIFICATION-TASK';
 
@@ -25,11 +44,17 @@ TaskManager.defineTask(BACKGROUND_NOTIFICATION_TASK, async ({ data, error, execu
         await apiClient.put(`/orders/${orderId}/status`, { status: newStatus });
         
         // If successful, dismiss the notification
-        await Notifications.dismissNotificationAsync(notification.request.identifier);
+        const notif = getNotifications();
+        if (notif?.dismissNotificationAsync) {
+          await notif.dismissNotificationAsync(notification.request.identifier);
+        }
       } catch (err) {
         if (err.response?.status === 409) {
            // Already processed - safe to dismiss
-           await Notifications.dismissNotificationAsync(notification.request.identifier);
+           const notif = getNotifications();
+           if (notif?.dismissNotificationAsync) {
+             await notif.dismissNotificationAsync(notification.request.identifier);
+           }
         }
         console.error('Failed to handle background notification action:', err.response?.data || err.message);
       }
@@ -37,15 +62,10 @@ TaskManager.defineTask(BACKGROUND_NOTIFICATION_TASK, async ({ data, error, execu
   }
 });
 
-let isExpoGo = false;
-try {
-  const { isRunningInExpoGo } = require('expo');
-  if (isRunningInExpoGo && isRunningInExpoGo()) isExpoGo = true;
-} catch (e) {}
-
-if (!isExpoGo) {
+const notif = getNotifications();
+if (notif?.registerTaskAsync) {
   try {
-    Notifications.registerTaskAsync(BACKGROUND_NOTIFICATION_TASK);
+    notif.registerTaskAsync(BACKGROUND_NOTIFICATION_TASK);
   } catch (err) {
     console.log('[App] Background notification task registration skipped:', err.message);
   }

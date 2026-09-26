@@ -106,14 +106,22 @@ const StoreMenuScreen = ({ route, navigation }) => {
       }
     };
 
+    const handleOffersUpdate = ({ storeId: updatedStoreId, offers: newOffers }) => {
+      if (String(updatedStoreId) === String(id) && Array.isArray(newOffers)) {
+        setStore(prev => prev ? { ...prev, offers: newOffers } : prev);
+      }
+    };
+
     socket.on('store_status_update', handleStoreStatus);
     socket.on('product_availability_update', handleProductAvailability);
     socket.on('store_menu_update', handleStoreMenu);
+    socket.on('store_offers_update', handleOffersUpdate);
 
     return () => {
       socket.off('store_status_update', handleStoreStatus);
       socket.off('product_availability_update', handleProductAvailability);
       socket.off('store_menu_update', handleStoreMenu);
+      socket.off('store_offers_update', handleOffersUpdate);
     };
   }, [socket, connected, id]);
 
@@ -399,6 +407,34 @@ const StoreMenuScreen = ({ route, navigation }) => {
           )}
         </View>
 
+        {/* Real-time Store Promotional Deals Banner */}
+        {Array.isArray(store?.offers) && store.offers.filter(o => o && o.isActive !== false).length > 0 && (
+          <View style={styles.offersBanner}>
+            <View style={styles.offersHeaderRow}>
+              <View style={styles.offersHeaderBadge}>
+                <Ionicons name="flash" size={11} color="#FFFFFF" />
+                <Text style={styles.offersHeaderBadgeText}>LIVE STALL DEALS</Text>
+              </View>
+            </View>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.offersScrollContent}
+            >
+              {store.offers.filter(o => o && o.isActive !== false).map((off) => (
+                <View key={off.id} style={styles.offerCardChip}>
+                  <Text style={styles.offerTitleText} numberOfLines={1}>🎉 {off.title}</Text>
+                  <View style={styles.offerDiscountPill}>
+                    <Text style={styles.offerDiscountPillText}>
+                      {off.badgeText || (off.discountType?.includes('PERCENTAGE') ? `${off.discountValue}% OFF` : `AT ₹${off.discountValue}`)}
+                    </Text>
+                  </View>
+                </View>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
         {/* Filter and Category Navigation */}
         <View style={styles.filterSection}>
           {/* Dynamic Dietary Switcher - Unified Capsule Bar matching Image 2 */}
@@ -542,6 +578,7 @@ const StoreMenuScreen = ({ route, navigation }) => {
                       quantity={qty}
                       viewMode="grid"
                       storeClosed={isStoreClosed}
+                      activeOffers={store?.offers || []}
                       onIncrement={() => {
                         addToCart(
                           product,
@@ -571,6 +608,7 @@ const StoreMenuScreen = ({ route, navigation }) => {
                     quantity={qty}
                     viewMode="list"
                     storeClosed={isStoreClosed}
+                    activeOffers={store?.offers || []}
                     onIncrement={() => {
                       addToCart(
                         product,
@@ -1328,6 +1366,73 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '800',
+  },
+  offersBanner: {
+    marginHorizontal: 16,
+    marginTop: 10,
+    marginBottom: 6,
+    padding: 12,
+    borderRadius: 18,
+    backgroundColor: 'rgba(239, 65, 35, 0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 65, 35, 0.2)',
+    gap: 8,
+  },
+  offersHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  offersHeaderBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EF4123',
+    paddingHorizontal: 7,
+    paddingVertical: 2.5,
+    borderRadius: 6,
+    gap: 3,
+  },
+  offersHeaderBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 9.5,
+    fontWeight: '900',
+    letterSpacing: 0.4,
+  },
+  offersScrollContent: {
+    gap: 8,
+    paddingVertical: 2,
+  },
+  offerCardChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 100,
+    gap: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(239, 65, 35, 0.15)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  offerTitleText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  offerDiscountPill: {
+    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  offerDiscountPillText: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: '#10B981',
   },
 });
 

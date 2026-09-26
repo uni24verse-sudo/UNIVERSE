@@ -21,21 +21,45 @@ export const setCustomApiUrl = async (url) => {
 
 export const getBaseUrl = () => {
   if (customBaseUrl) return customBaseUrl;
-  
-  if (process.env.EXPO_PUBLIC_API_URL) {
-    return process.env.EXPO_PUBLIC_API_URL;
-  }
 
+  // 1. Web Browser environment (localhost, 127.0.0.1, or local LAN IP e.g. 10.x.x.x, 192.168.x.x)
   if (Platform.OS === 'web' && typeof window !== 'undefined') {
     const hostname = window.location.hostname;
-    if (hostname === 'localhost' || hostname === '127.0.0.1') {
-      return 'http://localhost:5000/api';
+    if (
+      hostname === 'localhost' ||
+      hostname === '127.0.0.1' ||
+      hostname.startsWith('10.') ||
+      hostname.startsWith('192.168.') ||
+      hostname.endsWith('.local')
+    ) {
+      return `http://${hostname}:5000/api`;
     }
     return `${window.location.origin}/api`;
   }
 
-  // Mobile phones (Android/iOS): always connect to public UAT cloud endpoint
-  return 'https://uat.food.universeorder.co.in/api';
+  // 2. Development mode on phone (Expo Go)
+  // Automatically extract the active Metro host IP the phone is connected to
+  if (__DEV__) {
+    const hostUri = Constants?.expoConfig?.hostUri || Constants?.manifest?.debuggerHost || '';
+    if (hostUri) {
+      const devHost = hostUri.split(':')[0];
+      if (devHost && devHost !== 'localhost' && devHost !== '127.0.0.1') {
+        return `http://${devHost}:5000/api`;
+      }
+    }
+
+    if (process.env.EXPO_PUBLIC_API_URL) {
+      return process.env.EXPO_PUBLIC_API_URL;
+    }
+    return 'http://10.36.104.120:5000/api';
+  }
+
+  if (process.env.EXPO_PUBLIC_API_URL) {
+    return process.env.EXPO_PUBLIC_API_URL;
+  }
+
+  // Active production cloud server
+  return 'https://food.universeorder.co.in/api';
 };
 
 export const getSocketUrl = () => {

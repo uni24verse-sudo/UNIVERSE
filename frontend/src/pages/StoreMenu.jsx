@@ -167,14 +167,22 @@ const StoreMenu = () => {
         }
       };
 
+      const handleOffersUpdate = ({ storeId: updatedStoreId, offers }) => {
+        if (String(updatedStoreId) === String(id) && Array.isArray(offers)) {
+          setStore(prev => prev ? { ...prev, offers } : prev);
+        }
+      };
+
       socket.on('store_status_update', handleStoreStatus);
       socket.on('product_availability_update', handleProductAvailability);
       socket.on('store_menu_update', handleStoreMenu);
+      socket.on('store_offers_update', handleOffersUpdate);
 
       return () => {
         socket.off('store_status_update', handleStoreStatus);
         socket.off('product_availability_update', handleProductAvailability);
         socket.off('store_menu_update', handleStoreMenu);
+        socket.off('store_offers_update', handleOffersUpdate);
       };
     }
   }, [socket, connected, id]);
@@ -540,6 +548,49 @@ const StoreMenu = () => {
         {/* Anchor for precision auto-scrolling when search is triggered */}
         <div ref={searchAnchorRef} id="store-search-anchor" style={{ scrollMarginTop: '180px' }} />
 
+        {/* Real-Time Store Promotional Offers Banner */}
+        {Array.isArray(store?.offers) && store.offers.filter(o => o && o.isActive !== false).length > 0 && (
+          <div style={{
+            margin: '0 0 1.25rem 0',
+            padding: '0.85rem 1.25rem',
+            borderRadius: '18px',
+            background: 'linear-gradient(135deg, rgba(239, 65, 35, 0.08) 0%, rgba(255, 107, 74, 0.04) 100%)',
+            border: '1px solid rgba(239, 65, 35, 0.2)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.75rem',
+            flexWrap: 'wrap'
+          }}>
+            <span style={{
+              background: '#EF4123',
+              color: '#fff',
+              padding: '0.25rem 0.65rem',
+              borderRadius: '8px',
+              fontSize: '0.72rem',
+              fontWeight: '900',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.3rem'
+            }}>
+              ⚡ LIVE STALL DEALS
+            </span>
+            {store.offers.filter(o => o && o.isActive !== false).map((off) => (
+              <span key={off.id} style={{
+                background: '#fff',
+                padding: '0.35rem 0.85rem',
+                borderRadius: '100px',
+                fontSize: '0.82rem',
+                fontWeight: '800',
+                color: '#0f172a',
+                boxShadow: '0 2px 6px rgba(0,0,0,0.04)',
+                border: '1px solid rgba(239, 65, 35, 0.15)'
+              }}>
+                🎉 {off.title} ({off.badgeText || (off.discountType.includes('PERCENTAGE') ? `${off.discountValue}% OFF` : `AT ₹${off.discountValue}`)})
+              </span>
+            ))}
+          </div>
+        )}
+
         {/* Connected Inline Search Bar directly above dishes */}
         {showSearchModal && (
           <div className="connected-search-container animate-fade-in-up">
@@ -632,6 +683,7 @@ const StoreMenu = () => {
                 showDietaryBadge={effectiveDietaryMode === 'both'}
                 viewMode={viewMode}
                 isHighlighted={isThisHighlighted}
+                activeOffers={store?.offers || []}
               />
             );
           })}
