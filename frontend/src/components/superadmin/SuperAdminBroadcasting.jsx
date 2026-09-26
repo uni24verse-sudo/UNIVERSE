@@ -29,7 +29,8 @@ import {
   Database,
   Filter,
   Search,
-  Hash
+  Hash,
+  Trash2
 } from 'lucide-react';
 
 const SuperAdminBroadcasting = ({ token, socket }) => {
@@ -39,6 +40,8 @@ const SuperAdminBroadcasting = ({ token, socket }) => {
   const [loading, setLoading] = useState(true);
   const [dispatching, setDispatching] = useState(false);
   const [liveProgress, setLiveProgress] = useState(null);
+  const [selectedCampaignIds, setSelectedCampaignIds] = useState([]);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Wizard Modal State
   const [showWizard, setShowWizard] = useState(false);
@@ -431,6 +434,55 @@ const SuperAdminBroadcasting = ({ token, socket }) => {
     setShowWizard(true);
   };
 
+  const toggleSelectCampaign = (id) => {
+    setSelectedCampaignIds(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAllCampaigns = () => {
+    const allIds = campaigns.map(c => c._id || c.id);
+    const allSelected = allIds.length > 0 && allIds.every(id => selectedCampaignIds.includes(id));
+    if (allSelected) {
+      setSelectedCampaignIds(prev => prev.filter(id => !allIds.includes(id)));
+    } else {
+      setSelectedCampaignIds(prev => [...new Set([...prev, ...allIds])]);
+    }
+  };
+
+  const handleDeleteSingleCampaign = async (campaignId, name) => {
+    if (!window.confirm(`Are you sure you want to permanently delete broadcast campaign "${name || campaignId}"?`)) return;
+
+    try {
+      await axios.delete(`${apiUrl}/api/super-admin/broadcasting/campaigns/${campaignId}`, { headers });
+      setSelectedCampaignIds(prev => prev.filter(id => id !== campaignId));
+      fetchData();
+      alert('Campaign deleted successfully.');
+    } catch (err) {
+      alert('Failed to delete campaign: ' + (err.response?.data?.message || err.message));
+    }
+  };
+
+  const handleBulkDeleteCampaigns = async () => {
+    if (selectedCampaignIds.length === 0) return;
+    if (!window.confirm(`Are you sure you want to permanently delete ${selectedCampaignIds.length} selected broadcast campaigns? This cannot be undone.`)) return;
+
+    try {
+      setIsDeleting(true);
+      await axios.post(`${apiUrl}/api/super-admin/broadcasting/campaigns/bulk-delete`, 
+        { ids: selectedCampaignIds }, 
+        { headers }
+      );
+      setSelectedCampaignIds([]);
+      fetchData();
+      alert('Selected campaigns deleted successfully.');
+    } catch (err) {
+      alert('Bulk delete failed: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <div>
       {/* Header */}
@@ -590,50 +642,149 @@ const SuperAdminBroadcasting = ({ token, socket }) => {
             <p style={{ margin: 0, fontSize: '0.9rem' }}>No broadcast campaigns dispatched yet. Click "Create Broadcast" above to send your first message.</p>
           </div>
         ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
-              <thead>
-                <tr style={{ borderBottom: '1px solid var(--surface-border)', color: '#64748b' }}>
-                  <th style={{ padding: '0.75rem 1rem' }}>Campaign</th>
-                  <th style={{ padding: '0.75rem 1rem' }}>Channel / Sender</th>
-                  <th style={{ padding: '0.75rem 1rem' }}>Audience</th>
-                  <th style={{ padding: '0.75rem 1rem' }}>Stats</th>
-                  <th style={{ padding: '0.75rem 1rem' }}>Status</th>
-                  <th style={{ padding: '0.75rem 1rem' }}>Date</th>
-                </tr>
-              </thead>
-              <tbody>
-                {campaigns.map(c => (
-                  <tr key={c._id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                    <td style={{ padding: '1rem', fontWeight: '800', color: '#0f172a' }}>{c.name}</td>
-                    <td style={{ padding: '1rem' }}>
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontWeight: '700' }}>
-                        {c.channel === 'whatsapp' && <Smartphone size={14} color="#25D366" />}
-                        {c.channel === 'email' && <Mail size={14} color="#ea4335" />}
-                        {c.channel === 'both' && <Sparkles size={14} color="#8b5cf6" />}
-                        <span style={{ textTransform: 'capitalize' }}>{c.channel}</span>
-                      </span>
-                    </td>
-                    <td style={{ padding: '1rem', color: '#64748b' }}>{c.targetAudience}</td>
-                    <td style={{ padding: '1rem' }}>
-                      <span style={{ color: '#10b981', fontWeight: '800' }}>{c.stats?.deliveredCount || 0}</span> / {c.stats?.totalRecipients || 0}
-                    </td>
-                    <td style={{ padding: '1rem' }}>
-                      <span style={{
-                        padding: '3px 8px', borderRadius: '100px', fontSize: '0.75rem', fontWeight: '800',
-                        background: c.status === 'Completed' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 65, 35, 0.15)',
-                        color: c.status === 'Completed' ? '#10b981' : '#ef4123'
-                      }}>
-                        {c.status}
-                      </span>
-                    </td>
-                    <td style={{ padding: '1rem', color: '#94a3b8' }}>
-                      {new Date(c.createdAt).toLocaleDateString('en-IN')}
-                    </td>
+          <div>
+            {/* BULK ACTION BAR */}
+            {selectedCampaignIds.length > 0 && (
+              <div style={{
+                marginBottom: '1rem',
+                padding: '0.85rem 1.25rem',
+                background: '#fff1f2',
+                border: '1.5px solid #fecdd3',
+                borderRadius: '16px',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                animation: 'fadeIn 0.2s ease'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <span style={{ fontWeight: '800', color: '#e11d48', fontSize: '0.9rem' }}>
+                    {selectedCampaignIds.length} campaign{selectedCampaignIds.length > 1 ? 's' : ''} selected
+                  </span>
+                  <button
+                    onClick={() => setSelectedCampaignIds([])}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#64748b',
+                      fontSize: '0.8rem',
+                      fontWeight: '700',
+                      cursor: 'pointer',
+                      textDecoration: 'underline'
+                    }}
+                  >
+                    Clear selection
+                  </button>
+                </div>
+                <button
+                  onClick={handleBulkDeleteCampaigns}
+                  disabled={isDeleting}
+                  style={{
+                    padding: '0.5rem 1.1rem',
+                    borderRadius: '10px',
+                    border: 'none',
+                    background: '#e11d48',
+                    color: '#ffffff',
+                    fontWeight: '800',
+                    fontSize: '0.85rem',
+                    cursor: isDeleting ? 'not-allowed' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    boxShadow: '0 2px 8px rgba(225, 29, 72, 0.25)'
+                  }}
+                >
+                  <Trash2 size={15} />
+                  {isDeleting ? 'Deleting...' : `Delete Selected (${selectedCampaignIds.length})`}
+                </button>
+              </div>
+            )}
+
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid var(--surface-border)', color: '#64748b' }}>
+                    <th style={{ width: '48px', padding: '0.75rem 1rem', textAlign: 'center' }}>
+                      <input
+                        type="checkbox"
+                        checked={campaigns.length > 0 && campaigns.every(c => selectedCampaignIds.includes(c._id || c.id))}
+                        onChange={toggleSelectAllCampaigns}
+                        style={{ width: '16px', height: '16px', cursor: 'pointer', accentColor: '#e11d48' }}
+                      />
+                    </th>
+                    <th style={{ padding: '0.75rem 1rem' }}>Campaign</th>
+                    <th style={{ padding: '0.75rem 1rem' }}>Channel / Sender</th>
+                    <th style={{ padding: '0.75rem 1rem' }}>Audience</th>
+                    <th style={{ padding: '0.75rem 1rem' }}>Stats</th>
+                    <th style={{ padding: '0.75rem 1rem' }}>Status</th>
+                    <th style={{ padding: '0.75rem 1rem' }}>Date</th>
+                    <th style={{ width: '80px', padding: '0.75rem 1rem', textAlign: 'right' }}>Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {campaigns.map(c => {
+                    const cid = c._id || c.id;
+                    const isSelected = selectedCampaignIds.includes(cid);
+                    return (
+                      <tr key={cid} style={{ borderBottom: '1px solid #f1f5f9', background: isSelected ? 'rgba(254, 242, 242, 0.6)' : 'transparent' }}>
+                        <td style={{ width: '48px', padding: '1rem', textAlign: 'center' }}>
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => toggleSelectCampaign(cid)}
+                            style={{ width: '16px', height: '16px', cursor: 'pointer', accentColor: '#e11d48' }}
+                          />
+                        </td>
+                        <td style={{ padding: '1rem', fontWeight: '800', color: '#0f172a' }}>{c.name}</td>
+                        <td style={{ padding: '1rem' }}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontWeight: '700' }}>
+                            {c.channel === 'whatsapp' && <Smartphone size={14} color="#25D366" />}
+                            {c.channel === 'email' && <Mail size={14} color="#ea4335" />}
+                            {c.channel === 'both' && <Sparkles size={14} color="#8b5cf6" />}
+                            <span style={{ textTransform: 'capitalize' }}>{c.channel}</span>
+                          </span>
+                        </td>
+                        <td style={{ padding: '1rem', color: '#64748b' }}>{c.targetAudience}</td>
+                        <td style={{ padding: '1rem' }}>
+                          <span style={{ color: '#10b981', fontWeight: '800' }}>{c.stats?.deliveredCount || 0}</span> / {c.stats?.totalRecipients || 0}
+                        </td>
+                        <td style={{ padding: '1rem' }}>
+                          <span style={{
+                            padding: '3px 8px', borderRadius: '100px', fontSize: '0.75rem', fontWeight: '800',
+                            background: c.status === 'Completed' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 65, 35, 0.15)',
+                            color: c.status === 'Completed' ? '#10b981' : '#ef4123'
+                          }}>
+                            {c.status}
+                          </span>
+                        </td>
+                        <td style={{ padding: '1rem', color: '#94a3b8' }}>
+                          {new Date(c.createdAt).toLocaleDateString('en-IN')}
+                        </td>
+                        <td style={{ padding: '1rem', textAlign: 'right' }}>
+                          <button
+                            onClick={() => handleDeleteSingleCampaign(cid, c.name)}
+                            title="Delete campaign"
+                            style={{
+                              background: '#fff1f2',
+                              border: '1px solid #fecdd3',
+                              color: '#e11d48',
+                              padding: '6px 10px',
+                              borderRadius: '8px',
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              transition: 'all 0.15s ease'
+                            }}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </div>

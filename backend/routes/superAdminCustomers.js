@@ -206,4 +206,62 @@ router.post('/orders/:orderId/refund', async (req, res) => {
   }
 });
 
+/**
+ * 5. DELETE SINGLE CUSTOMER
+ */
+router.delete('/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const existing = await prisma.customer.findFirst({
+      where: {
+        OR: [{ userId }, { id: userId }]
+      }
+    });
+
+    if (!existing) {
+      return res.status(404).json({ message: 'Customer not found' });
+    }
+
+    await prisma.customer.delete({
+      where: { id: existing.id }
+    });
+
+    res.json({ success: true, message: `Customer profile for "${existing.currentName || existing.phone}" removed successfully.` });
+  } catch (err) {
+    console.error('[superAdminCustomers] Delete error:', err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+/**
+ * 6. BULK DELETE CUSTOMERS
+ */
+router.post('/bulk-delete', async (req, res) => {
+  try {
+    const { userIds } = req.body;
+    if (!Array.isArray(userIds) || userIds.length === 0) {
+      return res.status(400).json({ message: 'No customer IDs provided for bulk deletion' });
+    }
+
+    const result = await prisma.customer.deleteMany({
+      where: {
+        OR: [
+          { userId: { in: userIds } },
+          { id: { in: userIds } }
+        ]
+      }
+    });
+
+    res.json({
+      success: true,
+      message: `Successfully removed ${result.count} customer profiles.`,
+      count: result.count
+    });
+  } catch (err) {
+    console.error('[superAdminCustomers] Bulk delete error:', err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
 module.exports = router;
+
