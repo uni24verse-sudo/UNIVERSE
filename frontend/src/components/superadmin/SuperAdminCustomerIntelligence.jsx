@@ -290,7 +290,21 @@ const SuperAdminCustomerIntelligence = ({ token, socket }) => {
   return (
     <div>
       {/* Super Admin Standard Header */}
-      <header style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+      <header style={{ 
+        position: 'sticky', 
+        top: 0, 
+        zIndex: 20, 
+        background: '#f8fafc', 
+        paddingTop: '0.25rem', 
+        paddingBottom: '1.25rem', 
+        marginBottom: '1.5rem', 
+        borderBottom: '1px solid #e2e8f0', 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        flexWrap: 'wrap', 
+        gap: '1rem' 
+      }}>
         <div>
           <h1 style={{ fontSize: '2rem', fontWeight: '900', margin: '0 0 0.25rem 0', color: 'var(--text-primary)' }}>
             Customer 360 & Audit

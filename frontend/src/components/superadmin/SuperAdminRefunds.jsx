@@ -277,7 +277,21 @@ const SuperAdminRefunds = ({ token, socket }) => {
   return (
     <div>
       {/* Header & Controls */}
-      <header style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+      <header style={{ 
+        position: 'sticky', 
+        top: 0, 
+        zIndex: 20, 
+        background: '#f8fafc', 
+        paddingTop: '0.25rem', 
+        paddingBottom: '1.25rem', 
+        marginBottom: '1.5rem', 
+        borderBottom: '1px solid #e2e8f0', 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        flexWrap: 'wrap', 
+        gap: '1rem' 
+      }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: 'linear-gradient(135deg, #ef4444, #dc2626)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ffffff', boxShadow: '0 4px 14px rgba(239, 68, 68, 0.3)' }}>
