@@ -233,119 +233,82 @@ const SuperAdmin3DAnalytics = ({ token }) => {
         topBarTarget
       )}
 
-      {/* 2. Executive KPI Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: '1.25rem' }}>
-        
-        {/* Total GMV */}
-        <div style={{ padding: '1.5rem', background: '#ffffff', borderRadius: '16px', border: '1px solid var(--surface-border)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-            <span style={{ fontSize: '0.8rem', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
-              Total Platform GMV
-            </span>
-            <DollarSign size={18} color="#10b981" />
-          </div>
-          <h2 style={{ fontSize: '2.2rem', fontWeight: '900', margin: '0.25rem 0', color: 'var(--text-primary)' }}>
-            ₹{(metrics?.totalRevenue || 0).toLocaleString()}
-          </h2>
-          <span style={{ fontSize: '0.85rem', color: '#10b981', fontWeight: '700' }}>
-            +₹{(metrics?.todayRevenue || 0).toLocaleString()} today
-          </span>
-        </div>
-
-        {/* Processed Orders */}
-        <div style={{ padding: '1.5rem', background: '#ffffff', borderRadius: '16px', border: '1px solid var(--surface-border)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-            <span style={{ fontSize: '0.8rem', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
-              Processed Orders
-            </span>
-            <ShoppingBag size={18} color="#3b82f6" />
-          </div>
-          <h2 style={{ fontSize: '2.2rem', fontWeight: '900', margin: '0.25rem 0', color: 'var(--text-primary)' }}>
-            {metrics?.totalOrders || 0}
-          </h2>
-          <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: '600' }}>
-            {metrics?.todayOrders || 0} orders today • {metrics?.activeOrders || 0} active
-          </span>
-        </div>
-
-        {/* Active Stores */}
-        <div style={{ padding: '1.5rem', background: '#ffffff', borderRadius: '16px', border: '1px solid var(--surface-border)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-            <span style={{ fontSize: '0.8rem', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
-              Onboarded Stores
-            </span>
-            <Store size={18} color="#f59e0b" />
-          </div>
-          <h2 style={{ fontSize: '2.2rem', fontWeight: '900', margin: '0.25rem 0', color: 'var(--text-primary)' }}>
-            {metrics?.storeCount || 0}
-          </h2>
-          <span style={{ fontSize: '0.85rem', color: '#0284c7', fontWeight: '700' }}>
-            {metrics?.openStoresCount || 0} currently open & operational
-          </span>
-        </div>
-
-        {/* UniVerse Net Take */}
-        <div style={{ padding: '1.5rem', background: '#ffffff', borderRadius: '16px', border: '1px solid var(--surface-border)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-            <span style={{ fontSize: '0.8rem', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
-              UniVerse Net Take (3%)
-            </span>
-            <TrendingUp size={18} color="#ef4123" />
-          </div>
-          <h2 style={{ fontSize: '2.2rem', fontWeight: '900', margin: '0.25rem 0', color: '#ef4123' }}>
-            ₹{(metrics?.totalProfit || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-          </h2>
-          <span style={{ fontSize: '0.85rem', color: '#10b981', fontWeight: '700' }}>
-            3% Take Rate + 4% Protection
-          </span>
-        </div>
-
-      </div>
-
-      {/* 3. Executive Unit Economics Pitch Callout */}
+      {/* 2. Executive KPI Cards (Sticky) */}
       <div style={{
-        background: '#ffffff',
-        borderRadius: '16px',
-        border: '1px solid var(--surface-border)',
-        padding: '1.5rem 2rem',
-        display: 'flex',
-        flexWrap: 'wrap',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        gap: '1.5rem'
+        position: 'sticky',
+        top: 0,
+        zIndex: 10,
+        background: '#f8fafc',
+        paddingTop: '0.25rem',
+        paddingBottom: '0.75rem',
+        marginBottom: '1rem',
+        borderBottom: '1px solid #e2e8f0'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
-          <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'rgba(239, 65, 35, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Building2 size={24} color="#ef4123" />
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
+          {/* Total GMV */}
+          <div style={{ padding: '1.25rem', background: '#ffffff', borderRadius: '16px', border: '1px solid var(--surface-border)', boxShadow: '0 2px 6px rgba(0,0,0,0.02)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                Total Platform GMV
+              </span>
+              <DollarSign size={16} color="#10b981" />
+            </div>
+            <h2 style={{ fontSize: '1.8rem', fontWeight: '900', margin: '0.15rem 0', color: 'var(--text-primary)' }}>
+              ₹{(metrics?.totalRevenue || 0).toLocaleString()}
+            </h2>
+            <span style={{ fontSize: '0.75rem', color: '#10b981', fontWeight: '700' }}>
+              +₹{(metrics?.todayRevenue || 0).toLocaleString()} today
+            </span>
           </div>
-          <div>
-            <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: '800', color: 'var(--text-primary)' }}>
-              Institutional Pitch & Unit Economics Suite
-            </h3>
-            <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-              Financial models, <strong>₹0 Customer Acquisition Cost</strong>, and <strong>96.2% gross software margin</strong> on AWS.
-            </p>
+
+          {/* Processed Orders */}
+          <div style={{ padding: '1.25rem', background: '#ffffff', borderRadius: '16px', border: '1px solid var(--surface-border)', boxShadow: '0 2px 6px rgba(0,0,0,0.02)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                Processed Orders
+              </span>
+              <ShoppingBag size={16} color="#3b82f6" />
+            </div>
+            <h2 style={{ fontSize: '1.8rem', fontWeight: '900', margin: '0.15rem 0', color: 'var(--text-primary)' }}>
+              {metrics?.totalOrders || 0}
+            </h2>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: '600' }}>
+              {metrics?.todayOrders || 0} orders today • {metrics?.activeOrders || 0} active
+            </span>
+          </div>
+
+          {/* Active Stores */}
+          <div style={{ padding: '1.25rem', background: '#ffffff', borderRadius: '16px', border: '1px solid var(--surface-border)', boxShadow: '0 2px 6px rgba(0,0,0,0.02)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                Onboarded Stores
+              </span>
+              <Store size={16} color="#f59e0b" />
+            </div>
+            <h2 style={{ fontSize: '1.8rem', fontWeight: '900', margin: '0.15rem 0', color: 'var(--text-primary)' }}>
+              {metrics?.storeCount || 0}
+            </h2>
+            <span style={{ fontSize: '0.75rem', color: '#0284c7', fontWeight: '700' }}>
+              {metrics?.openStoresCount || 0} open & operational
+            </span>
+          </div>
+
+          {/* UniVerse Net Take */}
+          <div style={{ padding: '1.25rem', background: '#ffffff', borderRadius: '16px', border: '1px solid var(--surface-border)', boxShadow: '0 2px 6px rgba(0,0,0,0.02)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                UniVerse Net Take (3%)
+              </span>
+              <TrendingUp size={16} color="#ef4123" />
+            </div>
+            <h2 style={{ fontSize: '1.8rem', fontWeight: '900', margin: '0.15rem 0', color: '#ef4123' }}>
+              ₹{(metrics?.totalProfit || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </h2>
+            <span style={{ fontSize: '0.75rem', color: '#10b981', fontWeight: '700' }}>
+              3% Take Rate + 4% Protection
+            </span>
           </div>
         </div>
-
-        <button
-          onClick={() => { setPitchSlide(1); setShowPitchModal(true); }}
-          style={{
-            padding: '0.75rem 1.4rem',
-            borderRadius: '10px',
-            background: 'var(--primary)',
-            color: '#ffffff',
-            border: 'none',
-            fontWeight: '700',
-            fontSize: '0.85rem',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem'
-          }}
-        >
-          Open Presentation Mode <ArrowUpRight size={16} />
-        </button>
       </div>
 
       {/* 4. Chart Views & Deep Analytics */}
