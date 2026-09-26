@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import axios from 'axios';
 import { io } from 'socket.io-client';
 import {
@@ -56,6 +57,11 @@ const SuperAdmin3DAnalytics = ({ token }) => {
 
   // Scalability Simulator state
   const [simulatedCampuses, setSimulatedCampuses] = useState(5);
+  const [topBarTarget, setTopBarTarget] = useState(null);
+
+  useEffect(() => {
+    setTopBarTarget(document.getElementById('superadmin-topbar-actions'));
+  }, []);
 
   const socketRef = useRef(null);
 
@@ -183,82 +189,49 @@ const SuperAdmin3DAnalytics = ({ token }) => {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
       
-      {/* 1. Header Bar */}
-      <div style={{
-        display: 'flex',
-        flexWrap: 'wrap',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        gap: '1.5rem',
-        padding: '2rem',
-        background: '#ffffff',
-        border: '1px solid var(--surface-border)',
-        borderRadius: '20px',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.02)'
-      }}>
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.3rem' }}>
-            <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#10b981' }} />
-            <span style={{ fontSize: '0.75rem', fontWeight: '800', color: '#10b981', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Live System Active
-            </span>
-            <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>• Connected to AWS RDS PostgreSQL</span>
-          </div>
-
-          <h1 style={{ fontSize: '1.85rem', fontWeight: '900', margin: 0, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
-            Real-Time Analytics & Financial Metrics
-          </h1>
-          <p style={{ margin: '0.3rem 0 0 0', color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
-            Live platform sales velocity, store performance, and institutional unit economics.
-          </p>
-        </div>
-
-        {/* Action Controls */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-          
-          {/* Pitch Deck Button */}
+      {/* Topbar Actions Portal */}
+      {topBarTarget && createPortal(
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
           <button
             onClick={() => { setPitchSlide(1); setShowPitchModal(true); }}
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '0.6rem',
-              padding: '0.8rem 1.4rem',
+              gap: '0.45rem',
+              padding: '0.45rem 0.85rem',
               background: '#0f172a',
               border: 'none',
-              borderRadius: '12px',
+              borderRadius: '8px',
               color: '#ffffff',
               cursor: 'pointer',
               fontWeight: '700',
-              fontSize: '0.9rem',
-              boxShadow: '0 4px 12px rgba(15, 23, 42, 0.2)',
-              transition: 'all 0.2s ease'
+              fontSize: '0.8rem',
+              boxShadow: '0 2px 6px rgba(15, 23, 42, 0.2)'
             }}
           >
-            <Briefcase size={17} color="#38bdf8" /> Investor Pitch Deck
+            <Briefcase size={14} color="#38bdf8" /> Investor Pitch Deck
           </button>
-
-          {/* Refresh Button */}
           <button
             onClick={() => fetchAnalytics()}
             style={{
-              padding: '0.8rem 1.2rem',
-              background: 'var(--background)',
-              border: '1px solid var(--surface-border)',
-              borderRadius: '12px',
-              color: 'var(--text-primary)',
+              padding: '0.45rem 0.85rem',
+              background: '#ffffff',
+              border: '1px solid #e2e8f0',
+              borderRadius: '8px',
+              color: '#0f172a',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
-              gap: '0.5rem',
+              gap: '0.4rem',
               fontWeight: '700',
-              fontSize: '0.85rem'
+              fontSize: '0.8rem'
             }}
           >
-            <RotateCw size={16} /> Sync Data
+            <RotateCw size={13} /> Sync Data
           </button>
-        </div>
-      </div>
+        </div>,
+        topBarTarget
+      )}
 
       {/* 2. Executive KPI Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: '1.25rem' }}>

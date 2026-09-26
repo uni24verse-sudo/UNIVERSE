@@ -751,7 +751,7 @@ const SuperAdminPanel = () => {
       <div style={{ flex: 1, height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0, background: '#f8fafc' }}>
         {/* Fixed Top Navbar */}
         <header style={{
-          height: '60px',
+          height: '62px',
           flexShrink: 0,
           background: '#ffffff',
           borderBottom: '1px solid #e2e8f0',
@@ -762,21 +762,139 @@ const SuperAdminPanel = () => {
           zIndex: 50,
           boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: '800', fontSize: '0.95rem', color: '#0f172a' }}>
-              <Shield size={18} color="#ef4123" />
-              <span>UniVerse Super Admin</span>
-            </div>
-            <span style={{ color: '#cbd5e1', fontSize: '1.1rem', fontWeight: '300' }}>/</span>
-            <span style={{ fontSize: '0.875rem', fontWeight: '700', color: 'var(--primary)' }}>
+          {/* Left: Active Page Heading */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+            {currentTabObj?.icon && (
+              <div style={{
+                width: '32px',
+                height: '32px',
+                borderRadius: '8px',
+                background: 'rgba(239, 65, 35, 0.08)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#ef4123'
+              }}>
+                <currentTabObj.icon size={17} />
+              </div>
+            )}
+            <h1 style={{
+              fontSize: '1.15rem',
+              fontWeight: '900',
+              color: '#0f172a',
+              margin: 0,
+              letterSpacing: '-0.02em',
+              whiteSpace: 'nowrap'
+            }}>
               {currentTabObj?.label || activeTab.replace(/_/g, ' ')}
-            </span>
+            </h1>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.3rem 0.75rem', borderRadius: '100px', background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.25)' }}>
-              <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#10b981', display: 'inline-block', boxShadow: '0 0 8px #10b981' }}></span>
-              <span style={{ fontSize: '0.72rem', fontWeight: '800', color: '#059669', letterSpacing: '0.04em' }}>SYSTEM OPERATIONAL</span>
+          {/* Right: Actions Slot & Profile */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            {/* Topbar Actions Slot */}
+            <div id="superadmin-topbar-actions" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              {activeTab === 'locations' && (
+                <button 
+                  onClick={() => { setShowLocationForm(true); setEditingLocation(null); setLocationName(''); setLocationCity(''); setLocationDietaryType('both'); setLocationMarkets(''); }}
+                  style={{
+                    padding: '0.45rem 0.95rem',
+                    background: 'var(--primary)',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontWeight: '800',
+                    fontSize: '0.8rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.4rem',
+                    boxShadow: '0 2px 8px rgba(239, 65, 35, 0.25)'
+                  }}
+                >
+                  <Plus size={15} /> Add New Location
+                </button>
+              )}
+
+              {activeTab === 'stores' && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                  <span style={{ padding: '0.35rem 0.75rem', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: '100px', fontSize: '0.75rem', fontWeight: '800', color: '#475569' }}>
+                    {stores.length} Total Stalls
+                  </span>
+                  <span style={{ padding: '0.35rem 0.75rem', background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', borderRadius: '100px', fontSize: '0.75rem', fontWeight: '800' }}>
+                    {stores.filter(s => s.isOpen).length} Live Online
+                  </span>
+                </div>
+              )}
+
+              {activeTab === 'vendors' && (
+                <div style={{ display: 'flex', gap: '0.3rem', background: '#f1f5f9', padding: '0.2rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                  <button
+                    type="button"
+                    onClick={() => setVendorSubTab('active')}
+                    style={{
+                      padding: '0.35rem 0.8rem',
+                      borderRadius: '6px',
+                      border: 'none',
+                      background: vendorSubTab === 'active' ? '#ffffff' : 'transparent',
+                      color: vendorSubTab === 'active' ? '#0f172a' : '#64748b',
+                      fontWeight: '700',
+                      fontSize: '0.75rem',
+                      cursor: 'pointer',
+                      boxShadow: vendorSubTab === 'active' ? '0 1px 3px rgba(0,0,0,0.06)' : 'none'
+                    }}
+                  >
+                    Active ({vendors.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setVendorSubTab('pending')}
+                    style={{
+                      padding: '0.35rem 0.8rem',
+                      borderRadius: '6px',
+                      border: 'none',
+                      background: vendorSubTab === 'pending' ? '#ef4123' : 'transparent',
+                      color: vendorSubTab === 'pending' ? '#ffffff' : '#64748b',
+                      fontWeight: '700',
+                      fontSize: '0.75rem',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.35rem'
+                    }}
+                  >
+                    Pending {pendingVendors.length > 0 && <span style={{ background: '#ffffff', color: '#ef4123', padding: '1px 5px', borderRadius: '100px', fontSize: '0.68rem' }}>{pendingVendors.length}</span>}
+                  </button>
+                </div>
+              )}
+              {activeTab === 'finance' && (
+                <div style={{ display: 'flex', gap: '0.3rem', background: '#f1f5f9', padding: '0.2rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                  <button 
+                    onClick={() => setFinanceSubTab('dues')}
+                    style={{ 
+                      padding: '0.35rem 0.8rem', borderRadius: '6px', border: 'none', 
+                      background: financeSubTab === 'dues' ? 'white' : 'transparent',
+                      color: financeSubTab === 'dues' ? 'var(--primary)' : '#64748b',
+                      fontWeight: '700', fontSize: '0.75rem', cursor: 'pointer',
+                      boxShadow: financeSubTab === 'dues' ? '0 1px 3px rgba(0,0,0,0.06)' : 'none'
+                    }}
+                  >
+                    Current Dues
+                  </button>
+                  <button 
+                    onClick={() => setFinanceSubTab('history')}
+                    style={{ 
+                      padding: '0.35rem 0.8rem', borderRadius: '6px', border: 'none', 
+                      background: financeSubTab === 'history' ? 'white' : 'transparent',
+                      color: financeSubTab === 'history' ? 'var(--primary)' : '#64748b',
+                      fontWeight: '700', fontSize: '0.75rem', cursor: 'pointer',
+                      boxShadow: financeSubTab === 'history' ? '0 1px 3px rgba(0,0,0,0.06)' : 'none'
+                    }}
+                  >
+                    Settlement History
+                  </button>
+                </div>
+              )}
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.25rem 0.65rem', borderRadius: '8px', background: '#f1f5f9', border: '1px solid #e2e8f0' }}>
@@ -854,24 +972,6 @@ const SuperAdminPanel = () => {
         {/* OVERVIEW TAB */}
         {activeTab === 'overview' && stats && (
           <div>
-            <header style={{ 
-              position: 'sticky', 
-              top: 0, 
-              zIndex: 20, 
-              background: '#f8fafc', 
-              paddingTop: '0.25rem', 
-              paddingBottom: '1.25rem', 
-              marginBottom: '2rem', 
-              borderBottom: '1px solid #e2e8f0',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center'
-            }}>
-              <div>
-                <h1 style={{ fontSize: '1.85rem', fontWeight: '900', margin: '0 0 0.25rem 0', color: '#0f172a' }}>Platform Overview</h1>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', margin: 0 }}>Global platform telemetry, key financial KPIs, and core service health.</p>
-              </div>
-            </header>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem', marginBottom: '3rem' }}>
               {/* Stat Cards */}
@@ -911,88 +1011,6 @@ const SuperAdminPanel = () => {
         {/* VENDORS TAB */}
         {activeTab === 'vendors' && (
           <div>
-            <header style={{ 
-              position: 'sticky', 
-              top: 0, 
-              zIndex: 20, 
-              background: '#f8fafc', 
-              paddingTop: '0.25rem', 
-              paddingBottom: '1.25rem', 
-              marginBottom: '1.5rem', 
-              borderBottom: '1px solid #e2e8f0', 
-              display: 'flex', 
-              justifyContent: 'space-between', 
-              alignItems: 'center', 
-              flexWrap: 'wrap', 
-              gap: '1rem' 
-            }}>
-              <div>
-                <h1 style={{ fontSize: '1.85rem', fontWeight: '900', margin: 0, color: '#0f172a' }}>Vendor Registry</h1>
-                <p style={{ color: 'var(--text-secondary)', margin: '0.25rem 0 0 0', fontSize: '0.875rem' }}>
-                  Manage verified campus vendors and review new merchant applications.
-                </p>
-              </div>
-
-              {/* Sub-Tabs: Active Vendors vs Pending Approvals */}
-              <div style={{ display: 'flex', gap: '0.5rem', background: '#f1f5f9', padding: '0.35rem', borderRadius: '14px', border: '1px solid var(--surface-border)' }}>
-                <button
-                  type="button"
-                  onClick={() => setVendorSubTab('active')}
-                  style={{
-                    padding: '0.5rem 1.25rem',
-                    borderRadius: '10px',
-                    border: 'none',
-                    background: vendorSubTab === 'active' ? '#ffffff' : 'transparent',
-                    color: vendorSubTab === 'active' ? 'var(--text-primary)' : 'var(--text-secondary)',
-                    fontWeight: '700',
-                    fontSize: '0.875rem',
-                    cursor: 'pointer',
-                    boxShadow: vendorSubTab === 'active' ? '0 2px 8px rgba(0,0,0,0.06)' : 'none',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.5rem',
-                    transition: 'all 0.2s'
-                  }}
-                >
-                  <Users size={16} />
-                  Active Vendors ({activeVendors.length})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setVendorSubTab('pending')}
-                  style={{
-                    padding: '0.5rem 1.25rem',
-                    borderRadius: '10px',
-                    border: 'none',
-                    background: vendorSubTab === 'pending' ? '#ef4123' : (pendingVendors.length > 0 ? 'rgba(239, 65, 35, 0.1)' : 'transparent'),
-                    color: vendorSubTab === 'pending' ? '#ffffff' : (pendingVendors.length > 0 ? '#ef4123' : 'var(--text-secondary)'),
-                    fontWeight: '700',
-                    fontSize: '0.875rem',
-                    cursor: 'pointer',
-                    boxShadow: vendorSubTab === 'pending' ? '0 2px 8px rgba(239, 65, 35, 0.3)' : 'none',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.5rem',
-                    transition: 'all 0.2s'
-                  }}
-                >
-                  <Clock size={16} />
-                  Pending Approvals
-                  {pendingVendors.length > 0 && (
-                    <span style={{
-                      background: vendorSubTab === 'pending' ? 'rgba(255,255,255,0.3)' : '#ef4123',
-                      color: '#ffffff',
-                      padding: '2px 8px',
-                      borderRadius: '100px',
-                      fontSize: '0.75rem',
-                      fontWeight: '800'
-                    }}>
-                      {pendingVendors.length}
-                    </span>
-                  )}
-                </button>
-              </div>
-            </header>
 
             {/* PENDING APPROVALS QUEUE */}
             {vendorSubTab === 'pending' && (
@@ -1311,36 +1329,6 @@ const SuperAdminPanel = () => {
 
           return (
             <div>
-              <header style={{ 
-                position: 'sticky', 
-                top: 0, 
-                zIndex: 20, 
-                background: '#f8fafc', 
-                paddingTop: '0.25rem', 
-                paddingBottom: '1.25rem', 
-                marginBottom: '1.5rem', 
-                borderBottom: '1px solid #e2e8f0', 
-                display: 'flex', 
-                justifyContent: 'space-between', 
-                alignItems: 'center', 
-                flexWrap: 'wrap', 
-                gap: '1rem' 
-              }}>
-                <div>
-                  <h1 style={{ fontSize: '1.85rem', fontWeight: '900', margin: 0, color: '#0f172a' }}>Store Directory</h1>
-                  <p style={{ color: 'var(--text-secondary)', margin: '0.25rem 0 0 0', fontSize: '0.875rem' }}>
-                    Control stall operational status, auto-scheduling, location assignments, and 5% commission profiles.
-                  </p>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                  <span style={{ padding: '0.5rem 1rem', background: '#ffffff', border: '1px solid var(--surface-border)', borderRadius: '100px', fontSize: '0.85rem', fontWeight: '800', color: 'var(--text-primary)' }}>
-                    {stores.length} Total Stalls
-                  </span>
-                  <span style={{ padding: '0.5rem 1rem', background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', borderRadius: '100px', fontSize: '0.85rem', fontWeight: '800' }}>
-                    {stores.filter(s => s.isOpen).length} Live Online
-                  </span>
-                </div>
-              </header>
 
               {/* Search & Filter Bar */}
               <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -1931,32 +1919,6 @@ const SuperAdminPanel = () => {
         {/* LOCATIONS TAB */}
         {activeTab === 'locations' && (
           <div>
-            <header style={{ 
-              position: 'sticky', 
-              top: 0, 
-              zIndex: 20, 
-              background: '#f8fafc', 
-              paddingTop: '0.25rem', 
-              paddingBottom: '1.25rem', 
-              marginBottom: '1.5rem', 
-              borderBottom: '1px solid #e2e8f0', 
-              display: 'flex', 
-              justifyContent: 'space-between', 
-              alignItems: 'center', 
-              flexWrap: 'wrap', 
-              gap: '1rem' 
-            }}>
-              <div>
-                <h1 style={{ fontSize: '1.85rem', fontWeight: '900', margin: 0, color: '#0f172a' }}>Location Manager</h1>
-                <p style={{ color: 'var(--text-secondary)', margin: '0.25rem 0 0 0', fontSize: '0.875rem' }}>Manage Colleges and External expansion regions.</p>
-              </div>
-              <button 
-                onClick={() => { setShowLocationForm(true); setEditingLocation(null); setLocationName(''); setLocationCity(''); setLocationDietaryType('both'); setLocationMarkets(''); }}
-                style={{ padding: '0.6rem 1.25rem', background: 'var(--primary)', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '800', fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
-              >
-                <Plus size={16} /> Add New Location
-              </button>
-            </header>
 
             {showLocationForm && (
               <div style={{ padding: '2rem', background: '#ffffff', borderRadius: '24px', border: '1px solid var(--surface-border)', marginBottom: '2rem' }}>
@@ -2192,53 +2154,6 @@ const SuperAdminPanel = () => {
         {/* FINANCE TAB */}
         {activeTab === 'finance' && (
           <div>
-            <header style={{ 
-              position: 'sticky', 
-              top: 0, 
-              zIndex: 20, 
-              background: '#f8fafc', 
-              paddingTop: '0.25rem', 
-              paddingBottom: '1.25rem', 
-              marginBottom: '1.5rem', 
-              borderBottom: '1px solid #e2e8f0', 
-              display: 'flex', 
-              justifyContent: 'space-between', 
-              alignItems: 'center', 
-              flexWrap: 'wrap', 
-              gap: '1rem' 
-            }}>
-              <div>
-                <h1 style={{ fontSize: '1.85rem', fontWeight: '900', margin: 0, color: '#0f172a' }}>Finance & Revenue Distribution</h1>
-                <p style={{ color: 'var(--text-secondary)', margin: '0.25rem 0 0 0', fontSize: '0.875rem' }}>Monthly billing cycles and commission settlement status.</p>
-              </div>
-              
-              <div style={{ display: 'flex', background: '#f1f5f9', padding: '0.35rem', borderRadius: '12px', gap: '0.35rem', border: '1px solid var(--surface-border)' }}>
-                <button 
-                  onClick={() => setFinanceSubTab('dues')}
-                  style={{ 
-                    padding: '0.5rem 1rem', borderRadius: '8px', border: 'none', 
-                    background: financeSubTab === 'dues' ? 'white' : 'transparent',
-                    color: financeSubTab === 'dues' ? 'var(--primary)' : 'var(--text-secondary)',
-                    fontWeight: '700', fontSize: '0.875rem', cursor: 'pointer',
-                    boxShadow: financeSubTab === 'dues' ? '0 2px 4px rgba(0,0,0,0.05)' : 'none'
-                  }}
-                >
-                  Current Dues
-                </button>
-                <button 
-                  onClick={() => setFinanceSubTab('history')}
-                  style={{ 
-                    padding: '0.5rem 1rem', borderRadius: '8px', border: 'none', 
-                    background: financeSubTab === 'history' ? 'white' : 'transparent',
-                    color: financeSubTab === 'history' ? 'var(--primary)' : 'var(--text-secondary)',
-                    fontWeight: '700', fontSize: '0.875rem', cursor: 'pointer',
-                    boxShadow: financeSubTab === 'history' ? '0 2px 4px rgba(0,0,0,0.05)' : 'none'
-                  }}
-                >
-                  Settlement History
-                </button>
-              </div>
-            </header>
 
             {financeSubTab === 'dues' ? (
               <>

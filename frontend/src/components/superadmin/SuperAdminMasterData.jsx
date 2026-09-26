@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import axios from 'axios';
 import { 
   Database, 
@@ -37,6 +38,11 @@ const SuperAdminMasterData = ({ token }) => {
   const [totalCount, setTotalCount] = useState(0);
   const [selectedContactIds, setSelectedContactIds] = useState([]);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [topBarTarget, setTopBarTarget] = useState(null);
+
+  useEffect(() => {
+    setTopBarTarget(document.getElementById('superadmin-topbar-actions'));
+  }, []);
 
   // Summary Metrics
   const [summary, setSummary] = useState({
@@ -351,122 +357,92 @@ const SuperAdminMasterData = ({ token }) => {
 
   return (
     <div>
-      {/* Header */}
-      <header style={{ 
-        position: 'sticky', 
-        top: 0, 
-        zIndex: 20, 
-        background: '#f8fafc', 
-        paddingTop: '0.25rem', 
-        paddingBottom: '1.25rem', 
-        marginBottom: '1.5rem', 
-        borderBottom: '1px solid #e2e8f0', 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'flex-start', 
-        flexWrap: 'wrap', 
-        gap: '1rem' 
-      }}>
-        <div>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'rgba(99, 102, 241, 0.08)', color: '#6366f1', padding: '4px 12px', borderRadius: '100px', fontSize: '0.78rem', fontWeight: '800', marginBottom: '0.5rem' }}>
-            <ShieldCheck size={14} /> SuperAdmin Exclusive • De-Duplicated Single Source of Truth
-          </div>
-          <h1 style={{ fontSize: '1.9rem', fontWeight: '900', margin: 0, color: '#0f172a', letterSpacing: '-0.02em' }}>
-            Master Audience & Data Studio
-          </h1>
-          <p style={{ color: 'var(--text-secondary)', marginTop: '0.35rem', fontSize: '0.95rem' }}>
-            Central repository of all campus members, customer 360 profiles, and uploaded audiences. Automatically deduplicated on unique phone numbers.
-          </p>
-        </div>
-
-        {/* Global Actions */}
-        <div style={{ display: 'flex', gap: '0.65rem', flexWrap: 'wrap' }}>
+      {/* Topbar Actions Portal */}
+      {topBarTarget && createPortal(
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'nowrap' }}>
           <button
             onClick={handleSyncCustomer360}
             disabled={syncing}
             style={{
-              padding: '0.65rem 1.1rem',
-              borderRadius: '12px',
-              border: '1.5px solid #e2e8f0',
+              padding: '0.45rem 0.85rem',
+              borderRadius: '8px',
+              border: '1px solid #e2e8f0',
               background: '#ffffff',
               color: '#0f172a',
-              fontWeight: '800',
-              fontSize: '0.85rem',
+              fontWeight: '700',
+              fontSize: '0.78rem',
+              cursor: syncing ? 'not-allowed' : 'pointer',
               display: 'flex',
               alignItems: 'center',
-              gap: '6px',
-              cursor: syncing ? 'not-allowed' : 'pointer',
-              boxShadow: '0 2px 6px rgba(0,0,0,0.02)'
+              gap: '0.35rem'
             }}
           >
-            <RefreshCw size={15} className={syncing ? "spin" : ""} color="#6366f1" />
+            <RefreshCw size={13} className={syncing ? "spin" : ""} color="#6366f1" />
             {syncing ? 'Syncing...' : 'Sync Customer 360'}
           </button>
 
           <button
             onClick={() => setShowUploadModal(true)}
             style={{
-              padding: '0.65rem 1.1rem',
-              borderRadius: '12px',
-              border: '1.5px solid #e2e8f0',
+              padding: '0.45rem 0.85rem',
+              borderRadius: '8px',
+              border: '1px solid #e2e8f0',
               background: '#ffffff',
               color: '#0f172a',
-              fontWeight: '800',
-              fontSize: '0.85rem',
+              fontWeight: '700',
+              fontSize: '0.78rem',
+              cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
-              gap: '6px',
-              cursor: 'pointer',
-              boxShadow: '0 2px 6px rgba(0,0,0,0.02)'
+              gap: '0.35rem'
             }}
           >
-            <Upload size={15} color="#059669" />
-            Upload Document
+            <Upload size={13} color="#059669" /> Upload Document
           </button>
 
           <button
             onClick={handleExportCSV}
             disabled={exporting}
             style={{
-              padding: '0.65rem 1.1rem',
-              borderRadius: '12px',
-              border: '1.5px solid #e2e8f0',
+              padding: '0.45rem 0.85rem',
+              borderRadius: '8px',
+              border: '1px solid #e2e8f0',
               background: '#ffffff',
               color: '#0f172a',
-              fontWeight: '800',
-              fontSize: '0.85rem',
+              fontWeight: '700',
+              fontSize: '0.78rem',
+              cursor: exporting ? 'wait' : 'pointer',
               display: 'flex',
               alignItems: 'center',
-              gap: '6px',
-              cursor: exporting ? 'wait' : 'pointer',
-              boxShadow: '0 2px 6px rgba(0,0,0,0.02)'
+              gap: '0.35rem'
             }}
           >
-            <Download size={15} color="#0284c7" className={exporting ? "spin" : ""} />
+            <Download size={13} color="#0284c7" className={exporting ? "spin" : ""} />
             {exporting ? 'Exporting...' : 'Export CSV'}
           </button>
 
           <button
             onClick={() => setShowAddModal(true)}
             style={{
-              padding: '0.65rem 1.25rem',
-              borderRadius: '12px',
+              padding: '0.45rem 0.95rem',
+              borderRadius: '8px',
               border: 'none',
               background: 'linear-gradient(135deg, #ef4123, #ea580c)',
               color: '#ffffff',
-              fontWeight: '900',
-              fontSize: '0.85rem',
+              fontWeight: '800',
+              fontSize: '0.78rem',
+              cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
-              gap: '6px',
-              cursor: 'pointer',
-              boxShadow: '0 4px 14px rgba(239, 65, 35, 0.25)'
+              gap: '0.35rem',
+              boxShadow: '0 2px 8px rgba(239, 65, 35, 0.25)'
             }}
           >
-            <Plus size={16} /> Add Contact
+            <Plus size={14} /> Add Contact
           </button>
-        </div>
-      </header>
+        </div>,
+        topBarTarget
+      )}
 
       {/* Sync Success Notification */}
       {syncMessage && (

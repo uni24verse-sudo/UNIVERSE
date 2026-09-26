@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import axios from 'axios';
 import { 
   Users, 
@@ -44,6 +45,11 @@ const SuperAdminCustomerIntelligence = ({ token, socket }) => {
   const [totalCount, setTotalCount] = useState(0);
   const [selectedCustomerIds, setSelectedCustomerIds] = useState([]);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [topBarTarget, setTopBarTarget] = useState(null);
+
+  useEffect(() => {
+    setTopBarTarget(document.getElementById('superadmin-topbar-actions'));
+  }, []);
 
   // Aggregated platform stats
   const [statsSummary, setStatsSummary] = useState({
@@ -289,36 +295,15 @@ const SuperAdminCustomerIntelligence = ({ token, socket }) => {
 
   return (
     <div>
-      {/* Super Admin Standard Header */}
-      <header style={{ 
-        position: 'sticky', 
-        top: 0, 
-        zIndex: 20, 
-        background: '#f8fafc', 
-        paddingTop: '0.25rem', 
-        paddingBottom: '1.25rem', 
-        marginBottom: '1.5rem', 
-        borderBottom: '1px solid #e2e8f0', 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center', 
-        flexWrap: 'wrap', 
-        gap: '1rem' 
-      }}>
-        <div>
-          <h1 style={{ fontSize: '2rem', fontWeight: '900', margin: '0 0 0.25rem 0', color: 'var(--text-primary)' }}>
-            Customer 360 & Audit
-          </h1>
-          <p style={{ color: 'var(--text-secondary)', margin: 0, fontSize: '0.95rem' }}>
-            Live customer intelligence, lifetime spend metrics, and tamper-proof order timeline.
-          </p>
-        </div>
-        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-          <span style={{ padding: '0.5rem 1rem', background: '#ffffff', border: '1px solid var(--surface-border)', borderRadius: '100px', fontSize: '0.875rem', fontWeight: '700', color: 'var(--text-primary)' }}>
+      {/* Topbar Actions Portal */}
+      {topBarTarget && createPortal(
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+          <span style={{ padding: '0.35rem 0.85rem', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: '100px', fontSize: '0.78rem', fontWeight: '800', color: '#0f172a' }}>
             {totalCount} Total Customers
           </span>
-        </div>
-      </header>
+        </div>,
+        topBarTarget
+      )}
 
       {/* Super Admin Standard Stat Cards Grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
