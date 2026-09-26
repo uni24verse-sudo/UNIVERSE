@@ -1740,7 +1740,8 @@ const SuperAdminPanel = () => {
                     <Trash2 size={15} /> Delete Stall & Data
                   </button>
                 </div>
-              ))}
+              );
+            })}
               {filteredStores.length === 0 && (
                 <div style={{ padding: '4rem 2rem', background: '#ffffff', borderRadius: '24px', border: '1px dashed var(--surface-border)', textAlign: 'center', gridColumn: '1 / -1' }}>
                   <Store size={48} color="var(--primary)" style={{ opacity: 0.25, margin: '0 auto 1rem' }} />
