@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import axios from 'axios';
 import { 
   FileText, 
@@ -37,6 +38,11 @@ const SuperAdminMasterTemplates = ({ token }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTemplateIds, setSelectedTemplateIds] = useState([]);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [topBarTarget, setTopBarTarget] = useState(null);
+
+  useEffect(() => {
+    setTopBarTarget(document.getElementById('superadmin-topbar-actions'));
+  }, []);
   
   // Create / Edit Modal State
   const [modalOpen, setModalOpen] = useState(false);
@@ -466,33 +472,38 @@ const SuperAdminMasterTemplates = ({ token }) => {
 
   return (
     <div style={{ maxWidth: '1440px', margin: '0 auto', paddingBottom: '3rem' }}>
-      {/* Page Header */}
-      <header style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
-        <div>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'rgba(239, 65, 35, 0.1)', color: 'var(--primary)', padding: '4px 12px', borderRadius: '100px', fontSize: '0.8rem', fontWeight: '800', marginBottom: '0.5rem' }}>
-            <Sparkles size={14} /> Approved Marketing Assets
-          </div>
-          <h1 style={{ fontSize: '2.1rem', fontWeight: '900', margin: 0, color: '#0f172a', letterSpacing: '-0.02em' }}>Master Templates Hub</h1>
-          <p style={{ color: 'var(--text-secondary)', marginTop: '0.4rem', fontSize: '1rem' }}>
-            Design high-converting WhatsApp message bubbles with image headers, dynamic tags, and interactive CTA buttons.
-          </p>
-        </div>
-
+      {/* Topbar Action Portal */}
+      {topBarTarget && createPortal(
         <button
           onClick={handleOpenCreate}
           style={{
-            display: 'flex', alignItems: 'center', gap: '8px', padding: '0.85rem 1.6rem',
-            background: 'var(--primary)', color: 'white', border: 'none', borderRadius: '14px',
-            fontWeight: '800', fontSize: '0.95rem', cursor: 'pointer', boxShadow: '0 4px 14px rgba(239, 65, 35, 0.25)',
-            transition: 'all 0.2s'
+            display: 'flex', alignItems: 'center', gap: '6px', padding: '0.45rem 0.9rem',
+            background: 'var(--primary)', color: 'white', border: 'none', borderRadius: '8px',
+            fontWeight: '700', fontSize: '0.78rem', cursor: 'pointer',
+            transition: 'all 0.2s', boxShadow: '0 2px 6px rgba(239, 65, 35, 0.2)'
           }}
         >
-          <Plus size={18} /> Create Master Template
-        </button>
-      </header>
+          <Plus size={14} /> Create Master Template
+        </button>,
+        topBarTarget
+      )}
 
-      {/* Filter Bar */}
-      <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2rem' }}>
+      {/* Filter Bar (Sticky) */}
+      <div style={{
+        position: 'sticky',
+        top: 0,
+        zIndex: 10,
+        background: '#f8fafc',
+        paddingTop: '0.25rem',
+        paddingBottom: '0.75rem',
+        marginBottom: '1rem',
+        display: 'flex',
+        gap: '1rem',
+        flexWrap: 'wrap',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        borderBottom: '1px solid #e2e8f0'
+      }}>
         {/* Channel Filters */}
         <div style={{ display: 'flex', gap: '0.5rem', background: '#f1f5f9', padding: '0.35rem', borderRadius: '14px' }}>
           {[
