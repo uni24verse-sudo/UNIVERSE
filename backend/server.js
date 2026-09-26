@@ -25,14 +25,14 @@ const io = new Server(server, {
 // Make io accessible to our router
 app.set('io', io);
 
-// Middleware
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-
+// Middleware - CORS must be registered first so all preflights and errors have CORS headers
 app.use(cors({
   origin: true,
   credentials: true
 }));
+
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 

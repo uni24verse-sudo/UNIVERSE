@@ -58,7 +58,9 @@ export const useAudioAlerts = () => {
     if (!isAudioEnabled) return;
     try {
       if (player1) {
-        player1.volume = 1.0;
+        if (Platform.OS !== 'web') {
+          try { player1.volume = 1.0; } catch (_) {}
+        }
         player1.seekTo(0);
         player1.play();
       }
@@ -68,7 +70,9 @@ export const useAudioAlerts = () => {
         if (!isAudioEnabled) return;
         try {
           if (player2) {
-            player2.volume = 1.0;
+            if (Platform.OS !== 'web') {
+              try { player2.volume = 1.0; } catch (_) {}
+            }
             player2.seekTo(0);
             player2.play();
           }
