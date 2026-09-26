@@ -31,6 +31,8 @@ const SuperAdminPartnerEquity = ({ token }) => {
   const [poolInfo, setPoolInfo] = useState(null);
   const [historyRuns, setHistoryRuns] = useState([]);
   const [activeSubTab, setActiveSubTab] = useState('partners'); // 'partners' | 'history'
+  const [selectedPartnerIds, setSelectedPartnerIds] = useState([]);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Modals
   const [showAddModal, setShowAddModal] = useState(false);
@@ -262,6 +264,60 @@ const SuperAdminPartnerEquity = ({ token }) => {
       return;
     }
     executeDeletePartner(partner, equityToken);
+  };
+
+  const executeBulkDeletePartners = async (ids, authToken) => {
+    try {
+      setIsDeleting(true);
+      const res = await axios.post(`${API_URL}/api/super-admin/partners/bulk-delete`, 
+        { ids },
+        {
+          headers: { 
+            Authorization: `Bearer ${token}`,
+            'x-equity-auth': authToken
+          }
+        }
+      );
+      alert(res.data.message || 'Selected partners removed / deactivated successfully');
+      setSelectedPartnerIds([]);
+      fetchData(true);
+    } catch (err) {
+      if (err.response?.data?.require2FA) {
+        setEquityToken('');
+        sessionStorage.removeItem('universe_equity_token');
+        requestEquityOtp((validToken) => executeBulkDeletePartners(ids, validToken));
+        return;
+      }
+      alert(err.response?.data?.message || 'Failed to bulk delete partners');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleBulkDeletePartners = async () => {
+    if (selectedPartnerIds.length === 0) return;
+    if (!window.confirm(`Are you sure you want to permanently remove/deactivate ${selectedPartnerIds.length} selected partners? This requires Equity 2FA verification.`)) return;
+    if (!equityToken) {
+      requestEquityOtp((validToken) => executeBulkDeletePartners(selectedPartnerIds, validToken));
+      return;
+    }
+    executeBulkDeletePartners(selectedPartnerIds, equityToken);
+  };
+
+  const toggleSelectPartner = (id) => {
+    setSelectedPartnerIds(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAllPartners = () => {
+    const allIds = partners.map(p => p.id);
+    const allSelected = allIds.length > 0 && allIds.every(id => selectedPartnerIds.includes(id));
+    if (allSelected) {
+      setSelectedPartnerIds(prev => prev.filter(id => !allIds.includes(id)));
+    } else {
+      setSelectedPartnerIds(prev => [...new Set([...prev, ...allIds])]);
+    }
   };
 
   // Open Distribution Run Modal
@@ -587,7 +643,78 @@ const SuperAdminPartnerEquity = ({ token }) => {
 
       {/* TAB 1: PARTNERS ROSTER */}
       {activeSubTab === 'partners' && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.25rem' }}>
+        <div>
+          {/* BULK ACTION BAR */}
+          <div style={{
+            marginBottom: '1.25rem',
+            padding: '0.85rem 1.25rem',
+            background: selectedPartnerIds.length > 0 ? '#fff1f2' : '#ffffff',
+            border: selectedPartnerIds.length > 0 ? '1.5px solid #fecdd3' : '1px solid var(--surface-border)',
+            borderRadius: '16px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '0.75rem'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <input 
+                type="checkbox"
+                checked={partners.length > 0 && partners.every(p => selectedPartnerIds.includes(p.id))}
+                onChange={toggleSelectAllPartners}
+                style={{ cursor: 'pointer', width: '18px', height: '18px', accentColor: 'var(--primary, #ef4123)' }}
+                title="Select All Partners"
+              />
+              <span style={{ fontSize: '0.875rem', fontWeight: '800', color: selectedPartnerIds.length > 0 ? '#e11d48' : 'var(--text-primary)' }}>
+                {selectedPartnerIds.length > 0 
+                  ? `${selectedPartnerIds.length} of ${partners.length} partners selected`
+                  : `Select All (${partners.length} partners)`}
+              </span>
+              {selectedPartnerIds.length > 0 && (
+                <button
+                  onClick={() => setSelectedPartnerIds([])}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#64748b',
+                    fontSize: '0.8rem',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                    textDecoration: 'underline'
+                  }}
+                >
+                  Clear selection
+                </button>
+              )}
+            </div>
+
+            {selectedPartnerIds.length > 0 && (
+              <button
+                onClick={handleBulkDeletePartners}
+                disabled={isDeleting}
+                style={{
+                  padding: '0.5rem 1.1rem',
+                  borderRadius: '10px',
+                  border: 'none',
+                  background: '#e11d48',
+                  color: '#ffffff',
+                  fontWeight: '800',
+                  fontSize: '0.85rem',
+                  cursor: isDeleting ? 'not-allowed' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  boxShadow: '0 2px 8px rgba(225, 29, 72, 0.25)',
+                  opacity: isDeleting ? 0.7 : 1
+                }}
+              >
+                <Trash2 size={14} />
+                {isDeleting ? 'Processing...' : `Remove / Deactivate Selected (${selectedPartnerIds.length})`}
+              </button>
+            )}
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.25rem' }}>
           {partners.map((partner, idx) => {
             const colors = ['#ef4123', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6'];
             const accentColor = colors[idx % colors.length];
@@ -596,25 +723,33 @@ const SuperAdminPartnerEquity = ({ token }) => {
               <div 
                 key={partner.id} 
                 style={{ 
-                  background: '#ffffff', borderRadius: '20px', border: '1px solid var(--surface-border)', 
+                  background: '#ffffff', borderRadius: '20px', border: selectedPartnerIds.includes(partner.id) ? '1.5px solid var(--primary, #ef4123)' : '1px solid var(--surface-border)', 
                   padding: '1.5rem', position: 'relative', overflow: 'hidden',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.02)'
+                  boxShadow: selectedPartnerIds.includes(partner.id) ? '0 4px 20px rgba(239, 65, 35, 0.15)' : '0 2px 8px rgba(0,0,0,0.02)'
                 }}
               >
                 <div style={{ position: 'absolute', top: 0, left: 0, width: '4px', height: '100%', background: accentColor }} />
                 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
-                  <div>
-                    <h3 style={{ fontSize: '1.2rem', fontWeight: '900', margin: '0 0 0.2rem 0', color: 'var(--text-primary)' }}>
-                      {partner.name}
-                    </h3>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: '0.7rem', padding: '0.15rem 0.5rem', borderRadius: '6px', background: '#f1f5f9', color: 'var(--text-secondary)', fontWeight: '700' }}>
-                        {partner.role}
-                      </span>
-                      <span style={{ fontSize: '0.7rem', padding: '0.15rem 0.5rem', borderRadius: '6px', background: partner.status === 'ACTIVE' ? 'rgba(16, 185, 129, 0.1)' : '#f1f5f9', color: partner.status === 'ACTIVE' ? '#10b981' : '#64748b', fontWeight: '800' }}>
-                        {partner.status}
-                      </span>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+                    <input 
+                      type="checkbox"
+                      checked={selectedPartnerIds.includes(partner.id)}
+                      onChange={() => toggleSelectPartner(partner.id)}
+                      style={{ cursor: 'pointer', width: '16px', height: '16px', accentColor: 'var(--primary, #ef4123)', marginTop: '4px' }}
+                    />
+                    <div>
+                      <h3 style={{ fontSize: '1.2rem', fontWeight: '900', margin: '0 0 0.2rem 0', color: 'var(--text-primary)' }}>
+                        {partner.name}
+                      </h3>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: '0.7rem', padding: '0.15rem 0.5rem', borderRadius: '6px', background: '#f1f5f9', color: 'var(--text-secondary)', fontWeight: '700' }}>
+                          {partner.role}
+                        </span>
+                        <span style={{ fontSize: '0.7rem', padding: '0.15rem 0.5rem', borderRadius: '6px', background: partner.status === 'ACTIVE' ? 'rgba(16, 185, 129, 0.1)' : '#f1f5f9', color: partner.status === 'ACTIVE' ? '#10b981' : '#64748b', fontWeight: '800' }}>
+                          {partner.status}
+                        </span>
+                      </div>
                     </div>
                   </div>
 
@@ -753,6 +888,7 @@ const SuperAdminPartnerEquity = ({ token }) => {
               </button>
             </div>
           )}
+          </div>
         </div>
       )}
 

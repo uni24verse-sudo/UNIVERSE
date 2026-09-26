@@ -39,6 +39,8 @@ const SuperAdminOffersMaster = ({ token, socket }) => {
   const [activeTab, setActiveTab] = useState('all'); // 'all' | 'global' | 'stores'
   const [search, setSearch] = useState('');
   const [storeFilter, setStoreFilter] = useState('all');
+  const [selectedOfferKeys, setSelectedOfferKeys] = useState([]);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -208,9 +210,55 @@ const SuperAdminOffersMaster = ({ token, socket }) => {
         await axios.delete(`${apiUrl}/api/super-admin/offers/store/${offer.storeId}/${id}`, { headers });
       }
       setFeedback({ type: 'success', message: `Offer "${name}" removed.` });
+      setSelectedOfferKeys(prev => prev.filter(k => k !== `${isGlobal ? 'g' : 's'}-${id}`));
       fetchOffers();
     } catch (err) {
       alert('Failed to delete offer: ' + (err.response?.data?.message || err.message));
+    }
+  };
+
+  const toggleSelectOffer = (offer) => {
+    const key = `${offer.isGlobal !== false ? 'g' : 's'}-${offer.id || offer._id}`;
+    setSelectedOfferKeys(prev =>
+      prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]
+    );
+  };
+
+  const toggleSelectAllOffers = () => {
+    const currentKeys = filteredOffers.map(o => `${o.isGlobal !== false ? 'g' : 's'}-${o.id || o._id}`);
+    const allSelected = currentKeys.length > 0 && currentKeys.every(k => selectedOfferKeys.includes(k));
+    if (allSelected) {
+      setSelectedOfferKeys(prev => prev.filter(k => !currentKeys.includes(k)));
+    } else {
+      setSelectedOfferKeys(prev => [...new Set([...prev, ...currentKeys])]);
+    }
+  };
+
+  const handleBulkDeleteOffers = async () => {
+    if (selectedOfferKeys.length === 0) return;
+    if (!window.confirm(`Are you sure you want to permanently delete ${selectedOfferKeys.length} selected offers? This cannot be undone.`)) return;
+
+    const itemsToDelete = filteredOffers
+      .filter(o => selectedOfferKeys.includes(`${o.isGlobal !== false ? 'g' : 's'}-${o.id || o._id}`))
+      .map(o => ({
+        id: o.id || o._id,
+        storeId: o.storeId,
+        isGlobal: o.isGlobal !== false
+      }));
+
+    try {
+      setIsDeleting(true);
+      await axios.post(`${apiUrl}/api/super-admin/offers/bulk-delete`, 
+        { items: itemsToDelete }, 
+        { headers }
+      );
+      setSelectedOfferKeys([]);
+      fetchOffers();
+      setFeedback({ type: 'success', message: `${itemsToDelete.length} offers deleted successfully.` });
+    } catch (err) {
+      alert('Bulk delete failed: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -535,6 +583,64 @@ const SuperAdminOffersMaster = ({ token, socket }) => {
         </div>
       </div>
 
+      {/* BULK ACTION BAR */}
+      {selectedOfferKeys.length > 0 && (
+        <div style={{
+          padding: '0.85rem 1.25rem',
+          background: '#fff1f2',
+          border: '1.5px solid #fecdd3',
+          borderRadius: '16px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          animation: 'fadeIn 0.2s ease',
+          flexWrap: 'wrap',
+          gap: '0.75rem'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <span style={{ fontWeight: '800', color: '#e11d48', fontSize: '0.9rem' }}>
+              {selectedOfferKeys.length} deal / offer{selectedOfferKeys.length > 1 ? 's' : ''} selected
+            </span>
+            <button
+              onClick={() => setSelectedOfferKeys([])}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: '#64748b',
+                fontSize: '0.8rem',
+                fontWeight: '700',
+                cursor: 'pointer',
+                textDecoration: 'underline'
+              }}
+            >
+              Clear selection
+            </button>
+          </div>
+          <button
+            onClick={handleBulkDeleteOffers}
+            disabled={isDeleting}
+            style={{
+              padding: '0.5rem 1.1rem',
+              borderRadius: '10px',
+              border: 'none',
+              background: '#e11d48',
+              color: '#ffffff',
+              fontWeight: '800',
+              fontSize: '0.85rem',
+              cursor: isDeleting ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.4rem',
+              boxShadow: '0 2px 8px rgba(225, 29, 72, 0.25)',
+              opacity: isDeleting ? 0.7 : 1
+            }}
+          >
+            <Trash2 size={14} />
+            {isDeleting ? 'Deleting...' : `Delete Selected (${selectedOfferKeys.length})`}
+          </button>
+        </div>
+      )}
+
       {/* Offers Table / Directory */}
       <div style={{
         background: '#ffffff',
@@ -562,6 +668,15 @@ const SuperAdminOffersMaster = ({ token, socket }) => {
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
               <thead>
                 <tr style={{ background: '#f8fafc', borderBottom: '1px solid var(--surface-border)' }}>
+                  <th style={{ width: '48px', padding: '1rem 1.25rem', textAlign: 'center' }}>
+                    <input 
+                      type="checkbox"
+                      checked={filteredOffers.length > 0 && filteredOffers.every(o => selectedOfferKeys.includes(`${o.isGlobal !== false ? 'g' : 's'}-${o.id || o._id}`))}
+                      onChange={toggleSelectAllOffers}
+                      style={{ cursor: 'pointer', width: '16px', height: '16px', accentColor: 'var(--primary, #ef4123)' }}
+                      title="Select All Offers"
+                    />
+                  </th>
                   <th style={{ padding: '1rem 1.25rem', fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Coupon Code</th>
                   <th style={{ padding: '1rem 1.25rem', fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Scope & Type</th>
                   <th style={{ padding: '1rem 1.25rem', fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Discount Value</th>
@@ -580,6 +695,16 @@ const SuperAdminOffersMaster = ({ token, socket }) => {
                       key={`${isGlobal ? 'g' : 's'}-${offer.id || offer._id}`}
                       style={{ borderBottom: '1px solid var(--surface-border)', transition: 'background 0.15s ease' }}
                     >
+                      {/* Checkbox */}
+                      <td style={{ width: '48px', padding: '1rem 1.25rem', textAlign: 'center' }}>
+                        <input 
+                          type="checkbox"
+                          checked={selectedOfferKeys.includes(`${isGlobal ? 'g' : 's'}-${offer.id || offer._id}`)}
+                          onChange={() => toggleSelectOffer(offer)}
+                          style={{ cursor: 'pointer', width: '16px', height: '16px', accentColor: 'var(--primary, #ef4123)' }}
+                        />
+                      </td>
+
                       {/* Coupon Code & Badge */}
                       <td style={{ padding: '1rem 1.25rem' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>

@@ -35,6 +35,59 @@ router.get('/locations/public', async (req, res) => {
 // Apply super admin authentication middleware to all routes in this file
 router.use(superAdminAuth);
 
+/**
+ * Robust cascade delete helpers for Super Admin operations
+ */
+async function deleteStoreWithDependencies(storeId, client = prisma) {
+  // 1. Delete herobanners referencing this stallId
+  await client.$executeRawUnsafe(`DELETE FROM herobanners WHERE "stallId" = $1`, storeId).catch(() => {});
+  // 2. Delete settlements referencing this storeId
+  await client.settlement.deleteMany({ where: { storeId } }).catch(() => {});
+  // 3. Find and delete orders referencing this storeId
+  const orders = await client.order.findMany({ where: { storeId }, select: { id: true } });
+  const orderIds = orders.map(o => o.id);
+  if (orderIds.length > 0) {
+    await client.refund.deleteMany({ where: { orderId: { in: orderIds } } }).catch(() => {});
+    await client.orderEvent.deleteMany({ where: { orderId: { in: orderIds } } }).catch(() => {});
+    await client.order.deleteMany({ where: { id: { in: orderIds } } });
+  }
+  // 4. Update any Admin with this storeId
+  await client.admin.updateMany({
+    where: { storeId },
+    data: { storeId: '' }
+  }).catch(() => {});
+  // 5. Delete the store itself
+  await client.store.delete({ where: { id: storeId } });
+}
+
+async function deleteVendorWithDependencies(vendorId, client = prisma) {
+  const vendor = await client.admin.findUnique({
+    where: { id: vendorId },
+    include: { stores: true }
+  });
+  if (!vendor) return null;
+  if (vendor.role === 'superadmin') {
+    throw new Error('Super Admin accounts cannot be deleted');
+  }
+  const storeIds = (vendor.stores || []).map(s => s.id);
+  for (const sId of storeIds) {
+    await deleteStoreWithDependencies(sId, client);
+  }
+  await client.settlement.deleteMany({ where: { adminId: vendorId } }).catch(() => {});
+  await client.vendorDevice.deleteMany({ where: { adminId: vendorId } }).catch(() => {});
+  await client.admin.delete({ where: { id: vendorId } });
+  return vendor;
+}
+
+async function deleteOrderWithDependencies(orderId, client = prisma) {
+  const order = await client.order.findUnique({ where: { id: orderId } });
+  if (!order) return null;
+  await client.refund.deleteMany({ where: { orderId } }).catch(() => {});
+  await client.orderEvent.deleteMany({ where: { orderId } }).catch(() => {});
+  await client.order.delete({ where: { id: orderId } });
+  return order;
+}
+
 // 1. Get Platform Stats
 router.get('/stats', async (req, res) => {
   try {
@@ -638,24 +691,31 @@ router.put('/vendor/:id/approve', async (req, res) => {
 router.delete('/vendor/:id/reject', async (req, res) => {
   try {
     const { id } = req.params;
-    const vendor = await prisma.admin.findUnique({
-      where: { id },
-      include: { stores: true }
-    });
-
-    if (!vendor) return res.status(404).json({ message: 'Vendor not found' });
-
-    // Hard delete stores & admin account to completely eradicate credentials & free email
-    await prisma.$transaction(async (tx) => {
-      const storeIds = (vendor.stores || []).map(s => s.id);
-      if (storeIds.length > 0) {
-        await tx.order.deleteMany({ where: { storeId: { in: storeIds } } });
-        await tx.store.deleteMany({ where: { id: { in: storeIds } } });
-      }
-      await tx.admin.delete({ where: { id } });
-    });
-
+    const deleted = await deleteVendorWithDependencies(id);
+    if (!deleted) return res.status(404).json({ message: 'Vendor not found' });
     res.json({ success: true, message: `Vendor application rejected and credentials permanently purged.` });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 2c-bulk. Bulk Reject & Purge Pending Vendors
+router.post('/vendors/reject/bulk-delete', async (req, res) => {
+  try {
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ message: 'No vendor IDs provided for rejection' });
+    }
+    let count = 0;
+    for (const id of ids) {
+      try {
+        await deleteVendorWithDependencies(id);
+        count++;
+      } catch (e) {
+        console.warn(`[BulkReject] Failed to delete vendor ${id}:`, e.message);
+      }
+    }
+    res.json({ success: true, message: `Successfully rejected and purged ${count} vendor applications.`, count });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -665,23 +725,31 @@ router.delete('/vendor/:id/reject', async (req, res) => {
 router.delete('/vendor/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const vendor = await prisma.admin.findUnique({
-      where: { id },
-      include: { stores: true }
-    });
-
-    if (!vendor) return res.status(404).json({ message: 'Vendor not found' });
-
-    await prisma.$transaction(async (tx) => {
-      const storeIds = (vendor.stores || []).map(s => s.id);
-      if (storeIds.length > 0) {
-        await tx.order.deleteMany({ where: { storeId: { in: storeIds } } });
-        await tx.store.deleteMany({ where: { id: { in: storeIds } } });
-      }
-      await tx.admin.delete({ where: { id } });
-    });
-
+    const deleted = await deleteVendorWithDependencies(id);
+    if (!deleted) return res.status(404).json({ message: 'Vendor not found' });
     res.json({ success: true, message: `Vendor and associated stores removed successfully.` });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 2e. Bulk Delete Vendors
+router.post('/vendors/bulk-delete', async (req, res) => {
+  try {
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ message: 'No vendor IDs provided for bulk deletion' });
+    }
+    let count = 0;
+    for (const id of ids) {
+      try {
+        await deleteVendorWithDependencies(id);
+        count++;
+      } catch (e) {
+        console.warn(`[BulkVendorDelete] Failed to delete vendor ${id}:`, e.message);
+      }
+    }
+    res.json({ success: true, message: `Successfully terminated and removed ${count} vendors.`, count });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -860,35 +928,7 @@ router.get('/orders', async (req, res) => {
   }
 });
 
-// 4. Delete Vendor and Associated Store
-router.delete('/vendor/:id', async (req, res) => {
-  try {
-    const vendorId = req.params.id;
-
-    const vendorToDelete = await prisma.admin.findUnique({ where: { id: vendorId } });
-    if (!vendorToDelete) {
-      return res.status(404).json({ message: 'Vendor not found' });
-    }
-    if (vendorToDelete.role === 'superadmin') {
-      return res.status(403).json({ message: 'Cannot delete super admin accounts' });
-    }
-
-    // Cascade delete on store / orders handled by database or prisma
-    await prisma.order.deleteMany({
-      where: { store: { adminId: vendorId } }
-    });
-    await prisma.store.deleteMany({
-      where: { adminId: vendorId }
-    });
-    await prisma.admin.delete({
-      where: { id: vendorId }
-    });
-
-    res.json({ message: 'Vendor, store, and associated orders successfully deleted.' });
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-});
+// 4. Vendor Management Operations
 
 // 4b. Suspend/Unban Vendor
 router.put('/vendor/:id/suspend', async (req, res) => {
@@ -990,6 +1030,56 @@ router.put('/store/:id/toggle-hidden', async (req, res) => {
   }
 });
 
+// 5d. Delete Single Store
+router.delete('/store/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const store = await prisma.store.findUnique({ where: { id } });
+    if (!store) return res.status(404).json({ message: 'Store not found' });
+    
+    await deleteStoreWithDependencies(id);
+
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('store_deleted', { storeId: id });
+      io.to('superadmin_room').emit('superadmin:store_deleted', { storeId: id });
+    }
+
+    res.json({ success: true, message: `Store "${store.name}" and associated orders/data deleted successfully.` });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 5e. Bulk Delete Stores
+router.post('/stores/bulk-delete', async (req, res) => {
+  try {
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ message: 'No store IDs provided for bulk deletion' });
+    }
+    let count = 0;
+    const io = req.app.get('io');
+    for (const id of ids) {
+      try {
+        await deleteStoreWithDependencies(id);
+        count++;
+        if (io) {
+          io.emit('store_deleted', { storeId: id });
+        }
+      } catch (e) {
+        console.warn(`[BulkStoreDelete] Failed to delete store ${id}:`, e.message);
+      }
+    }
+    if (io) {
+      io.to('superadmin_room').emit('superadmin:stores_bulk_deleted', { count, ids });
+    }
+    res.json({ success: true, message: `Successfully deleted ${count} stores and associated data.`, count });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 // 6. Global Order Abort
 router.put('/order/:id/cancel', async (req, res) => {
   try {
@@ -1006,6 +1096,54 @@ router.put('/order/:id/cancel', async (req, res) => {
     });
 
     res.json({ message: 'Order globally aborted', order: normalizeOrder(updatedOrder) });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 6b. Delete Single Order
+router.delete('/order/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const deleted = await deleteOrderWithDependencies(id);
+    if (!deleted) return res.status(404).json({ message: 'Order not found' });
+
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('order_deleted', { orderId: id });
+      io.to('superadmin_room').emit('superadmin:order_deleted', { orderId: id });
+    }
+
+    res.json({ success: true, message: `Order #${deleted.orderNumber || id} deleted successfully.` });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 6c. Bulk Delete Orders
+router.post('/orders/bulk-delete', async (req, res) => {
+  try {
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ message: 'No order IDs provided for bulk deletion' });
+    }
+    let count = 0;
+    const io = req.app.get('io');
+    for (const id of ids) {
+      try {
+        await deleteOrderWithDependencies(id);
+        count++;
+        if (io) {
+          io.emit('order_deleted', { orderId: id });
+        }
+      } catch (e) {
+        console.warn(`[BulkOrderDelete] Failed to delete order ${id}:`, e.message);
+      }
+    }
+    if (io) {
+      io.to('superadmin_room').emit('superadmin:orders_bulk_deleted', { count, ids });
+    }
+    res.json({ success: true, message: `Successfully deleted ${count} orders.`, count });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -1302,6 +1440,35 @@ router.delete('/locations/:id', async (req, res) => {
   }
 });
 
+// 15b. Bulk Delete Locations
+router.post('/locations/bulk-delete', async (req, res) => {
+  try {
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ message: 'No location IDs provided' });
+    }
+    let deletedCount = 0;
+    const skipped = [];
+    for (const id of ids) {
+      const storeCount = await prisma.store.count({ where: { locationId: id } });
+      if (storeCount > 0) {
+        skipped.push(id);
+        continue;
+      }
+      await prisma.location.delete({ where: { id } }).catch(() => {});
+      deletedCount++;
+    }
+    res.json({
+      success: true,
+      message: `Deleted ${deletedCount} locations.${skipped.length > 0 ? ` (${skipped.length} skipped because stores are linked)` : ''}`,
+      count: deletedCount,
+      skippedCount: skipped.length
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 // 16. Update store location & market assignment
 router.put('/store/:storeId/assign-location', async (req, res) => {
   try {
@@ -1532,4 +1699,36 @@ router.post('/refunds/config', async (req, res) => {
   }
 });
 
+// 8. Delete Single Refund
+router.delete('/refunds/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    await prisma.refund.delete({
+      where: { id }
+    });
+    res.json({ success: true, message: 'Refund deleted successfully' });
+  } catch (err) {
+    console.error('[superAdmin.refunds.delete] Error:', err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 9. Bulk Delete Refunds
+router.post('/refunds/bulk-delete', async (req, res) => {
+  try {
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ message: 'Array of refund ids required' });
+    }
+    const result = await prisma.refund.deleteMany({
+      where: { id: { in: ids } }
+    });
+    res.json({ success: true, count: result.count, message: `${result.count} refunds deleted successfully` });
+  } catch (err) {
+    console.error('[superAdmin.refunds.bulkDelete] Error:', err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
 module.exports = router;
+

@@ -29,7 +29,8 @@ import {
   SlidersHorizontal,
   FileSpreadsheet,
   Loader2,
-  CheckCheck
+  CheckCheck,
+  Trash2
 } from 'lucide-react';
 
 // Premium Custom Dropdown Component (Replaces Ugly Native Browser Selects)
@@ -237,6 +238,8 @@ const SuperAdminOrdersFeed = ({ token, socket, stores = [], locations = [] }) =>
 
   // Detail Modal State
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [selectedOrderIds, setSelectedOrderIds] = useState([]);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
   const authConfig = useMemo(() => ({ headers: { Authorization: `Bearer ${token}` } }), [token]);
@@ -351,6 +354,54 @@ const SuperAdminOrdersFeed = ({ token, socket, stores = [], locations = [] }) =>
   };
 
   const hasActiveFilters = search || status !== 'All' || selectedStoreId !== 'All' || selectedMarket !== 'All' || paymentStatus !== 'All' || dateFilter !== 'all' || startDate || endDate;
+
+  const toggleSelectOrder = (id) => {
+    setSelectedOrderIds(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAllOrders = () => {
+    const pageOrderIds = orders.map(o => o._id || o.id);
+    const allSelected = pageOrderIds.length > 0 && pageOrderIds.every(id => selectedOrderIds.includes(id));
+    if (allSelected) {
+      setSelectedOrderIds(prev => prev.filter(id => !pageOrderIds.includes(id)));
+    } else {
+      setSelectedOrderIds(prev => [...new Set([...prev, ...pageOrderIds])]);
+    }
+  };
+
+  const handleDeleteSingleOrder = async (orderId, orderNum) => {
+    if (!window.confirm(`Are you sure you want to permanently delete order #${orderNum || orderId}? This cannot be undone.`)) return;
+
+    try {
+      await axios.delete(`${API_URL}/api/super-admin/order/${orderId}`, authConfig);
+      setSelectedOrderIds(prev => prev.filter(id => id !== orderId));
+      fetchOrders();
+    } catch (err) {
+      alert('Failed to delete order: ' + (err.response?.data?.message || err.message));
+    }
+  };
+
+  const handleBulkDeleteOrders = async () => {
+    if (selectedOrderIds.length === 0) return;
+    if (!window.confirm(`Are you sure you want to permanently delete ${selectedOrderIds.length} selected orders? This cannot be undone.`)) return;
+
+    try {
+      setIsDeleting(true);
+      await axios.post(`${API_URL}/api/super-admin/orders/bulk-delete`, 
+        { ids: selectedOrderIds }, 
+        authConfig
+      );
+      setSelectedOrderIds([]);
+      fetchOrders();
+      alert('Selected orders deleted successfully.');
+    } catch (err) {
+      alert('Bulk delete failed: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   // Comprehensive Export to CSV (Downloads ALL records matching current date range & filters)
   const handleExportCSV = async () => {
@@ -933,6 +984,63 @@ const SuperAdminOrdersFeed = ({ token, socket, stores = [], locations = [] }) =>
         })}
       </div>
 
+      {/* BULK ACTION BAR */}
+      {selectedOrderIds.length > 0 && (
+        <div style={{
+          marginBottom: '1rem',
+          padding: '0.85rem 1.25rem',
+          background: '#fff1f2',
+          border: '1.5px solid #fecdd3',
+          borderRadius: '16px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          animation: 'fadeIn 0.2s ease'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <span style={{ fontWeight: '800', color: '#e11d48', fontSize: '0.9rem' }}>
+              {selectedOrderIds.length} order{selectedOrderIds.length > 1 ? 's' : ''} selected
+            </span>
+            <button
+              onClick={() => setSelectedOrderIds([])}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: '#64748b',
+                fontSize: '0.8rem',
+                fontWeight: '700',
+                cursor: 'pointer',
+                textDecoration: 'underline'
+              }}
+            >
+              Clear selection
+            </button>
+          </div>
+          <button
+            onClick={handleBulkDeleteOrders}
+            disabled={isDeleting}
+            style={{
+              padding: '0.5rem 1.1rem',
+              borderRadius: '10px',
+              border: 'none',
+              background: '#e11d48',
+              color: '#ffffff',
+              fontWeight: '800',
+              fontSize: '0.85rem',
+              cursor: isDeleting ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.4rem',
+              boxShadow: '0 2px 8px rgba(225, 29, 72, 0.25)',
+              opacity: isDeleting ? 0.7 : 1
+            }}
+          >
+            <Trash2 size={14} />
+            {isDeleting ? 'Deleting...' : `Delete Selected (${selectedOrderIds.length})`}
+          </button>
+        </div>
+      )}
+
       {/* ORDERS TABLE CARD */}
       <div style={{
         background: '#ffffff',
@@ -979,6 +1087,15 @@ const SuperAdminOrdersFeed = ({ token, socket, stores = [], locations = [] }) =>
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
               <thead>
                 <tr style={{ background: '#f8fafc', borderBottom: '1px solid var(--surface-border)' }}>
+                  <th style={{ width: '48px', padding: '1rem 1.25rem', textAlign: 'center' }}>
+                    <input 
+                      type="checkbox"
+                      checked={orders.length > 0 && orders.every(o => selectedOrderIds.includes(o._id || o.id))}
+                      onChange={toggleSelectAllOrders}
+                      style={{ cursor: 'pointer', width: '16px', height: '16px', accentColor: 'var(--primary, #ef4123)' }}
+                      title="Select All Orders on this page"
+                    />
+                  </th>
                   <th style={{ padding: '1rem 1.25rem', color: 'var(--text-secondary)', fontWeight: '700', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Order ID & Time</th>
                   <th style={{ padding: '1rem 1.25rem', color: 'var(--text-secondary)', fontWeight: '700', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Customer</th>
                   <th style={{ padding: '1rem 1.25rem', color: 'var(--text-secondary)', fontWeight: '700', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Stall & Location</th>
@@ -1004,6 +1121,16 @@ const SuperAdminOrdersFeed = ({ token, socket, stores = [], locations = [] }) =>
                       onMouseEnter={(e) => e.currentTarget.style.background = '#f8fafc'}
                       onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                     >
+                      {/* Row Checkbox */}
+                      <td style={{ width: '48px', padding: '1rem 1.25rem', textAlign: 'center' }}>
+                        <input 
+                          type="checkbox"
+                          checked={selectedOrderIds.includes(o._id || o.id)}
+                          onChange={() => toggleSelectOrder(o._id || o.id)}
+                          style={{ cursor: 'pointer', width: '16px', height: '16px', accentColor: 'var(--primary, #ef4123)' }}
+                        />
+                      </td>
+
                       {/* Order ID & Time */}
                       <td style={{ padding: '1rem 1.25rem' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
@@ -1148,6 +1275,24 @@ const SuperAdminOrdersFeed = ({ token, socket, stores = [], locations = [] }) =>
                               Abort
                             </button>
                           )}
+
+                          <button
+                            onClick={() => handleDeleteSingleOrder(o._id || o.id, o.orderNumber)}
+                            style={{
+                              padding: '0.4rem 0.55rem',
+                              borderRadius: '8px',
+                              background: 'rgba(239, 68, 68, 0.08)',
+                              border: '1px solid rgba(239, 68, 68, 0.2)',
+                              color: '#ef4444',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center'
+                            }}
+                            title="Delete Order Permanently"
+                          >
+                            <Trash2 size={13} />
+                          </button>
                         </div>
                       </td>
                     </tr>

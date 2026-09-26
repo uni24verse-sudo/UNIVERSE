@@ -389,4 +389,54 @@ router.post('/admin/archive', superAdminAuth, async (req, res) => {
   }
 });
 
+// 8. Super Admin Endpoint: Delete Single Banner
+router.delete('/admin/:bannerId', superAdminAuth, async (req, res) => {
+  try {
+    await ensureTableExists();
+    const { bannerId } = req.params;
+
+    await prisma.$executeRawUnsafe(`
+      DELETE FROM herobanners WHERE id = $1
+    `, bannerId);
+
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('banner_deleted', { bannerId });
+    }
+
+    res.json({ success: true, message: 'Banner deleted successfully.' });
+  } catch (err) {
+    console.error('[HeroBanners] Admin delete error:', err);
+    res.status(500).json({ message: 'Failed to delete banner', error: err.message });
+  }
+});
+
+// 9. Super Admin Endpoint: Bulk Delete Banners
+router.post('/admin/bulk-delete', superAdminAuth, async (req, res) => {
+  try {
+    await ensureTableExists();
+    const { ids } = req.body;
+
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ message: 'No banner IDs provided' });
+    }
+
+    let count = 0;
+    const io = req.app.get('io');
+    for (const id of ids) {
+      await prisma.$executeRawUnsafe(`DELETE FROM herobanners WHERE id = $1`, id).catch(() => {});
+      count++;
+      if (io) {
+        io.emit('banner_deleted', { bannerId: id });
+      }
+    }
+
+    res.json({ success: true, message: `Successfully deleted ${count} promotion banners.`, count });
+  } catch (err) {
+    console.error('[HeroBanners] Bulk delete error:', err);
+    res.status(500).json({ message: 'Failed to bulk delete banners', error: err.message });
+  }
+});
+
 module.exports = router;
+

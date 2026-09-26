@@ -230,4 +230,44 @@ router.delete('/store/:storeId/:offerId', async (req, res) => {
   }
 });
 
+/**
+ * 8. BULK DELETE OFFERS (Global and/or Store Offers)
+ */
+router.post('/bulk-delete', async (req, res) => {
+  try {
+    const { items } = req.body; // array of { id, storeId, isGlobal }
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ success: false, message: 'No offers provided for bulk deletion' });
+    }
+
+    let count = 0;
+    const io = req.app.get('io');
+    for (const item of items) {
+      if (item.isGlobal) {
+        await globalOfferRepository.delete(item.id).catch(() => {});
+        count++;
+      } else if (item.storeId) {
+        const store = await prisma.store.findUnique({ where: { id: item.storeId } });
+        if (store) {
+          const result = await storeRepository.deleteStoreOffer(item.storeId, store.adminId, item.id);
+          count++;
+          if (io && result) {
+            io.emit('store_offers_update', { storeId: item.storeId, offers: result.offers, deletedOfferId: item.id });
+          }
+        }
+      }
+    }
+
+    if (io) {
+      io.emit('global_offers_update', { count });
+    }
+
+    res.json({ success: true, message: `Successfully deleted ${count} offers.`, count });
+  } catch (err) {
+    console.error('[superAdminOffers] Bulk delete error:', err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 module.exports = router;
+

@@ -30,7 +30,8 @@ import {
   Receipt,
   Layers,
   ShoppingBag,
-  Tag
+  Tag,
+  Trash2
 } from 'lucide-react';
 
 const SuperAdminCustomerIntelligence = ({ token, socket }) => {
@@ -41,6 +42,8 @@ const SuperAdminCustomerIntelligence = ({ token, socket }) => {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
+  const [selectedCustomerIds, setSelectedCustomerIds] = useState([]);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Aggregated platform stats
   const [statsSummary, setStatsSummary] = useState({
@@ -233,6 +236,57 @@ const SuperAdminCustomerIntelligence = ({ token, socket }) => {
     setTimeout(() => setCopiedId(false), 1800);
   };
 
+  const toggleSelectCustomer = (id) => {
+    setSelectedCustomerIds(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAllCustomers = () => {
+    const pageCustomerIds = customers.map(c => c.userId || c._id);
+    const allSelected = pageCustomerIds.length > 0 && pageCustomerIds.every(id => selectedCustomerIds.includes(id));
+    if (allSelected) {
+      setSelectedCustomerIds(prev => prev.filter(id => !pageCustomerIds.includes(id)));
+    } else {
+      setSelectedCustomerIds(prev => [...new Set([...prev, ...pageCustomerIds])]);
+    }
+  };
+
+  const handleDeleteSingleCustomer = async (userId, name) => {
+    if (!window.confirm(`Are you sure you want to permanently delete customer "${name || userId}"? This will also remove their associated profile and orders.`)) return;
+
+    try {
+      await axios.delete(`${apiUrl}/api/super-admin/customers/${userId}`, { headers });
+      setSelectedCustomerIds(prev => prev.filter(id => id !== userId));
+      fetchCustomers();
+      fetchGlobalSummary();
+      alert('Customer deleted successfully.');
+    } catch (err) {
+      alert('Failed to delete customer: ' + (err.response?.data?.message || err.message));
+    }
+  };
+
+  const handleBulkDeleteCustomers = async () => {
+    if (selectedCustomerIds.length === 0) return;
+    if (!window.confirm(`Are you sure you want to permanently delete ${selectedCustomerIds.length} selected customers? This cannot be undone.`)) return;
+
+    try {
+      setIsDeleting(true);
+      await axios.post(`${apiUrl}/api/super-admin/customers/bulk-delete`, 
+        { userIds: selectedCustomerIds }, 
+        { headers }
+      );
+      setSelectedCustomerIds([]);
+      fetchCustomers();
+      fetchGlobalSummary();
+      alert('Selected customers deleted successfully.');
+    } catch (err) {
+      alert('Bulk delete failed: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <div>
       {/* Super Admin Standard Header */}
@@ -351,29 +405,95 @@ const SuperAdminCustomerIntelligence = ({ token, socket }) => {
         </div>
       </div>
 
+      {/* BULK ACTION BAR */}
+      {selectedCustomerIds.length > 0 && (
+        <div style={{
+          marginBottom: '1rem',
+          padding: '0.85rem 1.25rem',
+          background: '#fff1f2',
+          border: '1.5px solid #fecdd3',
+          borderRadius: '16px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          animation: 'fadeIn 0.2s ease'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <span style={{ fontWeight: '800', color: '#e11d48', fontSize: '0.9rem' }}>
+              {selectedCustomerIds.length} customer{selectedCustomerIds.length > 1 ? 's' : ''} selected
+            </span>
+            <button
+              onClick={() => setSelectedCustomerIds([])}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: '#64748b',
+                fontSize: '0.8rem',
+                fontWeight: '700',
+                cursor: 'pointer',
+                textDecoration: 'underline'
+              }}
+            >
+              Clear selection
+            </button>
+          </div>
+          <button
+            onClick={handleBulkDeleteCustomers}
+            disabled={isDeleting}
+            style={{
+              padding: '0.5rem 1.1rem',
+              borderRadius: '10px',
+              border: 'none',
+              background: '#e11d48',
+              color: '#ffffff',
+              fontWeight: '800',
+              fontSize: '0.85rem',
+              cursor: isDeleting ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.4rem',
+              boxShadow: '0 2px 8px rgba(225, 29, 72, 0.25)',
+              opacity: isDeleting ? 0.7 : 1
+            }}
+          >
+            <Trash2 size={14} />
+            {isDeleting ? 'Deleting...' : `Delete Selected (${selectedCustomerIds.length})`}
+          </button>
+        </div>
+      )}
+
       {/* Customer Registry Table matching Vendor Registry styling */}
       <div style={{ background: '#ffffff', borderRadius: '24px', border: '1px solid var(--surface-border)', overflow: 'hidden', boxShadow: '0 4px 12px rgba(0,0,0,0.02)' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
           <thead>
             <tr style={{ background: '#f8fafc', borderBottom: '1px solid var(--surface-border)' }}>
+              <th style={{ width: '48px', padding: '1.25rem', textAlign: 'center' }}>
+                <input 
+                  type="checkbox"
+                  checked={customers.length > 0 && customers.every(c => selectedCustomerIds.includes(c.userId || c._id))}
+                  onChange={toggleSelectAllCustomers}
+                  style={{ cursor: 'pointer', width: '16px', height: '16px', accentColor: 'var(--primary, #ef4123)' }}
+                  title="Select All Customers on this page"
+                />
+              </th>
               <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '700', fontSize: '0.875rem' }}>Customer Details</th>
               <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '700', fontSize: '0.875rem' }}>Campus / Market</th>
               <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '700', fontSize: '0.875rem' }}>Order Activity</th>
               <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '700', fontSize: '0.875rem' }}>Total Spent</th>
               <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '700', fontSize: '0.875rem' }}>Refund Risk</th>
-              <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '700', fontSize: '0.875rem', textAlign: 'right' }}>360° Profile</th>
+              <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '700', fontSize: '0.875rem', textAlign: 'right' }}>Actions</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan="6" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                <td colSpan="7" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
                   Loading customer directory...
                 </td>
               </tr>
             ) : customers.length === 0 ? (
               <tr>
-                <td colSpan="6" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                <td colSpan="7" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
                   No customer records found matching your query.
                 </td>
               </tr>
@@ -384,6 +504,16 @@ const SuperAdminCustomerIntelligence = ({ token, socket }) => {
 
                 return (
                   <tr key={c._id} style={{ borderBottom: '1px solid var(--surface-border)', transition: 'background 0.15s' }}>
+                    {/* Row Checkbox */}
+                    <td style={{ width: '48px', padding: '1.25rem', textAlign: 'center' }}>
+                      <input 
+                        type="checkbox"
+                        checked={selectedCustomerIds.includes(c.userId || c._id)}
+                        onChange={() => toggleSelectCustomer(c.userId || c._id)}
+                        style={{ cursor: 'pointer', width: '16px', height: '16px', accentColor: 'var(--primary, #ef4123)' }}
+                      />
+                    </td>
+
                     {/* Customer Details */}
                     <td style={{ padding: '1.25rem' }}>
                       <div style={{ fontWeight: '800', fontSize: '1rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -467,28 +597,48 @@ const SuperAdminCustomerIntelligence = ({ token, socket }) => {
                       </span>
                     </td>
 
-                    {/* Action Button */}
+                    {/* Actions */}
                     <td style={{ padding: '1.25rem', textAlign: 'right' }}>
-                      <button
-                        onClick={() => handleOpen360(c.userId)}
-                        style={{
-                          padding: '0.5rem 1rem',
-                          background: 'var(--primary)',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '10px',
-                          fontWeight: '800',
-                          fontSize: '0.8rem',
-                          cursor: 'pointer',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '0.4rem',
-                          boxShadow: '0 2px 8px rgba(239, 65, 35, 0.25)',
-                          transition: 'all 0.2s'
-                        }}
-                      >
-                        <Eye size={15} /> View 360°
-                      </button>
+                      <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', alignItems: 'center' }}>
+                        <button
+                          onClick={() => handleOpen360(c.userId)}
+                          style={{
+                            padding: '0.5rem 1rem',
+                            background: 'var(--primary)',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '10px',
+                            fontWeight: '800',
+                            fontSize: '0.8rem',
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.4rem',
+                            boxShadow: '0 2px 8px rgba(239, 65, 35, 0.25)',
+                            transition: 'all 0.2s'
+                          }}
+                        >
+                          <Eye size={15} /> View 360°
+                        </button>
+                        <button
+                          onClick={() => handleDeleteSingleCustomer(c.userId, c.currentName)}
+                          style={{
+                            padding: '0.5rem 0.65rem',
+                            borderRadius: '10px',
+                            border: '1px solid rgba(239, 68, 68, 0.25)',
+                            background: 'rgba(239, 68, 68, 0.08)',
+                            color: '#ef4444',
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            transition: 'all 0.15s'
+                          }}
+                          title="Delete Customer Permanently"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );

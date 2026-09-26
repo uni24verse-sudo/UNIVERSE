@@ -42,6 +42,8 @@ const SuperAdminHeroPromotions = ({ token, socket }) => {
   const [finalTag, setFinalTag] = useState('');
   const [selectedSlot, setSelectedSlot] = useState(1);
   const [publishing, setPublishing] = useState(false);
+  const [selectedBannerIds, setSelectedBannerIds] = useState([]);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
   const authConfig = { headers: { Authorization: `Bearer ${token}` } };
@@ -73,12 +75,63 @@ const SuperAdminHeroPromotions = ({ token, socket }) => {
     socket.on('banner_campaign_requested', handleRefresh);
     socket.on('banner_published', handleRefresh);
     socket.on('banner_status_changed', handleRefresh);
+    socket.on('banner_deleted', handleRefresh);
     return () => {
       socket.off('banner_campaign_requested', handleRefresh);
       socket.off('banner_published', handleRefresh);
       socket.off('banner_status_changed', handleRefresh);
+      socket.off('banner_deleted', handleRefresh);
     };
   }, [socket]);
+
+  const toggleSelectBanner = (id) => {
+    setSelectedBannerIds(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAllBanners = () => {
+    const allIds = banners.map(b => b.id);
+    const allSelected = allIds.length > 0 && allIds.every(id => selectedBannerIds.includes(id));
+    if (allSelected) {
+      setSelectedBannerIds(prev => prev.filter(id => !allIds.includes(id)));
+    } else {
+      setSelectedBannerIds(prev => [...new Set([...prev, ...allIds])]);
+    }
+  };
+
+  const handleDeleteSingleBanner = async (bannerId, storeName) => {
+    if (!window.confirm(`Are you sure you want to permanently delete this banner for "${storeName || bannerId}"? This will completely remove it from the system.`)) return;
+
+    try {
+      await axios.delete(`${API_URL}/api/banners/admin/${bannerId}`, authConfig);
+      setSelectedBannerIds(prev => prev.filter(id => id !== bannerId));
+      fetchPromotions();
+      alert('Banner deleted successfully.');
+    } catch (err) {
+      alert('Failed to delete banner: ' + (err.response?.data?.message || err.message));
+    }
+  };
+
+  const handleBulkDeleteBanners = async () => {
+    if (selectedBannerIds.length === 0) return;
+    if (!window.confirm(`Are you sure you want to permanently delete ${selectedBannerIds.length} selected banners? This cannot be undone.`)) return;
+
+    try {
+      setIsDeleting(true);
+      await axios.post(`${API_URL}/api/banners/admin/bulk-delete`, 
+        { ids: selectedBannerIds }, 
+        authConfig
+      );
+      setSelectedBannerIds([]);
+      fetchPromotions();
+      alert('Selected banners deleted successfully.');
+    } catch (err) {
+      alert('Bulk delete failed: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const handleOpenSimulator = (item) => {
     setPreviewModal(item);
@@ -425,6 +478,65 @@ const SuperAdminHeroPromotions = ({ token, socket }) => {
         </div>
       </div>
 
+      {/* BULK ACTION BAR */}
+      {selectedBannerIds.length > 0 && (
+        <div style={{
+          marginBottom: '1.5rem',
+          padding: '0.85rem 1.25rem',
+          background: '#fff1f2',
+          border: '1.5px solid #fecdd3',
+          borderRadius: '16px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          animation: 'fadeIn 0.2s ease',
+          flexWrap: 'wrap',
+          gap: '0.75rem'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <span style={{ fontWeight: '800', color: '#e11d48', fontSize: '0.9rem' }}>
+              {selectedBannerIds.length} promotion banner{selectedBannerIds.length > 1 ? 's' : ''} selected
+            </span>
+            <button
+              onClick={() => setSelectedBannerIds([])}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: '#64748b',
+                fontSize: '0.8rem',
+                fontWeight: '700',
+                cursor: 'pointer',
+                textDecoration: 'underline'
+              }}
+            >
+              Clear selection
+            </button>
+          </div>
+          <button
+            onClick={handleBulkDeleteBanners}
+            disabled={isDeleting}
+            style={{
+              padding: '0.5rem 1.1rem',
+              borderRadius: '10px',
+              border: 'none',
+              background: '#e11d48',
+              color: '#ffffff',
+              fontWeight: '800',
+              fontSize: '0.85rem',
+              cursor: isDeleting ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.4rem',
+              boxShadow: '0 2px 8px rgba(225, 29, 72, 0.25)',
+              opacity: isDeleting ? 0.7 : 1
+            }}
+          >
+            <Trash2 size={14} />
+            {isDeleting ? 'Deleting...' : `Delete Selected (${selectedBannerIds.length})`}
+          </button>
+        </div>
+      )}
+
       {/* SECTION 1: Pending Design & Approval Queue */}
       <div style={{ marginBottom: '3rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
@@ -472,23 +584,31 @@ const SuperAdminHeroPromotions = ({ token, socket }) => {
                 key={item.id}
                 style={{ 
                   background: '#ffffff',
-                  border: '1px solid rgba(245, 158, 11, 0.3)',
+                  border: selectedBannerIds.includes(item.id) ? '1.5px solid var(--primary, #ef4123)' : '1px solid rgba(245, 158, 11, 0.3)',
                   borderRadius: '24px',
                   padding: '1.75rem',
                   display: 'flex',
                   flexDirection: 'column',
                   gap: '1.25rem',
-                  boxShadow: '0 8px 24px -4px rgba(245, 158, 11, 0.08)'
+                  boxShadow: selectedBannerIds.includes(item.id) ? '0 8px 24px rgba(239, 65, 35, 0.15)' : '0 8px 24px -4px rgba(245, 158, 11, 0.08)'
                 }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <div>
-                    <span style={{ fontSize: '0.75rem', fontWeight: '800', color: '#d97706', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                      {item.locationHub || 'All Hubs'}
-                    </span>
-                    <h4 style={{ margin: '0.2rem 0 0 0', fontSize: '1.25rem', fontWeight: '900', color: '#0f172a' }}>
-                      {item.storeName}
-                    </h4>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <input 
+                      type="checkbox"
+                      checked={selectedBannerIds.includes(item.id)}
+                      onChange={() => toggleSelectBanner(item.id)}
+                      style={{ cursor: 'pointer', width: '16px', height: '16px', accentColor: 'var(--primary, #ef4123)' }}
+                    />
+                    <div>
+                      <span style={{ fontSize: '0.75rem', fontWeight: '800', color: '#d97706', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                        {item.locationHub || 'All Hubs'}
+                      </span>
+                      <h4 style={{ margin: '0.2rem 0 0 0', fontSize: '1.25rem', fontWeight: '900', color: '#0f172a' }}>
+                        {item.storeName}
+                      </h4>
+                    </div>
                   </div>
                   <span style={{ background: 'rgba(16, 185, 129, 0.12)', color: '#059669', padding: '0.35rem 0.85rem', borderRadius: '100px', fontSize: '0.75rem', fontWeight: '900', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
                     <Check size={12} /> PAID ₹{item.amountPaid || 799}
@@ -519,7 +639,7 @@ const SuperAdminHeroPromotions = ({ token, socket }) => {
                               padding: '0.55rem 1rem', 
                               borderRadius: '10px', 
                               fontSize: '0.8rem', 
-                              fontWeight: '700',
+                              fontWeight: '700', 
                               display: 'inline-flex', 
                               alignItems: 'center', 
                               gap: '0.4rem', 
@@ -580,29 +700,48 @@ const SuperAdminHeroPromotions = ({ token, socket }) => {
                   <span>Strictly Non-Refundable Terms Verified</span>
                 </div>
 
-                {/* Action Button */}
-                <button 
-                  onClick={() => handleOpenSimulator(item)}
-                  style={{ 
-                    marginTop: 'auto',
-                    background: 'linear-gradient(135deg, #ef4123 0%, #f59e0b 100%)',
-                    color: 'white',
-                    border: 'none',
-                    padding: '0.9rem',
-                    borderRadius: '14px',
-                    fontWeight: '800',
-                    fontSize: '0.9rem',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '0.5rem',
-                    boxShadow: '0 4px 15px rgba(239, 65, 35, 0.25)',
-                    transition: 'all 0.15s ease'
-                  }}
-                >
-                  <Eye size={16} /> Open Dual-Screen Preview Simulator
-                </button>
+                {/* Action Buttons */}
+                <div style={{ display: 'flex', gap: '0.5rem', marginTop: 'auto' }}>
+                  <button 
+                    onClick={() => handleOpenSimulator(item)}
+                    style={{ 
+                      flex: 1,
+                      background: 'linear-gradient(135deg, #ef4123 0%, #f59e0b 100%)',
+                      color: 'white',
+                      border: 'none',
+                      padding: '0.9rem',
+                      borderRadius: '14px',
+                      fontWeight: '800',
+                      fontSize: '0.9rem',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.5rem',
+                      boxShadow: '0 4px 15px rgba(239, 65, 35, 0.25)',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    <Eye size={16} /> Open Simulator
+                  </button>
+                  <button
+                    onClick={() => handleDeleteSingleBanner(item.id, item.storeName)}
+                    style={{
+                      padding: '0.9rem',
+                      borderRadius: '14px',
+                      background: 'rgba(239, 68, 68, 0.08)',
+                      border: '1px solid rgba(239, 68, 68, 0.25)',
+                      color: '#ef4444',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
+                    title="Delete Promotion Permanently"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -646,11 +785,11 @@ const SuperAdminHeroPromotions = ({ token, socket }) => {
                   style={{
                     background: '#ffffff',
                     borderRadius: '24px',
-                    border: '1px solid var(--surface-border, #e2e8f0)',
+                    border: selectedBannerIds.includes(banner.id) ? '1.5px solid var(--primary, #ef4123)' : '1px solid var(--surface-border, #e2e8f0)',
                     overflow: 'hidden',
                     display: 'flex',
                     flexDirection: 'column',
-                    boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.04)'
+                    boxShadow: selectedBannerIds.includes(banner.id) ? '0 4px 24px rgba(239, 65, 35, 0.15)' : '0 4px 20px -2px rgba(0, 0, 0, 0.04)'
                   }}
                 >
                   <div style={{ height: '180px', position: 'relative' }}>
@@ -698,9 +837,17 @@ const SuperAdminHeroPromotions = ({ token, socket }) => {
                   </div>
 
                   <div style={{ padding: '1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#ffffff', borderTop: '1px solid #f1f5f9' }}>
-                    <div>
-                      <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '700' }}>Target Stall:</span>
-                      <h5 style={{ margin: '0.1rem 0 0 0', fontSize: '0.95rem', fontWeight: '800', color: '#0f172a' }}>{banner.storeName}</h5>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <input 
+                        type="checkbox"
+                        checked={selectedBannerIds.includes(banner.id)}
+                        onChange={() => toggleSelectBanner(banner.id)}
+                        style={{ cursor: 'pointer', width: '16px', height: '16px', accentColor: 'var(--primary, #ef4123)' }}
+                      />
+                      <div>
+                        <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '700' }}>Target Stall:</span>
+                        <h5 style={{ margin: '0.1rem 0 0 0', fontSize: '0.95rem', fontWeight: '800', color: '#0f172a' }}>{banner.storeName}</h5>
+                      </div>
                     </div>
                     <div style={{ display: 'flex', gap: '0.5rem' }}>
                       <button 
@@ -711,9 +858,16 @@ const SuperAdminHeroPromotions = ({ token, socket }) => {
                       </button>
                       <button 
                         onClick={() => handleArchive(banner.id)}
-                        style={{ padding: '0.55rem 0.95rem', borderRadius: '10px', background: 'rgba(239, 68, 68, 0.08)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.2)', fontWeight: '800', fontSize: '0.8rem', cursor: 'pointer' }}
+                        style={{ padding: '0.55rem 0.95rem', borderRadius: '10px', background: 'rgba(245, 158, 11, 0.08)', color: '#d97706', border: '1px solid rgba(245, 158, 11, 0.25)', fontWeight: '800', fontSize: '0.8rem', cursor: 'pointer' }}
                       >
                         Deactivate
+                      </button>
+                      <button 
+                        onClick={() => handleDeleteSingleBanner(banner.id, banner.storeName)}
+                        style={{ padding: '0.55rem 0.75rem', borderRadius: '10px', background: 'rgba(239, 68, 68, 0.08)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.25)', fontWeight: '800', fontSize: '0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        title="Delete Promotion Permanently"
+                      >
+                        <Trash2 size={14} />
                       </button>
                     </div>
                   </div>

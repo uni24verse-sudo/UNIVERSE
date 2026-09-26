@@ -74,6 +74,11 @@ const SuperAdminPanel = () => {
   const [storeSearch, setStoreSearch] = useState('');
   const [storeStatusFilter, setStoreStatusFilter] = useState('all');
   const [vendorSubTab, setVendorSubTab] = useState('active');
+  const [selectedActiveVendors, setSelectedActiveVendors] = useState([]);
+  const [selectedPendingVendors, setSelectedPendingVendors] = useState([]);
+  const [selectedStores, setSelectedStores] = useState([]);
+  const [selectedLocations, setSelectedLocations] = useState([]);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const pendingVendors = React.useMemo(() => (vendors || []).filter(v => v.status === 'PENDING_APPROVAL'), [vendors]);
   const activeVendors = React.useMemo(() => (vendors || []).filter(v => v.status !== 'PENDING_APPROVAL'), [vendors]);
@@ -369,6 +374,21 @@ const SuperAdminPanel = () => {
     }
   };
 
+  // Active Vendors Checkbox & Bulk Actions
+  const toggleSelectActiveVendor = (id) => {
+    setSelectedActiveVendors(prev => 
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAllActiveVendors = () => {
+    if (selectedActiveVendors.length === activeVendors.length) {
+      setSelectedActiveVendors([]);
+    } else {
+      setSelectedActiveVendors(activeVendors.map(v => v._id || v.id));
+    }
+  };
+
   const deleteVendor = async (vendorId, vendorName) => {
     if (!window.confirm(`CRITICAL WARNING:\n\nAre you absolutely sure you want to permanently delete vendor "${vendorName}" AND their store AND all their orders?\n\nThis cannot be undone.`)) return;
     
@@ -376,9 +396,45 @@ const SuperAdminPanel = () => {
       await axios.delete(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/super-admin/vendor/${vendorId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
+      setSelectedActiveVendors(prev => prev.filter(id => id !== vendorId));
       fetchDashboardData(true); // Refresh everything
     } catch (err) {
       alert('Failed to delete vendor: ' + (err.response?.data?.message || err.message));
+    }
+  };
+
+  const bulkDeleteActiveVendors = async () => {
+    if (selectedActiveVendors.length === 0) return;
+    if (!window.confirm(`CRITICAL WARNING:\n\nAre you sure you want to permanently delete ${selectedActiveVendors.length} selected vendors AND their stores AND orders?\n\nThis cannot be undone.`)) return;
+
+    try {
+      setIsDeleting(true);
+      await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/super-admin/vendors/bulk-delete`, 
+        { ids: selectedActiveVendors },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setSelectedActiveVendors([]);
+      fetchDashboardData(true);
+      alert('Selected vendors successfully deleted.');
+    } catch (err) {
+      alert('Bulk delete failed: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  // Pending Vendors Checkbox & Bulk Actions
+  const toggleSelectPendingVendor = (id) => {
+    setSelectedPendingVendors(prev => 
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAllPendingVendors = () => {
+    if (selectedPendingVendors.length === pendingVendors.length) {
+      setSelectedPendingVendors([]);
+    } else {
+      setSelectedPendingVendors(pendingVendors.map(v => v._id || v.id));
     }
   };
 
@@ -401,10 +457,116 @@ const SuperAdminPanel = () => {
       await axios.delete(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/super-admin/vendor/${vendorId}/reject`, {
         headers: { Authorization: `Bearer ${token}` }
       });
+      setSelectedPendingVendors(prev => prev.filter(id => id !== vendorId));
       alert(`Applicant "${vendorName}" rejected and credentials permanently purged.`);
       fetchDashboardData(true);
     } catch (err) {
       alert('Failed to reject vendor: ' + (err.response?.data?.message || err.message));
+    }
+  };
+
+  const bulkRejectPendingVendors = async () => {
+    if (selectedPendingVendors.length === 0) return;
+    if (!window.confirm(`REJECT & PURGE:\n\nAre you sure you want to reject and purge ${selectedPendingVendors.length} selected vendor applications?`)) return;
+
+    try {
+      setIsDeleting(true);
+      await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/super-admin/vendors/reject/bulk-delete`, 
+        { ids: selectedPendingVendors },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setSelectedPendingVendors([]);
+      fetchDashboardData(true);
+      alert('Selected vendor applications rejected and purged.');
+    } catch (err) {
+      alert('Bulk reject failed: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  // Stores Delete & Checkbox Handlers
+  const toggleSelectStore = (id) => {
+    setSelectedStores(prev => 
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAllStores = (visibleStoreIds) => {
+    if (selectedStores.length === visibleStoreIds.length && visibleStoreIds.length > 0) {
+      setSelectedStores([]);
+    } else {
+      setSelectedStores(visibleStoreIds);
+    }
+  };
+
+  const deleteStore = async (storeId, storeName) => {
+    if (!window.confirm(`PERMANENT STORE DELETION:\n\nAre you sure you want to permanently delete store "${storeName}"?\n\nThis will remove all menu items, orders, and settlements associated with this stall.`)) return;
+
+    try {
+      await axios.delete(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/super-admin/store/${storeId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setSelectedStores(prev => prev.filter(id => id !== storeId));
+      fetchDashboardData(true);
+      alert(`Store "${storeName}" deleted successfully.`);
+    } catch (err) {
+      alert('Failed to delete store: ' + (err.response?.data?.message || err.message));
+    }
+  };
+
+  const bulkDeleteStores = async () => {
+    if (selectedStores.length === 0) return;
+    if (!window.confirm(`PERMANENT BULK DELETION:\n\nAre you sure you want to delete ${selectedStores.length} selected stores and all their associated orders and menu data?\n\nThis action cannot be undone.`)) return;
+
+    try {
+      setIsDeleting(true);
+      await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/super-admin/stores/bulk-delete`, 
+        { ids: selectedStores },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setSelectedStores([]);
+      fetchDashboardData(true);
+      alert('Selected stores deleted successfully.');
+    } catch (err) {
+      alert('Bulk store delete failed: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  // Locations Delete & Checkbox Handlers
+  const toggleSelectLocation = (id) => {
+    setSelectedLocations(prev => 
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAllLocations = () => {
+    if (selectedLocations.length === locations.length && locations.length > 0) {
+      setSelectedLocations([]);
+    } else {
+      setSelectedLocations(locations.map(l => l._id || l.id));
+    }
+  };
+
+  const bulkDeleteLocations = async () => {
+    if (selectedLocations.length === 0) return;
+    if (!window.confirm(`Delete ${selectedLocations.length} selected locations?\n\nLocations with active linked stores will be skipped automatically.`)) return;
+
+    try {
+      setIsDeleting(true);
+      const res = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/super-admin/locations/bulk-delete`, 
+        { ids: selectedLocations },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setSelectedLocations([]);
+      fetchDashboardData(true);
+      alert(res.data.message || 'Locations deleted.');
+    } catch (err) {
+      alert('Bulk location delete failed: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -688,110 +850,154 @@ const SuperAdminPanel = () => {
                     </p>
                   </div>
                 ) : (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: '1.5rem' }}>
-                    {pendingVendors.map(v => (
-                      <div 
-                        key={v._id || v.id}
-                        style={{
-                          background: '#ffffff',
-                          borderRadius: '20px',
-                          border: '2px solid rgba(239, 65, 35, 0.2)',
-                          padding: '1.75rem',
-                          boxShadow: '0 10px 25px -5px rgba(239, 65, 35, 0.05)',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          justifyContent: 'space-between',
-                          position: 'relative'
-                        }}
-                      >
-                        <div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+                  <div>
+                    {/* Bulk Selection Bar for Pending Vendors */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc', padding: '0.75rem 1.25rem', borderRadius: '16px', border: '1px solid var(--surface-border)', marginBottom: '1.25rem' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', fontSize: '0.85rem', fontWeight: '700', cursor: 'pointer', color: 'var(--text-primary)' }}>
+                        <input
+                          type="checkbox"
+                          checked={selectedPendingVendors.length === pendingVendors.length && pendingVendors.length > 0}
+                          onChange={toggleSelectAllPendingVendors}
+                          style={{ cursor: 'pointer', width: '16px', height: '16px' }}
+                        />
+                        Select All Applicants ({pendingVendors.length})
+                      </label>
+                      {selectedPendingVendors.length > 0 && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                          <span style={{ fontSize: '0.8rem', fontWeight: '800', color: '#b91c1c' }}>
+                            {selectedPendingVendors.length} selected
+                          </span>
+                          <button
+                            type="button"
+                            onClick={bulkRejectPendingVendors}
+                            disabled={isDeleting}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: '0.4rem', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '8px', padding: '0.45rem 0.9rem', fontWeight: '700', fontSize: '0.8rem', cursor: 'pointer'
+                            }}
+                          >
+                            <Trash2 size={14} /> Reject & Purge Selected ({selectedPendingVendors.length})
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: '1.5rem' }}>
+                      {pendingVendors.map(v => {
+                        const vId = v._id || v.id;
+                        const isChecked = selectedPendingVendors.includes(vId);
+                        return (
+                          <div 
+                            key={vId}
+                            style={{
+                              background: '#ffffff',
+                              borderRadius: '20px',
+                              border: isChecked ? '2px solid #ef4444' : '2px solid rgba(239, 65, 35, 0.2)',
+                              padding: '1.75rem',
+                              boxShadow: '0 10px 25px -5px rgba(239, 65, 35, 0.05)',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              justifyContent: 'space-between',
+                              position: 'relative'
+                            }}
+                          >
                             <div>
-                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.7rem', fontWeight: '800', padding: '0.2rem 0.6rem', borderRadius: '100px', background: 'rgba(245, 158, 11, 0.15)', color: '#b45309', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>
-                                <Clock size={12} /> Awaiting Verification
-                              </span>
-                              <h3 style={{ fontSize: '1.25rem', fontWeight: '800', margin: '0.25rem 0 0 0', color: 'var(--text-primary)' }}>
-                                {v.name}
-                              </h3>
-                            </div>
-                            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                              {v.createdAt ? new Date(v.createdAt).toLocaleDateString() : 'Recent'}
-                            </span>
-                          </div>
-
-                          <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '12px', border: '1px solid var(--surface-border)', marginBottom: '1.25rem' }}>
-                            <div style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.35rem' }}>
-                              Proposed Stall / Brand Name
-                            </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: '800', fontSize: '1.1rem', color: 'var(--primary)' }}>
-                              <Store size={18} />
-                              {v.store?.name || 'Unassigned / Not Specified'}
-                            </div>
-                          </div>
-
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                              <Mail size={15} style={{ color: 'var(--text-secondary)' }} />
-                              <span style={{ color: 'var(--text-primary)', fontWeight: '600' }}>{v.email}</span>
-                            </div>
-                            {v.phone && (
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                <Phone size={15} style={{ color: 'var(--text-secondary)' }} />
-                                <span style={{ color: 'var(--text-primary)', fontWeight: '600' }}>{v.phone}</span>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+                                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+                                  <input 
+                                    type="checkbox" 
+                                    checked={isChecked} 
+                                    onChange={() => toggleSelectPendingVendor(vId)}
+                                    style={{ marginTop: '0.25rem', cursor: 'pointer', width: '16px', height: '16px' }}
+                                  />
+                                  <div>
+                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.7rem', fontWeight: '800', padding: '0.2rem 0.6rem', borderRadius: '100px', background: 'rgba(245, 158, 11, 0.15)', color: '#b45309', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>
+                                      <Clock size={12} /> Awaiting Verification
+                                    </span>
+                                    <h3 style={{ fontSize: '1.25rem', fontWeight: '800', margin: '0.25rem 0 0 0', color: 'var(--text-primary)' }}>
+                                      {v.name}
+                                    </h3>
+                                  </div>
+                                </div>
+                                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                                  {v.createdAt ? new Date(v.createdAt).toLocaleDateString() : 'Recent'}
+                                </span>
                               </div>
-                            )}
-                          </div>
-                        </div>
 
-                        <div style={{ display: 'flex', gap: '0.75rem', paddingTop: '1rem', borderTop: '1px solid var(--surface-border)' }}>
-                          <button
-                            type="button"
-                            onClick={() => approveVendor(v._id || v.id, v.name)}
-                            style={{
-                              flex: 1,
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              gap: '0.5rem',
-                              padding: '0.75rem 1rem',
-                              background: '#10b981',
-                              color: '#ffffff',
-                              border: 'none',
-                              borderRadius: '10px',
-                              fontWeight: '700',
-                              fontSize: '0.875rem',
-                              cursor: 'pointer',
-                              boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)',
-                              transition: 'all 0.2s'
-                            }}
-                          >
-                            <CheckCircle size={16} /> Approve
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => rejectVendor(v._id || v.id, v.name)}
-                            style={{
-                              flex: 1,
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              gap: '0.5rem',
-                              padding: '0.75rem 1rem',
-                              background: 'rgba(239, 68, 68, 0.1)',
-                              color: '#ef4444',
-                              border: '1px solid rgba(239, 68, 68, 0.3)',
-                              borderRadius: '10px',
-                              fontWeight: '700',
-                              fontSize: '0.875rem',
-                              cursor: 'pointer',
-                              transition: 'all 0.2s'
-                            }}
-                          >
-                            <Trash2 size={16} /> Reject & Purge
-                          </button>
-                        </div>
-                      </div>
-                    ))}
+                              <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '12px', border: '1px solid var(--surface-border)', marginBottom: '1.25rem' }}>
+                                <div style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.35rem' }}>
+                                  Proposed Stall / Brand Name
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: '800', fontSize: '1.1rem', color: 'var(--primary)' }}>
+                                  <Store size={18} />
+                                  {v.store?.name || 'Unassigned / Not Specified'}
+                                </div>
+                              </div>
+
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                  <Mail size={15} style={{ color: 'var(--text-secondary)' }} />
+                                  <span style={{ color: 'var(--text-primary)', fontWeight: '600' }}>{v.email}</span>
+                                </div>
+                                {v.phone && (
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                    <Phone size={15} style={{ color: 'var(--text-secondary)' }} />
+                                    <span style={{ color: 'var(--text-primary)', fontWeight: '600' }}>{v.phone}</span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            <div style={{ display: 'flex', gap: '0.75rem', paddingTop: '1rem', borderTop: '1px solid var(--surface-border)' }}>
+                              <button
+                                type="button"
+                                onClick={() => approveVendor(v._id || v.id, v.name)}
+                                style={{
+                                  flex: 1,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: '0.5rem',
+                                  padding: '0.75rem 1rem',
+                                  background: '#10b981',
+                                  color: '#ffffff',
+                                  border: 'none',
+                                  borderRadius: '10px',
+                                  fontWeight: '700',
+                                  fontSize: '0.875rem',
+                                  cursor: 'pointer',
+                                  boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)',
+                                  transition: 'all 0.2s'
+                                }}
+                              >
+                                <CheckCircle size={16} /> Approve
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => rejectVendor(v._id || v.id, v.name)}
+                                style={{
+                                  flex: 1,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: '0.5rem',
+                                  padding: '0.75rem 1rem',
+                                  background: 'rgba(239, 68, 68, 0.1)',
+                                  color: '#ef4444',
+                                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                                  borderRadius: '10px',
+                                  fontWeight: '700',
+                                  fontSize: '0.875rem',
+                                  cursor: 'pointer',
+                                  transition: 'all 0.2s'
+                                }}
+                              >
+                                <Trash2 size={16} /> Reject & Purge
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
               </div>
@@ -799,81 +1005,131 @@ const SuperAdminPanel = () => {
 
             {/* ACTIVE VENDORS TABLE */}
             {vendorSubTab === 'active' && (
-              <div style={{ background: '#ffffff', borderRadius: '24px', border: '1px solid var(--surface-border)', overflow: 'hidden' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-                  <thead>
-                    <tr style={{ background: '#f8fafc', borderBottom: '1px solid var(--surface-border)' }}>
-                      <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Vendor Details</th>
-                      <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Associated Store</th>
-                      <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Performance</th>
-                      <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Platform Profit</th>
-                      <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem', textAlign: 'right' }}>Destructive Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {activeVendors.map(v => (
-                      <tr key={v._id || v.id} style={{ borderBottom: '1px solid var(--surface-border)' }}>
-                        <td style={{ padding: '1.25rem' }}>
-                          <div style={{ fontWeight: '700', fontSize: '1rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            {v.name}
-                            {v.isBanned && <span style={{ fontSize: '0.65rem', padding: '0.1rem 0.4rem', background: '#ef4444', color: 'white', borderRadius: '4px', fontWeight: '900', letterSpacing: '0.05em' }}>SUSPENDED</span>}
-                          </div>
-                          <div style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: '0.25rem' }}>{v.email}</div>
-                          {v.phone && <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', marginTop: '0.2rem' }}>📞 {v.phone}</div>}
-                          {v.upiId && <div style={{ color: '#3b82f6', fontSize: '0.75rem', marginTop: '0.25rem', padding: '0.1rem 0.4rem', background: 'rgba(59, 130, 246, 0.1)', borderRadius: '4px', display: 'inline-block' }}>{v.upiId}</div>}
-                        </td>
-                        <td style={{ padding: '1.25rem' }}>
-                          {v.store ? (
-                            <>
-                              <div style={{ fontWeight: '600' }}>{v.store.name}</div>
-                              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
-                                <span style={{ fontSize: '0.75rem', background: 'rgba(239, 65, 35, 0.1)', color: 'var(--primary)', padding: '0.1rem 0.4rem', borderRadius: '4px', fontWeight: '700' }}>{v.store.market || 'BH1 Market'}</span>
-                                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{v.store.productCount} Items</span>
-                                <span style={{ fontSize: '0.75rem', color: v.store.isOpen ? '#10b981' : '#ef4444' }}>• {v.store.isOpen ? 'ONLINE' : 'OFFLINE'}</span>
-                              </div>
-                            </>
-                          ) : (
-                            <span style={{ color: 'var(--text-secondary)', fontStyle: 'italic', fontSize: '0.875rem' }}>No store created</span>
-                          )}
-                        </td>
-                        <td style={{ padding: '1.25rem' }}>
-                          <div style={{ fontWeight: '800', color: 'var(--secondary)' }}>₹{v.stats?.revenue || 0} generated</div>
-                          <div style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: '0.25rem' }}>Across {v.stats?.orderCount || 0} total orders</div>
-                        </td>
-                        <td style={{ padding: '1.25rem' }}>
-                          <div style={{ fontWeight: '900', color: 'var(--primary)', fontSize: '1.1rem' }}>₹{v.stats?.profitGenerated || 0}</div>
-                          <div style={{ color: '#6366f1', fontSize: '0.7rem', marginTop: '0.25rem', fontWeight: '700' }}>Standard (3% Platform)</div>
-                        </td>
-                        <td style={{ padding: '1.25rem', textAlign: 'right' }}>
-                          <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
-                            <button 
-                              onClick={async () => {
-                                try {
-                                  await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/super-admin/vendor/${v._id || v.id}/suspend`, {}, { headers: { Authorization: `Bearer ${token}` } });
-                                  fetchDashboardData(true);
-                                } catch(err) { alert('Action failed'); }
-                              }}
-                              style={{ padding: '0.5rem 1rem', background: v.isBanned ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)', color: v.isBanned ? '#10b981' : '#f59e0b', border: `1px solid ${v.isBanned ? 'rgba(16, 185, 129, 0.2)' : 'rgba(245, 158, 11, 0.2)'}`, borderRadius: '8px', cursor: 'pointer', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
-                            >
-                              <Ban size={16} /> {v.isBanned ? 'Unban' : 'Suspend'}
-                            </button>
-                            <button 
-                              onClick={() => deleteVendor(v._id || v.id, v.name)}
-                              style={{ padding: '0.5rem 1rem', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.2)', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', transition: 'all 0.2s' }}
-                              onMouseEnter={(e) => { e.target.style.background = '#ef4444'; e.target.style.color = 'white'; }}
-                              onMouseLeave={(e) => { e.target.style.background = 'rgba(239, 68, 68, 0.1)'; e.target.style.color = '#ef4444'; }}
-                            >
-                              <Trash2 size={16} /> Terminate
-                            </button>
-                          </div>
-                        </td>
+              <div>
+                {/* Bulk Actions Banner for Active Vendors */}
+                {selectedActiveVendors.length > 0 && (
+                  <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '16px', padding: '0.85rem 1.25rem', marginBottom: '1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <span style={{ fontWeight: '800', color: '#991b1b', fontSize: '0.875rem' }}>
+                        {selectedActiveVendors.length} vendor{selectedActiveVendors.length > 1 ? 's' : ''} selected
+                      </span>
+                      <button 
+                        type="button" 
+                        onClick={() => setSelectedActiveVendors([])} 
+                        style={{ background: 'none', border: 'none', color: '#6b7280', fontSize: '0.75rem', fontWeight: '700', cursor: 'pointer', textDecoration: 'underline' }}
+                      >
+                        Clear Selection
+                      </button>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={bulkDeleteActiveVendors}
+                      disabled={isDeleting}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#dc2626', color: '#fff', border: 'none', borderRadius: '8px', padding: '0.5rem 1rem', fontWeight: '700', fontSize: '0.85rem', cursor: 'pointer'
+                      }}
+                    >
+                      <Trash2 size={15} /> Terminate Selected ({selectedActiveVendors.length})
+                    </button>
+                  </div>
+                )}
+
+                <div style={{ background: '#ffffff', borderRadius: '24px', border: '1px solid var(--surface-border)', overflow: 'hidden' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                    <thead>
+                      <tr style={{ background: '#f8fafc', borderBottom: '1px solid var(--surface-border)' }}>
+                        <th style={{ width: '48px', padding: '1.25rem 0.5rem 1.25rem 1.25rem' }}>
+                          <input 
+                            type="checkbox" 
+                            checked={selectedActiveVendors.length === activeVendors.length && activeVendors.length > 0} 
+                            onChange={toggleSelectAllActiveVendors} 
+                            style={{ cursor: 'pointer', width: '16px', height: '16px' }} 
+                          />
+                        </th>
+                        <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Vendor Details</th>
+                        <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Associated Store</th>
+                        <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Performance</th>
+                        <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Platform Profit</th>
+                        <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem', textAlign: 'right' }}>Destructive Actions</th>
                       </tr>
-                    ))}
-                    {activeVendors.length === 0 && (
-                      <tr><td colSpan="5" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>No active vendors registered yet.</td></tr>
-                    )}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {activeVendors.map(v => {
+                        const vId = v._id || v.id;
+                        const isChecked = selectedActiveVendors.includes(vId);
+                        return (
+                          <tr key={vId} style={{ borderBottom: '1px solid var(--surface-border)', background: isChecked ? 'rgba(239, 68, 68, 0.03)' : 'transparent' }}>
+                            <td style={{ width: '48px', padding: '1.25rem 0.5rem 1.25rem 1.25rem' }}>
+                              <input 
+                                type="checkbox" 
+                                checked={isChecked} 
+                                onChange={() => toggleSelectActiveVendor(vId)} 
+                                style={{ cursor: 'pointer', width: '16px', height: '16px' }} 
+                              />
+                            </td>
+                            <td style={{ padding: '1.25rem' }}>
+                              <div style={{ fontWeight: '700', fontSize: '1rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                {v.name}
+                                {v.isBanned && <span style={{ fontSize: '0.65rem', padding: '0.1rem 0.4rem', background: '#ef4444', color: 'white', borderRadius: '4px', fontWeight: '900', letterSpacing: '0.05em' }}>SUSPENDED</span>}
+                              </div>
+                              <div style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: '0.25rem' }}>{v.email}</div>
+                              {v.phone && <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', marginTop: '0.2rem' }}>📞 {v.phone}</div>}
+                              {v.upiId && <div style={{ color: '#3b82f6', fontSize: '0.75rem', marginTop: '0.25rem', padding: '0.1rem 0.4rem', background: 'rgba(59, 130, 246, 0.1)', borderRadius: '4px', display: 'inline-block' }}>{v.upiId}</div>}
+                            </td>
+                            <td style={{ padding: '1.25rem' }}>
+                              {v.store ? (
+                                <>
+                                  <div style={{ fontWeight: '600' }}>{v.store.name}</div>
+                                  <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
+                                    <span style={{ fontSize: '0.75rem', background: 'rgba(239, 65, 35, 0.1)', color: 'var(--primary)', padding: '0.1rem 0.4rem', borderRadius: '4px', fontWeight: '700' }}>{v.store.market || 'BH1 Market'}</span>
+                                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{v.store.productCount} Items</span>
+                                    <span style={{ fontSize: '0.75rem', color: v.store.isOpen ? '#10b981' : '#ef4444' }}>• {v.store.isOpen ? 'ONLINE' : 'OFFLINE'}</span>
+                                  </div>
+                                </>
+                              ) : (
+                                <span style={{ color: 'var(--text-secondary)', fontStyle: 'italic', fontSize: '0.875rem' }}>No store created</span>
+                              )}
+                            </td>
+                            <td style={{ padding: '1.25rem' }}>
+                              <div style={{ fontWeight: '800', color: 'var(--secondary)' }}>₹{v.stats?.revenue || 0} generated</div>
+                              <div style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: '0.25rem' }}>Across {v.stats?.orderCount || 0} total orders</div>
+                            </td>
+                            <td style={{ padding: '1.25rem' }}>
+                              <div style={{ fontWeight: '900', color: 'var(--primary)', fontSize: '1.1rem' }}>₹{v.stats?.profitGenerated || 0}</div>
+                              <div style={{ color: '#6366f1', fontSize: '0.7rem', marginTop: '0.25rem', fontWeight: '700' }}>Standard (3% Platform)</div>
+                            </td>
+                            <td style={{ padding: '1.25rem', textAlign: 'right' }}>
+                              <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                                <button 
+                                  onClick={async () => {
+                                    try {
+                                      await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/super-admin/vendor/${vId}/suspend`, {}, { headers: { Authorization: `Bearer ${token}` } });
+                                      fetchDashboardData(true);
+                                    } catch(err) { alert('Action failed'); }
+                                  }}
+                                  style={{ padding: '0.5rem 1rem', background: v.isBanned ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)', color: v.isBanned ? '#10b981' : '#f59e0b', border: `1px solid ${v.isBanned ? 'rgba(16, 185, 129, 0.2)' : 'rgba(245, 158, 11, 0.2)'}`, borderRadius: '8px', cursor: 'pointer', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                                >
+                                  <Ban size={16} /> {v.isBanned ? 'Unban' : 'Suspend'}
+                                </button>
+                                <button 
+                                  onClick={() => deleteVendor(vId, v.name)}
+                                  style={{ padding: '0.5rem 1rem', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.2)', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', transition: 'all 0.2s' }}
+                                  onMouseEnter={(e) => { e.target.style.background = '#ef4444'; e.target.style.color = 'white'; }}
+                                  onMouseLeave={(e) => { e.target.style.background = 'rgba(239, 68, 68, 0.1)'; e.target.style.color = '#ef4444'; }}
+                                >
+                                  <Trash2 size={16} /> Terminate
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                      {activeVendors.length === 0 && (
+                        <tr><td colSpan="6" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>No active vendors registered yet.</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             )}
           </div>
@@ -971,17 +1227,67 @@ const SuperAdminPanel = () => {
                 </div>
               </div>
               
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: '1.5rem' }}>
-                {filteredStores.map(store => (
-                <div key={store._id} style={{ padding: '1.5rem', background: '#ffffff', borderRadius: '24px', border: '1px solid var(--surface-border)', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <div>
-                      <h3 style={{ fontSize: '1.25rem', fontWeight: '800', margin: '0 0 0.5rem 0' }}>{store.name}</h3>
-                      <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        Managed by: <span style={{ color: 'var(--text-primary)' }}>{store.admin?.name || 'Unknown'}</span>
-                      </p>
+              {/* Bulk Selection Bar for Stores */}
+              {filteredStores.length > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc', padding: '0.75rem 1.25rem', borderRadius: '16px', border: '1px solid var(--surface-border)', marginBottom: '1.25rem' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', fontSize: '0.85rem', fontWeight: '700', cursor: 'pointer', color: 'var(--text-primary)' }}>
+                    <input
+                      type="checkbox"
+                      checked={filteredStores.length > 0 && filteredStores.every(s => selectedStores.includes(s._id || s.id))}
+                      onChange={() => toggleSelectAllStores(filteredStores.map(s => s._id || s.id))}
+                      style={{ cursor: 'pointer', width: '16px', height: '16px' }}
+                    />
+                    Select All Visible Stalls ({filteredStores.length})
+                  </label>
+                  {selectedStores.length > 0 && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <span style={{ fontSize: '0.8rem', fontWeight: '800', color: '#b91c1c' }}>
+                        {selectedStores.length} selected
+                      </span>
+                      <button 
+                        type="button" 
+                        onClick={() => setSelectedStores([])} 
+                        style={{ background: 'none', border: 'none', color: '#6b7280', fontSize: '0.75rem', fontWeight: '700', cursor: 'pointer', textDecoration: 'underline' }}
+                      >
+                        Clear Selection
+                      </button>
+                      <button
+                        type="button"
+                        onClick={bulkDeleteStores}
+                        disabled={isDeleting}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: '0.4rem', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '8px', padding: '0.45rem 0.9rem', fontWeight: '700', fontSize: '0.8rem', cursor: 'pointer'
+                        }}
+                      >
+                        <Trash2 size={14} /> Delete Selected Stalls ({selectedStores.length})
+                      </button>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                  )}
+                </div>
+              )}
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: '1.5rem' }}>
+                {filteredStores.map(store => {
+                  const sId = store._id || store.id;
+                  const isChecked = selectedStores.includes(sId);
+                  return (
+                  <div key={sId} style={{ padding: '1.5rem', background: '#ffffff', borderRadius: '24px', border: isChecked ? '2px solid #ef4444' : '1px solid var(--surface-border)', display: 'flex', flexDirection: 'column', gap: '1.25rem', boxShadow: isChecked ? '0 10px 25px -5px rgba(239, 68, 68, 0.1)' : 'none' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+                        <input 
+                          type="checkbox" 
+                          checked={isChecked} 
+                          onChange={() => toggleSelectStore(sId)}
+                          style={{ marginTop: '0.35rem', cursor: 'pointer', width: '16px', height: '16px' }}
+                        />
+                        <div>
+                          <h3 style={{ fontSize: '1.25rem', fontWeight: '800', margin: '0 0 0.5rem 0' }}>{store.name}</h3>
+                          <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
+                            Managed by: <span style={{ color: 'var(--text-primary)' }}>{store.admin?.name || 'Unknown'}</span>
+                          </p>
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                       <button 
                          onClick={async () => {
                            const targetId = store._id || store.id;
@@ -1409,6 +1715,30 @@ const SuperAdminPanel = () => {
                     <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem', textTransform: 'uppercase', fontWeight: '700' }}>Overall Stall Revenue</p>
                     <p style={{ fontSize: '1.5rem', fontWeight: '900', color: 'var(--text-primary)', margin: 0 }}>₹{store.totalRevenue}</p>
                   </div>
+
+                  <button
+                    type="button"
+                    onClick={() => deleteStore(store._id || store.id, store.name)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.5rem',
+                      padding: '0.65rem',
+                      background: 'rgba(239, 68, 68, 0.08)',
+                      color: '#ef4444',
+                      border: '1px solid rgba(239, 68, 68, 0.25)',
+                      borderRadius: '12px',
+                      fontWeight: '700',
+                      fontSize: '0.8rem',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s'
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = '#ef4444'; e.currentTarget.style.color = '#fff'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(239, 68, 68, 0.08)'; e.currentTarget.style.color = '#ef4444'; }}
+                  >
+                    <Trash2 size={15} /> Delete Stall & Data
+                  </button>
                 </div>
               ))}
               {filteredStores.length === 0 && (
@@ -1513,14 +1843,63 @@ const SuperAdminPanel = () => {
               </div>
             )}
 
+            {/* Bulk Selection Bar for Locations */}
+            {locations.length > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc', padding: '0.75rem 1.25rem', borderRadius: '16px', border: '1px solid var(--surface-border)', marginBottom: '1.5rem' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', fontSize: '0.85rem', fontWeight: '700', cursor: 'pointer', color: 'var(--text-primary)' }}>
+                  <input
+                    type="checkbox"
+                    checked={locations.length > 0 && selectedLocations.length === locations.length}
+                    onChange={toggleSelectAllLocations}
+                    style={{ cursor: 'pointer', width: '16px', height: '16px' }}
+                  />
+                  Select All Locations ({locations.length})
+                </label>
+                {selectedLocations.length > 0 && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <span style={{ fontSize: '0.8rem', fontWeight: '800', color: '#b91c1c' }}>
+                      {selectedLocations.length} selected
+                    </span>
+                    <button 
+                      type="button" 
+                      onClick={() => setSelectedLocations([])} 
+                      style={{ background: 'none', border: 'none', color: '#6b7280', fontSize: '0.75rem', fontWeight: '700', cursor: 'pointer', textDecoration: 'underline' }}
+                    >
+                      Clear Selection
+                    </button>
+                    <button
+                      type="button"
+                      onClick={bulkDeleteLocations}
+                      disabled={isDeleting}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: '0.4rem', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '8px', padding: '0.45rem 0.9rem', fontWeight: '700', fontSize: '0.8rem', cursor: 'pointer'
+                      }}
+                    >
+                      <Trash2 size={14} /> Delete Selected Locations ({selectedLocations.length})
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem' }}>
               {locations.map(loc => {
-                const storeCount = stores.filter(s => s.locationId === loc._id).length;
+                const lId = loc._id || loc.id;
+                const isChecked = selectedLocations.includes(lId);
+                const storeCount = stores.filter(s => s.locationId === lId).length;
                 return (
-                  <div key={loc._id} style={{ padding: '1.5rem', background: '#ffffff', borderRadius: '24px', border: '1px solid var(--surface-border)' }}>
+                  <div key={lId} style={{ padding: '1.5rem', background: '#ffffff', borderRadius: '24px', border: isChecked ? '2px solid #ef4444' : '1px solid var(--surface-border)', boxShadow: isChecked ? '0 10px 25px -5px rgba(239, 68, 68, 0.1)' : 'none' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
-                      <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: loc.type === 'College' ? 'rgba(99, 102, 241, 0.1)' : 'rgba(56, 189, 248, 0.1)', color: loc.type === 'College' ? 'var(--primary)' : '#0ea5e9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        {loc.type === 'College' ? <GraduationCap size={20} /> : <Building2 size={20} />}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <input 
+                          type="checkbox" 
+                          checked={isChecked} 
+                          onChange={() => toggleSelectLocation(lId)}
+                          style={{ cursor: 'pointer', width: '16px', height: '16px' }}
+                        />
+                        <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: loc.type === 'College' ? 'rgba(99, 102, 241, 0.1)' : 'rgba(56, 189, 248, 0.1)', color: loc.type === 'College' ? 'var(--primary)' : '#0ea5e9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          {loc.type === 'College' ? <GraduationCap size={20} /> : <Building2 size={20} />}
+                        </div>
                       </div>
                       <div style={{ display: 'flex', gap: '0.5rem' }}>
                         <button 

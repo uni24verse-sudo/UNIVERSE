@@ -500,4 +500,61 @@ router.get('/export', async (req, res) => {
   }
 });
 
+/**
+ * 7. DELETE SINGLE CONTACT
+ */
+router.delete('/contact/:id', async (req, res) => {
+  try {
+    await ensureMasterContactsTable();
+    const { id } = req.params;
+
+    const result = await prisma.$executeRawUnsafe(
+      `DELETE FROM mastercontacts WHERE id = $1 OR phone = $1`,
+      id
+    );
+
+    if (result === 0) {
+      return res.status(404).json({ message: 'Contact not found' });
+    }
+
+    res.json({ success: true, message: 'Contact removed successfully from Master Data.' });
+  } catch (err) {
+    console.error('[MasterData] Delete error:', err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+/**
+ * 8. BULK DELETE CONTACTS
+ */
+router.post('/bulk-delete', async (req, res) => {
+  try {
+    await ensureMasterContactsTable();
+    const { ids } = req.body;
+
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ message: 'No contact IDs provided for bulk deletion' });
+    }
+
+    let deletedCount = 0;
+    for (const id of ids) {
+      const res = await prisma.$executeRawUnsafe(
+        `DELETE FROM mastercontacts WHERE id = $1 OR phone = $1`,
+        id
+      ).catch(() => 0);
+      deletedCount += (res || 0);
+    }
+
+    res.json({
+      success: true,
+      message: `Successfully removed ${deletedCount} contacts from Master Data.`,
+      count: deletedCount
+    });
+  } catch (err) {
+    console.error('[MasterData] Bulk delete error:', err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
 module.exports = router;
+
