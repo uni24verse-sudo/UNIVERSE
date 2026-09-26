@@ -455,7 +455,7 @@ const OrderTrackerScreen = ({ route, navigation }) => {
                     width:
                       currentStepIndex <= 0
                         ? '0%'
-                        : `${Math.min(100, (currentStepIndex / 4) * 100)}%`,
+                        : `${Math.min(80, (currentStepIndex / 4) * 80)}%`,
                   },
                 ]}
               />
@@ -475,20 +475,21 @@ const OrderTrackerScreen = ({ route, navigation }) => {
                         ]}
                       >
                         {isCompleted ? (
-                          <Ionicons name="checkmark" size={20} color="#FFFFFF" />
+                          <Ionicons name="checkmark" size={17} color="#FFFFFF" />
                         ) : idx === 0 ? (
-                          <Feather name="clock" size={16} color={isActive ? '#FFFFFF' : '#94A3B8'} />
+                          <Feather name="clock" size={14} color={isActive ? '#FFFFFF' : '#94A3B8'} />
                         ) : idx === 1 ? (
-                          <Ionicons name="receipt-outline" size={16} color={isActive ? '#FFFFFF' : '#94A3B8'} />
+                          <Ionicons name="receipt-outline" size={14} color={isActive ? '#FFFFFF' : '#94A3B8'} />
                         ) : idx === 2 ? (
-                          <MaterialCommunityIcons name="chef-hat" size={17} color={isActive ? '#FFFFFF' : '#94A3B8'} />
+                          <MaterialCommunityIcons name="chef-hat" size={16} color={isActive ? '#FFFFFF' : '#94A3B8'} />
                         ) : idx === 3 ? (
-                          <Feather name="package" size={16} color={isActive ? '#FFFFFF' : '#94A3B8'} />
+                          <Feather name="package" size={14} color={isActive ? '#FFFFFF' : '#94A3B8'} />
                         ) : (
-                          <Ionicons name="checkmark-circle-outline" size={18} color={isActive ? '#FFFFFF' : '#94A3B8'} />
+                          <Ionicons name="checkmark-circle-outline" size={16} color={isActive ? '#FFFFFF' : '#94A3B8'} />
                         )}
                       </View>
                       <Text
+                        numberOfLines={1}
                         style={[
                           styles.stepNodeLabel,
                           isActive && styles.stepNodeLabelActive,
@@ -1139,17 +1140,17 @@ const styles = StyleSheet.create({
   },
   timelineTrackBackground: {
     position: 'absolute',
-    top: 21,
-    left: '12.5%',
-    right: '12.5%',
+    top: 17,
+    left: '10%',
+    right: '10%',
     height: 3,
     backgroundColor: '#E2E8F0',
     zIndex: 1,
   },
   timelineTrackActive: {
     position: 'absolute',
-    top: 21,
-    left: '12.5%',
+    top: 17,
+    left: '10%',
     height: 3,
     backgroundColor: THEME.colors.primary,
     zIndex: 2,
@@ -1161,12 +1162,12 @@ const styles = StyleSheet.create({
   },
   stepNodeCol: {
     alignItems: 'center',
-    width: '25%',
+    width: '20%',
   },
   stepNodeCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: '#FFFFFF',
     borderWidth: 2,
     borderColor: '#E2E8F0',
@@ -1191,7 +1192,7 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   stepNodeLabel: {
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: '700',
     color: '#94A3B8',
     textAlign: 'center',
