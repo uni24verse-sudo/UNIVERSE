@@ -723,52 +723,7 @@ export default function MenuScreen({ navigation }) {
               </View>
             )}
 
-            {/* Quick Offers & Deals Banner */}
-            {!isEmployee && (
-              <TouchableOpacity
-                style={{
-                  backgroundColor: '#0F172A',
-                  borderRadius: 16,
-                  padding: 12,
-                  marginBottom: 12,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  borderWidth: 1,
-                  borderColor: 'rgba(239, 65, 35, 0.3)',
-                  shadowColor: '#000',
-                  shadowOffset: { width: 0, height: 2 },
-                  shadowOpacity: 0.1,
-                  shadowRadius: 4,
-                  elevation: 2
-                }}
-                onPress={() => navigation.navigate('Offers')}
-                activeOpacity={0.85}
-              >
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
-                  <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(239, 65, 35, 0.15)', alignItems: 'center', justifyContent: 'center' }}>
-                    <Ionicons name="flash" size={18} color="#EF4123" />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                      <Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: '800' }}>Store Offers & Deals</Text>
-                      <View style={{ backgroundColor: 'rgba(16, 185, 129, 0.2)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
-                        <Text style={{ color: '#10B981', fontSize: 9, fontWeight: '900' }}>
-                          {(store.offers || []).filter(o => o.isActive !== false).length} ACTIVE
-                        </Text>
-                      </View>
-                    </View>
-                    <Text style={{ color: '#94A3B8', fontSize: 11, marginTop: 1 }} numberOfLines={1}>
-                      Run % discounts or flat ₹50 deals on drinks & chaap
-                    </Text>
-                  </View>
-                </View>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
-                  <Text style={{ color: '#EF4123', fontSize: 12, fontWeight: '800' }}>Manage</Text>
-                  <Ionicons name="chevron-forward" size={15} color="#EF4123" />
-                </View>
-              </TouchableOpacity>
-            )}
+
 
             {/* Quick Search Bar */}
             <View style={styles.searchContainer}>
