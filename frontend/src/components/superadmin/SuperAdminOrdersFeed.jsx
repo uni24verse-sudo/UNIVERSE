@@ -560,7 +560,21 @@ const SuperAdminOrdersFeed = ({ token, socket, stores = [], locations = [] }) =>
     <div>
       {/* Top Header & Overview KPI Cards */}
       <div style={{ marginBottom: '2rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.5rem' }}>
+        <div style={{ 
+          position: 'sticky', 
+          top: 0, 
+          zIndex: 20, 
+          background: '#f8fafc', 
+          paddingTop: '0.25rem', 
+          paddingBottom: '1.25rem', 
+          marginBottom: '1.5rem', 
+          borderBottom: '1px solid #e2e8f0', 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center', 
+          flexWrap: 'wrap', 
+          gap: '1rem' 
+        }}>
           <div>
             <h1 style={{ fontSize: '2rem', fontWeight: '900', margin: '0 0 0.25rem 0', letterSpacing: '-0.02em', color: '#0f172a' }}>
               Global Orders Control Feed

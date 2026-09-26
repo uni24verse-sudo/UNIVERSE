@@ -37,23 +37,23 @@ const SuperAdminLogin = () => {
   };
 
   return (
-    <div className="auth-wrapper" style={{ background: 'var(--background)', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div className="glass-card auth-container" style={{ border: '1px solid rgba(99, 102, 241, 0.2)', boxShadow: '0 0 50px rgba(99, 102, 241, 0.1)' }}>
+    <div className="auth-wrapper" style={{ background: 'var(--background)', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+      <div className="glass-card auth-container" style={{ maxWidth: '350px', width: '100%', padding: '1.75rem 1.5rem', borderRadius: '16px', border: '1px solid rgba(99, 102, 241, 0.2)', boxShadow: '0 8px 32px rgba(15, 23, 42, 0.08)' }}>
         
         {/* Brand Header */}
-        <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
-          <div style={{ width: '80px', height: '80px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem' }}>
+        <div style={{ textAlign: 'center', marginBottom: '1.25rem' }}>
+          <div style={{ width: '42px', height: '42px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 0.5rem' }}>
             <img src="/helmet-guy.png" alt="UNIVERSE Symbol" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
           </div>
-          <h1 style={{ fontSize: '2rem', fontWeight: '900', letterSpacing: '-0.02em', marginBottom: '0.5rem', color: 'var(--text-primary)' }}>Command Center</h1>
-          <p style={{ color: 'var(--text-secondary)' }}>Restricted Super Admin Access</p>
+          <h1 style={{ fontSize: '1.15rem', fontWeight: '800', letterSpacing: '-0.02em', margin: '0 0 0.2rem 0', color: 'var(--text-primary)' }}>Command Center</h1>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', margin: 0 }}>Restricted Super Admin Access</p>
         </div>
 
-        {error && <div className="error-message" style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', color: '#ef4444' }}>{error}</div>}
+        {error && <div className="error-message" style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', color: '#ef4444', padding: '0.45rem 0.65rem', borderRadius: '8px', fontSize: '0.75rem', marginBottom: '0.85rem' }}>{error}</div>}
 
         <form onSubmit={handleSubmit}>
-          <div className="input-group" style={{ marginBottom: '1.5rem', textAlign: 'left' }}>
-            <label style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: '600', marginBottom: '0.5rem', display: 'block' }}>Admin ID</label>
+          <div className="input-group" style={{ marginBottom: '0.85rem', textAlign: 'left' }}>
+            <label style={{ color: 'var(--text-secondary)', fontSize: '0.72rem', fontWeight: '700', marginBottom: '0.3rem', display: 'block', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Admin ID</label>
             <input 
               type="email" 
               placeholder="superadmin@universe.com"
@@ -62,20 +62,23 @@ const SuperAdminLogin = () => {
               required
               style={{ 
                 width: '100%',
-                padding: '1rem',
+                height: '38px',
+                padding: '0.4rem 0.75rem',
                 background: '#f8fafc', 
                 border: '1px solid var(--surface-border)',
-                borderRadius: '12px',
+                borderRadius: '8px',
                 color: 'var(--text-primary)',
-                fontSize: '1rem'
+                fontSize: '0.82rem',
+                outline: 'none',
+                boxSizing: 'border-box'
               }}
             />
           </div>
 
-          <div className="input-group" style={{ marginBottom: '2.5rem', textAlign: 'left' }}>
-            <label style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: '600', marginBottom: '0.5rem', display: 'block' }}>Security Key</label>
+          <div className="input-group" style={{ marginBottom: '1.2rem', textAlign: 'left' }}>
+            <label style={{ color: 'var(--text-secondary)', fontSize: '0.72rem', fontWeight: '700', marginBottom: '0.3rem', display: 'block', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Security Key</label>
             <div className="password-input" style={{ position: 'relative' }}>
-              <Lock size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
+              <Lock size={14} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
               <input 
                 type="password" 
                 placeholder="••••••••"
@@ -84,24 +87,27 @@ const SuperAdminLogin = () => {
                 required
                 style={{ 
                   width: '100%',
-                  padding: '1rem 1rem 1rem 3rem',
+                  height: '38px',
+                  padding: '0.4rem 0.75rem 0.4rem 2.2rem',
                   background: '#f8fafc', 
                   border: '1px solid var(--surface-border)',
-                  borderRadius: '12px',
+                  borderRadius: '8px',
                   color: 'var(--text-primary)',
-                  fontSize: '1rem'
+                  fontSize: '0.82rem',
+                  outline: 'none',
+                  boxSizing: 'border-box'
                 }}
               />
             </div>
           </div>
 
-          <button type="submit" className="btn btn-primary" disabled={isLoading} style={{ height: '60px', fontSize: '1.2rem', gap: '0.5rem' }}>
-            {isLoading ? <Loader2 className="spin" /> : <>Access Panel <ChevronRight /></>}
+          <button type="submit" className="btn btn-primary" disabled={isLoading} style={{ width: '100%', height: '38px', fontSize: '0.82rem', fontWeight: '700', borderRadius: '8px', gap: '0.35rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            {isLoading ? <Loader2 size={15} className="spin" /> : <>Access Panel <ChevronRight size={15} /></>}
           </button>
         </form>
         
-        <div style={{ textAlign: 'center', marginTop: '2rem' }}>
-          <Link to="/" style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontSize: '0.875rem' }}>&larr; Back to App</Link>
+        <div style={{ textAlign: 'center', marginTop: '1rem' }}>
+          <Link to="/" style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontSize: '0.75rem', fontWeight: '600' }}>&larr; Back to App</Link>
         </div>
       </div>
       

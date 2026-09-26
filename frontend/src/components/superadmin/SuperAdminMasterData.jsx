@@ -352,7 +352,21 @@ const SuperAdminMasterData = ({ token }) => {
   return (
     <div>
       {/* Header */}
-      <header style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
+      <header style={{ 
+        position: 'sticky', 
+        top: 0, 
+        zIndex: 20, 
+        background: '#f8fafc', 
+        paddingTop: '0.25rem', 
+        paddingBottom: '1.25rem', 
+        marginBottom: '1.5rem', 
+        borderBottom: '1px solid #e2e8f0', 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'flex-start', 
+        flexWrap: 'wrap', 
+        gap: '1rem' 
+      }}>
         <div>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'rgba(99, 102, 241, 0.08)', color: '#6366f1', padding: '4px 12px', borderRadius: '100px', fontSize: '0.78rem', fontWeight: '800', marginBottom: '0.5rem' }}>
             <ShieldCheck size={14} /> SuperAdmin Exclusive • De-Duplicated Single Source of Truth
