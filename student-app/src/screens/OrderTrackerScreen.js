@@ -189,23 +189,41 @@ const OrderTrackerScreen = ({ route, navigation }) => {
     Alert.alert('UTR Copied', `Bank reference ${utr} copied to clipboard.`);
   };
 
-  const handleCallStall = () => {
-    const phone = order?.storeId?.phone || order?.store?.phone;
-    if (phone) {
-      Linking.openURL(`tel:${phone}`);
-    } else {
-      Alert.alert('Contact Stall', 'Stall counter is preparing your order. Please visit the counter for pickup.');
+  const handleWhatsAppSupport = () => {
+    const orderNum = order?.orderNumber || (order?._id || id).slice(-6);
+    const storeName = order?.storeId?.name || order?.store?.name || 'Counter';
+    const status = currentStatus || 'Pending';
+    const total = order?.totalAmount || 0;
+    const itemsList = (order?.items || [])
+      .map(i => `• ${i.quantity || 1}x ${i.name || i.title || 'Item'} (₹${(i.price || 0) * (i.quantity || 1)})`)
+      .join('\n');
+
+    let text = `Hi UniVerse Support, I need help with my Order #${orderNum}.\n\n` +
+      `📋 *Order Details:*\n` +
+      `• *Store / Stall:* ${storeName}\n` +
+      `• *Status:* ${status}\n` +
+      `• *Total Paid:* ₹${total}\n`;
+
+    if (itemsList) {
+      text += `\n🛒 *Items:*\n${itemsList}\n`;
     }
+
+    text += `\nPlease assist me with this order.`;
+
+    const cleanNumber = '918295886832';
+    Linking.openURL(`https://wa.me/${cleanNumber}?text=${encodeURIComponent(text)}`);
   };
 
   const handleWhatsAppStall = () => {
     const phone = order?.storeId?.phone || order?.store?.phone;
     if (phone) {
       const cleanPhone = phone.replace(/\D/g, '');
-      const text = `Hi, I ordered Order #${order.orderNumber || (order._id || id).slice(-6)} on UniVerse. Checking on pickup status.`;
+      const orderNum = order.orderNumber || (order._id || id).slice(-6);
+      const text = `Hi, I placed Order #${orderNum} on UniVerse. Checking on pickup status.`;
       Linking.openURL(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}`);
     } else {
-      Alert.alert('WhatsApp Support', 'WhatsApp chat is not configured for this stall.');
+      // Route to UniVerse Support directly if stall number not provided
+      handleWhatsAppSupport();
     }
   };
 
@@ -325,6 +343,15 @@ const OrderTrackerScreen = ({ route, navigation }) => {
         <Text style={styles.headerTitle}>Track Order</Text>
 
         <View style={styles.headerRightGroup}>
+          <TouchableOpacity
+            onPress={handleWhatsAppSupport}
+            style={[styles.headerBtn, { backgroundColor: 'rgba(37, 211, 102, 0.12)', borderColor: 'rgba(37, 211, 102, 0.35)' }]}
+            activeOpacity={0.8}
+            accessibilityLabel="Contact Support on WhatsApp"
+          >
+            <Ionicons name="headset-outline" size={18} color="#059669" />
+          </TouchableOpacity>
+
           <TouchableOpacity
             onPress={() => shareOrder(order)}
             style={styles.headerBtn}
@@ -586,16 +613,16 @@ const OrderTrackerScreen = ({ route, navigation }) => {
             </View>
           </View>
 
-          {/* Direct Stall Actions (Call / WhatsApp) */}
+          {/* Direct Actions: WhatsApp Stall & WhatsApp Support */}
           <View style={styles.stallContactRow}>
-            <TouchableOpacity style={styles.contactBtn} onPress={handleCallStall} activeOpacity={0.8}>
-              <Feather name="phone-call" size={15} color={THEME.colors.textPrimary} />
-              <Text style={styles.contactBtnText}>Call Stall</Text>
+            <TouchableOpacity style={styles.whatsappStallBtn} onPress={handleWhatsAppStall} activeOpacity={0.8}>
+              <Ionicons name="logo-whatsapp" size={16} color="#059669" />
+              <Text style={styles.whatsappStallBtnText}>WhatsApp Stall</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.whatsappBtn} onPress={handleWhatsAppStall} activeOpacity={0.8}>
-              <Ionicons name="logo-whatsapp" size={17} color="#FFFFFF" />
-              <Text style={styles.whatsappBtnText}>WhatsApp</Text>
+            <TouchableOpacity style={styles.whatsappBtn} onPress={handleWhatsAppSupport} activeOpacity={0.8}>
+              <Ionicons name="logo-whatsapp" size={16} color="#FFFFFF" />
+              <Text style={styles.whatsappBtnText}>WhatsApp Support</Text>
             </TouchableOpacity>
           </View>
 
@@ -1339,22 +1366,22 @@ const styles = StyleSheet.create({
     width: '100%',
     marginVertical: 8,
   },
-  contactBtn: {
+  whatsappStallBtn: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1.5,
+    borderColor: '#A7F3D0',
     paddingVertical: 11,
     borderRadius: 14,
     gap: 6,
   },
-  contactBtnText: {
+  whatsappStallBtnText: {
     fontSize: 13,
-    fontWeight: '700',
-    color: THEME.colors.textPrimary,
+    fontWeight: '800',
+    color: '#059669',
   },
   whatsappBtn: {
     flex: 1,

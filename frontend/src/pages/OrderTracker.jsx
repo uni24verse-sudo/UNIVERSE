@@ -272,6 +272,31 @@ const OrderTracker = () => {
   const isRefunded = order.refundStatus === 'Refunded' || order.refundStatus === 'Processed';
   const isRequested = order.refundStatus === 'Requested';
 
+  const handleWhatsAppSupport = () => {
+    const orderNum = order?.orderNumber || (order?._id || id).slice(-6);
+    const storeName = order?.store?.name || 'Counter';
+    const status = order?.status || 'Pending';
+    const total = order?.totalAmount || 0;
+    const itemsList = (order?.items || [])
+      .map(i => `• ${i.quantity || 1}x ${i.name || 'Item'} (₹${(i.price || 0) * (i.quantity || 1)})`)
+      .join('\n');
+
+    let text = `Hi UniVerse Support, I need help with my Order #${orderNum}.\n\n` +
+      `📋 *Order Details:*\n` +
+      `• *Store / Stall:* ${storeName}\n` +
+      `• *Status:* ${status}\n` +
+      `• *Total Paid:* ₹${total}\n`;
+
+    if (itemsList) {
+      text += `\n🛒 *Items:*\n${itemsList}\n`;
+    }
+
+    text += `\nPlease assist me with this order.`;
+
+    const cleanNumber = '918295886832';
+    window.open(`https://wa.me/${cleanNumber}?text=${encodeURIComponent(text)}`, '_blank');
+  };
+
   return (
     <div style={{ minHeight: '100vh', padding: '2rem 1rem', maxWidth: '600px', margin: '0 auto' }}>
 
@@ -536,11 +561,33 @@ const OrderTracker = () => {
         </div>
       )}
 
-      <header style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '2.5rem' }}>
-        <button onClick={() => navigate('/')} style={{ background: '#ffffff', border: '1px solid var(--surface-border)', color: 'var(--text-primary)', padding: '0.6rem', borderRadius: '12px', cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
-           <ArrowLeft size={20} />
+      <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <button onClick={() => navigate('/')} style={{ background: '#ffffff', border: '1px solid var(--surface-border)', color: 'var(--text-primary)', padding: '0.6rem', borderRadius: '12px', cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
+             <ArrowLeft size={20} />
+          </button>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: '800', margin: 0, color: 'var(--text-primary)' }}>Track Order</h1>
+        </div>
+        <button
+          onClick={handleWhatsAppSupport}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.45rem',
+            padding: '0.5rem 0.9rem',
+            borderRadius: '12px',
+            background: 'rgba(37, 211, 102, 0.1)',
+            color: '#059669',
+            border: '1.5px solid rgba(37, 211, 102, 0.3)',
+            cursor: 'pointer',
+            fontWeight: '700',
+            fontSize: '0.85rem'
+          }}
+          title="Contact Support on WhatsApp"
+        >
+          <MessageCircle size={17} color="#25D366" />
+          <span>Support</span>
         </button>
-        <h1 style={{ fontSize: '1.5rem', fontWeight: '800', margin: 0, color: 'var(--text-primary)' }}>Track Order</h1>
       </header>
 
       <div className="glass-card" style={{ padding: '2rem', borderRadius: '28px', textAlign: 'center', marginBottom: '2rem' }}>
@@ -783,8 +830,56 @@ const OrderTracker = () => {
            </div>
         </div>
 
-        <button onClick={() => navigate('/')} className="btn btn-secondary" style={{ height: '60px', borderRadius: '16px', width: '100%' }}>
-           <Home size={20} /> Return to Home
+        <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '0.75rem' }}>
+          {order.store?.phone ? (
+            <a
+              href={`https://wa.me/${order.store.phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Hi, I placed Order #${order.orderNumber} on UniVerse. Checking on pickup status.`)}`}
+              target="_blank"
+              rel="noreferrer"
+              style={{
+                flex: 1,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.5rem',
+                height: '48px',
+                borderRadius: '14px',
+                background: '#ecfdf5',
+                border: '1.5px solid #a7f3d0',
+                color: '#059669',
+                fontWeight: '800',
+                fontSize: '0.85rem',
+                textDecoration: 'none'
+              }}
+            >
+              <MessageCircle size={18} color="#059669" /> WhatsApp Stall
+            </a>
+          ) : null}
+
+          <button
+            onClick={handleWhatsAppSupport}
+            style={{
+              flex: 1,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '0.5rem',
+              height: '48px',
+              borderRadius: '14px',
+              background: '#25D366',
+              border: 'none',
+              color: '#ffffff',
+              fontWeight: '800',
+              fontSize: '0.85rem',
+              cursor: 'pointer'
+            }}
+          >
+            <MessageCircle size={18} color="#ffffff" /> WhatsApp Support
+          </button>
+        </div>
+
+        <button onClick={() => navigate('/')} className="btn btn-secondary" style={{ height: '52px', borderRadius: '14px', width: '100%' }}>
+           <Home size={18} /> Return to Home
         </button>
       </div>
     </div>
