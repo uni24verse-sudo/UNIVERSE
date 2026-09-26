@@ -1467,7 +1467,7 @@ export default function LiveOrdersScreen({ navigation }) {
               data={historyOrders}
               keyExtractor={(item) => item._id}
               renderItem={renderItem}
-              contentContainerStyle={styles.list}
+              contentContainerStyle={[styles.list, { paddingTop: 0 }]}
               refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => fetchOrders(true)} colors={['#3B82F6']} />}
               ListEmptyComponent={<EmptyQueueState type="History" />}
             />
@@ -1752,11 +1752,10 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: 16,
     paddingTop: 8,
-    paddingBottom: 10,
+    paddingBottom: 8,
     backgroundColor: '#0F172A',
     borderBottomWidth: 1,
     borderBottomColor: '#1E293B',
-    marginBottom: 8,
   },
   headerRow: {
     flexDirection: 'row',
@@ -1967,7 +1966,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#334155',
     height: 38,
-    marginBottom: 2,
+    marginBottom: 0,
   },
   searchIcon: {
     marginRight: 6,
@@ -1987,8 +1986,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    marginHorizontal: 20,
-    marginBottom: 14,
+    marginHorizontal: 16,
+    marginTop: 12,
+    marginBottom: 12,
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 14,
@@ -2020,8 +2020,8 @@ const styles = StyleSheet.create({
     color: '#EF4123',
   },
   list: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
+    paddingHorizontal: 16,
+    paddingTop: 12,
     paddingBottom: 110,
   },
   card: {
