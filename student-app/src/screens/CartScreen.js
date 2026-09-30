@@ -104,6 +104,65 @@ const CartScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(false);
   const [isKnownCustomer, setIsKnownCustomer] = useState(false);
 
+  const scrollViewRef = useRef(null);
+  const addressInputRef = useRef(null);
+  const nameInputRef = useRef(null);
+  const phoneInputRef = useRef(null);
+
+  const [addressCardY, setAddressCardY] = useState(0);
+  const [detailsCardY, setDetailsCardY] = useState(0);
+
+  const [addressError, setAddressError] = useState(false);
+  const [nameError, setNameError] = useState(false);
+  const [phoneError, setPhoneError] = useState(false);
+  const [detectingLocation, setDetectingLocation] = useState(false);
+
+  const CAMPUS_PRESETS = ['BH-1', 'BH-2', 'BH-3', 'GH-1', 'GH-2', 'Block 34', 'Block 38', 'Library'];
+
+  const handleDetectLocation = () => {
+    if (typeof navigator !== 'undefined' && navigator.geolocation) {
+      setDetectingLocation(true);
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          try {
+            const { latitude, longitude } = position.coords;
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 4000);
+            const res = await fetch(
+              `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`,
+              {
+                headers: { 'User-Agent': 'UniVerse-App/1.0' },
+                signal: controller.signal,
+              }
+            );
+            clearTimeout(timeoutId);
+            const data = await res.json();
+            const road = data.address?.road || data.address?.building || data.address?.amenity || '';
+            const sub = data.address?.suburb || data.address?.neighbourhood || data.address?.university || '';
+            let detected = [road, sub].filter(Boolean).join(', ');
+            if (!detected || detected.length < 3) {
+              detected = data.display_name?.split(',').slice(0, 3).join(', ') || 'Campus Area';
+            }
+            setDeliveryAddress(prev => prev ? `${prev} (${detected})` : `${detected}`);
+            setAddressError(false);
+          } catch (e) {
+            setDeliveryAddress(prev => prev || 'Campus Location (Academic Block)');
+            setAddressError(false);
+          } finally {
+            setDetectingLocation(false);
+          }
+        },
+        (err) => {
+          setDetectingLocation(false);
+          Alert.alert('GPS Location', 'Could not detect your exact GPS coordinates. Please select a quick campus chip or type your room number.');
+        },
+        { enableHighAccuracy: true, timeout: 6000 }
+      );
+    } else {
+      Alert.alert('GPS Not Available', 'Please select a quick campus chip or type your room number.');
+    }
+  };
+
   useEffect(() => {
     AsyncStorage.getItem('universe_delivery_address')
       .then(saved => {
@@ -298,18 +357,12 @@ const CartScreen = ({ navigation }) => {
       Alert.alert('Stall Closed', 'This stall is currently closed and not accepting orders.');
       return;
     }
-    const cleanPhone = customerPhone.replace(/\D/g, '');
-    if (cleanPhone.length < 10) {
-      Alert.alert('Mobile Number Required', 'Please enter a valid 10-digit mobile number for order pickup notifications.');
-      return;
-    }
-    if (!customerName.trim()) {
-      Alert.alert('Name Required', 'Please enter your name for counter pickup verification.');
-      return;
-    }
     if (orderType === 'delivery') {
       if (!deliveryAddress.trim()) {
-        Alert.alert('Delivery Address Required', 'Please enter your room, hostel block, or PG address.');
+        setAddressError(true);
+        scrollViewRef.current?.scrollTo({ y: Math.max(0, addressCardY - 20), animated: true });
+        setTimeout(() => addressInputRef.current?.focus(), 250);
+        Alert.alert('Delivery Address Required', 'Please enter your room number or hostel address.');
         return;
       }
       const minOrderVal = Number(store?.minDeliveryOrderValue) || 0;
@@ -317,6 +370,23 @@ const CartScreen = ({ navigation }) => {
         Alert.alert('Minimum Order Required', `This stall requires a minimum order of ₹${minOrderVal} for delivery.`);
         return;
       }
+    }
+
+    if (!customerName.trim()) {
+      setNameError(true);
+      scrollViewRef.current?.scrollTo({ y: Math.max(0, detailsCardY - 20), animated: true });
+      setTimeout(() => nameInputRef.current?.focus(), 250);
+      Alert.alert('Name Required', 'Please enter your name for order verification.');
+      return;
+    }
+
+    const cleanPhone = customerPhone.replace(/\D/g, '');
+    if (cleanPhone.length < 10) {
+      setPhoneError(true);
+      scrollViewRef.current?.scrollTo({ y: Math.max(0, detailsCardY - 20), animated: true });
+      setTimeout(() => phoneInputRef.current?.focus(), 250);
+      Alert.alert('Mobile Number Required', 'Please enter a valid 10-digit mobile number for order pickup notifications.');
+      return;
     }
 
     setLoading(true);
@@ -502,7 +572,7 @@ const CartScreen = ({ navigation }) => {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={{ flex: 1 }}
       >
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+        <ScrollView ref={scrollViewRef} showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
           {/* Store Info Banner */}
           <View style={styles.card}>
             <View style={styles.storeHeaderRow}>
@@ -588,26 +658,89 @@ const CartScreen = ({ navigation }) => {
 
           {/* Delivery Address Field */}
           {orderType === 'delivery' && (
-            <View style={styles.addressCard}>
+            <View
+              onLayout={(e) => setAddressCardY(e.nativeEvent.layout.y)}
+              style={[
+                styles.addressCard,
+                addressError && { borderColor: '#EF4444', borderWidth: 1.5, backgroundColor: '#FEF2F2' }
+              ]}
+            >
               <View style={styles.addressHeaderRow}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Ionicons name="location-outline" size={17} color={THEME.colors.primary} />
-                  <Text style={styles.addressCardTitle}>Delivery Drop-off Address</Text>
+                  <Ionicons name="location-outline" size={17} color={addressError ? '#EF4444' : THEME.colors.primary} />
+                  <Text style={[styles.addressCardTitle, addressError && { color: '#B91C1C' }]}>
+                    Delivery Drop-off Address
+                  </Text>
                 </View>
-                <View style={styles.requiredBadge}>
-                  <Text style={styles.requiredBadgeText}>REQUIRED</Text>
-                </View>
+
+                <TouchableOpacity
+                  onPress={handleDetectLocation}
+                  disabled={detectingLocation}
+                  style={styles.autoDetectBtn}
+                  activeOpacity={0.75}
+                >
+                  {detectingLocation ? (
+                    <ActivityIndicator size="small" color={THEME.colors.primary} />
+                  ) : (
+                    <>
+                      <Ionicons name="navigate-outline" size={13} color={THEME.colors.primary} />
+                      <Text style={styles.autoDetectBtnText}>Auto-detect GPS</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+
+              {/* Quick Campus Hostel / Landmark Preset Chips */}
+              <View style={styles.presetChipsRow}>
+                <Text style={styles.presetChipsLabel}>Quick select:</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
+                  {CAMPUS_PRESETS.map((preset) => (
+                    <TouchableOpacity
+                      key={preset}
+                      style={[
+                        styles.presetChip,
+                        deliveryAddress.includes(preset) && styles.presetChipActive
+                      ]}
+                      onPress={() => {
+                        setDeliveryAddress(prev => {
+                          if (!prev) return `${preset}, Room `;
+                          const cleaned = prev.replace(/^(BH-\d|GH-\d|Block \d+|Library|Main Gate),?\s*/i, '');
+                          return `${preset}, ${cleaned || 'Room '}`;
+                        });
+                        setAddressError(false);
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={[styles.presetChipText, deliveryAddress.includes(preset) && styles.presetChipTextActive]}>
+                        {preset}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
               </View>
 
               <TextInput
-                style={styles.addressInputField}
+                ref={addressInputRef}
+                style={[
+                  styles.addressInputField,
+                  addressError && { borderColor: '#EF4444', backgroundColor: '#FFFFFF' }
+                ]}
                 placeholder="Enter complete address (e.g. Hostel BH-1, Room 304, 3rd Floor)"
                 placeholderTextColor="#94A3B8"
                 multiline
                 numberOfLines={3}
                 value={deliveryAddress}
-                onChangeText={setDeliveryAddress}
+                onChangeText={(val) => {
+                  setDeliveryAddress(val);
+                  if (addressError) setAddressError(false);
+                }}
               />
+
+              {addressError ? (
+                <Text style={{ fontSize: 11, color: '#DC2626', fontWeight: '700', marginTop: 4 }}>
+                  * Delivery address is required to proceed with order.
+                </Text>
+              ) : null}
 
               <View style={styles.addressFooterRow}>
                 <Feather name="info" size={12} color="#64748B" style={{ marginTop: 2 }} />
@@ -958,7 +1091,7 @@ const CartScreen = ({ navigation }) => {
           </View>
 
           {/* Student / Your Details Card */}
-          <View style={styles.card}>
+          <View onLayout={(e) => setDetailsCardY(e.nativeEvent.layout.y)} style={styles.card}>
             <View style={styles.studentHeaderRow}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <Feather name="credit-card" size={18} color={THEME.colors.primary} />
@@ -975,32 +1108,574 @@ const CartScreen = ({ navigation }) => {
             {/* Field 1: Name */}
             <View style={styles.inputGroup}>
               <View style={styles.labelRow}>
-                <Feather name="user" size={13} color="#64748B" />
-                <Text style={styles.inputLabelWithIcon}>Name</Text>
+                <Feather name="user" size={13} color={nameError ? '#EF4444' : '#64748B'} />
+                <Text style={[styles.inputLabelWithIcon, nameError && { color: '#B91C1C' }]}>
+                  Name {nameError && <Text style={{ color: '#EF4444' }}>* Required</Text>}
+                </Text>
               </View>
               <TextInput
-                style={styles.detailsInputField}
+                ref={nameInputRef}
+                style={[
+                  styles.detailsInputField,
+                  nameError && { borderColor: '#EF4444', borderWidth: 1.5, backgroundColor: '#FEF2F2' }
+                ]}
                 placeholder="Enter your name"
                 placeholderTextColor="#94A3B8"
                 value={customerName}
-                onChangeText={setCustomerName}
+                onChangeText={(val) => {
+                  setCustomerName(val);
+                  if (nameError) setNameError(false);
+                }}
               />
             </View>
 
             {/* Field 2: Phone Number */}
             <View style={styles.inputGroup}>
               <View style={styles.labelRow}>
-                <Feather name="phone" size={13} color="#64748B" />
-                <Text style={styles.inputLabelWithIcon}>Phone Number</Text>
+                <Feather name="phone" size={13} color={phoneError ? '#EF4444' : '#64748B'} />
+                <Text style={[styles.inputLabelWithIcon, phoneError && { color: '#B91C1C' }]}>
+                  Phone Number {phoneError && <Text style={{ color: '#EF4444' }}>* 10 Digits Required</Text>}
+                </Text>
               </View>
               <TextInput
-                style={styles.detailsInputField}
+                ref={phoneInputRef}
+                style={[
+                  styles.detailsInputField,
+                  phoneError && { borderColor: '#EF4444', borderWidth: 1.5, backgroundColor: '#FEF2F2' }
+                ]}
                 placeholder="Enter 10-digit number"
                 placeholderTextColor="#94A3B8"
                 keyboardType="phone-pad"
                 maxLength={10}
                 value={customerPhone}
-                onChangeText={setCustomerPhone}
+                onChangeText={(val) => {
+                  setCustomerPhone(val);
+                  if (phoneError) setPhoneError(false);
+                }}
+              />
+            </View>
+
+            {/* Field 3: Email */}
+            <View style={styles.inputGroup}>
+              <View style={[styles.labelRow, { justifyContent: 'space-between' }]}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Feather name="mail" size={13} color="#64748B" />
+                  <Text style={styles.inputLabelWithIcon}>Email</Text>
+                </View>
+                <Text style={styles.optionalHelperText}>Optional - for e-receipt</Text>
+              </View>
+              <TextInput
+                style={styles.detailsInputField}
+                placeholder="student@university.edu (Optional)"
+                placeholderTextColor="#94A3B8"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                value={customerEmail}
+                onChangeText={setCustomerEmail}
+              />
+            </View>
+
+            {/* Embedded Secure Payment Notice matching webapp lines 850-856 */}
+            <View style={styles.securePaymentBanner}>
+              <Ionicons name="shield-checkmark" size={20} color={THEME.colors.primary} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.securePaymentTitle}>Secure Payment via Razorpay</Text>
+                <Text style={styles.securePaymentSub}>UPI • Cards • Wallets • Net Banking</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Zomato/Swiggy-style Search Coupon & Smart Offers Drawer */}
+          {offers && offers.length > 0 && (
+            <View style={styles.offersHubContainer}>
+              <View style={styles.offersHubHeader}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <View style={styles.offersHubIconBox}>
+                    <Ionicons name="pricetag" size={16} color="#EA580C" />
+                  </View>
+                  <View>
+                    <Text style={styles.offersHubTitle}>Coupons & Platform Deals</Text>
+                    <Text style={styles.offersHubSub}>
+                      {offers.filter(o => o && o.isActive !== false).length} exclusive offers available for this cart
+                    </Text>
+                  </View>
+                </View>
+              </View>
+
+              {/* 1. COUPON SEARCH & INPUT BAR */}
+              <View style={{ flexDirection: 'row', gap: 8, marginTop: 10, marginBottom: 8 }}>
+                <View style={{
+                  flex: 1,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  backgroundColor: '#F8FAFC',
+                  borderRadius: 10,
+                  borderWidth: 1.5,
+                  borderColor: '#E2E8F0',
+                  paddingHorizontal: 10
+                }}>
+                  <Ionicons name="pricetag-outline" size={15} color="#94A3B8" style={{ marginRight: 6 }} />
+                  <TextInput
+                    placeholder="Enter coupon (e.g. CAMPUS10)"
+                    placeholderTextColor="#94A3B8"
+                    value={couponInput}
+                    onChangeText={(val) => { setCouponInput(val); setCouponFeedback(null); }}
+                    autoCapitalize="characters"
+                    style={{
+                      flex: 1,
+                      paddingVertical: Platform.OS === 'ios' ? 10 : 7,
+                      fontSize: 13,
+                      fontWeight: '700',
+                      color: '#1E293B',
+                      letterSpacing: 0.5
+                    }}
+                  />
+                </View>
+                <TouchableOpacity
+                  onPress={handleApplyCoupon}
+                  activeOpacity={0.8}
+                  style={{
+                    backgroundColor: THEME.colors.primary,
+                    borderRadius: 10,
+                    paddingHorizontal: 16,
+                    justifyContent: 'center',
+                    alignItems: 'center'
+                  }}
+                >
+                  <Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: '800' }}>APPLY</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Coupon Feedback Toast */}
+              {couponFeedback && (
+                <View style={{
+                  padding: 8,
+                  borderRadius: 8,
+                  marginBottom: 8,
+                  backgroundColor: couponFeedback.type === 'success' ? '#ECFDF5' : '#FEF2F2',
+                  borderWidth: 1,
+                  borderColor: couponFeedback.type === 'success' ? '#A7F3D0' : '#FECACA',
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between'
+                }}>
+                  <Text style={{
+                    fontSize: 12,
+                    fontWeight: '700',
+                    color: couponFeedback.type === 'success' ? '#059669' : '#DC2626',
+                    flex: 1
+                  }}>
+                    {couponFeedback.message}
+                  </Text>
+                  <TouchableOpacity onPress={() => setCouponFeedback(null)}>
+                    <Ionicons name="close" size={14} color="#64748B" />
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              {/* 2. ONLY APPLIED COUPON IS VISIBLE BY DEFAULT */}
+              {appliedOffer ? (
+                <View style={{
+                  backgroundColor: '#F0FDF4',
+                  borderWidth: 1.5,
+                  borderColor: '#10B981',
+                  borderRadius: 12,
+                  padding: 12,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 8,
+                  marginTop: 4
+                }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+                    <View style={{
+                      width: 34,
+                      height: 34,
+                      borderRadius: 10,
+                      backgroundColor: '#10B981',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}>
+                      <Ionicons name="sparkles" size={16} color="#FFFFFF" />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                        <View style={{ backgroundColor: '#059669', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                          <Text style={{ color: '#FFFFFF', fontSize: 11, fontWeight: '900' }}>
+                            {appliedOffer.code || appliedOffer.badgeText}
+                          </Text>
+                        </View>
+                        {appliedOffer.isGlobal && (
+                          <View style={{ backgroundColor: '#E0F2FE', paddingHorizontal: 5, paddingVertical: 2, borderRadius: 4 }}>
+                            <Text style={{ color: '#0369A1', fontSize: 10, fontWeight: '800' }}>CAMPUS DEAL</Text>
+                          </View>
+                        )}
+                      </View>
+                      <Text style={{ fontSize: 12, fontWeight: '800', color: '#065F46', marginTop: 2 }} numberOfLines={1}>
+                        {appliedOffer.title}
+                      </Text>
+                      <Text style={{ fontSize: 11, color: '#047857', fontWeight: '700', marginTop: 1 }}>
+                        🎉 Saved ₹{offerDiscount.toFixed(2)} on this order!
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <TouchableOpacity
+                      onPress={() => setShowOffersDropdown(prev => !prev)}
+                      style={{
+                        backgroundColor: '#FFFFFF',
+                        borderWidth: 1,
+                        borderColor: '#A7F3D0',
+                        borderRadius: 6,
+                        paddingHorizontal: 8,
+                        paddingVertical: 5
+                      }}
+                    >
+                      <Text style={{ fontSize: 11, fontWeight: '800', color: '#047857' }}>
+                        {showOffersDropdown ? 'Hide ▴' : 'Switch ▾'}
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={handleRemoveCoupon}
+                      style={{
+                        backgroundColor: '#FEE2E2',
+                        borderRadius: 6,
+                        paddingHorizontal: 8,
+                        paddingVertical: 5
+                      }}
+                    >
+                      <Text style={{ fontSize: 11, fontWeight: '800', color: '#DC2626' }}>Remove</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ) : (
+                <TouchableOpacity
+                  onPress={() => setShowOffersDropdown(prev => !prev)}
+                  activeOpacity={0.7}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 5, paddingVertical: 4 }}
+                >
+                  <Ionicons name="pricetag" size={13} color="#EA580C" />
+                  <Text style={{ fontSize: 13, fontWeight: '800', color: '#EA580C' }}>
+                    {showOffersDropdown ? 'Hide available offers ▴' : `View available offers (${offers.filter(o => o && o.isActive !== false).length} available) ▾`}
+                  </Text>
+                </TouchableOpacity>
+              )}
+
+              {/* 3. COLLAPSIBLE OFFERS DROPDOWN / LIST */}
+              {showOffersDropdown && (
+                <View style={{ gap: 10, marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#F1F5F9' }}>
+                  {offers.filter(o => o && o.isActive !== false).map((offer) => {
+                    const isEligible = eligibleOffers && eligibleOffers.some(e => String(e.id) === String(offer.id));
+                    const isApplied = appliedOffer && String(appliedOffer.id) === String(offer.id);
+                    const ineligibility = ineligibleOffers && ineligibleOffers.find(ie => String(ie.offer?.id) === String(offer.id) || String(ie.id) === String(offer.id));
+                    const discountLabel = offer.badgeText || (offer.discountType?.includes('PERCENTAGE') ? `${offer.discountValue}% OFF` : `₹${offer.discountValue} OFF`);
+
+                    return (
+                      <View
+                        key={String(offer.id)}
+                        style={[
+                          styles.cleanCouponCard,
+                          isApplied ? styles.cleanCouponCardApplied : isEligible ? styles.cleanCouponCardEligible : styles.cleanCouponCardLocked
+                        ]}
+                      >
+                        {/* Header: Discount Badge + Code + Apply Button */}
+                        <View style={styles.cleanCouponTopRow}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1, flexWrap: 'wrap' }}>
+                            <View style={[styles.cleanDiscountBadge, isApplied && { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' }]}>
+                              <Text style={[styles.cleanDiscountBadgeText, isApplied && { color: '#047857' }]}>
+                                {discountLabel}
+                              </Text>
+                            </View>
+
+                            {offer.code ? (
+                              <View style={styles.cleanCodePill}>
+                                <Text style={styles.cleanCodePillText}>{offer.code}</Text>
+                              </View>
+                            ) : null}
+
+                            {offer.isGlobal ? (
+                              <View style={styles.cleanCampusBadge}>
+                                <Text style={styles.cleanCampusBadgeText}>CAMPUS</Text>
+                              </View>
+                            ) : null}
+                          </View>
+
+                          {isEligible ? (
+                            <TouchableOpacity
+                              onPress={() => {
+                                if (isApplied) {
+                                  handleRemoveCoupon();
+                                } else {
+                                  setSelectedOfferId(offer.id);
+                                  setShowOffersDropdown(false);
+                                  setCouponFeedback({ type: 'success', message: `Coupon "${offer.code || offer.title}" applied!` });
+                                }
+                              }}
+                              activeOpacity={0.8}
+                              style={[
+                                styles.cleanApplyBtn,
+                                isApplied ? styles.cleanApplyBtnActive : styles.cleanApplyBtnNormal
+                              ]}
+                            >
+                              <Text style={[styles.cleanApplyBtnText, isApplied && { color: '#FFFFFF' }]}>
+                                {isApplied ? 'APPLIED ✓' : 'APPLY'}
+                              </Text>
+                            </TouchableOpacity>
+                          ) : null}
+                        </View>
+
+                        {/* Title & Description */}
+                        <Text style={styles.cleanCouponTitle}>{offer.title}</Text>
+                        <Text style={styles.cleanCouponDesc} numberOfLines={2}>
+                          {offer.description || 'Valid on this order'}
+                        </Text>
+
+                        {/* Footer: Requirements & Terms */}
+                        <View style={styles.cleanCouponFooter}>
+                          <Text style={styles.cleanCouponTerms}>
+                            {offer.minOrderValue > 0 ? `Min. order ₹${offer.minOrderValue}` : 'No minimum order'}
+                            {offer.maxDiscountCap > 0 ? ` • Max savings ₹${offer.maxDiscountCap}` : ''}
+                          </Text>
+
+                          {!isEligible && (
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                              <Feather name="lock" size={11} color="#EA580C" />
+                              <Text style={styles.cleanLockedText}>
+                                {ineligibility ? ineligibility.reason : `Add ₹${Math.max(0, (offer.minOrderValue || 0) - subtotal)} more`}
+                              </Text>
+                            </View>
+                          )}
+                        </View>
+                      </View>
+                    );
+                  })}
+                </View>
+              )}
+            </View>
+          )}
+
+          {/* Cart Items List */}
+          <View style={styles.card}>
+            {/* Out-of-Stock Real-time Alert Banner matching webapp */}
+            {hasOutOfStockItems && (
+              <View style={styles.outOfStockBanner}>
+                <View style={styles.outOfStockHeaderRow}>
+                  <Ionicons name="alert-circle" size={20} color="#EF4444" />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.outOfStockTitle}>Item(s) in your cart just went out of stock!</Text>
+                    <Text style={styles.outOfStockSubtitle}>
+                      The vendor marked dish(es) as sold out. Please remove them to proceed.
+                    </Text>
+                  </View>
+                </View>
+                <TouchableOpacity onPress={removeOutOfStockItems} style={styles.removeOutOfStockBtn}>
+                  <Text style={styles.removeOutOfStockBtnText}>Remove Sold Out Items</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            <Text style={styles.cardHeading}>Items in Cart ({totalItems})</Text>
+
+            {cart.map((item, index) => {
+              const targetId = item.cartItemId || item._id;
+              const isItemSoldOut = item.isAvailable === false;
+
+              return (
+                <View key={targetId || index} style={[styles.cartItemRow, isItemSoldOut && { opacity: 0.75 }]}>
+                  <View style={styles.itemInfo}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                      <DietaryBadge type={item.dietaryPreference || 'veg'} size={12} />
+                      <Text style={[styles.itemName, isItemSoldOut && styles.itemNameSoldOut]}>
+                        {item.name}
+                      </Text>
+                      {item.isCombo ? (
+                        <View style={styles.comboBadge}>
+                          <Text style={styles.comboBadgeText}>COMBO</Text>
+                        </View>
+                      ) : null}
+                      {isItemSoldOut ? (
+                        <View style={styles.soldOutBadge}>
+                          <Text style={styles.soldOutBadgeText}>⚠️ SOLD OUT</Text>
+                        </View>
+                      ) : null}
+                    </View>
+                    {item.variant && (
+                      <Text style={styles.itemVariant}>Variant: {item.variant}</Text>
+                    )}
+                    <Text style={[styles.itemPrice, isItemSoldOut && { color: '#94A3B8' }]}>
+                      ₹{item.price * item.quantity}
+                    </Text>
+                  </View>
+
+                  {isItemSoldOut ? (
+                    <TouchableOpacity
+                      onPress={() => removeFromCart(targetId)}
+                      style={styles.removeSoldOutItemBtn}
+                    >
+                      <Text style={styles.removeSoldOutItemText}>Remove</Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <View style={styles.stepper}>
+                      <TouchableOpacity
+                        onPress={() => updateQuantity(targetId, -1)}
+                        style={styles.stepBtn}
+                      >
+                        <Feather name="minus" size={13} color="#0F172A" />
+                      </TouchableOpacity>
+                      <Text style={styles.qtyText}>{item.quantity}</Text>
+                      <TouchableOpacity
+                        onPress={() => updateQuantity(targetId, 1)}
+                        style={styles.stepBtn}
+                      >
+                        <Feather name="plus" size={13} color="#0F172A" />
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </View>
+              );
+            })}
+          </View>
+
+          {/* Smart Pairing Magazine Upsell Section matching webapp lines 522-608 */}
+          {pairings.length > 0 && (
+            <View style={styles.card}>
+              <View style={styles.pairingsHeaderRow}>
+                <View>
+                  <Text style={styles.pairingsTitle}>
+                    The Perfect Pairing <Text style={{ color: THEME.colors.primary }}>✨</Text>
+                  </Text>
+                  <Text style={styles.pairingsSubtitle}>Curated For You</Text>
+                </View>
+              </View>
+
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.pairingsScroll}
+              >
+                {pairings.map((prod) => (
+                  <View key={prod._id || prod.id} style={styles.pairingCard}>
+                    <Image
+                      source={{
+                        uri: prod.image
+                          ? (prod.image.startsWith('http') ? prod.image : `${apiClient.defaults.baseURL?.replace('/api', '')}${prod.image}`)
+                          : 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=300&q=80',
+                      }}
+                      style={styles.pairingImage}
+                      resizeMode="cover"
+                    />
+                    <Text style={styles.pairingName} numberOfLines={1}>
+                      {prod.name}
+                    </Text>
+                    <View style={styles.pairingFooter}>
+                      <Text style={styles.pairingPrice}>₹{prod.price}</Text>
+                      <TouchableOpacity
+                        style={styles.addPairingBtn}
+                        onPress={() => addToCart(prod, storeId, storeName, null, store?.locationId?._id || store?.locationId)}
+                        activeOpacity={0.8}
+                      >
+                        <Feather name="plus" size={12} color={THEME.colors.primary} />
+                        <Text style={styles.addPairingText}>Add</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ))}
+              </ScrollView>
+            </View>
+          )}
+
+          {/* Special Cooking Instructions */}
+          <View style={styles.card}>
+            <Text style={styles.cardLabel}>Special Cooking Requests</Text>
+            
+            <View style={styles.quickPillsRow}>
+              {QUICK_INSTRUCTIONS.map((pill) => (
+                <TouchableOpacity
+                  key={pill}
+                  style={styles.quickPill}
+                  onPress={() => {
+                    setCookingInstructions(prev => prev ? `${prev}, ${pill}` : pill);
+                  }}
+                >
+                  <Text style={styles.quickPillText}>{pill}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <TextInput
+              style={styles.notesInput}
+              placeholder="e.g. Please make it extra spicy, less oil, etc."
+              placeholderTextColor="#94A3B8"
+              value={cookingInstructions}
+              onChangeText={setCookingInstructions}
+              multiline
+              numberOfLines={2}
+            />
+          </View>
+
+          {/* Student / Your Details Card */}
+          <View onLayout={(e) => setDetailsCardY(e.nativeEvent.layout.y)} style={styles.card}>
+            <View style={styles.studentHeaderRow}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Feather name="credit-card" size={18} color={THEME.colors.primary} />
+                <Text style={styles.cardHeadingNoMargin}>Your Details</Text>
+              </View>
+              {isKnownCustomer && (
+                <View style={styles.verifiedBadge}>
+                  <Ionicons name="checkmark-circle" size={13} color="#10B981" />
+                  <Text style={styles.verifiedBadgeText}>Saved Profile</Text>
+                </View>
+              )}
+            </View>
+
+            {/* Field 1: Name */}
+            <View style={styles.inputGroup}>
+              <View style={styles.labelRow}>
+                <Feather name="user" size={13} color={nameError ? '#EF4444' : '#64748B'} />
+                <Text style={[styles.inputLabelWithIcon, nameError && { color: '#B91C1C' }]}>
+                  Name {nameError && <Text style={{ color: '#EF4444' }}>* Required</Text>}
+                </Text>
+              </View>
+              <TextInput
+                ref={nameInputRef}
+                style={[
+                  styles.detailsInputField,
+                  nameError && { borderColor: '#EF4444', borderWidth: 1.5, backgroundColor: '#FEF2F2' }
+                ]}
+                placeholder="Enter your name"
+                placeholderTextColor="#94A3B8"
+                value={customerName}
+                onChangeText={(val) => {
+                  setCustomerName(val);
+                  if (nameError) setNameError(false);
+                }}
+              />
+            </View>
+
+            {/* Field 2: Phone Number */}
+            <View style={styles.inputGroup}>
+              <View style={styles.labelRow}>
+                <Feather name="phone" size={13} color={phoneError ? '#EF4444' : '#64748B'} />
+                <Text style={[styles.inputLabelWithIcon, phoneError && { color: '#B91C1C' }]}>
+                  Phone Number {phoneError && <Text style={{ color: '#EF4444' }}>* 10 Digits Required</Text>}
+                </Text>
+              </View>
+              <TextInput
+                ref={phoneInputRef}
+                style={[
+                  styles.detailsInputField,
+                  phoneError && { borderColor: '#EF4444', borderWidth: 1.5, backgroundColor: '#FEF2F2' }
+                ]}
+                placeholder="Enter 10-digit number"
+                placeholderTextColor="#94A3B8"
+                keyboardType="phone-pad"
+                maxLength={10}
+                value={customerPhone}
+                onChangeText={(val) => {
+                  setCustomerPhone(val);
+                  if (phoneError) setPhoneError(false);
+                }}
               />
             </View>
 
@@ -2609,6 +3284,169 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#EA580C',
     flex: 1,
+  },
+  autoDetectBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#FFF7ED',
+    borderWidth: 1,
+    borderColor: '#FED7AA',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  autoDetectBtnText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#EA580C',
+  },
+  presetChipsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginVertical: 8,
+  },
+  presetChipsLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#64748B',
+  },
+  presetChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  presetChipActive: {
+    backgroundColor: '#FFF7ED',
+    borderColor: '#FDBA74',
+  },
+  presetChipText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#475569',
+  },
+  presetChipTextActive: {
+    color: '#C2410C',
+    fontWeight: '800',
+  },
+  cleanCouponCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  cleanCouponCardApplied: {
+    borderColor: '#10B981',
+    backgroundColor: '#F0FDF4',
+  },
+  cleanCouponCardEligible: {
+    borderColor: '#FED7AA',
+  },
+  cleanCouponCardLocked: {
+    opacity: 0.75,
+    backgroundColor: '#F8FAFC',
+  },
+  cleanCouponTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+    marginBottom: 6,
+  },
+  cleanDiscountBadge: {
+    backgroundColor: '#FFF7ED',
+    borderWidth: 1,
+    borderColor: '#FDBA74',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  cleanDiscountBadgeText: {
+    color: '#C2410C',
+    fontSize: 11,
+    fontWeight: '900',
+  },
+  cleanCodePill: {
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  cleanCodePillText: {
+    color: '#1E293B',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+  },
+  cleanCampusBadge: {
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  cleanCampusBadgeText: {
+    color: '#1D4ED8',
+    fontSize: 9.5,
+    fontWeight: '800',
+  },
+  cleanApplyBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  cleanApplyBtnNormal: {
+    backgroundColor: '#FFF7ED',
+    borderWidth: 1,
+    borderColor: '#EA580C',
+  },
+  cleanApplyBtnActive: {
+    backgroundColor: '#10B981',
+  },
+  cleanApplyBtnText: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: '#EA580C',
+  },
+  cleanCouponTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#0F172A',
+    marginTop: 2,
+  },
+  cleanCouponDesc: {
+    fontSize: 11,
+    color: '#64748B',
+    lineHeight: 15,
+    marginTop: 2,
+  },
+  cleanCouponFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 8,
+    paddingTop: 6,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+  },
+  cleanCouponTerms: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#94A3B8',
+  },
+  cleanLockedText: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: '#EA580C',
   },
 });
 

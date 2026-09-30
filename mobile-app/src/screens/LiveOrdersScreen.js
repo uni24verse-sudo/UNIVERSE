@@ -884,31 +884,33 @@ export default function LiveOrdersScreen({ navigation }) {
         const cleanPhone = (riderPhone || '').replace(/[^0-9]/g, '');
         const phoneWithCountry = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
         const stallName = storeData?.name || activeStore?.name || 'UniVerse Stall';
-        const msg = `🛵 *UniVerse Delivery Assignment*\n` +
+        const msg = `*UniVerse Delivery Assignment*\n` +
           `Stall: *${stallName}*\n` +
           `Orders Assigned: *${dispatchedCount}*\n\n` +
-          `👉 *Open Navigation Cockpit:*\n${dispatchLink}\n\n` +
+          `*Open Navigation Cockpit:*\n${dispatchLink}\n\n` +
           `Please verify the 4-digit PIN with each customer upon drop.`;
 
         const waUrl = `whatsapp://send?phone=${phoneWithCountry}&text=${encodeURIComponent(msg)}`;
         const webWaUrl = `https://wa.me/${phoneWithCountry}?text=${encodeURIComponent(msg)}`;
 
+        // Proactively open WhatsApp directly
+        try {
+          await Linking.openURL(waUrl).catch(() => Linking.openURL(webWaUrl));
+        } catch (e) {
+          Linking.openURL(webWaUrl);
+        }
+
         Alert.alert(
-          'Trip Dispatched! 🚀',
-          `${dispatchedCount} order(s) assigned to ${riderName}.\n\nShare the live navigation link with your rider on WhatsApp?`,
+          'Trip Dispatched',
+          `${dispatchedCount} order(s) assigned to ${riderName}. Live navigation link dispatched to WhatsApp.`,
           [
             { text: 'Done', style: 'cancel' },
             {
-              text: 'Open WhatsApp',
+              text: 'Resend via WhatsApp',
               style: 'default',
               onPress: async () => {
                 try {
-                  const canOpen = await Linking.canOpenURL(waUrl);
-                  if (canOpen) {
-                    await Linking.openURL(waUrl);
-                  } else {
-                    await Linking.openURL(webWaUrl);
-                  }
+                  await Linking.openURL(waUrl).catch(() => Linking.openURL(webWaUrl));
                 } catch (e) {
                   Linking.openURL(webWaUrl);
                 }
@@ -1188,9 +1190,9 @@ export default function LiveOrdersScreen({ navigation }) {
       );
     }
 
-    if (order.status === 'Ready') {
+    if (order.status === 'Ready' || order.status === 'Out for Delivery') {
       if (order.orderType === 'Delivery') {
-        const isDispatched = Boolean(order.riderName || order.dispatchedAt);
+        const isDispatched = order.status === 'Out for Delivery' || Boolean(order.riderName || order.dispatchedAt);
         return (
           <View style={styles.actionRow}>
             <TouchableOpacity 
@@ -1199,9 +1201,9 @@ export default function LiveOrdersScreen({ navigation }) {
               activeOpacity={0.8}
             >
               <LinearGradient colors={isDispatched ? ['#059669', '#047857'] : ['#10B981', '#059669']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.gradientBtn}>
-                <Ionicons name="bicycle" size={17} color="white" style={{ marginRight: 6 }} />
+                <Ionicons name={isDispatched ? "logo-whatsapp" : "bicycle"} size={16} color="white" style={{ marginRight: 6 }} />
                 <Text style={styles.btnText}>
-                  {isDispatched ? `🛵 ${order.riderName} (Re-Share)` : '🛵 Assign & Dispatch'}
+                  {isDispatched ? `WhatsApp: ${order.riderName || 'Rider'}` : 'Assign Partner'}
                 </Text>
               </LinearGradient>
             </TouchableOpacity>
@@ -1213,7 +1215,7 @@ export default function LiveOrdersScreen({ navigation }) {
             >
               <View style={[styles.gradientBtn, { backgroundColor: '#F1F5F9', borderWidth: 1, borderColor: '#CBD5E1' }]}>
                 <Ionicons name="checkmark-done" size={16} color="#475569" style={{ marginRight: 4 }} />
-                <Text style={[styles.btnText, { color: '#475569' }]}>Handover</Text>
+                <Text style={[styles.btnText, { color: '#475569' }]}>Complete</Text>
               </View>
             </TouchableOpacity>
           </View>
@@ -2069,7 +2071,10 @@ export default function LiveOrdersScreen({ navigation }) {
           <View style={[styles.switcherModalContent, { maxHeight: '90%' }]}>
             <View style={styles.modalHeaderRow}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.modalTitle}>🛵 Assign Delivery Rider</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Ionicons name="bicycle" size={20} color="#10B981" />
+                  <Text style={styles.modalTitle}>Assign Delivery Partner</Text>
+                </View>
                 <Text style={styles.modalSub}>
                   Dispatch {dispatchOrdersList.length} order{dispatchOrdersList.length > 1 ? 's' : ''} with live WhatsApp magic link
                 </Text>
@@ -2129,7 +2134,7 @@ export default function LiveOrdersScreen({ navigation }) {
                           <Text style={[styles.stallOptionName, isSelected && { color: '#065F46' }]}>
                             {staff.name}
                           </Text>
-                          <Text style={styles.modalSub}>📱 {staff.phone}</Text>
+                          <Text style={styles.modalSub}>{staff.phone}</Text>
                         </View>
                       </TouchableOpacity>
                     );
@@ -2184,9 +2189,12 @@ export default function LiveOrdersScreen({ navigation }) {
                 </View>
               )}
 
-              <Text style={{ fontSize: 11, color: '#64748B', lineHeight: 16, marginTop: 4 }}>
-                💡 Upon dispatch, orders are tagged with this rider. A zero-install mobile web navigation link will be created with 1-tap WhatsApp sharing.
-              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 6, backgroundColor: '#F8FAFC', padding: 8, borderRadius: 8, marginTop: 6, borderWidth: 1, borderColor: '#E2E8F0' }}>
+                <Feather name="info" size={13} color="#64748B" style={{ marginTop: 2 }} />
+                <Text style={{ fontSize: 11, color: '#64748B', lineHeight: 16, flex: 1 }}>
+                  Upon dispatch, orders are tagged with this delivery partner. Live mobile web navigation cockpit opens directly on WhatsApp.
+                </Text>
+              </View>
             </ScrollView>
 
             <View style={styles.modalBtnRow}>
@@ -2204,7 +2212,10 @@ export default function LiveOrdersScreen({ navigation }) {
                 {dispatchingRider ? (
                   <ActivityIndicator size="small" color="#FFFFFF" />
                 ) : (
-                  <Text style={styles.modalSaveBtnText}>🚀 Dispatch & Share Link</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Ionicons name="paper-plane" size={15} color="#FFFFFF" />
+                    <Text style={styles.modalSaveBtnText}>Dispatch & Open WhatsApp</Text>
+                  </View>
                 )}
               </TouchableOpacity>
             </View>

@@ -24,13 +24,24 @@ import { shareOrder } from '../utils/shareHelper';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-const STATUS_STEPS = [
-  { key: 'Pending', label: 'Pending', desc: 'Vendor is reviewing your order' },
-  { key: 'Confirmed', label: 'Confirmed', desc: 'Order confirmed! Waiting for kitchen to start' },
-  { key: 'Cooking', label: 'Cooking', desc: 'Your food is sizzling hot in the kitchen!' },
-  { key: 'Ready', label: 'Ready', desc: 'Order is ready for collection!' },
-  { key: 'Completed', label: 'Completed', desc: 'Order handed over successfully' },
-];
+const getStatusSteps = (orderType) => {
+  if (orderType === 'Delivery') {
+    return [
+      { key: 'Pending', label: 'Pending', desc: 'Vendor is reviewing your order' },
+      { key: 'Confirmed', label: 'Confirmed', desc: 'Order confirmed! Waiting for kitchen to start' },
+      { key: 'Cooking', label: 'Cooking', desc: 'Your food is sizzling hot in the kitchen!' },
+      { key: 'Out for Delivery', label: 'On Way', desc: 'Rider is on the way with your order!' },
+      { key: 'Completed', label: 'Delivered', desc: 'Order delivered successfully' },
+    ];
+  }
+  return [
+    { key: 'Pending', label: 'Pending', desc: 'Vendor is reviewing your order' },
+    { key: 'Confirmed', label: 'Confirmed', desc: 'Order confirmed! Waiting for kitchen to start' },
+    { key: 'Cooking', label: 'Cooking', desc: 'Your food is sizzling hot in the kitchen!' },
+    { key: 'Ready', label: 'Ready', desc: 'Order is ready for collection!' },
+    { key: 'Completed', label: 'Completed', desc: 'Order handed over successfully' },
+  ];
+};
 
 const CountdownTimer = ({ deadline }) => {
   const [timeLeft, setTimeLeft] = useState(() => {
@@ -295,7 +306,18 @@ const OrderTrackerScreen = ({ route, navigation }) => {
   const currentStatus = order.status || 'Pending';
   const isCancelled = currentStatus === 'Cancelled';
   const isPaymentPending = currentStatus === 'Payment Pending';
-  const currentStepIndex = STATUS_STEPS.findIndex(s => s.key === currentStatus);
+  const isDelivery = order.orderType === 'Delivery';
+  const statusSteps = getStatusSteps(order.orderType);
+
+  const getStepIndex = () => {
+    if (isDelivery) {
+      if (currentStatus === 'Ready' || currentStatus === 'Out for Delivery') return 3;
+      if (currentStatus === 'Completed') return 4;
+    }
+    const idx = statusSteps.findIndex(s => s.key === currentStatus);
+    return idx >= 0 ? idx : 0;
+  };
+  const currentStepIndex = getStepIndex();
 
   const handoverToken = order.handoverToken || (order._id || order.id || id).slice(-4).toUpperCase();
   const orderNumber = order.orderNumber || (order._id || order.id || id).slice(-6).toUpperCase();
@@ -310,7 +332,9 @@ const OrderTrackerScreen = ({ route, navigation }) => {
   const getStatusDesc = () => {
     if (isPaymentPending) return 'Your payment is being processed';
     if (isCancelled) return 'This order has been cancelled by the vendor';
-    const found = STATUS_STEPS[currentStepIndex >= 0 ? currentStepIndex : 0];
+    if (currentStatus === 'Out for Delivery') return 'Rider is on the way with your order!';
+    if (currentStatus === 'Ready' && isDelivery) return 'Order packed! Waiting for rider to dispatch';
+    const found = statusSteps.find(s => s.key === currentStatus);
     return found ? found.desc : 'Order status updated';
   };
 
@@ -320,6 +344,7 @@ const OrderTrackerScreen = ({ route, navigation }) => {
       case 'Confirmed': return '#3B82F6';
       case 'Cooking': return '#8B5CF6';
       case 'Ready': return '#EC4899';
+      case 'Out for Delivery': return '#10B981';
       case 'Completed': return '#10B981';
       case 'Cancelled': return '#EF4444';
       default: return THEME.colors.primary;
@@ -381,6 +406,8 @@ const OrderTrackerScreen = ({ route, navigation }) => {
                 <Feather name="x" size={48} color="#EF4444" />
               ) : isPaymentPending ? (
                 <Feather name="clock" size={48} color="#F59E0B" />
+              ) : currentStatus === 'Out for Delivery' ? (
+                <Ionicons name="bicycle" size={46} color="#10B981" />
               ) : currentStatus === 'Cooking' ? (
                 <MaterialCommunityIcons name="chef-hat" size={48} color="#8B5CF6" />
               ) : currentStatus === 'Confirmed' ? (
@@ -427,17 +454,20 @@ const OrderTrackerScreen = ({ route, navigation }) => {
           )}
 
           {/* Handover Section: Delivery vs Pickup QR Code */}
-          {currentStatus === 'Ready' && order.orderType === 'Delivery' ? (
+          {(currentStatus === 'Ready' || currentStatus === 'Out for Delivery') && order.orderType === 'Delivery' ? (
             <View style={[styles.handoverCard, { borderColor: '#10B981', backgroundColor: '#F0FDF4' }]}>
               <View style={[styles.handoverAccentBar, { backgroundColor: '#10B981' }]} />
 
-              <Text style={[styles.handoverTitle, { color: '#047857' }]}>
-                {order.riderName ? '🛵 Rider Out For Delivery' : '🛵 Order Packed & Ready'}
-              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                <Ionicons name="bicycle" size={18} color="#047857" />
+                <Text style={[styles.handoverTitle, { color: '#047857', marginBottom: 0 }]}>
+                  {order.riderName ? 'Rider Out For Delivery' : 'Order Packed & Preparing Dispatch'}
+                </Text>
+              </View>
               <Text style={styles.handoverSubtitle}>
                 {order.riderName
                   ? `Your delivery partner ${order.riderName} is heading to your drop address.`
-                  : 'Your meal is packed! Stall is dispatching it to their delivery boy.'}
+                  : 'Your meal is packed! Stall is dispatching it to their delivery partner.'}
               </Text>
 
               {/* Delivery OTP PIN Box */}
@@ -463,33 +493,57 @@ const OrderTrackerScreen = ({ route, navigation }) => {
                     {order.deliveryOtp}
                   </Text>
                   <Text style={{ fontSize: 11, color: '#059669', fontWeight: '600' }}>
-                    Share this 4-digit PIN with the delivery boy upon arrival
+                    Share this 4-digit PIN with the delivery partner upon arrival
                   </Text>
                 </View>
               ) : null}
 
-              {/* Rider Contact Button if assigned */}
-              {order.riderName && order.riderPhone ? (
-                <TouchableOpacity
-                  onPress={() => Linking.openURL(`tel:${order.riderPhone}`)}
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    backgroundColor: '#10B981',
-                    paddingVertical: 11,
-                    paddingHorizontal: 16,
-                    borderRadius: 12,
-                    marginTop: 6,
-                    gap: 6,
-                  }}
-                  activeOpacity={0.85}
-                >
-                  <Ionicons name="call" size={16} color="#FFFFFF" />
-                  <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 13 }}>
-                    Call Rider ({order.riderName})
-                  </Text>
-                </TouchableOpacity>
+              {/* Rider Contact Card if assigned */}
+              {order.riderName ? (
+                <View style={{
+                  backgroundColor: '#FFFFFF',
+                  borderRadius: 12,
+                  padding: 12,
+                  marginTop: 6,
+                  borderWidth: 1,
+                  borderColor: '#D1FAE5',
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}>
+                  <View style={{ flex: 1, paddingRight: 8 }}>
+                    <Text style={{ fontSize: 10, color: '#64748B', fontWeight: '800', textTransform: 'uppercase' }}>
+                      Delivery Partner
+                    </Text>
+                    <Text style={{ fontSize: 14, fontWeight: '900', color: '#065F46', marginTop: 1 }}>
+                      {order.riderName}
+                    </Text>
+                    {order.riderPhone ? (
+                      <Text style={{ fontSize: 12, color: '#047857', fontWeight: '600' }}>
+                        +91 {order.riderPhone}
+                      </Text>
+                    ) : null}
+                  </View>
+
+                  {order.riderPhone ? (
+                    <TouchableOpacity
+                      onPress={() => Linking.openURL(`tel:${order.riderPhone}`)}
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        backgroundColor: '#10B981',
+                        paddingVertical: 8,
+                        paddingHorizontal: 14,
+                        borderRadius: 10,
+                        gap: 5,
+                      }}
+                      activeOpacity={0.85}
+                    >
+                      <Ionicons name="call" size={14} color="#FFFFFF" />
+                      <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 12 }}>Call</Text>
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
               ) : null}
             </View>
           ) : currentStatus === 'Ready' ? (
@@ -544,7 +598,7 @@ const OrderTrackerScreen = ({ route, navigation }) => {
               />
 
               <View style={styles.timelineStepsRow}>
-                {STATUS_STEPS.map((step, idx) => {
+                {statusSteps.map((step, idx) => {
                   const isCompleted = idx < currentStepIndex;
                   const isActive = idx === currentStepIndex;
 
@@ -566,7 +620,11 @@ const OrderTrackerScreen = ({ route, navigation }) => {
                         ) : idx === 2 ? (
                           <MaterialCommunityIcons name="chef-hat" size={16} color={isActive ? '#FFFFFF' : '#94A3B8'} />
                         ) : idx === 3 ? (
-                          <Feather name="package" size={14} color={isActive ? '#FFFFFF' : '#94A3B8'} />
+                          isDelivery ? (
+                            <Ionicons name="bicycle" size={16} color={isActive ? '#FFFFFF' : '#94A3B8'} />
+                          ) : (
+                            <Feather name="package" size={14} color={isActive ? '#FFFFFF' : '#94A3B8'} />
+                          )
                         ) : (
                           <Ionicons name="checkmark-circle-outline" size={16} color={isActive ? '#FFFFFF' : '#94A3B8'} />
                         )}
@@ -671,6 +729,61 @@ const OrderTrackerScreen = ({ route, navigation }) => {
                 </View>
               ))}
             </View>
+
+            {/* Financial Itemized Breakdown */}
+            {(() => {
+              const itemsSubtotal = (order.items || []).reduce((sum, item) => sum + ((Number(item.price) || 0) * (Number(item.quantity) || 1)), 0);
+              const packagingCharge = Number(order.packagingChargeApplied ? (order.packagingCharge || order.store?.packagingCharge || 5) : 0);
+              const deliveryFee = Number(order.deliveryFee || 0);
+              const platformFee = Number(order.platformFee !== undefined ? order.platformFee : (order.orderType === 'Delivery' ? 5 : 0));
+              const totalPaid = Number(order.totalAmount || 0);
+              const computedGross = itemsSubtotal + packagingCharge + (order.orderType === 'Delivery' ? deliveryFee : 0) + platformFee;
+              const discountAmount = Number(order.discountAmount || (computedGross > totalPaid ? (computedGross - totalPaid) : 0));
+
+              return (
+                <View style={{ marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#F1F5F9', gap: 6 }}>
+                  <View style={styles.summaryMetaRow}>
+                    <Text style={styles.metaLabel}>Item Total</Text>
+                    <Text style={styles.metaValue}>₹{itemsSubtotal}</Text>
+                  </View>
+
+                  {discountAmount > 0 ? (
+                    <View style={styles.summaryMetaRow}>
+                      <Text style={[styles.metaLabel, { color: '#059669', fontWeight: '700' }]}>Coupon / Offer Discount</Text>
+                      <Text style={[styles.metaValue, { color: '#059669', fontWeight: '800' }]}>-₹{discountAmount.toFixed(0)}</Text>
+                    </View>
+                  ) : null}
+
+                  {packagingCharge > 0 ? (
+                    <View style={styles.summaryMetaRow}>
+                      <Text style={styles.metaLabel}>Packaging Charge</Text>
+                      <Text style={styles.metaValue}>₹{packagingCharge}</Text>
+                    </View>
+                  ) : null}
+
+                  {order.orderType === 'Delivery' ? (
+                    <View style={styles.summaryMetaRow}>
+                      <Text style={styles.metaLabel}>Delivery Fee</Text>
+                      {deliveryFee === 0 ? (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                          <Text style={[styles.metaValue, { textDecorationLine: 'line-through', color: '#94A3B8' }]}>₹20</Text>
+                          <Text style={[styles.metaValue, { color: '#10B981', fontWeight: '800' }]}>FREE</Text>
+                        </View>
+                      ) : (
+                        <Text style={styles.metaValue}>₹{deliveryFee}</Text>
+                      )}
+                    </View>
+                  ) : null}
+
+                  {order.orderType === 'Delivery' && platformFee > 0 ? (
+                    <View style={styles.summaryMetaRow}>
+                      <Text style={styles.metaLabel}>Platform Convenience Fee</Text>
+                      <Text style={styles.metaValue}>₹{platformFee}</Text>
+                    </View>
+                  ) : null}
+                </View>
+              );
+            })()}
 
             <View style={styles.summaryTotalRow}>
               <Text style={styles.summaryTotalLabel}>Total Paid</Text>

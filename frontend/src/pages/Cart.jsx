@@ -1,4 +1,4 @@
-import React, { useContext, useState, useEffect, useCallback } from 'react';
+import React, { useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { CartContext } from '../context/CartContext';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
@@ -6,7 +6,7 @@ import {
   Trash2, Plus, Minus, ArrowLeft, CreditCard, Coins, ShoppingBag,
   ChevronRight, ShieldCheck, Store, Clock, User, Phone, Mail,
   CheckCircle, AlertCircle, X, Utensils, ChefHat, Check,
-  Sun, CloudSun, Moon, Coffee, Sparkles, Tag, Flame, Zap, MapPin, Bike
+  Sun, CloudSun, Moon, Coffee, Sparkles, Tag, Flame, Zap, MapPin, Bike, Navigation, Loader2
 } from 'lucide-react';
 import { useStoreTheme } from '../hooks/useStoreTheme';
 
@@ -46,10 +46,54 @@ const Cart = () => {
   const [orderPlaced, setOrderPlaced] = useState(false);
   const [currentOrder, setCurrentOrder] = useState(null);
   const [validationError, setValidationError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({ name: false, phone: false, address: false });
+  const [isLocating, setIsLocating] = useState(false);
   const [isPreOrder, setIsPreOrder] = useState(false);
   const [scheduledTime, setScheduledTime] = useState('');
   const [availableSlots, setAvailableSlots] = useState([]);
   const [pairings, setPairings] = useState([]);
+
+  // Auto-scroll / Focus references
+  const addressRef = useRef(null);
+  const nameRef = useRef(null);
+  const phoneRef = useRef(null);
+
+  const campusQuickLocations = ['Hostel BH-1', 'Hostel BH-2', 'Hostel GH-1', 'Library Block', 'Block 34', 'Central Gate'];
+
+  const handleDetectLocation = () => {
+    if (!navigator.geolocation) {
+      alert('Location services are not supported by your browser');
+      return;
+    }
+    setIsLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude, longitude } = pos.coords;
+        try {
+          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
+          const data = await res.json();
+          const detected = data.display_name || `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+          const cleanAddr = detected.length > 50 ? detected.split(',').slice(0, 3).join(', ') : detected;
+          setDeliveryAddress(cleanAddr);
+          localStorage.setItem('universe_delivery_address', cleanAddr);
+          setFieldErrors(prev => ({ ...prev, address: false }));
+          if (validationError) setValidationError('');
+        } catch {
+          const fallback = `Campus Landmark (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`;
+          setDeliveryAddress(fallback);
+          localStorage.setItem('universe_delivery_address', fallback);
+          setFieldErrors(prev => ({ ...prev, address: false }));
+        } finally {
+          setIsLocating(false);
+        }
+      },
+      () => {
+        setIsLocating(false);
+        alert('Could not auto-detect location. Please ensure location permissions are granted or select a campus landmark.');
+      },
+      { timeout: 8000, enableHighAccuracy: true }
+    );
+  };
 
   // Coupon search and dropdown state
   const [couponInput, setCouponInput] = useState('');
@@ -212,24 +256,37 @@ const Cart = () => {
       setValidationError('This stall is currently closed and not accepting orders.');
       return;
     }
-    if (!customerName.trim()) {
-      setValidationError('Please enter your name to proceed');
+    if (orderType === 'Delivery' && !deliveryAddress.trim()) {
+      setFieldErrors(prev => ({ ...prev, address: true }));
+      setValidationError('Please enter your delivery drop-off address / room number');
+      setTimeout(() => {
+        addressRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        addressRef.current?.focus();
+      }, 50);
       return;
     }
-    if (!customerPhone || customerPhone.length < 10) {
-      setValidationError('Please enter a valid 10-digit phone number');
+    if (orderType === 'Delivery' && store?.minDeliveryOrderValue > 0 && subtotal < store.minDeliveryOrderValue) {
+      setValidationError(`Minimum order value for delivery from this stall is ₹${store.minDeliveryOrderValue}`);
       return;
     }
 
-    if (orderType === 'Delivery') {
-      if (!deliveryAddress.trim()) {
-        setValidationError('Please enter your delivery address / room number');
-        return;
-      }
-      if (store?.minDeliveryOrderValue > 0 && subtotal < store.minDeliveryOrderValue) {
-        setValidationError(`Minimum order value for delivery from this stall is ₹${store.minDeliveryOrderValue}`);
-        return;
-      }
+    if (!customerName.trim()) {
+      setFieldErrors(prev => ({ ...prev, name: true }));
+      setValidationError('Please enter your name to proceed');
+      setTimeout(() => {
+        nameRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        nameRef.current?.focus();
+      }, 50);
+      return;
+    }
+    if (!customerPhone || customerPhone.length < 10) {
+      setFieldErrors(prev => ({ ...prev, phone: true }));
+      setValidationError('Please enter a valid 10-digit mobile number');
+      setTimeout(() => {
+        phoneRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        phoneRef.current?.focus();
+      }, 50);
+      return;
     }
 
     if (isPreOrder) {
@@ -776,43 +833,45 @@ const Cart = () => {
                             key={offer.id}
                             style={{
                               border: isApplied 
-                                ? '2px solid #10b981' 
+                                ? '1.5px solid #10b981' 
                                 : isEligible 
-                                ? '1.5px solid #fed7aa' 
-                                : '1.5px dashed #cbd5e1',
-                              borderRadius: '14px',
-                              padding: '0.85rem 1rem',
-                              background: isApplied ? '#f0fdf4' : isEligible ? '#fffaf5' : '#f8fafc',
+                                ? '1.5px solid #e2e8f0' 
+                                : '1.5px dashed #e2e8f0',
+                              borderRadius: '16px',
+                              padding: '1rem 1.15rem',
+                              background: isApplied ? '#f0fdf4' : '#ffffff',
                               display: 'flex',
                               flexDirection: 'column',
                               justifyContent: 'space-between',
+                              boxShadow: isApplied ? '0 4px 12px rgba(16, 185, 129, 0.08)' : '0 2px 8px rgba(0,0,0,0.03)',
                               transition: 'all 0.2s ease',
-                              opacity: isEligible ? 1 : 0.85
+                              opacity: isEligible ? 1 : 0.8
                             }}
                           >
                             <div>
                               {/* Badges Row */}
-                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', marginBottom: '0.4rem', flexWrap: 'wrap' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.4rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                                   <span style={{
-                                    background: isApplied ? '#10b981' : 'linear-gradient(135deg, #ef4444 0%, #ea580c 100%)',
-                                    color: '#ffffff',
+                                    background: isApplied ? '#10b981' : '#fff7ed',
+                                    color: isApplied ? '#ffffff' : '#c2410c',
+                                    border: isApplied ? 'none' : '1px solid #fed7aa',
                                     fontSize: '0.72rem',
-                                    fontWeight: '900',
+                                    fontWeight: '800',
                                     padding: '0.2rem 0.55rem',
                                     borderRadius: '6px',
-                                    letterSpacing: '0.03em'
+                                    letterSpacing: '0.02em'
                                   }}>
                                     {offer.badgeText || (offer.discountType?.includes('PERCENTAGE') ? `${offer.discountValue}% OFF` : `₹${offer.discountValue} OFF`)}
                                   </span>
                                   {offer.code && (
                                     <span style={{
-                                      background: '#ffffff',
-                                      border: '1px dashed #ea580c',
-                                      color: '#c2410c',
-                                      fontSize: '0.7rem',
-                                      fontWeight: '900',
-                                      padding: '0.15rem 0.45rem',
+                                      background: '#f8fafc',
+                                      border: '1px dashed #cbd5e1',
+                                      color: '#334155',
+                                      fontSize: '0.72rem',
+                                      fontWeight: '800',
+                                      padding: '0.2rem 0.5rem',
                                       borderRadius: '6px'
                                     }}>
                                       {offer.code}
@@ -822,47 +881,41 @@ const Cart = () => {
 
                                 {offer.isGlobal ? (
                                   <span style={{
-                                    background: '#e0f2fe',
-                                    color: '#0369a1',
+                                    background: '#f1f5f9',
+                                    color: '#475569',
                                     fontSize: '0.65rem',
-                                    fontWeight: '800',
-                                    padding: '0.15rem 0.45rem',
-                                    borderRadius: '6px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '0.25rem'
+                                    fontWeight: '700',
+                                    padding: '0.2rem 0.45rem',
+                                    borderRadius: '6px'
                                   }}>
-                                    <Sparkles size={10} /> CAMPUS-WIDE
+                                    Campus Wide
                                   </span>
                                 ) : isFullCartOffer ? (
                                   <span style={{
-                                    background: '#e0f2fe',
-                                    color: '#0369a1',
+                                    background: '#f1f5f9',
+                                    color: '#475569',
                                     fontSize: '0.65rem',
-                                    fontWeight: '800',
-                                    padding: '0.15rem 0.45rem',
-                                    borderRadius: '6px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '0.25rem'
+                                    fontWeight: '700',
+                                    padding: '0.2rem 0.45rem',
+                                    borderRadius: '6px'
                                   }}>
-                                    <Zap size={10} /> ENTIRE CART
+                                    Entire Cart
                                   </span>
                                 ) : null}
                               </div>
 
                               {/* Title & Description */}
-                              <h5 style={{ margin: '0.25rem 0 0.15rem 0', fontSize: '0.88rem', fontWeight: '800', color: '#1e293b' }}>
+                              <h5 style={{ margin: '0.2rem 0 0.15rem 0', fontSize: '0.92rem', fontWeight: '800', color: '#0f172a' }}>
                                 {offer.title}
                               </h5>
-                              <p style={{ margin: '0 0 0.4rem 0', fontSize: '0.72rem', color: '#64748b', lineHeight: '1.3' }}>
+                              <p style={{ margin: '0 0 0.4rem 0', fontSize: '0.75rem', color: '#64748b', lineHeight: '1.35' }}>
                                 {offer.description || (isFullCartOffer ? 'Valid on total cart value' : 'Applicable on select items')}
                               </p>
 
                               {/* Terms / Min Order info */}
-                              <div style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: '600' }}>
+                              <div style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: '600' }}>
                                 {offer.minOrderValue > 0 ? `Min. order ₹${offer.minOrderValue}` : 'No minimum order'}
-                                {offer.maxDiscountCap > 0 ? ` • Max discount ₹${offer.maxDiscountCap}` : ''}
+                                {offer.maxDiscountCap > 0 ? ` • Max savings ₹${offer.maxDiscountCap}` : ''}
                               </div>
                             </div>
 
@@ -871,14 +924,14 @@ const Cart = () => {
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'space-between',
-                              marginTop: '0.65rem',
-                              paddingTop: '0.5rem',
-                              borderTop: '1px solid rgba(0,0,0,0.06)'
+                              marginTop: '0.75rem',
+                              paddingTop: '0.6rem',
+                              borderTop: '1px solid #f1f5f9'
                             }}>
                               {isEligible ? (
                                 <>
-                                  <span style={{ fontSize: '0.75rem', fontWeight: '800', color: '#059669' }}>
-                                    {isApplied ? `✓ Applied (Saving ₹${offerDiscount.toFixed(2)})` : `Save on this order!`}
+                                  <span style={{ fontSize: '0.75rem', fontWeight: '700', color: isApplied ? '#059669' : '#059669' }}>
+                                    {isApplied ? `✓ Applied (Saved ₹${offerDiscount.toFixed(2)})` : `Save on this order!`}
                                   </span>
                                   <button
                                     type="button"
@@ -892,10 +945,10 @@ const Cart = () => {
                                       }
                                     }}
                                     style={{
-                                      background: isApplied ? '#10b981' : '#ffffff',
-                                      color: isApplied ? '#ffffff' : '#ea580c',
-                                      border: isApplied ? 'none' : '1.5px solid #ea580c',
-                                      padding: '0.35rem 0.85rem',
+                                      background: isApplied ? '#e2e8f0' : 'var(--primary)',
+                                      color: isApplied ? '#475569' : '#ffffff',
+                                      border: 'none',
+                                      padding: '0.4rem 0.9rem',
                                       borderRadius: '8px',
                                       fontSize: '0.75rem',
                                       fontWeight: '800',
@@ -903,12 +956,11 @@ const Cart = () => {
                                       transition: 'all 0.15s ease'
                                     }}
                                   >
-                                    {isApplied ? 'APPLIED ✓' : 'APPLY'}
+                                    {isApplied ? 'REMOVE' : 'APPLY'}
                                   </button>
                                 </>
                               ) : (
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: '#ea580c', fontSize: '0.72rem', fontWeight: '700' }}>
-                                  <Flame size={13} />
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: '#d97706', fontSize: '0.72rem', fontWeight: '700' }}>
                                   <span>{ineligibility ? ineligibility.reason : `Add ₹${Math.max(0, (offer.minOrderValue || 0) - total)} more to unlock`}</span>
                                 </div>
                               )}
@@ -1110,7 +1162,16 @@ const Cart = () => {
 
             {/* Delivery Address Box if Delivery Selected */}
             {orderType === 'Delivery' && (
-              <div className="glass-card" style={{ padding: '1.25rem 1.5rem', borderRadius: '24px' }}>
+              <div 
+                className="glass-card" 
+                style={{ 
+                  padding: '1.25rem 1.5rem', 
+                  borderRadius: '24px',
+                  border: fieldErrors.address ? '2px solid #ef4444' : '1px solid var(--surface-border)',
+                  background: fieldErrors.address ? '#fff5f5' : '#ffffff',
+                  transition: 'all 0.2s ease'
+                }}
+              >
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
                     <div style={{
@@ -1129,24 +1190,79 @@ const Cart = () => {
                       </p>
                     </div>
                   </div>
-                  <span style={{ fontSize: '0.65rem', fontWeight: '800', background: 'rgba(239, 65, 35, 0.08)', color: 'var(--primary)', padding: '0.25rem 0.55rem', borderRadius: '6px', letterSpacing: '0.04em' }}>
-                    REQUIRED
-                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <button
+                      type="button"
+                      onClick={handleDetectLocation}
+                      disabled={isLocating}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.35rem',
+                        fontSize: '0.72rem',
+                        fontWeight: '700',
+                        color: 'var(--primary)',
+                        background: 'rgba(239, 65, 35, 0.08)',
+                        border: '1px solid rgba(239, 65, 35, 0.2)',
+                        padding: '0.3rem 0.65rem',
+                        borderRadius: '8px',
+                        cursor: isLocating ? 'not-allowed' : 'pointer',
+                        transition: 'all 0.2s ease'
+                      }}
+                    >
+                      {isLocating ? <Loader2 size={12} className="animate-spin" /> : <Navigation size={12} />}
+                      {isLocating ? 'Locating...' : 'Auto-Detect'}
+                    </button>
+                    <span style={{ fontSize: '0.65rem', fontWeight: '800', background: 'rgba(239, 65, 35, 0.08)', color: 'var(--primary)', padding: '0.25rem 0.55rem', borderRadius: '6px', letterSpacing: '0.04em' }}>
+                      REQUIRED
+                    </span>
+                  </div>
                 </div>
+
+                <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '0.65rem' }}>
+                  {campusQuickLocations.map(loc => (
+                    <button
+                      key={loc}
+                      type="button"
+                      onClick={() => {
+                        const newAddr = deliveryAddress ? `${deliveryAddress}, ${loc}` : loc;
+                        setDeliveryAddress(newAddr);
+                        localStorage.setItem('universe_delivery_address', newAddr);
+                        setFieldErrors(prev => ({ ...prev, address: false }));
+                        if (validationError) setValidationError('');
+                      }}
+                      style={{
+                        fontSize: '0.72rem',
+                        fontWeight: '600',
+                        padding: '0.25rem 0.55rem',
+                        background: '#f1f5f9',
+                        border: '1px solid #cbd5e1',
+                        borderRadius: '6px',
+                        color: '#475569',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      + {loc}
+                    </button>
+                  ))}
+                </div>
+
                 <textarea
+                  ref={addressRef}
                   rows={2}
                   placeholder="Enter complete address (e.g. Hostel BH-1, Room 304, 3rd Floor)"
                   value={deliveryAddress}
                   onChange={(e) => {
                     setDeliveryAddress(e.target.value);
                     localStorage.setItem('universe_delivery_address', e.target.value);
+                    setFieldErrors(prev => ({ ...prev, address: false }));
                     if (validationError) setValidationError('');
                   }}
                   style={{
                     width: '100%',
                     padding: '0.75rem 1rem',
                     borderRadius: '12px',
-                    border: '1.5px solid #cbd5e1',
+                    border: fieldErrors.address ? '2px solid #ef4444' : '1.5px solid #cbd5e1',
                     background: '#f8fafc',
                     fontSize: '0.9rem',
                     fontWeight: '500',
@@ -1155,8 +1271,8 @@ const Cart = () => {
                     resize: 'none'
                   }}
                 />
-                <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.73rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                  <AlertCircle size={12} /> Please ensure room or landmark is clear. 4-digit PIN is required at handover.
+                <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.73rem', color: fieldErrors.address ? '#dc2626' : '#64748b', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                  <AlertCircle size={12} /> {fieldErrors.address ? 'Delivery address is required before payment.' : 'Please ensure room or landmark is clear. 4-digit PIN is required at handover.'}
                 </p>
               </div>
             )}
@@ -1502,24 +1618,26 @@ const Cart = () => {
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 <div>
-                  <label style={{ fontSize: '0.8rem', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '0.5rem', display: 'block' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: '600', color: fieldErrors.name ? '#dc2626' : 'var(--text-secondary)', marginBottom: '0.5rem', display: 'block' }}>
                     <User size={14} style={{ marginRight: '0.4rem', verticalAlign: 'middle' }} />
-                    Name
+                    Name {fieldErrors.name && <span style={{ color: '#dc2626' }}>(Required)</span>}
                   </label>
                   <input
+                    ref={nameRef}
                     type="text"
                     placeholder="Enter your name"
                     value={customerName}
                     onChange={(e) => {
                       setCustomerName(e.target.value);
+                      setFieldErrors(prev => ({ ...prev, name: false }));
                       if (validationError) setValidationError('');
                     }}
                     style={{
                       width: '100%',
                       padding: '0.75rem',
                       borderRadius: '12px',
-                      border: '1px solid var(--surface-border)',
-                      background: '#f8fafc',
+                      border: fieldErrors.name ? '2px solid #ef4444' : '1px solid var(--surface-border)',
+                      background: fieldErrors.name ? '#fff5f5' : '#f8fafc',
                       fontSize: '0.9rem',
                       fontWeight: '600',
                       color: 'var(--text-primary)',
@@ -1529,17 +1647,19 @@ const Cart = () => {
                   />
                 </div>
                 <div>
-                  <label style={{ fontSize: '0.8rem', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '0.5rem', display: 'block' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: '600', color: fieldErrors.phone ? '#dc2626' : 'var(--text-secondary)', marginBottom: '0.5rem', display: 'block' }}>
                     <Phone size={14} style={{ marginRight: '0.4rem', verticalAlign: 'middle' }} />
-                    Phone Number
+                    Phone Number {fieldErrors.phone && <span style={{ color: '#dc2626' }}>(10 digits required)</span>}
                   </label>
                   <input
+                    ref={phoneRef}
                     type="tel"
                     placeholder="Enter 10-digit number"
                     value={customerPhone}
                     onChange={(e) => {
                       const val = e.target.value.replace(/\D/g, '');
                       setCustomerPhone(val);
+                      setFieldErrors(prev => ({ ...prev, phone: false }));
                       if (validationError) setValidationError('');
                     }}
                     maxLength={10}
@@ -1547,8 +1667,8 @@ const Cart = () => {
                       width: '100%',
                       padding: '0.75rem',
                       borderRadius: '12px',
-                      border: '1px solid var(--surface-border)',
-                      background: '#f8fafc',
+                      border: fieldErrors.phone ? '2px solid #ef4444' : '1px solid var(--surface-border)',
+                      background: fieldErrors.phone ? '#fff5f5' : '#f8fafc',
                       fontSize: '0.9rem',
                       fontWeight: '600',
                       color: 'var(--text-primary)',

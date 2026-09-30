@@ -21,7 +21,8 @@ import {
   Copy,
   AlertCircle,
   Send,
-  Edit3
+  Edit3,
+  Bike
 } from 'lucide-react';
 import { playOrderCompletedSound, playOrderConfirmedSound } from '../utils/soundHelper';
 
@@ -234,15 +235,34 @@ const OrderTracker = () => {
     setTimeout(() => setCopiedUtr(false), 2000);
   };
 
-  const statusSteps = [
-    { label: 'Pending', icon: Clock, color: '#f59e0b', desc: 'Vendor is reviewing your order' },
-    { label: 'Confirmed', icon: Receipt, color: '#3b82f6', desc: 'Order confirmed! Waiting for kitchen to start' },
-    { label: 'Cooking', icon: ChefHat, color: '#8b5cf6', desc: 'Your food is sizzling hot in the kitchen!' },
-    { label: 'Ready', icon: PackageCheck, color: '#ec4899', desc: 'Order is ready for collection!' },
-    { label: 'Completed', icon: CheckCircle2, color: '#10b981', desc: 'Order handed over successfully' }
-  ];
+  const getStatusSteps = (orderType) => {
+    if (orderType === 'Delivery') {
+      return [
+        { label: 'Pending', icon: Clock, color: '#f59e0b', desc: 'Vendor is reviewing your order' },
+        { label: 'Confirmed', icon: Receipt, color: '#3b82f6', desc: 'Order confirmed! Kitchen is prepping' },
+        { label: 'Cooking', icon: ChefHat, color: '#8b5cf6', desc: 'Your food is sizzling hot in the kitchen!' },
+        { label: 'Out for Delivery', icon: Bike, color: '#10b981', desc: 'Rider is on the way with your order!' },
+        { label: 'Completed', icon: CheckCircle2, color: '#10b981', desc: 'Order delivered successfully' }
+      ];
+    }
+    return [
+      { label: 'Pending', icon: Clock, color: '#f59e0b', desc: 'Vendor is reviewing your order' },
+      { label: 'Confirmed', icon: Receipt, color: '#3b82f6', desc: 'Order confirmed! Waiting for kitchen to start' },
+      { label: 'Cooking', icon: ChefHat, color: '#8b5cf6', desc: 'Your food is sizzling hot in the kitchen!' },
+      { label: 'Ready', icon: PackageCheck, color: '#ec4899', desc: 'Order is ready for collection!' },
+      { label: 'Completed', icon: CheckCircle2, color: '#10b981', desc: 'Order handed over successfully' }
+    ];
+  };
 
-  const currentStepIndex = order ? statusSteps.findIndex(s => s.label === order.status) : -1;
+  const statusSteps = order ? getStatusSteps(order.orderType) : [];
+  const currentStepIndex = order ? (() => {
+    if (order.orderType === 'Delivery') {
+      if (order.status === 'Ready' || order.status === 'Out for Delivery') return 3;
+      if (order.status === 'Completed') return 4;
+    }
+    const idx = statusSteps.findIndex(s => s.label === order.status);
+    return idx >= 0 ? idx : 0;
+  })() : -1;
 
   if (loading) {
     return (
@@ -617,7 +637,7 @@ const OrderTracker = () => {
         )}
 
         {/* Handover Section: Delivery vs Pickup QR Code */}
-        {order.status === 'Ready' && order.orderType === 'Delivery' ? (
+        {(order.status === 'Ready' || order.status === 'Out for Delivery') && order.orderType === 'Delivery' ? (
           <div style={{ 
             background: '#f0fdf4', 
             padding: '2rem', 
@@ -637,13 +657,14 @@ const OrderTracker = () => {
               opacity: 0.8
             }}></div>
             
-            <h3 style={{ fontSize: '1.25rem', fontWeight: '800', marginBottom: '0.4rem', color: '#065f46' }}>
-              {order.riderName ? '🛵 Rider Out For Delivery' : '🛵 Order Packed & Ready'}
+            <h3 style={{ fontSize: '1.25rem', fontWeight: '800', marginBottom: '0.4rem', color: '#065f46', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Bike size={20} color="#059669" />
+              {order.riderName ? 'Rider Out For Delivery' : 'Order Packed & Ready'}
             </h3>
             <p style={{ fontSize: '0.85rem', color: '#047857', marginBottom: '1.25rem' }}>
               {order.riderName 
                 ? `Your delivery partner ${order.riderName} is on the way to your destination.`
-                : 'Your order is packed. Stall is dispatching it to their delivery boy.'}
+                : 'Your order is packed. Stall is dispatching it to their delivery partner.'}
             </p>
 
             {/* Batch Nearby Notification */}
@@ -902,6 +923,61 @@ const OrderTracker = () => {
              ))}
            </div>
            
+           {/* Financial Itemized Breakdown */}
+           {(() => {
+             const itemsSubtotal = (order.items || []).reduce((sum, item) => sum + ((Number(item.price) || 0) * (Number(item.quantity) || 1)), 0);
+             const packagingCharge = Number(order.packagingChargeApplied ? (order.packagingCharge || order.store?.packagingCharge || 5) : 0);
+             const deliveryFee = Number(order.deliveryFee || 0);
+             const platformFee = Number(order.platformFee !== undefined ? order.platformFee : (order.orderType === 'Delivery' ? 5 : 0));
+             const totalPaid = Number(order.totalAmount || 0);
+             const computedGross = itemsSubtotal + packagingCharge + (order.orderType === 'Delivery' ? deliveryFee : 0) + platformFee;
+             const discountAmount = Number(order.discountAmount || (computedGross > totalPaid ? (computedGross - totalPaid) : 0));
+
+             return (
+               <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--surface-border)', display: 'flex', flexDirection: 'column', gap: '0.45rem', fontSize: '0.85rem' }}>
+                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                   <span style={{ color: 'var(--text-secondary)' }}>Item Total</span>
+                   <span style={{ fontWeight: '700', color: 'var(--text-primary)' }}>₹{itemsSubtotal}</span>
+                 </div>
+
+                 {discountAmount > 0 && (
+                   <div style={{ display: 'flex', justifyContent: 'space-between', color: '#059669', fontWeight: '700' }}>
+                     <span>Coupon / Offer Discount</span>
+                     <span style={{ fontWeight: '800' }}>-₹{discountAmount.toFixed(0)}</span>
+                   </div>
+                 )}
+
+                 {packagingCharge > 0 && (
+                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                     <span style={{ color: 'var(--text-secondary)' }}>Packaging Charge</span>
+                     <span style={{ fontWeight: '700', color: 'var(--text-primary)' }}>₹{packagingCharge}</span>
+                   </div>
+                 )}
+
+                 {order.orderType === 'Delivery' && (
+                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                     <span style={{ color: 'var(--text-secondary)' }}>Delivery Fee</span>
+                     {deliveryFee === 0 ? (
+                       <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                         <span style={{ textDecoration: 'line-through', color: '#94a3b8' }}>₹20</span>
+                         <span style={{ color: '#10b981', fontWeight: '800' }}>FREE</span>
+                       </span>
+                     ) : (
+                       <span style={{ fontWeight: '700', color: 'var(--text-primary)' }}>₹{deliveryFee}</span>
+                     )}
+                   </div>
+                 )}
+
+                 {order.orderType === 'Delivery' && platformFee > 0 && (
+                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                     <span style={{ color: 'var(--text-secondary)' }}>Platform Convenience Fee</span>
+                     <span style={{ fontWeight: '700', color: 'var(--text-primary)' }}>₹{platformFee}</span>
+                   </div>
+                 )}
+               </div>
+             );
+           })()}
+
            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '1.5rem', paddingTop: '1.25rem', borderTop: '1px dashed var(--surface-border)', fontWeight: '900', fontSize: '1.25rem', color: 'var(--text-primary)' }}>
              <span>Total Paid</span>
              <span style={{ color: 'var(--secondary)' }}>₹{order.totalAmount}</span>
