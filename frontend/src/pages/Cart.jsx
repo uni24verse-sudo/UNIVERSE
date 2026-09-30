@@ -58,8 +58,6 @@ const Cart = () => {
   const nameRef = useRef(null);
   const phoneRef = useRef(null);
 
-  const campusQuickLocations = ['Hostel BH-1', 'Hostel BH-2', 'Hostel GH-1', 'Library Block', 'Block 34', 'Central Gate'];
-
   const handleDetectLocation = () => {
     if (!navigator.geolocation) {
       alert('Location services are not supported by your browser');
@@ -1217,34 +1215,6 @@ const Cart = () => {
                       REQUIRED
                     </span>
                   </div>
-                </div>
-
-                <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '0.65rem' }}>
-                  {campusQuickLocations.map(loc => (
-                    <button
-                      key={loc}
-                      type="button"
-                      onClick={() => {
-                        const newAddr = deliveryAddress ? `${deliveryAddress}, ${loc}` : loc;
-                        setDeliveryAddress(newAddr);
-                        localStorage.setItem('universe_delivery_address', newAddr);
-                        setFieldErrors(prev => ({ ...prev, address: false }));
-                        if (validationError) setValidationError('');
-                      }}
-                      style={{
-                        fontSize: '0.72rem',
-                        fontWeight: '600',
-                        padding: '0.25rem 0.55rem',
-                        background: '#f1f5f9',
-                        border: '1px solid #cbd5e1',
-                        borderRadius: '6px',
-                        color: '#475569',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      + {loc}
-                    </button>
-                  ))}
                 </div>
 
                 <textarea

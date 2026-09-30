@@ -545,6 +545,106 @@ const OrderTrackerScreen = ({ route, navigation }) => {
                   ) : null}
                 </View>
               ) : null}
+
+              {/* Live Delivery Route & Campus Map Visualizer */}
+              {order.deliveryAddress ? (
+                <View style={{
+                  backgroundColor: '#FFFFFF',
+                  borderRadius: 14,
+                  padding: 12,
+                  marginTop: 10,
+                  borderWidth: 1,
+                  borderColor: '#E2E8F0',
+                }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#10B981' }} />
+                      <Text style={{ fontSize: 11, fontWeight: '900', color: '#065F46', textTransform: 'uppercase' }}>
+                        {currentStatus === 'Out for Delivery' ? 'Live En-Route Tracking' : 'Dispatch Route'}
+                      </Text>
+                    </View>
+                    <View style={{ backgroundColor: '#DCFCE7', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                      <Text style={{ fontSize: 10, fontWeight: '800', color: '#059669' }}>~8-12 mins ETA</Text>
+                    </View>
+                  </View>
+
+                  {/* Route Progress Graphic */}
+                  <View style={{ position: 'relative', marginVertical: 6 }}>
+                    <View style={{ height: 4, backgroundColor: '#E2E8F0', borderRadius: 2 }}>
+                      <View style={{
+                        height: 4,
+                        borderRadius: 2,
+                        backgroundColor: '#10B981',
+                        width: currentStatus === 'Out for Delivery' ? '65%' : '25%',
+                      }} />
+                    </View>
+
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: 8 }}>
+                      <View style={{ maxWidth: '40%' }}>
+                        <Text style={{ fontSize: 11, fontWeight: '800', color: '#1E293B' }} numberOfLines={1}>
+                          {order.store?.name || 'Stall Counter'}
+                        </Text>
+                        <Text style={{ fontSize: 9.5, color: '#94A3B8', fontWeight: '600' }}>Pickup Point</Text>
+                      </View>
+
+                      <View style={{ alignItems: 'center', transform: [{ translateY: -16 }] }}>
+                        <View style={{
+                          width: 26,
+                          height: 26,
+                          borderRadius: 13,
+                          backgroundColor: '#10B981',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          shadowColor: '#10B981',
+                          shadowOffset: { width: 0, height: 2 },
+                          shadowOpacity: 0.3,
+                          shadowRadius: 4,
+                          elevation: 3,
+                        }}>
+                          <Ionicons name="bicycle" size={14} color="#FFFFFF" />
+                        </View>
+                        <Text style={{ fontSize: 9, fontWeight: '800', color: '#065F46', marginTop: 1 }}>
+                          {order.riderName || 'Rider'}
+                        </Text>
+                      </View>
+
+                      <View style={{ maxWidth: '40%', alignItems: 'flex-end' }}>
+                        <Text style={{ fontSize: 11, fontWeight: '800', color: '#1E293B', textAlign: 'right' }} numberOfLines={1}>
+                          {order.deliveryAddress}
+                        </Text>
+                        <Text style={{ fontSize: 9.5, color: '#94A3B8', fontWeight: '600' }}>Drop Destination</Text>
+                      </View>
+                    </View>
+                  </View>
+
+                  {/* Google Maps Directions Button */}
+                  <TouchableOpacity
+                    onPress={() => {
+                      const origin = encodeURIComponent(order.store?.name || 'Campus Food Court');
+                      const dest = encodeURIComponent(order.deliveryAddress);
+                      Linking.openURL(`https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${dest}`);
+                    }}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      backgroundColor: '#F0FDF4',
+                      borderWidth: 1,
+                      borderColor: '#BBF7D0',
+                      paddingVertical: 7,
+                      borderRadius: 8,
+                      marginTop: 8,
+                      gap: 6,
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="map-outline" size={13} color="#059669" />
+                    <Text style={{ fontSize: 11, fontWeight: '800', color: '#059669' }}>
+                      Open Route in Google Maps
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              ) : null}
             </View>
           ) : currentStatus === 'Ready' ? (
             <View style={styles.handoverCard}>

@@ -723,9 +723,107 @@ const OrderTracker = () => {
               </div>
             )}
 
+            {/* Live Delivery Route & Map Visualizer */}
             {order.deliveryAddress && (
-              <div style={{ marginTop: '1rem', fontSize: '0.8rem', color: '#065f46' }}>
-                <strong>Drop Destination:</strong> {order.deliveryAddress}
+              <div style={{
+                background: '#ffffff',
+                border: '1.5px solid #d1fae5',
+                borderRadius: '16px',
+                padding: '1.25rem',
+                marginTop: '1.25rem',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.03)',
+                textAlign: 'left'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981', boxShadow: '0 0 0 3px rgba(16,185,129,0.2)' }} />
+                    <span style={{ fontSize: '0.82rem', fontWeight: '800', color: '#065f46' }}>
+                      {order.status === 'Out for Delivery' ? 'LIVE DELIVERY ROUTE' : 'DISPATCH ROUTE'}
+                    </span>
+                  </div>
+                  <span style={{ fontSize: '0.72rem', fontWeight: '700', color: '#059669', background: '#dcfce7', padding: '0.2rem 0.55rem', borderRadius: '6px' }}>
+                    ~8-12 mins ETA
+                  </span>
+                </div>
+
+                {/* Animated Route Line */}
+                <div style={{ position: 'relative', padding: '0.5rem 0', margin: '0.5rem 0' }}>
+                  <div style={{ height: '3px', background: '#e2e8f0', borderRadius: '2px', position: 'relative' }}>
+                    <div style={{
+                      position: 'absolute',
+                      left: 0,
+                      top: 0,
+                      height: '100%',
+                      width: order.status === 'Out for Delivery' ? '65%' : '25%',
+                      background: 'linear-gradient(90deg, #10b981, #059669)',
+                      borderRadius: '2px'
+                    }} />
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: '0.6rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', maxWidth: '35%' }}>
+                      <Store size={14} color="#64748b" />
+                      <div>
+                        <div style={{ fontSize: '0.75rem', fontWeight: '800', color: '#1e293b' }}>{order.store?.name || 'Stall Counter'}</div>
+                        <div style={{ fontSize: '0.65rem', color: '#94a3b8' }}>Pickup Point</div>
+                      </div>
+                    </div>
+
+                    <div style={{ textAlign: 'center', transform: 'translateY(-14px)' }}>
+                      <div style={{
+                        width: '32px',
+                        height: '32px',
+                        borderRadius: '50%',
+                        background: '#10b981',
+                        color: '#fff',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        boxShadow: '0 4px 10px rgba(16,185,129,0.35)',
+                        margin: '0 auto'
+                      }}>
+                        <Bike size={16} />
+                      </div>
+                      <div style={{ fontSize: '0.68rem', fontWeight: '800', color: '#065f46', marginTop: '2px' }}>
+                        {order.riderName || 'Partner En Route'}
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', textAlign: 'right', maxWidth: '35%', justifyContent: 'flex-end' }}>
+                      <div>
+                        <div style={{ fontSize: '0.75rem', fontWeight: '800', color: '#1e293b' }}>{order.deliveryAddress}</div>
+                        <div style={{ fontSize: '0.65rem', color: '#94a3b8' }}>Drop Destination</div>
+                      </div>
+                      <MapPin size={14} color="#ea580c" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Google Maps External Live Route Button */}
+                <div style={{ marginTop: '0.85rem', paddingTop: '0.65rem', borderTop: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: '0.73rem', color: '#64748b', fontWeight: '600' }}>
+                    Track campus route & directions
+                  </span>
+                  <a
+                    href={`https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(order.store?.name || 'Campus Food Court')}&destination=${encodeURIComponent(order.deliveryAddress)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.35rem',
+                      fontSize: '0.75rem',
+                      fontWeight: '800',
+                      color: '#059669',
+                      background: '#f0fdf4',
+                      border: '1px solid #bbf7d0',
+                      padding: '0.35rem 0.75rem',
+                      borderRadius: '8px',
+                      textDecoration: 'none'
+                    }}
+                  >
+                    <Navigation size={12} /> Open in Google Maps
+                  </a>
+                </div>
               </div>
             )}
           </div>

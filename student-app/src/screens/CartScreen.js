@@ -690,35 +690,6 @@ const CartScreen = ({ navigation }) => {
                 </TouchableOpacity>
               </View>
 
-              {/* Quick Campus Hostel / Landmark Preset Chips */}
-              <View style={styles.presetChipsRow}>
-                <Text style={styles.presetChipsLabel}>Quick select:</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
-                  {CAMPUS_PRESETS.map((preset) => (
-                    <TouchableOpacity
-                      key={preset}
-                      style={[
-                        styles.presetChip,
-                        deliveryAddress.includes(preset) && styles.presetChipActive
-                      ]}
-                      onPress={() => {
-                        setDeliveryAddress(prev => {
-                          if (!prev) return `${preset}, Room `;
-                          const cleaned = prev.replace(/^(BH-\d|GH-\d|Block \d+|Library|Main Gate),?\s*/i, '');
-                          return `${preset}, ${cleaned || 'Room '}`;
-                        });
-                        setAddressError(false);
-                      }}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={[styles.presetChipText, deliveryAddress.includes(preset) && styles.presetChipTextActive]}>
-                        {preset}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              </View>
-
               <TextInput
                 ref={addressInputRef}
                 style={[
