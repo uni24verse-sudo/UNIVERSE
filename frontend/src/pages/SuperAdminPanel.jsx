@@ -73,6 +73,7 @@ const SuperAdminPanel = () => {
   const [pendingRefundCount, setPendingRefundCount] = useState(0);
   const [storeSearch, setStoreSearch] = useState('');
   const [storeStatusFilter, setStoreStatusFilter] = useState('all');
+  const [storeLocationFilter, setStoreLocationFilter] = useState('all');
   const [vendorSubTab, setVendorSubTab] = useState('active');
   const [selectedActiveVendors, setSelectedActiveVendors] = useState([]);
   const [selectedPendingVendors, setSelectedPendingVendors] = useState([]);
@@ -1321,6 +1322,12 @@ const SuperAdminPanel = () => {
 
             if (!matchesSearch) return false;
 
+            const matchesLocation = storeLocationFilter === 'all' || 
+              String(store.locationId || '') === String(storeLocationFilter) ||
+              (storeLocationFilter === 'unassigned' && !store.locationId);
+
+            if (!matchesLocation) return false;
+
             if (storeStatusFilter === 'open') return store.isOpen && !store.isHidden;
             if (storeStatusFilter === 'closed') return !store.isOpen && !store.isHidden;
             if (storeStatusFilter === 'hidden') return store.isHidden;
@@ -1332,25 +1339,53 @@ const SuperAdminPanel = () => {
 
               {/* Search & Filter Bar */}
               <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div style={{ position: 'relative', minWidth: '280px', flex: '1', maxWidth: '420px' }}>
-                  <Search size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
-                  <input 
-                    type="text"
-                    placeholder="Search stall, category, or vendor name..."
-                    value={storeSearch}
-                    onChange={(e) => setStoreSearch(e.target.value)}
+                <div style={{ display: 'flex', gap: '0.75rem', flex: 1, minWidth: '300px', flexWrap: 'wrap' }}>
+                  <div style={{ position: 'relative', flex: '1', minWidth: '220px', maxWidth: '380px' }}>
+                    <Search size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
+                    <input 
+                      type="text"
+                      placeholder="Search stall, category, or vendor name..."
+                      value={storeSearch}
+                      onChange={(e) => setStoreSearch(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '0.7rem 1rem 0.7rem 2.85rem',
+                        borderRadius: '14px',
+                        border: '1px solid var(--surface-border)',
+                        background: '#ffffff',
+                        fontSize: '0.875rem',
+                        fontWeight: '600',
+                        outline: 'none',
+                        color: 'var(--text-primary)'
+                      }}
+                    />
+                  </div>
+
+                  {/* Location-wise Dropdown Filter */}
+                  <select
+                    value={storeLocationFilter}
+                    onChange={(e) => setStoreLocationFilter(e.target.value)}
                     style={{
-                      width: '100%',
-                      padding: '0.7rem 1rem 0.7rem 2.85rem',
+                      padding: '0.7rem 1rem',
                       borderRadius: '14px',
-                      border: '1px solid var(--surface-border)',
-                      background: '#ffffff',
+                      border: storeLocationFilter !== 'all' ? '1.5px solid var(--primary)' : '1px solid var(--surface-border)',
+                      background: storeLocationFilter !== 'all' ? 'rgba(239, 65, 35, 0.04)' : '#ffffff',
                       fontSize: '0.875rem',
-                      fontWeight: '600',
+                      fontWeight: '700',
+                      color: storeLocationFilter !== 'all' ? 'var(--primary)' : 'var(--text-primary)',
                       outline: 'none',
-                      color: 'var(--text-primary)'
+                      cursor: 'pointer',
+                      minWidth: '220px'
                     }}
-                  />
+                  >
+                    <option value="all">📍 All Locations ({locations.length})</option>
+                    <option value="unassigned">⚠️ Unassigned Stalls</option>
+                    {locations.map(loc => (
+                      <option key={loc._id || loc.id} value={loc._id || loc.id}>
+                        📍 {loc.name} ({loc.city || loc.type})
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', background: '#f1f5f9', padding: '0.35rem', borderRadius: '14px' }}>
                   {[
@@ -1753,6 +1788,32 @@ const SuperAdminPanel = () => {
                          <option value="Restaurant">RESTAURANT</option>
                        </select>
                     </div>
+
+                    {/* Table / Seating Spot Feature Toggle */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', padding: '0.6rem 0.75rem', background: store.hasTableService ? 'rgba(37, 99, 235, 0.06)' : '#ffffff', borderRadius: '10px', border: `1px solid ${store.hasTableService ? 'rgba(37, 99, 235, 0.25)' : 'var(--surface-border)'}` }}>
+                      <div>
+                        <p style={{ margin: 0, fontWeight: '800', fontSize: '0.7rem', textTransform: 'uppercase', color: store.hasTableService ? '#2563eb' : 'var(--text-primary)' }}>🪑 Table / Seating Service</p>
+                        <p style={{ margin: 0, fontSize: '0.6rem', color: 'var(--text-secondary)' }}>
+                          {store.hasTableService ? 'Enabled: Prompts student for table/seat #' : 'Disabled: Takeaway cart (no seating input)'}
+                        </p>
+                      </div>
+                      <input 
+                        type="checkbox" 
+                        checked={Boolean(store.hasTableService)} 
+                        onChange={async (e) => {
+                          const nextVal = e.target.checked;
+                          setStores(prev => prev.map(s => (s._id === store._id || s.id === store._id) ? { ...s, hasTableService: nextVal } : s));
+                          try {
+                            await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/super-admin/store/${store._id}/update-details`, 
+                              { hasTableService: nextVal }, 
+                              { headers: { Authorization: `Bearer ${token}` } }
+                            );
+                            fetchDashboardData(true);
+                          } catch(err) { alert('Failed to update table service setting'); }
+                        }}
+                        style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: '#2563eb' }}
+                      />
+                    </div>
                     
                     {/* Auto-Timing Schedule Control */}
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem', padding: '0.4rem 0.6rem', background: store.isAutomated ? 'rgba(79, 70, 229, 0.08)' : '#f8fafc', borderRadius: '8px' }}>
@@ -2057,7 +2118,7 @@ const SuperAdminPanel = () => {
                             setLocationName(loc.name);
                             setLocationType(loc.type);
                             setLocationCity(loc.city || '');
-                            setLocationDietaryType(loc.dietaryType || (loc.name?.toLowerCase().includes('lpu') || loc.name?.toLowerCase().includes('lovely') ? 'veg' : 'both'));
+                            setLocationDietaryType(loc.dietaryType || 'both');
                             setLocationMarkets(loc.markets || '');
                             setShowLocationForm(true);
                           }}
@@ -2077,7 +2138,7 @@ const SuperAdminPanel = () => {
                     <p style={{ color: 'var(--text-secondary)', fontSize: '0.8125rem', fontWeight: '600', margin: '0 0 0.5rem 0' }}>{loc.city || 'No City Specified'}</p>
                     
                     <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '0.5rem' }}>
-                      {loc.dietaryType === 'veg' || (!loc.dietaryType && (loc.name?.toLowerCase().includes('lpu') || loc.name?.toLowerCase().includes('lovely'))) ? (
+                      {loc.dietaryType === 'veg' ? (
                         <span style={{ fontSize: '0.6875rem', fontWeight: '800', color: '#059669', background: 'rgba(16, 185, 129, 0.1)', padding: '0.2rem 0.6rem', borderRadius: '100px', border: '1px solid rgba(16, 185, 129, 0.25)' }}>
                           🌿 Pure Veg Only
                         </span>

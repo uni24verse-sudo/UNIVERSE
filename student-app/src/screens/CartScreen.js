@@ -91,7 +91,8 @@ const CartScreen = ({ navigation }) => {
   };
 
   const [store, setStore] = useState(null);
-  const [orderType, setOrderType] = useState('takeaway'); // 'takeaway' or 'dine_in'
+  const [orderType, setOrderType] = useState('takeaway'); // 'takeaway', 'dine_in', 'delivery'
+  const [deliveryAddress, setDeliveryAddress] = useState('');
   const [cookingInstructions, setCookingInstructions] = useState('');
   const [isPreOrder, setIsPreOrder] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState('');
@@ -102,6 +103,14 @@ const CartScreen = ({ navigation }) => {
   const [tableNumber, setTableNumber] = useState('');
   const [loading, setLoading] = useState(false);
   const [isKnownCustomer, setIsKnownCustomer] = useState(false);
+
+  useEffect(() => {
+    AsyncStorage.getItem('universe_delivery_address')
+      .then(saved => {
+        if (saved) setDeliveryAddress(saved);
+      })
+      .catch(() => {});
+  }, []);
 
   // External Hub Detection (Matches webapp Cart.jsx: store?.locationId?.type !== 'External')
   const isExternalHub =
@@ -270,9 +279,14 @@ const CartScreen = ({ navigation }) => {
     }
   }, [isPreOrder, selectedSlot, availableSlots]);
 
-  const packagingCharge = orderType === 'takeaway' ? (store?.packagingCharge || 0) : 0;
+  const packagingCharge = (orderType === 'takeaway' || orderType === 'delivery') ? (store?.packagingCharge || 0) : 0;
+  const rawDeliveryFee = Number(store?.deliveryFee) || 0;
+  const freeThreshold = Number(store?.freeDeliveryThreshold) || 0;
+  const isFreeDelivery = freeThreshold > 0 && subtotal >= freeThreshold;
+  const deliveryFee = orderType === 'delivery' ? (isFreeDelivery ? 0 : rawDeliveryFee) : 0;
+  const platformFee = orderType === 'delivery' ? 5 : 0;
   const offerDiscount = Number(discountAmount) || 0;
-  const grandTotal = Math.max(0, subtotal - offerDiscount + packagingCharge);
+  const grandTotal = Math.max(0, subtotal - offerDiscount + packagingCharge + deliveryFee + platformFee);
 
   const handleInitiatePayment = async () => {
     if (cart.length === 0) return;
@@ -293,16 +307,31 @@ const CartScreen = ({ navigation }) => {
       Alert.alert('Name Required', 'Please enter your name for counter pickup verification.');
       return;
     }
+    if (orderType === 'delivery') {
+      if (!deliveryAddress.trim()) {
+        Alert.alert('Delivery Address Required', 'Please enter your room, hostel block, or PG address.');
+        return;
+      }
+      const minOrderVal = Number(store?.minDeliveryOrderValue) || 0;
+      if (minOrderVal > 0 && subtotal < minOrderVal) {
+        Alert.alert('Minimum Order Required', `This stall requires a minimum order of ₹${minOrderVal} for delivery.`);
+        return;
+      }
+    }
 
     setLoading(true);
     try {
       // Save details for next time
-      await Promise.all([
+      const storageSaves = [
         AsyncStorage.setItem('universe_customer_phone', cleanPhone),
         AsyncStorage.setItem('universe_customer_name', customerName.trim()),
         AsyncStorage.setItem('universe_customer_email', customerEmail.trim()),
         AsyncStorage.setItem('universe_customer_spot', tableNumber.trim()),
-      ]);
+      ];
+      if (orderType === 'delivery' && deliveryAddress.trim()) {
+        storageSaves.push(AsyncStorage.setItem('universe_delivery_address', deliveryAddress.trim()));
+      }
+      await Promise.all(storageSaves);
 
       const isPreOrderActive = !isExternalHub && Boolean(isPreOrder);
       const scheduledPickupTime = isPreOrderActive ? (selectedSlot || availableSlots[0]?.value) : null;
@@ -323,8 +352,11 @@ const CartScreen = ({ navigation }) => {
         customerName: customerName.trim(),
         customerPhone: cleanPhone,
         customerEmail: customerEmail.trim(),
-        tableNumber: orderType === 'dine_in' ? (tableNumber.trim() || 'Dine In') : 'Takeaway',
-        orderType: orderType === 'takeaway' ? 'Take Away' : 'Dine In',
+        tableNumber: orderType === 'dine_in' ? (tableNumber.trim() || 'Dine In') : (orderType === 'delivery' ? 'Delivery' : 'Takeaway'),
+        orderType: orderType === 'delivery' ? 'Delivery' : (orderType === 'takeaway' ? 'Take Away' : 'Dine In'),
+        deliveryAddress: orderType === 'delivery' ? deliveryAddress.trim() : null,
+        deliveryFee,
+        platformFee,
         packagingChargeApplied: packagingCharge > 0,
         isPreOrder: isPreOrderActive,
         scheduledTime: scheduledPickupTime || '',
@@ -515,10 +547,49 @@ const CartScreen = ({ navigation }) => {
                 Dine In
               </Text>
             </TouchableOpacity>
+
+            {Boolean(store?.hasDeliveryService) && (
+              <TouchableOpacity
+                style={[styles.typeOption, orderType === 'delivery' && styles.typeOptionActive]}
+                onPress={() => setOrderType('delivery')}
+                activeOpacity={0.8}
+              >
+                <MaterialCommunityIcons
+                  name="moped"
+                  size={19}
+                  color={orderType === 'delivery' ? THEME.colors.primary : '#64748B'}
+                />
+                <Text style={[styles.typeText, orderType === 'delivery' && styles.typeTextActive]}>
+                  Delivery
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
 
-          {/* Dine In Table Number (Optional) */}
-          {orderType === 'dine_in' && (
+          {/* Delivery Address Field */}
+          {orderType === 'delivery' && (
+            <View style={styles.card}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+                <Ionicons name="location" size={16} color={THEME.colors.primary} style={{ marginRight: 6 }} />
+                <Text style={styles.cardLabel}>Delivery Address *</Text>
+              </View>
+              <TextInput
+                style={[styles.inputField, { height: 60, textAlignVertical: 'top', paddingTop: 8 }]}
+                placeholder="e.g. BH-1 Room 312, Boys Hostel or Law Gate PG"
+                placeholderTextColor="#94A3B8"
+                multiline
+                numberOfLines={2}
+                value={deliveryAddress}
+                onChangeText={setDeliveryAddress}
+              />
+              <Text style={{ fontSize: 11, color: '#64748B', marginTop: 4 }}>
+                Delivery partner will bring your order directly to this address.
+              </Text>
+            </View>
+          )}
+
+          {/* Dine In Table Number (Only for stalls configured with Table Service / Seating) */}
+          {orderType === 'dine_in' && Boolean(store?.hasTableService) && (
             <View style={styles.card}>
               <Text style={styles.cardLabel}>Table Number or Seating Spot</Text>
               <TextInput
@@ -1182,19 +1253,32 @@ const CartScreen = ({ navigation }) => {
               </View>
             )}
 
-            {orderType === 'takeaway' && packagingCharge > 0 && (
+            {(orderType === 'takeaway' || orderType === 'delivery') && packagingCharge > 0 && (
               <View style={styles.billRow}>
-                <Text style={styles.billLabel}>Packaging & Takeaway Fee</Text>
+                <Text style={styles.billLabel}>Packaging Fee</Text>
                 <Text style={styles.billValue}>₹{packagingCharge}</Text>
+              </View>
+            )}
+
+            {orderType === 'delivery' && (
+              <View style={styles.billRow}>
+                <Text style={styles.billLabel}>Delivery Fee</Text>
+                <Text style={[styles.billValue, isFreeDelivery && { color: '#10B981', fontWeight: '800' }]}>
+                  {isFreeDelivery ? 'FREE' : `₹${deliveryFee}`}
+                </Text>
               </View>
             )}
 
             <View style={styles.billRow}>
               <Text style={styles.billLabel}>Platform & Convenience Fee</Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                <Text style={[styles.billLabel, { textDecorationLine: 'line-through' }]}>₹5</Text>
-                <Text style={[styles.billValue, { color: '#10B981', fontWeight: '800' }]}>FREE</Text>
-              </View>
+              {orderType === 'delivery' ? (
+                <Text style={styles.billValue}>₹5</Text>
+              ) : (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <Text style={[styles.billLabel, { textDecorationLine: 'line-through' }]}>₹5</Text>
+                  <Text style={[styles.billValue, { color: '#10B981', fontWeight: '800' }]}>FREE</Text>
+                </View>
+              )}
             </View>
 
             <View style={styles.divider} />

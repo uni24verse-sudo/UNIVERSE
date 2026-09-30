@@ -426,8 +426,73 @@ const OrderTrackerScreen = ({ route, navigation }) => {
             </View>
           )}
 
-          {/* Handover QR Code Section - Visible ONLY when order is Ready for pickup */}
-          {currentStatus === 'Ready' && (
+          {/* Handover Section: Delivery vs Pickup QR Code */}
+          {currentStatus === 'Ready' && order.orderType === 'Delivery' ? (
+            <View style={[styles.handoverCard, { borderColor: '#10B981', backgroundColor: '#F0FDF4' }]}>
+              <View style={[styles.handoverAccentBar, { backgroundColor: '#10B981' }]} />
+
+              <Text style={[styles.handoverTitle, { color: '#047857' }]}>
+                {order.riderName ? '🛵 Rider Out For Delivery' : '🛵 Order Packed & Ready'}
+              </Text>
+              <Text style={styles.handoverSubtitle}>
+                {order.riderName
+                  ? `Your delivery partner ${order.riderName} is heading to your drop address.`
+                  : 'Your meal is packed! Stall is dispatching it to their delivery boy.'}
+              </Text>
+
+              {/* Delivery OTP PIN Box */}
+              {order.deliveryOtp ? (
+                <View style={{
+                  backgroundColor: '#FFFFFF',
+                  borderRadius: 16,
+                  padding: 16,
+                  marginVertical: 12,
+                  alignItems: 'center',
+                  borderWidth: 1.5,
+                  borderColor: '#BBF7D0',
+                  shadowColor: '#10B981',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 6,
+                  elevation: 2,
+                }}>
+                  <Text style={{ fontSize: 11, fontWeight: '800', color: '#64748B', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                    Delivery Verification PIN
+                  </Text>
+                  <Text style={{ fontSize: 32, fontWeight: '900', color: '#047857', letterSpacing: 6, marginVertical: 4 }}>
+                    {order.deliveryOtp}
+                  </Text>
+                  <Text style={{ fontSize: 11, color: '#059669', fontWeight: '600' }}>
+                    Share this 4-digit PIN with the delivery boy upon arrival
+                  </Text>
+                </View>
+              ) : null}
+
+              {/* Rider Contact Button if assigned */}
+              {order.riderName && order.riderPhone ? (
+                <TouchableOpacity
+                  onPress={() => Linking.openURL(`tel:${order.riderPhone}`)}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: '#10B981',
+                    paddingVertical: 11,
+                    paddingHorizontal: 16,
+                    borderRadius: 12,
+                    marginTop: 6,
+                    gap: 6,
+                  }}
+                  activeOpacity={0.85}
+                >
+                  <Ionicons name="call" size={16} color="#FFFFFF" />
+                  <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 13 }}>
+                    Call Rider ({order.riderName})
+                  </Text>
+                </TouchableOpacity>
+              ) : null}
+            </View>
+          ) : currentStatus === 'Ready' ? (
             <View style={styles.handoverCard}>
               <View style={[styles.handoverAccentBar, { backgroundColor: THEME.colors.primary }]} />
 
@@ -445,7 +510,7 @@ const OrderTrackerScreen = ({ route, navigation }) => {
                 />
               </View>
             </View>
-          )}
+          ) : null}
 
           {/* Handover Completed Confirmation - Clean card without QR code */}
           {currentStatus === 'Completed' && (
@@ -561,6 +626,15 @@ const OrderTrackerScreen = ({ route, navigation }) => {
               <Text style={styles.metaLabel}>Order Type</Text>
               <Text style={styles.metaValue}>{order.orderType || 'Take Away'}</Text>
             </View>
+
+            {order.orderType === 'Delivery' && order.deliveryAddress ? (
+              <View style={styles.summaryMetaRow}>
+                <Text style={styles.metaLabel}>Drop Address</Text>
+                <Text style={[styles.metaValue, { maxWidth: '60%', textAlign: 'right' }]}>
+                  {order.deliveryAddress}
+                </Text>
+              </View>
+            ) : null}
 
             <View style={styles.itemsListContainer}>
               {(order.items || []).map((item, idx) => (

@@ -436,7 +436,6 @@ router.post('/:storeId/product', auth, upload.single('imageFile'), async (req, r
       include: { location: true }
     });
     const isVegLocation = targetStore?.location?.dietaryType === 'veg' ||
-      (targetStore?.location?.name && (targetStore.location.name.toLowerCase().includes('lpu') || targetStore.location.name.toLowerCase().includes('lovely'))) ||
       targetStore?.dietaryType === 'veg';
 
     if (isVegLocation && (dietaryPreference === 'non-veg' || (name && /(chicken|mutton|beef|pork|fish|prawn|meat)/i.test(name)))) {
@@ -488,7 +487,6 @@ router.post('/:storeId/products/batch', auth, async (req, res) => {
       include: { location: true }
     });
     const isVegLocation = targetStore?.location?.dietaryType === 'veg' ||
-      (targetStore?.location?.name && (targetStore.location.name.toLowerCase().includes('lpu') || targetStore.location.name.toLowerCase().includes('lovely'))) ||
       targetStore?.dietaryType === 'veg';
 
     const sanitizedProducts = products.map(item => {

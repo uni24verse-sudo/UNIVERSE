@@ -213,6 +213,7 @@ const SuperAdminOrdersFeed = ({ token, socket, stores = [], locations = [] }) =>
   const [selectedStoreId, setSelectedStoreId] = useState('All');
   const [selectedMarket, setSelectedMarket] = useState('All');
   const [paymentStatus, setPaymentStatus] = useState('All');
+  const [orderTypeFilter, setOrderTypeFilter] = useState('All');
   const [dateFilter, setDateFilter] = useState('all'); // 'all', 'today', 'yesterday', '7days', '30days', 'this_month', 'custom'
   
   // Custom Date Range State
@@ -292,6 +293,7 @@ const SuperAdminOrdersFeed = ({ token, socket, stores = [], locations = [] }) =>
         storeId: selectedStoreId,
         market: selectedMarket,
         paymentStatus,
+        orderType: orderTypeFilter,
         dateFilter
       };
 
@@ -325,7 +327,7 @@ const SuperAdminOrdersFeed = ({ token, socket, stores = [], locations = [] }) =>
 
   useEffect(() => {
     fetchOrders();
-  }, [page, limit, debouncedSearch, status, selectedStoreId, selectedMarket, paymentStatus, dateFilter, startDate, endDate]);
+  }, [page, limit, debouncedSearch, status, selectedStoreId, selectedMarket, paymentStatus, orderTypeFilter, dateFilter, startDate, endDate]);
 
   // Socket listener for real-time live order updates
   useEffect(() => {
@@ -352,6 +354,7 @@ const SuperAdminOrdersFeed = ({ token, socket, stores = [], locations = [] }) =>
     setSelectedStoreId('All');
     setSelectedMarket('All');
     setPaymentStatus('All');
+    setOrderTypeFilter('All');
     setDateFilter('all');
     setStartDate('');
     setEndDate('');
@@ -359,7 +362,7 @@ const SuperAdminOrdersFeed = ({ token, socket, stores = [], locations = [] }) =>
     setPage(1);
   };
 
-  const hasActiveFilters = search || status !== 'All' || selectedStoreId !== 'All' || selectedMarket !== 'All' || paymentStatus !== 'All' || dateFilter !== 'all' || startDate || endDate;
+  const hasActiveFilters = search || status !== 'All' || selectedStoreId !== 'All' || selectedMarket !== 'All' || paymentStatus !== 'All' || orderTypeFilter !== 'All' || dateFilter !== 'all' || startDate || endDate;
 
   const toggleSelectOrder = (id) => {
     setSelectedOrderIds(prev =>
@@ -919,6 +922,21 @@ const SuperAdminOrdersFeed = ({ token, socket, stores = [], locations = [] }) =>
             minWidth="200px"
           />
 
+          {/* Order Type Filter */}
+          <PremiumDropdown 
+            icon={PackageCheck}
+            label="All Order Types"
+            value={orderTypeFilter}
+            options={[
+              { value: 'All', label: 'All Order Types' },
+              { value: 'Dine In', label: '🍽️ Dine In' },
+              { value: 'Take Away', label: '🛍️ Take Away' },
+              { value: 'Delivery', label: '🛵 Delivery' }
+            ]}
+            onChange={handleFilterChange(setOrderTypeFilter)}
+            minWidth="180px"
+          />
+
           {/* Reset Filters Button */}
           {hasActiveFilters && (
             <button
@@ -1180,6 +1198,40 @@ const SuperAdminOrdersFeed = ({ token, socket, stores = [], locations = [] }) =>
                         <div style={{ display: 'inline-block', fontSize: '0.7rem', color: '#64748b', background: 'rgba(0,0,0,0.04)', padding: '0.15rem 0.5rem', borderRadius: '4px', marginTop: '0.25rem', fontWeight: '600' }}>
                           {o.store?.market || 'Campus Stall'}
                         </div>
+                        {o.orderType === 'Delivery' ? (
+                          <div style={{ marginTop: '0.35rem' }}>
+                            <span style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.25rem',
+                              background: 'rgba(249, 115, 22, 0.12)',
+                              border: '1px solid rgba(249, 115, 22, 0.3)',
+                              color: '#ea580c',
+                              fontSize: '0.68rem',
+                              fontWeight: '800',
+                              padding: '0.15rem 0.45rem',
+                              borderRadius: '6px'
+                            }}>
+                              🛵 Delivery
+                            </span>
+                            {o.riderName && (
+                              <div style={{ fontSize: '0.72rem', color: '#0f172a', fontWeight: '700', marginTop: '0.15rem' }}>
+                                Rider: {o.riderName} ({o.riderPhone})
+                              </div>
+                            )}
+                            {o.deliveryAddress && (
+                              <div style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: '600' }}>
+                                📍 {o.deliveryAddress}
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <div style={{ marginTop: '0.25rem' }}>
+                            <span style={{ fontSize: '0.68rem', color: '#64748b', background: '#f1f5f9', padding: '0.15rem 0.4rem', borderRadius: '4px', fontWeight: '600' }}>
+                              {o.orderType || 'Dine In'}{o.tableNumber ? ` • T-${o.tableNumber}` : ''}
+                            </span>
+                          </div>
+                        )}
                       </td>
 
                       {/* Items & Quantity */}
@@ -1504,9 +1556,48 @@ const SuperAdminOrdersFeed = ({ token, socket, stores = [], locations = [] }) =>
                 <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: '800', textTransform: 'uppercase' }}>Stall & Location</span>
                 <div style={{ fontWeight: '800', fontSize: '0.95rem', color: 'var(--primary)', marginTop: '0.25rem' }}>{selectedOrder.store?.name || 'Stall'}</div>
                 <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: '600', marginTop: '0.15rem' }}>📍 {selectedOrder.store?.market || 'Campus'}</div>
-                <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Order Type: {selectedOrder.orderType || 'Take Away'}</div>
+                <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                  Order Type: {selectedOrder.orderType || 'Take Away'}{selectedOrder.tableNumber ? ` • Table: ${selectedOrder.tableNumber}` : ''}
+                </div>
               </div>
             </div>
+
+            {/* Delivery & Rider Audit Box */}
+            {selectedOrder.orderType === 'Delivery' && (
+              <div style={{ marginBottom: '1.5rem', background: '#eff6ff', border: '1.5px solid #3b82f6', borderRadius: '16px', padding: '1rem 1.25rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                  <span style={{ fontSize: '0.72rem', color: '#1d4ed8', fontWeight: '900', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    🛵 Universal Delivery & Rider Assignment
+                  </span>
+                  {selectedOrder.deliveryOtp && (
+                    <span style={{ fontSize: '0.75rem', fontWeight: '800', background: '#dbeafe', color: '#1e40af', padding: '0.15rem 0.5rem', borderRadius: '6px' }}>
+                      PIN: {selectedOrder.deliveryOtp}
+                    </span>
+                  )}
+                </div>
+                <div style={{ fontSize: '0.9rem', color: '#1e293b', fontWeight: '800', marginBottom: '0.35rem' }}>
+                  📍 Drop Address: {selectedOrder.deliveryAddress || 'Not specified'}
+                </div>
+                <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', fontSize: '0.8rem', color: '#475569' }}>
+                  <span>👤 Assigned Rider: <strong style={{ color: '#0f172a' }}>{selectedOrder.riderName || 'Unassigned'}</strong></span>
+                  {selectedOrder.riderPhone && <span>📞 Rider Phone: <strong style={{ color: '#0f172a' }}>{selectedOrder.riderPhone}</strong></span>}
+                  {selectedOrder.dispatchedAt && <span>🚀 Dispatched: <strong>{new Date(selectedOrder.dispatchedAt).toLocaleTimeString()}</strong></span>}
+                  {selectedOrder.deliveredAt && <span>✅ Delivered: <strong style={{ color: '#16a34a' }}>{new Date(selectedOrder.deliveredAt).toLocaleTimeString()}</strong></span>}
+                </div>
+              </div>
+            )}
+
+            {/* Special Cooking Request Banner */}
+            {selectedOrder.cookingInstructions && (
+              <div style={{ marginBottom: '1.5rem', background: '#fef3c7', border: '1.5px solid #f59e0b', borderRadius: '14px', padding: '0.85rem 1rem' }}>
+                <span style={{ fontSize: '0.7rem', color: '#92400e', fontWeight: '900', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  🍳 Special Cooking Request / Chef Note
+                </span>
+                <div style={{ fontSize: '0.85rem', color: '#78350f', fontWeight: '700', marginTop: '0.25rem' }}>
+                  "{selectedOrder.cookingInstructions}"
+                </div>
+              </div>
+            )}
 
             {/* Dissected Dish Items List */}
             <div style={{ marginBottom: '1.5rem' }}>

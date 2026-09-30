@@ -1,3 +1,7 @@
+const dns = require('dns');
+if (dns.setDefaultResultOrder) {
+  dns.setDefaultResultOrder('ipv4first');
+}
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
@@ -75,6 +79,7 @@ app.use('/api/analytics', require('./routes/analytics'));
 app.use('/api/finance', require('./routes/finance'));
 app.use('/api/employees', require('./routes/employees'));
 app.use('/api/banners', require('./routes/banners'));
+app.use('/api/delivery', require('./routes/deliveryRoutes'));
 app.use(require('./routes/share'));
 
 // Direct fallback for client SPA store route on backend port (prevents 'Cannot GET /store/...')

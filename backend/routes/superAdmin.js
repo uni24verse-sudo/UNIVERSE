@@ -15,7 +15,7 @@ const formatLocation = (loc) => {
   return {
     ...loc,
     _id: loc.id,
-    dietaryType: loc.dietaryType || (isLpu ? 'veg' : 'both'),
+    dietaryType: loc.dietaryType || 'both',
     markets: (loc.markets !== null && loc.markets !== undefined && loc.markets !== '') 
       ? loc.markets 
       : (isLpu ? 'BH1 Market, Block34 Market, LIT Market, Mall Market, BH6 Market, Apartment Market' : '')
@@ -770,6 +770,7 @@ router.get('/orders', async (req, res) => {
       dateFilter = 'all',
       startDate,
       endDate,
+      orderType = 'All',
       paginated = 'false'
     } = req.query;
 
@@ -796,6 +797,11 @@ router.get('/orders', async (req, res) => {
     }
     if (paymentStatus && paymentStatus !== 'All') {
       where.paymentStatus = paymentStatus;
+    }
+
+    // 4b. Order Type Filter
+    if (orderType && orderType !== 'All') {
+      where.orderType = orderType;
     }
 
     // 5. Date Range Filtering
@@ -1152,7 +1158,7 @@ router.post('/orders/bulk-delete', async (req, res) => {
 // 7. Update Store Details (generic)
 router.put('/store/:id/update-details', async (req, res) => {
   try {
-    const { priority, openingTime, closingTime, isAutomated, name, market, storeType } = req.body;
+    const { priority, openingTime, closingTime, isAutomated, name, market, storeType, hasTableService } = req.body;
     const updateData = {};
     if (priority !== undefined) updateData.priority = Number(priority);
     if (openingTime) updateData.openingTime = openingTime;
@@ -1161,6 +1167,7 @@ router.put('/store/:id/update-details', async (req, res) => {
     if (name) updateData.name = name;
     if (market) updateData.market = market;
     if (storeType) updateData.storeType = storeType;
+    if (hasTableService !== undefined) updateData.hasTableService = Boolean(hasTableService);
 
     const store = await prisma.store.update({
       where: { id: req.params.id },

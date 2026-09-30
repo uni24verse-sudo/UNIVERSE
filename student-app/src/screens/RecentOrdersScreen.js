@@ -100,7 +100,7 @@ const RecentOrdersScreen = ({ navigation }) => {
         <View style={styles.cardHeader}>
           <View style={{ flex: 1 }}>
             <Text style={styles.stallName} numberOfLines={1}>{storeName}</Text>
-            <Text style={styles.orderIdText}>Order #{String(order._id || order.id).slice(-6)}</Text>
+            <Text style={styles.orderIdText}>Order #{order.orderNumber || String(order._id || order.id).slice(-6)}</Text>
           </View>
 
           <View style={[styles.statusBadge, isActive ? (isReady ? styles.readyBadge : styles.activeBadge) : styles.completedBadge]}>

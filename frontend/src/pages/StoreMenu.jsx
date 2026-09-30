@@ -470,21 +470,17 @@ const StoreMenu = () => {
   }, [store, categories, dietaryFilter]);
 
   const effectiveDietaryMode = useMemo(() => {
-    if (!store) return 'veg';
-    const loc = store.location || {};
-    const locName = (loc.name || localStorage.getItem('universe_location_name') || '').toLowerCase();
+    if (!store) return 'both';
+    const loc = (typeof store.location === 'object' && store.location) ? store.location : {};
+    const savedDietary = localStorage.getItem('universe_location_dietary_type');
+    const locDietary = loc.dietaryType || savedDietary;
     
-    // Explicit setting on location
-    if (loc.dietaryType === 'veg') return 'veg';
-    if (loc.dietaryType === 'non-veg') return 'non-veg';
-    if (loc.dietaryType === 'both') return 'both';
+    // Dynamically evaluate strictly against SuperAdmin panel configuration for the location
+    if (locDietary === 'veg') return 'veg';
+    if (locDietary === 'non-veg') return 'non-veg';
+    if (locDietary === 'both') return 'both';
 
-    // Heuristics for Lovely Professional University
-    if (locName.includes('lovely') || locName.includes('lpu')) {
-      return 'veg';
-    }
-
-    // Check store products: if store has non-veg or egg items, allow 'both', otherwise 'veg'
+    // Heuristics fallback if not configured
     const hasNonVeg = (store.products || []).some(p => ['non-veg', 'egg'].includes(p.dietaryPreference));
     return hasNonVeg ? 'both' : 'veg';
   }, [store]);

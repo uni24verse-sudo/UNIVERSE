@@ -27,49 +27,9 @@ export const setServerUrl = async (url) => {
   }
 };
 
-// Determine API URL: local dev auto-detection (Expo Go / Web) > explicit env var > custom override > cloud server
+// Determine API URL: explicit env var (UAT in dev, Prod in EAS) > custom override > cloud server
 export const getBaseUrl = () => {
-  // 1. Web Browser environment (localhost, 127.0.0.1, or local LAN IP e.g. 10.x.x.x, 192.168.x.x)
-  if (Platform.OS === 'web' && typeof window !== 'undefined') {
-    const hostname = window.location.hostname;
-    if (
-      hostname === 'localhost' ||
-      hostname === '127.0.0.1' ||
-      hostname.startsWith('10.') ||
-      hostname.startsWith('192.168.') ||
-      hostname.endsWith('.local')
-    ) {
-      return `http://${hostname}:5000/api`;
-    }
-    return `${window.location.origin}/api`;
-  }
-
-  // 2. Native Mobile (Android/iOS) running in Expo Go / Development
-  // Automatically extract the active Metro host IP the phone is connected to
-  if (__DEV__) {
-    const hostUri = Constants?.expoConfig?.hostUri || Constants?.manifest?.debuggerHost || '';
-    if (hostUri) {
-      const devHost = hostUri.split(':')[0];
-      if (devHost && devHost !== 'localhost' && devHost !== '127.0.0.1') {
-        return `http://${devHost}:5000/api`;
-      }
-    }
-
-    try {
-      const scriptURL = NativeModules?.SourceCode?.scriptURL || '';
-      const match = scriptURL.match(/https?:\/\/([^/:]+)/);
-      if (match && match[1] && match[1] !== 'localhost' && match[1] !== '127.0.0.1') {
-        return `http://${match[1]}:5000/api`;
-      }
-    } catch (e) {}
-
-    // Fallback to active LAN IP
-    if (process.env.EXPO_PUBLIC_API_URL) {
-      return process.env.EXPO_PUBLIC_API_URL;
-    }
-    return 'http://10.194.0.50:5000/api';
-  }
-
+  // 1. Explicit env variable (UAT during testing via .env, Production in EAS builds via eas.json)
   if (process.env.EXPO_PUBLIC_API_URL) {
     return process.env.EXPO_PUBLIC_API_URL;
   }
@@ -81,7 +41,16 @@ export const getBaseUrl = () => {
     return customBaseUrl;
   }
 
-  // Active production cloud server
+  // 2. Web Browser environment (localhost, 127.0.0.1)
+  if (Platform.OS === 'web' && typeof window !== 'undefined') {
+    const hostname = window.location.hostname;
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      return `http://${hostname}:5000/api`;
+    }
+    return `${window.location.origin}/api`;
+  }
+
+  // 3. Active production cloud server
   return 'https://food.universeorder.co.in/api';
 };
 

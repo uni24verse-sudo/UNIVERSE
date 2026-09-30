@@ -5,7 +5,7 @@ import axios from 'axios';
 import {
   Trash2, Plus, Minus, ArrowLeft, CreditCard, Coins, ShoppingBag,
   ChevronRight, ShieldCheck, Store, Clock, User, Phone, Mail,
-  CheckCircle, AlertCircle, X, Utensils,
+  CheckCircle, AlertCircle, X, Utensils, ChefHat, Check,
   Sun, CloudSun, Moon, Coffee, Sparkles, Tag, Flame, Zap
 } from 'lucide-react';
 import { useStoreTheme } from '../hooks/useStoreTheme';
@@ -37,6 +37,9 @@ const Cart = () => {
   const [store, setStore] = useState(null);
   const [loading, setLoading] = useState(false);
   const [orderType, setOrderType] = useState('Dine In');
+  const [tableNumber, setTableNumber] = useState('');
+  const [cookingInstructions, setCookingInstructions] = useState('');
+  const [deliveryAddress, setDeliveryAddress] = useState(localStorage.getItem('universe_delivery_address') || '');
   const [customerPhone, setCustomerPhone] = useState(localStorage.getItem('universe_customer_phone') || '');
   const [customerName, setCustomerName] = useState(localStorage.getItem('universe_customer_name') || '');
   const [customerEmail, setCustomerEmail] = useState(localStorage.getItem('universe_customer_email') || '');
@@ -78,12 +81,23 @@ const Cart = () => {
   // Apply Dynamic Brand Theme
   useStoreTheme(store);
 
-  // Calculate order totals with vendor offers
+  // Calculate order totals with vendor offers & delivery
   const subtotal = total;
   const offerDiscount = discountAmount || 0;
-  const deliveryFee = orderType === 'Take Away' ? (store?.packagingCharge || 0) : 0;
-  const platformFee = 0;
-  const finalTotal = Math.max(0, subtotal - offerDiscount + deliveryFee + platformFee);
+  const packagingFee = (orderType === 'Take Away' || orderType === 'Delivery') ? (store?.packagingCharge || 0) : 0;
+  let deliveryFee = 0;
+  let platformFee = 0;
+  if (orderType === 'Delivery') {
+    platformFee = 5.0; // Fixed ₹5 platform fee
+    const storeDeliveryFee = Number(store?.deliveryFee || 0);
+    const freeThreshold = Number(store?.freeDeliveryThreshold || 0);
+    if (freeThreshold > 0 && subtotal >= freeThreshold) {
+      deliveryFee = 0;
+    } else {
+      deliveryFee = storeDeliveryFee;
+    }
+  }
+  const finalTotal = Math.max(0, subtotal - offerDiscount + packagingFee + deliveryFee + platformFee);
 
   useEffect(() => {
     if (storeId) {
@@ -210,6 +224,17 @@ const Cart = () => {
       return;
     }
 
+    if (orderType === 'Delivery') {
+      if (!deliveryAddress.trim()) {
+        setValidationError('Please enter your delivery address / room number');
+        return;
+      }
+      if (store?.minDeliveryOrderValue > 0 && subtotal < store.minDeliveryOrderValue) {
+        setValidationError(`Minimum order value for delivery from this stall is ₹${store.minDeliveryOrderValue}`);
+        return;
+      }
+    }
+
     if (isPreOrder) {
       if (!scheduledTime) {
         setValidationError('Please select a pickup time slot');
@@ -217,9 +242,7 @@ const Cart = () => {
       }
     }
 
-
     setValidationError('');
-
 
     setLoading(true);
 
@@ -258,7 +281,12 @@ const Cart = () => {
         customerName,
         customerEmail,
         orderType,
-        packagingChargeApplied: deliveryFee > 0,
+        tableNumber: orderType === 'Dine In' ? tableNumber.trim() : '',
+        cookingInstructions: cookingInstructions.trim(),
+        packagingChargeApplied: packagingFee,
+        deliveryAddress: orderType === 'Delivery' ? deliveryAddress.trim() : '',
+        deliveryFee,
+        platformFee,
         isPreOrder,
         scheduledTime: isPreOrder ? scheduledTime : null,
         isQRScan: localStorage.getItem('universe_order_source') === 'qr'
@@ -554,12 +582,12 @@ const Cart = () => {
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        color: '#ea580c'
+                        color: 'var(--primary)'
                       }}>
-                        <Tag size={18} />
+                        <Tag size={16} />
                       </div>
                       <div>
-                        <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: '900', color: '#1e293b' }}>
+                        <h4 style={{ margin: 0, fontSize: '0.92rem', fontWeight: '800', color: '#0f172a' }}>
                           Coupons & Platform Deals
                         </h4>
                         <p style={{ margin: 0, fontSize: '0.72rem', color: '#64748b', fontWeight: '600' }}>
@@ -572,16 +600,16 @@ const Cart = () => {
                   {/* 1. COUPON SEARCH & INPUT BAR */}
                   <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem' }}>
                     <div style={{ flex: 1, position: 'relative' }}>
-                      <Tag size={15} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                      <Tag size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
                       <input 
                         type="text"
-                        placeholder="Enter coupon code (e.g. CAMPUS10, WELCOME30)"
+                        placeholder="Enter coupon code (e.g. CAMPUS10)"
                         value={couponInput}
                         onChange={(e) => { setCouponInput(e.target.value); setCouponFeedback(null); }}
                         onKeyDown={(e) => { if (e.key === 'Enter') handleApplyCoupon(); }}
                         style={{
                           width: '100%',
-                          padding: '0.65rem 0.85rem 0.65rem 2.25rem',
+                          padding: '0.65rem 0.85rem 0.65rem 2.2rem',
                           borderRadius: '10px',
                           border: '1.5px solid #e2e8f0',
                           fontSize: '0.85rem',
@@ -621,9 +649,9 @@ const Cart = () => {
                       marginBottom: '0.75rem',
                       fontSize: '0.78rem',
                       fontWeight: '700',
-                      background: couponFeedback.type === 'success' ? '#ecfdf5' : '#fef2f2',
-                      color: couponFeedback.type === 'success' ? '#059669' : '#dc2626',
-                      border: couponFeedback.type === 'success' ? '1px solid #a7f3d0' : '1px solid #fecaca',
+                      background: couponFeedback.type === 'success' ? '#f0fdf4' : '#fef2f2',
+                      color: couponFeedback.type === 'success' ? '#15803d' : '#dc2626',
+                      border: couponFeedback.type === 'success' ? '1px solid #bbf7d0' : '1px solid #fecaca',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between'
@@ -639,50 +667,43 @@ const Cart = () => {
                     </div>
                   )}
 
-                  {/* 2. ONLY APPLIED COUPON IS VISIBLE BY DEFAULT */}
+                  {/* 2. SLEEK APPLIED COUPON CARD */}
                   {appliedOffer ? (
                     <div style={{
-                      background: 'linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%)',
-                      border: '1.5px solid #10b981',
+                      background: '#ffffff',
+                      border: '1.5px solid #dcfce7',
                       borderRadius: '12px',
-                      padding: '0.85rem 1rem',
+                      padding: '0.75rem 0.95rem',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
                       gap: '0.75rem',
-                      boxShadow: '0 2px 8px rgba(16, 185, 129, 0.08)'
+                      boxShadow: '0 1px 4px rgba(16, 185, 129, 0.06)'
                     }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1, minWidth: 0 }}>
                         <div style={{
-                          width: '36px', height: '36px', borderRadius: '10px',
-                          background: '#10b981', color: '#ffffff',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.3rem',
+                          background: '#f0fdf4',
+                          border: '1px dashed #16a34a',
+                          color: '#15803d',
+                          borderRadius: '6px',
+                          padding: '0.25rem 0.55rem',
+                          fontSize: '0.72rem',
+                          fontWeight: '800',
+                          letterSpacing: '0.04em',
                           flexShrink: 0
                         }}>
-                          <Sparkles size={18} />
+                          <Check size={12} strokeWidth={3} />
+                          <span>{appliedOffer.code || appliedOffer.badgeText}</span>
                         </div>
-                        <div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
-                            <span style={{
-                              background: '#059669', color: '#ffffff', fontSize: '0.7rem',
-                              fontWeight: '900', padding: '0.15rem 0.45rem', borderRadius: '4px'
-                            }}>
-                              {appliedOffer.code || appliedOffer.badgeText}
-                            </span>
-                            {appliedOffer.isGlobal && (
-                              <span style={{
-                                background: '#e0f2fe', color: '#0369a1', fontSize: '0.65rem',
-                                fontWeight: '800', padding: '0.15rem 0.4rem', borderRadius: '4px'
-                              }}>
-                                CAMPUS DEAL
-                              </span>
-                            )}
-                            <span style={{ fontSize: '0.85rem', fontWeight: '800', color: '#065f46' }}>
-                              {appliedOffer.title}
-                            </span>
-                          </div>
-                          <p style={{ margin: '0.15rem 0 0 0', fontSize: '0.75rem', color: '#047857', fontWeight: '700' }}>
-                            🎉 You saved ₹{offerDiscount.toFixed(2)} on this order!
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <p style={{ margin: 0, fontSize: '0.82rem', fontWeight: '700', color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {appliedOffer.title}
+                          </p>
+                          <p style={{ margin: '0.15rem 0 0 0', fontSize: '0.74rem', color: '#15803d', fontWeight: '700' }}>
+                            ₹{offerDiscount.toFixed(2)} savings applied
                           </p>
                         </div>
                       </div>
@@ -691,20 +712,29 @@ const Cart = () => {
                           type="button"
                           onClick={() => setShowOffersDropdown(prev => !prev)}
                           style={{
-                            background: '#ffffff', border: '1px solid #a7f3d0', borderRadius: '6px',
-                            padding: '0.35rem 0.6rem', fontSize: '0.72rem', fontWeight: '800',
-                            color: '#047857', cursor: 'pointer'
+                            background: '#f8fafc',
+                            border: '1px solid #e2e8f0',
+                            borderRadius: '6px',
+                            padding: '0.3rem 0.6rem',
+                            fontSize: '0.72rem',
+                            fontWeight: '700',
+                            color: '#475569',
+                            cursor: 'pointer'
                           }}
                         >
-                          {showOffersDropdown ? 'Hide Deals ▴' : 'Switch Deal ▾'}
+                          {showOffersDropdown ? 'Close' : 'Switch'}
                         </button>
                         <button
                           type="button"
                           onClick={handleRemoveCoupon}
                           style={{
-                            background: '#fee2e2', border: 'none', borderRadius: '6px',
-                            padding: '0.35rem 0.6rem', fontSize: '0.72rem', fontWeight: '800',
-                            color: '#dc2626', cursor: 'pointer'
+                            background: 'none',
+                            border: 'none',
+                            padding: '0.3rem 0.5rem',
+                            fontSize: '0.72rem',
+                            fontWeight: '700',
+                            color: '#ef4444',
+                            cursor: 'pointer'
                           }}
                         >
                           Remove
@@ -1022,11 +1052,11 @@ const Cart = () => {
 
             <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '24px' }}>
               <h3 style={{ marginBottom: '1.5rem' }}>Dining Preference</h3>
-              <div style={{ display: 'flex', gap: '1rem' }}>
+              <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
                 <button
                   onClick={() => setOrderType('Dine In')}
                   style={{
-                    flex: 1, padding: '1rem', borderRadius: '16px', fontWeight: '700', fontSize: '1rem',
+                    flex: '1 1 100px', padding: '0.85rem', borderRadius: '16px', fontWeight: '700', fontSize: '0.92rem',
                     background: orderType === 'Dine In' ? 'rgba(239, 65, 35, 0.04)' : '#f8fafc',
                     border: `2px solid ${orderType === 'Dine In' ? 'var(--primary)' : 'var(--surface-border)'}`,
                     color: orderType === 'Dine In' ? 'var(--primary)' : 'var(--text-secondary)',
@@ -1038,7 +1068,7 @@ const Cart = () => {
                 <button
                   onClick={() => setOrderType('Take Away')}
                   style={{
-                    flex: 1, padding: '1rem', borderRadius: '16px', fontWeight: '700', fontSize: '1rem',
+                    flex: '1 1 100px', padding: '0.85rem', borderRadius: '16px', fontWeight: '700', fontSize: '0.92rem',
                     background: orderType === 'Take Away' ? 'rgba(239, 65, 35, 0.04)' : '#f8fafc',
                     border: `2px solid ${orderType === 'Take Away' ? 'var(--primary)' : 'var(--surface-border)'}`,
                     color: orderType === 'Take Away' ? 'var(--primary)' : 'var(--text-secondary)',
@@ -1047,7 +1077,142 @@ const Cart = () => {
                 >
                   🛍️ Take Away
                 </button>
+                {store?.hasDeliveryService && (
+                  <button
+                    onClick={() => setOrderType('Delivery')}
+                    style={{
+                      flex: '1 1 100px', padding: '0.85rem', borderRadius: '16px', fontWeight: '700', fontSize: '0.92rem',
+                      background: orderType === 'Delivery' ? 'rgba(239, 65, 35, 0.04)' : '#f8fafc',
+                      border: `2px solid ${orderType === 'Delivery' ? 'var(--primary)' : 'var(--surface-border)'}`,
+                      color: orderType === 'Delivery' ? 'var(--primary)' : 'var(--text-secondary)',
+                      cursor: 'pointer', transition: 'all 0.2s'
+                    }}
+                  >
+                    🛵 Delivery
+                  </button>
+                )}
               </div>
+            </div>
+
+            {/* Delivery Address Box if Delivery Selected */}
+            {orderType === 'Delivery' && (
+              <div className="glass-card" style={{ padding: '1.25rem 1.5rem', borderRadius: '24px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.75rem' }}>
+                  <div style={{
+                    width: '32px', height: '32px', borderRadius: '10px',
+                    background: 'rgba(234, 88, 12, 0.1)', color: '#ea580c',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center'
+                  }}>
+                    <MapPin size={16} />
+                  </div>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: '800', color: '#1e293b' }}>
+                      Delivery Address
+                    </h3>
+                    <p style={{ margin: 0, fontSize: '0.75rem', color: '#64748b', fontWeight: '600' }}>
+                      Hostel, room, apartment, or street address
+                    </p>
+                  </div>
+                </div>
+                <textarea
+                  rows={2}
+                  placeholder="e.g. BH-1 Boys Hostel, Room 312, 3rd Floor (or Law Gate, Royal PG)"
+                  value={deliveryAddress}
+                  onChange={(e) => {
+                    setDeliveryAddress(e.target.value);
+                    localStorage.setItem('universe_delivery_address', e.target.value);
+                    if (validationError) setValidationError('');
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem 1rem',
+                    borderRadius: '12px',
+                    border: '1.5px solid #cbd5e1',
+                    fontSize: '0.9rem',
+                    fontWeight: '600',
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                    resize: 'none'
+                  }}
+                />
+              </div>
+            )}
+
+            {/* Table / Spot Number Selection if Dine In & Store has Table Service */}
+            {orderType === 'Dine In' && store?.hasTableService && (
+              <div className="glass-card" style={{ padding: '1.25rem 1.5rem', borderRadius: '24px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.75rem' }}>
+                  <div style={{
+                    width: '32px', height: '32px', borderRadius: '10px',
+                    background: 'rgba(37, 99, 235, 0.1)', color: '#2563eb',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center'
+                  }}>
+                    <Utensils size={16} />
+                  </div>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: '800', color: '#1e293b' }}>
+                      Table / Seating Spot
+                    </h3>
+                    <p style={{ margin: 0, fontSize: '0.75rem', color: '#64748b', fontWeight: '600' }}>
+                      Enter your table or seat number for direct service
+                    </p>
+                  </div>
+                </div>
+                <input
+                  type="text"
+                  placeholder="e.g. Table 4, Booth B, Spot 12"
+                  value={tableNumber}
+                  onChange={(e) => setTableNumber(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem 1rem',
+                    borderRadius: '12px',
+                    border: '1.5px solid #cbd5e1',
+                    fontSize: '0.9rem',
+                    fontWeight: '700',
+                    outline: 'none',
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+            )}
+
+            {/* Special Cooking Request / Chef Note */}
+            <div className="glass-card" style={{ padding: '1.25rem 1.5rem', borderRadius: '24px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.75rem' }}>
+                <div style={{
+                  width: '32px', height: '32px', borderRadius: '10px',
+                  background: 'rgba(234, 88, 12, 0.1)', color: '#ea580c',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center'
+                }}>
+                  <ChefHat size={16} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: '800', color: '#1e293b' }}>
+                    Special Cooking Request
+                  </h3>
+                  <p style={{ margin: 0, fontSize: '0.75rem', color: '#64748b', fontWeight: '600' }}>
+                    Less spicy, no onion/garlic, extra crispy, etc.
+                  </p>
+                </div>
+              </div>
+              <input
+                type="text"
+                placeholder="Add note for the kitchen (e.g. Extra spicy, no cutlery)..."
+                value={cookingInstructions}
+                onChange={(e) => setCookingInstructions(e.target.value)}
+                maxLength={120}
+                style={{
+                  width: '100%',
+                  padding: '0.75rem 1rem',
+                  borderRadius: '12px',
+                  border: '1.5px solid #cbd5e1',
+                  fontSize: '0.85rem',
+                  fontWeight: '600',
+                  outline: 'none',
+                  boxSizing: 'border-box'
+                }}
+              />
             </div>
 
             {store?.locationId?.type !== 'External' && (
@@ -1163,6 +1328,63 @@ const Cart = () => {
                 )}
               </div>
             )}
+
+            {/* Bill Summary Card */}
+            <div className="glass-card" style={{ padding: '1.25rem 1.5rem', borderRadius: '24px' }}>
+              <h3 style={{ margin: '0 0 1rem 0', fontSize: '1rem', fontWeight: '800', color: '#1e293b' }}>
+                Bill Details
+              </h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', fontSize: '0.88rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748b' }}>
+                  <span>Item Subtotal</span>
+                  <span style={{ fontWeight: '700', color: '#1e293b' }}>₹{subtotal.toFixed(2)}</span>
+                </div>
+
+                {offerDiscount > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', color: '#16a34a' }}>
+                    <span>Coupon / Offer Discount</span>
+                    <span style={{ fontWeight: '700' }}>-₹{offerDiscount.toFixed(2)}</span>
+                  </div>
+                )}
+
+                {packagingFee > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748b' }}>
+                    <span>Packaging Charge</span>
+                    <span style={{ fontWeight: '700', color: '#1e293b' }}>₹{packagingFee.toFixed(2)}</span>
+                  </div>
+                )}
+
+                {orderType === 'Delivery' && (
+                  <>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748b' }}>
+                      <span>Delivery Fee</span>
+                      <span style={{ fontWeight: '700', color: deliveryFee === 0 ? '#16a34a' : '#1e293b' }}>
+                        {deliveryFee === 0 ? 'FREE' : `₹${deliveryFee.toFixed(2)}`}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748b' }}>
+                      <span>Platform & Convenience Fee</span>
+                      <span style={{ fontWeight: '700', color: '#1e293b' }}>₹5.00</span>
+                    </div>
+                  </>
+                )}
+
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginTop: '0.5rem',
+                  paddingTop: '0.75rem',
+                  borderTop: '1px dashed #cbd5e1',
+                  fontSize: '1.05rem',
+                  fontWeight: '800',
+                  color: '#0f172a'
+                }}>
+                  <span>To Pay</span>
+                  <span style={{ color: 'var(--primary)', fontSize: '1.2rem' }}>₹{finalTotal.toFixed(2)}</span>
+                </div>
+              </div>
+            </div>
 
             <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '24px' }}>
               <h3 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>

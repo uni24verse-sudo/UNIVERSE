@@ -14,7 +14,8 @@ import {
   Switch,
   Vibration,
   Modal,
-  Platform
+  Platform,
+  Linking
 } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -223,7 +224,17 @@ export default function LiveOrdersScreen({ navigation }) {
     upiId: '',
   });
   const [creatingStall, setCreatingStall] = useState(false);
-  const isAnyModalOpen = Boolean(showStallSwitcherModal || showQuickAddStallModal);
+
+  // Delivery Dispatch States
+  const [deliveryStaff, setDeliveryStaff] = useState([]);
+  const [showDispatchModal, setShowDispatchModal] = useState(false);
+  const [dispatchOrdersList, setDispatchOrdersList] = useState([]);
+  const [selectedRiderId, setSelectedRiderId] = useState(null);
+  const [customRiderName, setCustomRiderName] = useState('');
+  const [customRiderPhone, setCustomRiderPhone] = useState('');
+  const [dispatchingRider, setDispatchingRider] = useState(false);
+
+  const isAnyModalOpen = Boolean(showStallSwitcherModal || showQuickAddStallModal || showDispatchModal);
 
   const defaultTabBarStyle = useMemo(() => ({
     backgroundColor: '#FFFFFF',
@@ -545,20 +556,32 @@ export default function LiveOrdersScreen({ navigation }) {
     }
   }, [currentStoreId]);
 
+  const fetchDeliveryStaff = useCallback(async () => {
+    if (!currentStoreId) return;
+    try {
+      const res = await apiClient.get(`/delivery/staff/${currentStoreId}`);
+      setDeliveryStaff(res.data || []);
+    } catch (e) {
+      console.log('Failed to fetch delivery staff:', e.message);
+    }
+  }, [currentStoreId]);
+
   // Refetch when focused or active stall changes
   useEffect(() => {
     if (isFocused && currentStoreId) {
       fetchOrders();
       fetchStoreStatus();
+      fetchDeliveryStaff();
     }
-  }, [isFocused, currentStoreId, fetchOrders, fetchStoreStatus]);
+  }, [isFocused, currentStoreId, fetchOrders, fetchStoreStatus, fetchDeliveryStaff]);
 
   useEffect(() => {
     if (isConnected && currentStoreId) {
       fetchOrders();
       fetchStoreStatus();
+      fetchDeliveryStaff();
     }
-  }, [isConnected, currentStoreId, fetchOrders, fetchStoreStatus]);
+  }, [isConnected, currentStoreId, fetchOrders, fetchStoreStatus, fetchDeliveryStaff]);
 
   // Socket listeners for real-time order lifecycle with multi-stall cross-alerting
   useEffect(() => {
@@ -747,6 +770,159 @@ export default function LiveOrdersScreen({ navigation }) {
         }
       ]
     );
+  };
+
+  // ---------------------------------------------------------
+  // Universal Self-Delivery Rider Dispatch Handlers
+  // ---------------------------------------------------------
+  const openSingleDispatchModal = (order) => {
+    setDispatchOrdersList([order]);
+    if (deliveryStaff.length > 0) {
+      setSelectedRiderId(deliveryStaff[0].id || deliveryStaff[0]._id);
+    } else {
+      setSelectedRiderId('custom');
+    }
+    setShowDispatchModal(true);
+  };
+
+  const openBatchDispatchModal = () => {
+    const readyDeliveries = orders.filter(o => o.status === 'Ready' && o.orderType === 'Delivery' && !o.dispatchedAt);
+    if (readyDeliveries.length === 0) {
+      Alert.alert('No Orders', 'There are no unassigned ready delivery orders to dispatch.');
+      return;
+    }
+    setDispatchOrdersList(readyDeliveries);
+    if (deliveryStaff.length > 0) {
+      setSelectedRiderId(deliveryStaff[0].id || deliveryStaff[0]._id);
+    } else {
+      setSelectedRiderId('custom');
+    }
+    setShowDispatchModal(true);
+  };
+
+  const handleShareRiderLink = async (order) => {
+    const token = order.deliveryBatchId || order.id || order._id;
+    const frontendBase = 'https://universe-lpu.com';
+    const dispatchLink = `${frontendBase}/deliver/${token}`;
+    const cleanPhone = (order.riderPhone || '').replace(/[^0-9]/g, '');
+    const phoneWithCountry = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
+    const stallName = storeData?.name || activeStore?.name || 'UniVerse Stall';
+
+    const msg = `🛵 *UniVerse Delivery Trip*\n` +
+      `Stall: *${stallName}*\n` +
+      `Order: #${order.orderNumber} • ${order.deliveryAddress || 'Campus'}\n\n` +
+      `👉 *Open Navigation Cockpit:*\n${dispatchLink}\n\n` +
+      `Customer OTP PIN: *${order.deliveryOtp || '****'}*`;
+
+    const waUrl = `whatsapp://send?phone=${phoneWithCountry}&text=${encodeURIComponent(msg)}`;
+    const webWaUrl = `https://wa.me/${phoneWithCountry}?text=${encodeURIComponent(msg)}`;
+
+    try {
+      const canOpen = await Linking.canOpenURL(waUrl);
+      if (canOpen) {
+        await Linking.openURL(waUrl);
+      } else {
+        await Linking.openURL(webWaUrl);
+      }
+    } catch (e) {
+      Linking.openURL(webWaUrl);
+    }
+  };
+
+  const handleConfirmDispatch = async () => {
+    if (!dispatchOrdersList || dispatchOrdersList.length === 0) {
+      Alert.alert('Error', 'No orders selected for dispatch.');
+      return;
+    }
+
+    let riderName = '';
+    let riderPhone = '';
+
+    if (selectedRiderId === 'custom') {
+      riderName = customRiderName.trim();
+      riderPhone = customRiderPhone.trim();
+      if (!riderName || !riderPhone) {
+        Alert.alert('Required', 'Please enter rider name and phone number.');
+        return;
+      }
+    } else {
+      const found = deliveryStaff.find(s => (s.id || s._id) === selectedRiderId);
+      if (!found) {
+        Alert.alert('Required', 'Please select a delivery partner or enter rider details.');
+        return;
+      }
+      riderName = found.name;
+      riderPhone = found.phone;
+    }
+
+    setDispatchingRider(true);
+    try {
+      const orderIds = dispatchOrdersList.map(o => o._id || o.id);
+      const res = await apiClient.post('/delivery/dispatch', {
+        storeId: currentStoreId,
+        orderIds,
+        riderName,
+        riderPhone,
+      });
+
+      if (res.data?.success) {
+        const { dispatchLink, dispatchedCount, orders: updated } = res.data;
+
+        // Optimistically update orders in local state
+        if (updated && Array.isArray(updated)) {
+          setOrders(prev => prev.map(o => {
+            const up = updated.find(u => (u._id || u.id) === (o._id || o.id));
+            return up ? { ...o, ...up } : o;
+          }));
+        }
+
+        setShowDispatchModal(false);
+        setCustomRiderName('');
+        setCustomRiderPhone('');
+
+        // Prepare WhatsApp link
+        const cleanPhone = (riderPhone || '').replace(/[^0-9]/g, '');
+        const phoneWithCountry = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
+        const stallName = storeData?.name || activeStore?.name || 'UniVerse Stall';
+        const msg = `🛵 *UniVerse Delivery Assignment*\n` +
+          `Stall: *${stallName}*\n` +
+          `Orders Assigned: *${dispatchedCount}*\n\n` +
+          `👉 *Open Navigation Cockpit:*\n${dispatchLink}\n\n` +
+          `Please verify the 4-digit PIN with each customer upon drop.`;
+
+        const waUrl = `whatsapp://send?phone=${phoneWithCountry}&text=${encodeURIComponent(msg)}`;
+        const webWaUrl = `https://wa.me/${phoneWithCountry}?text=${encodeURIComponent(msg)}`;
+
+        Alert.alert(
+          'Trip Dispatched! 🚀',
+          `${dispatchedCount} order(s) assigned to ${riderName}.\n\nShare the live navigation link with your rider on WhatsApp?`,
+          [
+            { text: 'Done', style: 'cancel' },
+            {
+              text: 'Open WhatsApp',
+              style: 'default',
+              onPress: async () => {
+                try {
+                  const canOpen = await Linking.canOpenURL(waUrl);
+                  if (canOpen) {
+                    await Linking.openURL(waUrl);
+                  } else {
+                    await Linking.openURL(webWaUrl);
+                  }
+                } catch (e) {
+                  Linking.openURL(webWaUrl);
+                }
+              }
+            }
+          ]
+        );
+      }
+    } catch (err) {
+      console.error('Failed to dispatch trip:', err);
+      Alert.alert('Dispatch Error', err.response?.data?.message || 'Could not dispatch delivery trip.');
+    } finally {
+      setDispatchingRider(false);
+    }
   };
 
   // Helper to parse scheduled pickup time in Indian Standard Time (IST, UTC + 5:30) with midnight protection
@@ -1013,6 +1189,37 @@ export default function LiveOrdersScreen({ navigation }) {
     }
 
     if (order.status === 'Ready') {
+      if (order.orderType === 'Delivery') {
+        const isDispatched = Boolean(order.riderName || order.dispatchedAt);
+        return (
+          <View style={styles.actionRow}>
+            <TouchableOpacity 
+              style={{ flex: 1.4 }} 
+              onPress={() => isDispatched ? handleShareRiderLink(order) : openSingleDispatchModal(order)}
+              activeOpacity={0.8}
+            >
+              <LinearGradient colors={isDispatched ? ['#059669', '#047857'] : ['#10B981', '#059669']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.gradientBtn}>
+                <Ionicons name="bicycle" size={17} color="white" style={{ marginRight: 6 }} />
+                <Text style={styles.btnText}>
+                  {isDispatched ? `🛵 ${order.riderName} (Re-Share)` : '🛵 Assign & Dispatch'}
+                </Text>
+              </LinearGradient>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={{ flex: 0.8 }} 
+              onPress={() => handleDirectHandover(order._id, order.orderNumber)}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.gradientBtn, { backgroundColor: '#F1F5F9', borderWidth: 1, borderColor: '#CBD5E1' }]}>
+                <Ionicons name="checkmark-done" size={16} color="#475569" style={{ marginRight: 4 }} />
+                <Text style={[styles.btnText, { color: '#475569' }]}>Handover</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+        );
+      }
+
       return (
         <View style={styles.actionRow}>
           <TouchableOpacity 
@@ -1063,18 +1270,35 @@ export default function LiveOrdersScreen({ navigation }) {
   const renderItem = ({ item }) => {
     const preOrderInfo = getPreOrderInfo(item);
     const statusColor = getStatusColor(item.status);
+    const isDelivery = String(item.orderType || '').toLowerCase() === 'delivery';
     const isTakeaway = String(item.orderType || '').toLowerCase().includes('take') || String(item.orderType || '').toLowerCase().includes('pack');
     const tableClean = item.tableNumber ? String(item.tableNumber).toUpperCase().replace(/DINE IN/i, '').trim() : '';
     
     return (
       <View style={[
         styles.card,
-        isTakeaway ? styles.takeawayCard : styles.dineInCard,
+        isDelivery ? [styles.takeawayCard, { borderLeftColor: '#10B981' }] : isTakeaway ? styles.takeawayCard : styles.dineInCard,
         item.status === 'Pending' && styles.pendingCard,
         item.isPreOrder && styles.preOrderCard
       ]}>
-        {/* Top High-Visibility Order Type Banner (Dine In vs Packing) */}
-        {isTakeaway ? (
+        {/* Top High-Visibility Order Type Banner (Delivery vs Dine In vs Packing) */}
+        {isDelivery ? (
+          <View style={[styles.packingBanner, { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' }]}>
+            <View style={styles.packingBannerLeft}>
+              <View style={[styles.packingIconBox, { backgroundColor: '#10B981' }]}>
+                <Ionicons name="bicycle" size={17} color="#FFFFFF" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.packingBannerTitle, { color: '#047857' }]}>
+                  🛵 SELF-DELIVERY {item.riderName ? `• ${item.riderName.toUpperCase()}` : '• RIDER PENDING'}
+                </Text>
+                <Text style={[styles.packingBannerSubtitle, { color: '#065F46' }]} numberOfLines={1}>
+                  Drop: {item.deliveryAddress || 'Campus / Room Delivery'}
+                </Text>
+              </View>
+            </View>
+          </View>
+        ) : isTakeaway ? (
           <View style={styles.packingBanner}>
             <View style={styles.packingBannerLeft}>
               <View style={styles.packingIconBox}>
@@ -1175,6 +1399,62 @@ export default function LiveOrdersScreen({ navigation }) {
             </View>
           ))}
         </View>
+
+        {/* Universal Delivery Details Card */}
+        {isDelivery && (
+          <View style={{
+            backgroundColor: '#F0FDF4',
+            borderWidth: 1,
+            borderColor: '#BBF7D0',
+            borderRadius: 12,
+            padding: 12,
+            marginTop: 10,
+            marginBottom: 8,
+          }}>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+              <Ionicons name="location" size={18} color="#059669" style={{ marginRight: 8, marginTop: 1 }} />
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 11, fontWeight: '800', color: '#047857', textTransform: 'uppercase' }}>
+                  Delivery Destination
+                </Text>
+                <Text style={{ fontSize: 13, fontWeight: '700', color: '#1E293B', marginTop: 2 }}>
+                  {item.deliveryAddress || 'Campus Room Delivery'}
+                </Text>
+                {item.riderName ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6, flexWrap: 'wrap', gap: 6 }}>
+                    <View style={{ backgroundColor: '#DBEAFE', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 }}>
+                      <Text style={{ fontSize: 11, fontWeight: '700', color: '#1E40AF' }}>
+                        🛵 Rider: {item.riderName} ({item.riderPhone})
+                      </Text>
+                    </View>
+                    <View style={{ backgroundColor: '#FEF3C7', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 }}>
+                      <Text style={{ fontSize: 11, fontWeight: '800', color: '#92400E' }}>
+                        OTP PIN: {item.deliveryOtp || '****'}
+                      </Text>
+                    </View>
+                  </View>
+                ) : (
+                  <Text style={{ fontSize: 11, color: '#D97706', fontWeight: '700', marginTop: 4 }}>
+                    ⚠️ Rider unassigned. Tap "Assign & Dispatch" when packed.
+                  </Text>
+                )}
+              </View>
+            </View>
+          </View>
+        )}
+
+        {/* Special Cooking Requests / Chef Note */}
+        {!!(item.cookingInstructions || item.specialRequest || item.instructions) && (
+          <View style={styles.cookingInstructionsBox}>
+            <View style={styles.cookingInstructionsHeader}>
+              <Ionicons name="restaurant-outline" size={14} color="#B45309" />
+              <Text style={styles.cookingInstructionsLabel}>SPECIAL REQUEST / CHEF NOTE</Text>
+            </View>
+            <Text style={styles.cookingInstructionsText}>
+              "{item.cookingInstructions || item.specialRequest || item.instructions}"
+            </Text>
+          </View>
+        )}
 
         {/* Customer & Total Row (Protected Student Privacy - No Phone Number) */}
         <View style={styles.customerRow}>
@@ -1418,43 +1698,83 @@ export default function LiveOrdersScreen({ navigation }) {
               refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => fetchOrders(true)} colors={['#3B82F6']} />}
               ListHeaderComponent={
                 readyOrders.length > 0 ? (
-                  <TouchableOpacity
-                    onPress={handleCompleteAllReady}
-                    activeOpacity={0.85}
-                    style={{ marginBottom: 14 }}
-                  >
-                    <LinearGradient
-                      colors={['#FF6B00', '#EF4123']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      style={{
-                        paddingVertical: 12,
-                        paddingHorizontal: 16,
-                        borderRadius: 14,
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        shadowColor: '#EF4123',
-                        shadowOffset: { width: 0, height: 4 },
-                        shadowOpacity: 0.25,
-                        shadowRadius: 8,
-                        elevation: 4
-                      }}
+                  <View style={{ marginBottom: 14, gap: 10 }}>
+                    {readyOrders.some(o => o.orderType === 'Delivery' && !o.dispatchedAt) && (
+                      <TouchableOpacity
+                        onPress={openBatchDispatchModal}
+                        activeOpacity={0.85}
+                      >
+                        <LinearGradient
+                          colors={['#10B981', '#059669']}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 0 }}
+                          style={{
+                            paddingVertical: 12,
+                            paddingHorizontal: 16,
+                            borderRadius: 14,
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            shadowColor: '#10B981',
+                            shadowOffset: { width: 0, height: 4 },
+                            shadowOpacity: 0.25,
+                            shadowRadius: 8,
+                            elevation: 4
+                          }}
+                        >
+                          <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                            <Ionicons name="bicycle" size={20} color="#FFFFFF" style={{ marginRight: 10 }} />
+                            <View style={{ flex: 1 }}>
+                              <Text style={{ color: '#FFFFFF', fontWeight: '900', fontSize: 14 }}>
+                                🛵 Batch Dispatch Delivery Orders ({readyOrders.filter(o => o.orderType === 'Delivery' && !o.dispatchedAt).length})
+                              </Text>
+                              <Text style={{ color: '#D1FAE5', fontSize: 11, fontWeight: '600', marginTop: 1 }}>
+                                Assign multi-stop route to 1 rider with WhatsApp link
+                              </Text>
+                            </View>
+                          </View>
+                          <Ionicons name="chevron-forward" size={18} color="#FFFFFF" />
+                        </LinearGradient>
+                      </TouchableOpacity>
+                    )}
+
+                    <TouchableOpacity
+                      onPress={handleCompleteAllReady}
+                      activeOpacity={0.85}
                     >
-                      <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                        <Ionicons name="flash" size={20} color="#FFFFFF" style={{ marginRight: 10 }} />
-                        <View style={{ flex: 1 }}>
-                          <Text style={{ color: '#FFFFFF', fontWeight: '900', fontSize: 14 }}>
-                            Complete All Ready Orders ({readyOrders.length})
-                          </Text>
-                          <Text style={{ color: '#FFEDD5', fontSize: 11, fontWeight: '600', marginTop: 1 }}>
-                            Rush-hour or closing clear (no QR scan needed)
-                          </Text>
+                      <LinearGradient
+                        colors={['#FF6B00', '#EF4123']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 0 }}
+                        style={{
+                          paddingVertical: 12,
+                          paddingHorizontal: 16,
+                          borderRadius: 14,
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          shadowColor: '#EF4123',
+                          shadowOffset: { width: 0, height: 4 },
+                          shadowOpacity: 0.25,
+                          shadowRadius: 8,
+                          elevation: 4
+                        }}
+                      >
+                        <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                          <Ionicons name="flash" size={20} color="#FFFFFF" style={{ marginRight: 10 }} />
+                          <View style={{ flex: 1 }}>
+                            <Text style={{ color: '#FFFFFF', fontWeight: '900', fontSize: 14 }}>
+                              Complete All Ready Orders ({readyOrders.length})
+                            </Text>
+                            <Text style={{ color: '#FFEDD5', fontSize: 11, fontWeight: '600', marginTop: 1 }}>
+                              Rush-hour or closing clear (no QR scan needed)
+                            </Text>
+                          </View>
                         </View>
-                      </View>
-                      <Ionicons name="chevron-forward" size={18} color="#FFFFFF" />
-                    </LinearGradient>
-                  </TouchableOpacity>
+                        <Ionicons name="chevron-forward" size={18} color="#FFFFFF" />
+                      </LinearGradient>
+                    </TouchableOpacity>
+                  </View>
                 ) : null
               }
               ListEmptyComponent={<EmptyQueueState type="Ready" />}
@@ -1728,6 +2048,163 @@ export default function LiveOrdersScreen({ navigation }) {
                   <ActivityIndicator size="small" color="#FFFFFF" />
                 ) : (
                   <Text style={styles.modalSaveBtnText}>Create Stall</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* =================================================== */}
+      {/* MODAL: ASSIGN DELIVERY PARTNER & DISPATCH TRIP      */}
+      {/* =================================================== */}
+      <Modal
+        visible={showDispatchModal}
+        transparent={true}
+        animationType="slide"
+        statusBarTranslucent={true}
+        onRequestClose={() => setShowDispatchModal(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={[styles.switcherModalContent, { maxHeight: '90%' }]}>
+            <View style={styles.modalHeaderRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.modalTitle}>🛵 Assign Delivery Rider</Text>
+                <Text style={styles.modalSub}>
+                  Dispatch {dispatchOrdersList.length} order{dispatchOrdersList.length > 1 ? 's' : ''} with live WhatsApp magic link
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={styles.modalCloseBtn}
+                onPress={() => setShowDispatchModal(false)}
+              >
+                <Ionicons name="close" size={20} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 380 }}>
+              {/* Order destinations preview */}
+              <View style={{ backgroundColor: '#F8FAFC', borderRadius: 12, padding: 12, marginBottom: 14, borderWidth: 1, borderColor: '#E2E8F0' }}>
+                <Text style={{ fontSize: 11, fontWeight: '800', color: '#64748B', textTransform: 'uppercase', marginBottom: 6 }}>
+                  Trip Stops ({dispatchOrdersList.length})
+                </Text>
+                {dispatchOrdersList.map((ord, idx) => (
+                  <View key={ord._id || ord.id || idx} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                    <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: '#EF4123', alignItems: 'center', justifyContent: 'center', marginRight: 8 }}>
+                      <Text style={{ color: '#FFFFFF', fontSize: 10, fontWeight: '800' }}>{idx + 1}</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 12, fontWeight: '700', color: '#1E293B' }} numberOfLines={1}>
+                        #{ord.orderNumber} • {ord.deliveryAddress || 'Campus'}
+                      </Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+
+              {/* Saved Staff Options */}
+              <Text style={styles.inputLabel}>Select Delivery Partner</Text>
+              {deliveryStaff.length > 0 ? (
+                <View style={{ marginBottom: 12 }}>
+                  {deliveryStaff.map((staff) => {
+                    const sId = staff.id || staff._id;
+                    const isSelected = selectedRiderId === sId;
+                    return (
+                      <TouchableOpacity
+                        key={sId}
+                        style={[
+                          styles.stallOptionItem,
+                          isSelected && { borderColor: '#10B981', backgroundColor: '#ECFDF5' },
+                          { paddingVertical: 10, marginBottom: 8 }
+                        ]}
+                        onPress={() => setSelectedRiderId(sId)}
+                      >
+                        <Ionicons
+                          name={isSelected ? 'radio-button-on' : 'radio-button-off'}
+                          size={18}
+                          color={isSelected ? '#10B981' : '#94A3B8'}
+                          style={{ marginRight: 10 }}
+                        />
+                        <View style={{ flex: 1 }}>
+                          <Text style={[styles.stallOptionName, isSelected && { color: '#065F46' }]}>
+                            {staff.name}
+                          </Text>
+                          <Text style={styles.modalSub}>📱 {staff.phone}</Text>
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+
+                  <TouchableOpacity
+                    style={[
+                      styles.stallOptionItem,
+                      selectedRiderId === 'custom' && { borderColor: '#10B981', backgroundColor: '#ECFDF5' },
+                      { paddingVertical: 10, marginBottom: 8 }
+                    ]}
+                    onPress={() => setSelectedRiderId('custom')}
+                  >
+                    <Ionicons
+                      name={selectedRiderId === 'custom' ? 'radio-button-on' : 'radio-button-off'}
+                      size={18}
+                      color={selectedRiderId === 'custom' ? '#10B981' : '#94A3B8'}
+                      style={{ marginRight: 10 }}
+                    />
+                    <Text style={[styles.stallOptionName, selectedRiderId === 'custom' && { color: '#065F46' }]}>
+                      + Enter Another Rider Details
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              ) : null}
+
+              {/* Custom Rider Inputs if selected or if no staff saved */}
+              {(selectedRiderId === 'custom' || deliveryStaff.length === 0) && (
+                <View style={{ marginBottom: 10 }}>
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>Rider Name *</Text>
+                    <TextInput
+                      style={styles.textInput}
+                      placeholder="e.g. Rahul Sharma"
+                      placeholderTextColor="#94A3B8"
+                      value={customRiderName}
+                      onChangeText={setCustomRiderName}
+                    />
+                  </View>
+
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>Rider Phone Number (WhatsApp) *</Text>
+                    <TextInput
+                      style={styles.textInput}
+                      placeholder="e.g. 9876543210"
+                      placeholderTextColor="#94A3B8"
+                      keyboardType="phone-pad"
+                      value={customRiderPhone}
+                      onChangeText={setCustomRiderPhone}
+                    />
+                  </View>
+                </View>
+              )}
+
+              <Text style={{ fontSize: 11, color: '#64748B', lineHeight: 16, marginTop: 4 }}>
+                💡 Upon dispatch, orders are tagged with this rider. A zero-install mobile web navigation link will be created with 1-tap WhatsApp sharing.
+              </Text>
+            </ScrollView>
+
+            <View style={styles.modalBtnRow}>
+              <TouchableOpacity
+                style={styles.modalCancelBtn}
+                onPress={() => setShowDispatchModal(false)}
+              >
+                <Text style={styles.modalCancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalSaveBtn, { backgroundColor: '#10B981' }]}
+                onPress={handleConfirmDispatch}
+                disabled={dispatchingRider}
+              >
+                {dispatchingRider ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.modalSaveBtnText}>🚀 Dispatch & Share Link</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -2219,6 +2696,32 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     marginBottom: 12,
     gap: 8,
+  },
+  cookingInstructionsBox: {
+    backgroundColor: '#FEF3C7',
+    borderWidth: 1.5,
+    borderColor: '#F59E0B',
+    borderRadius: 12,
+    padding: 10,
+    marginBottom: 12,
+  },
+  cookingInstructionsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 4,
+  },
+  cookingInstructionsLabel: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: '#92400E',
+    letterSpacing: 0.5,
+  },
+  cookingInstructionsText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#78350F',
+    lineHeight: 18,
   },
   itemsList: {
     backgroundColor: '#F8FAFC',

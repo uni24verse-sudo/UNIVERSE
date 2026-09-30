@@ -131,9 +131,34 @@ export default function ProfileScreen({ navigation }) {
   const [editEmployeeFormData, setEditEmployeeFormData] = useState({ name: '', password: '' });
   const [updatingEmployee, setUpdatingEmployee] = useState(false);
 
+  // Universal Delivery Settings State
+  const [togglingDeliveryService, setTogglingDeliveryService] = useState(false);
+  const [savingDeliverySettings, setSavingDeliverySettings] = useState(false);
+  const [deliveryFormData, setDeliveryFormData] = useState({
+    deliveryFee: '0',
+    freeDeliveryThreshold: '0',
+    minDeliveryOrderValue: '0',
+    packagingCharge: '0'
+  });
+  const [deliveryStaff, setDeliveryStaff] = useState([]);
+  const [showAddRiderModal, setShowAddRiderModal] = useState(false);
+  const [riderFormData, setRiderFormData] = useState({ name: '', phone: '' });
+  const [savingRider, setSavingRider] = useState(false);
+
   const isEmployee = user?.role === 'employee' || user?.role === 'staff';
   const displayStore = activeStore || store;
   const storeId = displayStore?.id || displayStore?._id || user?.storeId || user?.id;
+
+  useEffect(() => {
+    if (displayStore) {
+      setDeliveryFormData({
+        deliveryFee: String(displayStore.deliveryFee || 0),
+        freeDeliveryThreshold: String(displayStore.freeDeliveryThreshold || 0),
+        minDeliveryOrderValue: String(displayStore.minDeliveryOrderValue || 0),
+        packagingCharge: String(displayStore.packagingCharge || 0)
+      });
+    }
+  }, [displayStore?.id, displayStore?.deliveryFee, displayStore?.packagingCharge]);
 
   // Track if any bottom sheet modal is open to hide bottom tab bar and eliminate peeking gap
   const isAnyModalOpen = Boolean(
@@ -142,7 +167,8 @@ export default function ProfileScreen({ navigation }) {
     showEditTimingModal ||
     showEditOwnerModal ||
     showAddEmployeeModal ||
-    showEditEmployeeModal
+    showEditEmployeeModal ||
+    showAddRiderModal
   );
 
   const defaultTabBarStyle = useMemo(() => ({
@@ -248,7 +274,7 @@ export default function ProfileScreen({ navigation }) {
         console.log('Store fetch error:', err.message);
       }
 
-      // 3. Fetch Employees (Only for Cart Owner / Vendor)
+      // 3. Fetch Employees & Delivery Staff (Only for Cart Owner / Vendor)
       const currentTargetStoreId = activeStore?.id || activeStore?._id || store?.id || store?._id || user?.storeId || user?.id;
       if (!isEmployee && currentTargetStoreId) {
         try {
@@ -256,6 +282,12 @@ export default function ProfileScreen({ navigation }) {
           setEmployees(empRes.data || []);
         } catch (err) {
           console.log('Employees fetch error:', err.message);
+        }
+        try {
+          const staffRes = await apiClient.get(`/delivery/staff/${currentTargetStoreId}`);
+          setDeliveryStaff(staffRes.data || []);
+        } catch (err) {
+          console.log('Delivery staff fetch error:', err.message);
         }
       }
     } catch (err) {
@@ -286,6 +318,12 @@ export default function ProfileScreen({ navigation }) {
           ...prev,
           upiId: activeStore.upiId || '',
         }));
+      }
+      const curStoreId = activeStore.id || activeStore._id;
+      if (curStoreId && !isEmployee) {
+        apiClient.get(`/delivery/staff/${curStoreId}`)
+          .then(res => setDeliveryStaff(res.data || []))
+          .catch(() => {});
       }
     }
   }, [activeStore]);
@@ -574,6 +612,172 @@ export default function ProfileScreen({ navigation }) {
     } finally {
       setTogglingAutoSchedule(false);
     }
+  };
+
+  // ---------------------------------------------------------
+  // 3b-2. Real-Time Table / Seating Service Toggle
+  // (Strictly for Cart Owner - hidden and blocked for employee)
+  // ---------------------------------------------------------
+  const [togglingTableService, setTogglingTableService] = useState(false);
+
+  const handleToggleTableService = async () => {
+    if (isEmployee) {
+      Alert.alert('Restricted', 'Only the Cart Owner can configure table / seating service.');
+      return;
+    }
+    const currentStoreId = displayStore?.id || displayStore?._id || store?.id || store?._id || storeId;
+    if (!currentStoreId || togglingTableService) return;
+
+    const nextVal = !displayStore?.hasTableService;
+    setTogglingTableService(true);
+
+    // Optimistic UI updates
+    setStore(prev => prev ? { ...prev, hasTableService: nextVal } : prev);
+    if (switchActiveStore && displayStore) {
+      switchActiveStore({ ...displayStore, hasTableService: nextVal });
+    }
+
+    try {
+      const res = await apiClient.put(`/store/${currentStoreId}/update-details`, {
+        hasTableService: nextVal,
+      });
+      if (res.data) {
+        const val = res.data.hasTableService !== undefined ? res.data.hasTableService : nextVal;
+        setStore(prev => prev ? { ...prev, hasTableService: val } : prev);
+        if (switchActiveStore && displayStore) {
+          switchActiveStore({ ...displayStore, hasTableService: val });
+        }
+        if (refreshStores) refreshStores();
+      }
+    } catch (err) {
+      console.error('Toggle table service error:', err);
+      // Rollback
+      setStore(prev => prev ? { ...prev, hasTableService: !nextVal } : prev);
+      if (switchActiveStore && displayStore) {
+        switchActiveStore({ ...displayStore, hasTableService: !nextVal });
+      }
+      Alert.alert('Error', 'Could not update table service setting.');
+    } finally {
+      setTogglingTableService(false);
+    }
+  };
+
+  // ---------------------------------------------------------
+  // 3b2. Universal Self-Delivery Toggle & Pricing Handler
+  // ---------------------------------------------------------
+  const handleToggleDeliveryService = async () => {
+    const currentStoreId = displayStore?.id || displayStore?._id || store?.id || store?._id || storeId;
+    if (!currentStoreId || togglingDeliveryService) return;
+
+    const nextVal = !displayStore?.hasDeliveryService;
+    setTogglingDeliveryService(true);
+
+    // Optimistic UI updates
+    setStore(prev => prev ? { ...prev, hasDeliveryService: nextVal } : prev);
+    if (switchActiveStore && displayStore) {
+      switchActiveStore({ ...displayStore, hasDeliveryService: nextVal });
+    }
+
+    try {
+      const res = await apiClient.put(`/store/${currentStoreId}/update-details`, {
+        hasDeliveryService: nextVal,
+      });
+      if (res.data) {
+        const val = res.data.hasDeliveryService !== undefined ? res.data.hasDeliveryService : nextVal;
+        setStore(prev => prev ? { ...prev, hasDeliveryService: val } : prev);
+        if (switchActiveStore && displayStore) {
+          switchActiveStore({ ...displayStore, hasDeliveryService: val });
+        }
+        if (refreshStores) refreshStores();
+      }
+    } catch (err) {
+      console.error('Toggle delivery service error:', err);
+      // Rollback
+      setStore(prev => prev ? { ...prev, hasDeliveryService: !nextVal } : prev);
+      if (switchActiveStore && displayStore) {
+        switchActiveStore({ ...displayStore, hasDeliveryService: !nextVal });
+      }
+      Alert.alert('Error', 'Could not update delivery service setting.');
+    } finally {
+      setTogglingDeliveryService(false);
+    }
+  };
+
+  const handleSaveDeliverySettings = async () => {
+    const currentStoreId = displayStore?.id || displayStore?._id || store?.id || store?._id || storeId;
+    if (!currentStoreId || savingDeliverySettings) return;
+
+    setSavingDeliverySettings(true);
+    try {
+      const res = await apiClient.put(`/store/${currentStoreId}/update-details`, {
+        deliveryFee: Number(deliveryFormData.deliveryFee) || 0,
+        freeDeliveryThreshold: Number(deliveryFormData.freeDeliveryThreshold) || 0,
+        minDeliveryOrderValue: Number(deliveryFormData.minDeliveryOrderValue) || 0,
+        packagingCharge: Number(deliveryFormData.packagingCharge) || 0,
+      });
+      if (res.data) {
+        setStore(prev => prev ? { ...prev, ...res.data } : prev);
+        if (switchActiveStore && displayStore) {
+          switchActiveStore({ ...displayStore, ...res.data });
+        }
+        if (refreshStores) refreshStores();
+        Alert.alert('Success', 'Delivery and packaging rates updated successfully!');
+      }
+    } catch (err) {
+      Alert.alert('Error', err.response?.data?.message || 'Could not save delivery settings.');
+    } finally {
+      setSavingDeliverySettings(false);
+    }
+  };
+
+  const handleAddRider = async () => {
+    const currentStoreId = displayStore?.id || displayStore?._id || store?.id || store?._id || storeId;
+    if (!currentStoreId) return;
+    if (!riderFormData.name.trim() || !riderFormData.phone.trim()) {
+      Alert.alert('Required', 'Please enter rider name and 10-digit mobile number.');
+      return;
+    }
+    setSavingRider(true);
+    try {
+      const res = await apiClient.post(`/delivery/staff/${currentStoreId}`, {
+        name: riderFormData.name.trim(),
+        phone: riderFormData.phone.trim(),
+      });
+      if (res.data) {
+        setDeliveryStaff(prev => [res.data, ...prev]);
+        setRiderFormData({ name: '', phone: '' });
+        setShowAddRiderModal(false);
+        Alert.alert('Success', 'Delivery partner registered successfully!');
+      }
+    } catch (err) {
+      Alert.alert('Error', err.response?.data?.message || 'Failed to add rider.');
+    } finally {
+      setSavingRider(false);
+    }
+  };
+
+  const handleDeleteRider = async (staffId, staffName) => {
+    const currentStoreId = displayStore?.id || displayStore?._id || store?.id || store?._id || storeId;
+    if (!currentStoreId) return;
+    Alert.alert(
+      'Remove Delivery Partner',
+      `Are you sure you want to remove ${staffName}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await apiClient.delete(`/delivery/staff/${currentStoreId}/${staffId}`);
+              setDeliveryStaff(prev => prev.filter(r => (r.id || r._id) !== staffId));
+            } catch (err) {
+              Alert.alert('Error', 'Failed to remove delivery partner.');
+            }
+          }
+        }
+      ]
+    );
   };
 
   // ---------------------------------------------------------
@@ -1070,8 +1274,200 @@ export default function ProfileScreen({ navigation }) {
                 />
               </View>
             )}
+
+            {/* Table / Seating Service Toggle - Strictly Cart Owner Only */}
+            {!isEmployee && (
+              <View style={[styles.quickToggleRow, { borderTopWidth: 1, borderTopColor: '#F1F5F9', marginTop: 10, paddingTop: 10 }]}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 10 }}>
+                  <Ionicons
+                    name="restaurant-outline"
+                    size={16}
+                    color={displayStore?.hasTableService ? '#2563EB' : '#64748B'}
+                    style={{ marginRight: 8 }}
+                  />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.quickToggleLabel} numberOfLines={1}>
+                      Table / Seating Service
+                    </Text>
+                    <Text style={{ fontSize: 11, color: '#94A3B8', marginTop: 1 }}>
+                      {displayStore?.hasTableService ? 'Prompt student for table/spot #' : 'Takeaway cart (no seating prompt)'}
+                    </Text>
+                  </View>
+                </View>
+                <Switch
+                  value={Boolean(displayStore?.hasTableService)}
+                  onValueChange={handleToggleTableService}
+                  disabled={togglingTableService}
+                  trackColor={{ false: '#E2E8F0', true: '#2563EB' }}
+                  thumbColor="#FFFFFF"
+                />
+              </View>
+            )}
+
+            {/* Universal Self-Delivery Service Toggle - Strictly Cart Owner Only */}
+            {!isEmployee && (
+              <View style={[styles.quickToggleRow, { borderTopWidth: 1, borderTopColor: '#F1F5F9', marginTop: 10, paddingTop: 10 }]}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 10 }}>
+                  <Ionicons
+                    name="bicycle-outline"
+                    size={16}
+                    color={displayStore?.hasDeliveryService ? '#10B981' : '#64748B'}
+                    style={{ marginRight: 8 }}
+                  />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.quickToggleLabel} numberOfLines={1}>
+                      Self-Delivery Service
+                    </Text>
+                    <Text style={{ fontSize: 11, color: '#94A3B8', marginTop: 1 }}>
+                      {displayStore?.hasDeliveryService ? 'Active — your riders deliver orders' : 'Disabled — takeaway / dine-in only'}
+                    </Text>
+                  </View>
+                </View>
+                <Switch
+                  value={Boolean(displayStore?.hasDeliveryService)}
+                  onValueChange={handleToggleDeliveryService}
+                  disabled={togglingDeliveryService}
+                  trackColor={{ false: '#E2E8F0', true: '#10B981' }}
+                  thumbColor="#FFFFFF"
+                />
+              </View>
+            )}
           </View>
         </View>
+
+        {/* =================================================== */}
+        {/* 1.4 SELF-DELIVERY & PACKAGING RATES CONFIGURATION   */}
+        {/* =================================================== */}
+        {!isEmployee && Boolean(displayStore?.hasDeliveryService) && (
+          <View style={styles.sectionCard}>
+            <View style={styles.sectionHeaderRow}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                <View style={[styles.sectionIconBg, { backgroundColor: 'rgba(16, 185, 129, 0.1)' }]}>
+                  <Ionicons name="bicycle" size={17} color="#10B981" />
+                </View>
+                <View style={{ marginLeft: 8, flex: 1 }}>
+                  <Text style={styles.sectionTitle}>Delivery & Packaging Settings</Text>
+                  <Text style={styles.sectionSubtitle}>
+                    Configure self-delivery rates & manage your delivery boys
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Pricing Rates Inputs */}
+            <View style={{ marginTop: 12 }}>
+              <View style={{ flexDirection: 'row', gap: 10, marginBottom: 10 }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.inputLabel}>Delivery Fee (₹)</Text>
+                  <TextInput
+                    style={styles.textInput}
+                    value={deliveryFormData.deliveryFee}
+                    onChangeText={(val) => setDeliveryFormData(prev => ({ ...prev, deliveryFee: val }))}
+                    keyboardType="numeric"
+                    placeholder="e.g. 25"
+                    placeholderTextColor="#94A3B8"
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.inputLabel}>Free Above (₹)</Text>
+                  <TextInput
+                    style={styles.textInput}
+                    value={deliveryFormData.freeDeliveryThreshold}
+                    onChangeText={(val) => setDeliveryFormData(prev => ({ ...prev, freeDeliveryThreshold: val }))}
+                    keyboardType="numeric"
+                    placeholder="0 = no free"
+                    placeholderTextColor="#94A3B8"
+                  />
+                </View>
+              </View>
+
+              <View style={{ flexDirection: 'row', gap: 10, marginBottom: 14 }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.inputLabel}>Min. Order Value (₹)</Text>
+                  <TextInput
+                    style={styles.textInput}
+                    value={deliveryFormData.minDeliveryOrderValue}
+                    onChangeText={(val) => setDeliveryFormData(prev => ({ ...prev, minDeliveryOrderValue: val }))}
+                    keyboardType="numeric"
+                    placeholder="e.g. 99"
+                    placeholderTextColor="#94A3B8"
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.inputLabel}>Packaging Charge (₹)</Text>
+                  <TextInput
+                    style={styles.textInput}
+                    value={deliveryFormData.packagingCharge}
+                    onChangeText={(val) => setDeliveryFormData(prev => ({ ...prev, packagingCharge: val }))}
+                    keyboardType="numeric"
+                    placeholder="e.g. 10"
+                    placeholderTextColor="#94A3B8"
+                  />
+                </View>
+              </View>
+
+              <TouchableOpacity
+                style={[styles.modalSaveBtn, { alignSelf: 'stretch', marginBottom: 16, backgroundColor: '#10B981' }]}
+                onPress={handleSaveDeliverySettings}
+                disabled={savingDeliverySettings}
+              >
+                {savingDeliverySettings ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.modalSaveBtnText}>Save Delivery & Packaging Rates</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+
+            {/* Delivery Riders Subsection */}
+            <View style={{ borderTopWidth: 1, borderTopColor: '#F1F5F9', paddingTop: 14 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                <View>
+                  <Text style={{ fontSize: 13, fontWeight: '700', color: '#1E293B' }}>Delivery Boys / Staff</Text>
+                  <Text style={{ fontSize: 11, color: '#64748B' }}>Assigned riders for 1-tap dispatch</Text>
+                </View>
+                <TouchableOpacity
+                  style={[styles.addStallHeaderBtn, { backgroundColor: '#10B981' }]}
+                  onPress={() => setShowAddRiderModal(true)}
+                >
+                  <Ionicons name="add" size={14} color="#FFFFFF" style={{ marginRight: 2 }} />
+                  <Text style={styles.addStallHeaderBtnText}>Add Rider</Text>
+                </TouchableOpacity>
+              </View>
+
+              {deliveryStaff.length === 0 ? (
+                <View style={{ backgroundColor: '#F8FAFC', borderRadius: 10, padding: 14, alignItems: 'center', borderWidth: 1, borderColor: '#E2E8F0' }}>
+                  <Ionicons name="bicycle-outline" size={24} color="#94A3B8" style={{ marginBottom: 4 }} />
+                  <Text style={{ fontSize: 12, fontWeight: '600', color: '#64748B' }}>No delivery riders added yet</Text>
+                  <Text style={{ fontSize: 11, color: '#94A3B8', marginTop: 2, textAlign: 'center' }}>
+                    Tap "+ Add Rider" to save your delivery boys for 1-tap dispatch on live orders
+                  </Text>
+                </View>
+              ) : (
+                deliveryStaff.map((rider) => {
+                  const riderId = rider.id || rider._id;
+                  return (
+                    <View key={riderId} style={[styles.stallRowCard, { paddingVertical: 10 }]}>
+                      <View style={[styles.stallRowIcon, { backgroundColor: '#ECFDF5' }]}>
+                        <Ionicons name="bicycle" size={18} color="#10B981" />
+                      </View>
+                      <View style={{ flex: 1, marginLeft: 10 }}>
+                        <Text style={styles.stallRowName}>{rider.name}</Text>
+                        <Text style={styles.stallRowSub}>📱 {rider.phone}</Text>
+                      </View>
+                      <TouchableOpacity
+                        onPress={() => handleDeleteRider(riderId, rider.name)}
+                        style={{ padding: 6 }}
+                      >
+                        <Ionicons name="trash-outline" size={18} color="#EF4444" />
+                      </TouchableOpacity>
+                    </View>
+                  );
+                })
+              )}
+            </View>
+          </View>
+        )}
 
         {/* =================================================== */}
         {/* 1.5 MY STALLS & COUNTERS (MULTI-STALL HUB)          */}
@@ -2154,6 +2550,69 @@ export default function ProfileScreen({ navigation }) {
                   <ActivityIndicator size="small" color="#FFFFFF" />
                 ) : (
                   <Text style={styles.modalSaveBtnText}>Update Staff</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* =================================================== */}
+      {/* MODAL 6: ADD DELIVERY PARTNER (RIDER)               */}
+      {/* =================================================== */}
+      <Modal visible={showAddRiderModal} transparent animationType="slide" statusBarTranslucent={true}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <View>
+                <Text style={styles.modalTitle}>Add Delivery Partner</Text>
+                <Text style={styles.modalSubtitle}>Register a delivery boy for 1-tap WhatsApp dispatch</Text>
+              </View>
+              <TouchableOpacity onPress={() => setShowAddRiderModal(false)}>
+                <Ionicons name="close" size={22} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.inputLabel}>Rider Full Name *</Text>
+            <TextInput
+              style={styles.textInput}
+              value={riderFormData.name}
+              onChangeText={(text) => setRiderFormData((prev) => ({ ...prev, name: text }))}
+              placeholder="e.g. Ramesh Kumar"
+              placeholderTextColor="#94A3B8"
+            />
+
+            <Text style={styles.inputLabel}>Mobile Phone Number (WhatsApp) *</Text>
+            <TextInput
+              style={styles.textInput}
+              value={riderFormData.phone}
+              onChangeText={(text) => setRiderFormData((prev) => ({ ...prev, phone: text }))}
+              placeholder="e.g. 9876543210"
+              placeholderTextColor="#94A3B8"
+              keyboardType="phone-pad"
+              maxLength={15}
+            />
+
+            <Text style={styles.fieldHint}>
+              When dispatching orders, a magic web cockpit link will be generated for this mobile number with 1-tap WhatsApp sharing.
+            </Text>
+
+            <View style={styles.modalBtnRow}>
+              <TouchableOpacity
+                style={styles.modalCancelBtn}
+                onPress={() => setShowAddRiderModal(false)}
+              >
+                <Text style={styles.modalCancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalSaveBtn, { backgroundColor: '#10B981' }]}
+                onPress={handleAddRider}
+                disabled={savingRider}
+              >
+                {savingRider ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.modalSaveBtnText}>Add Partner</Text>
                 )}
               </TouchableOpacity>
             </View>

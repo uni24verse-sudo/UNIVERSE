@@ -22,43 +22,21 @@ export const setCustomApiUrl = async (url) => {
 export const getBaseUrl = () => {
   if (customBaseUrl) return customBaseUrl;
 
-  // 1. Web Browser environment (localhost, 127.0.0.1, or local LAN IP e.g. 10.x.x.x, 192.168.x.x)
+  // 1. Explicit env variable (UAT during testing via .env, Production in EAS builds via eas.json)
+  if (process.env.EXPO_PUBLIC_API_URL) {
+    return process.env.EXPO_PUBLIC_API_URL;
+  }
+
+  // 2. Web Browser environment (localhost, 127.0.0.1)
   if (Platform.OS === 'web' && typeof window !== 'undefined') {
     const hostname = window.location.hostname;
-    if (
-      hostname === 'localhost' ||
-      hostname === '127.0.0.1' ||
-      hostname.startsWith('10.') ||
-      hostname.startsWith('192.168.') ||
-      hostname.endsWith('.local')
-    ) {
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
       return `http://${hostname}:5000/api`;
     }
     return `${window.location.origin}/api`;
   }
 
-  // 2. Development mode on phone (Expo Go)
-  // Automatically extract the active Metro host IP the phone is connected to
-  if (__DEV__) {
-    const hostUri = Constants?.expoConfig?.hostUri || Constants?.manifest?.debuggerHost || '';
-    if (hostUri) {
-      const devHost = hostUri.split(':')[0];
-      if (devHost && devHost !== 'localhost' && devHost !== '127.0.0.1') {
-        return `http://${devHost}:5000/api`;
-      }
-    }
-
-    if (process.env.EXPO_PUBLIC_API_URL) {
-      return process.env.EXPO_PUBLIC_API_URL;
-    }
-    return 'http://10.194.0.50:5000/api';
-  }
-
-  if (process.env.EXPO_PUBLIC_API_URL) {
-    return process.env.EXPO_PUBLIC_API_URL;
-  }
-
-  // Active production cloud server
+  // 3. Active production cloud server
   return 'https://food.universeorder.co.in/api';
 };
 

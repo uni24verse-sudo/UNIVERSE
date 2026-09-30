@@ -73,6 +73,12 @@ model Store {
   categoryImages     Json?        @default("[]")
   accentColor        String       @default("#ef4123")
   storeType          String       @default("FastFood") // "FastFood" | "Restaurant"
+  hasTableService    Boolean      @default(false)
+  hasDeliveryService Boolean      @default(false)
+  deliveryFee        Float        @default(0)
+  freeDeliveryThreshold Float?    @default(0)
+  minDeliveryOrderValue Float?    @default(0)
+  estimatedDeliveryTime Int?      @default(30)
   products           Json         @default("[]")
   offers             Json?        @default("[]")
   createdAt          DateTime     @default(now())
@@ -82,6 +88,7 @@ model Store {
   location           Location?    @relation(fields: [locationId], references: [id])
   orders             Order[]
   settlements        Settlement[]
+  deliveryStaff      VendorDeliveryStaff[]
 
   @@map("stores")
 }
@@ -99,8 +106,22 @@ model Order {
   status                 String       @default("Pending") // "Payment Pending" | "Pending" | "Confirmed" | "Cooking" | "Ready" | "Completed" | "Cancelled"
   paymentMethod          String       @default("UPI") // "Razorpay" | "UPI"
   paymentStatus          String       @default("Pending") // "Pending" | "Confirmed" | "Failed"
-  orderType              String       @default("Dine In") // "Dine In" | "Take Away"
+  orderType              String       @default("Dine In") // "Dine In" | "Take Away" | "Delivery"
+  tableNumber            String?      @default("")
+  cookingInstructions    String?      @default("")
   packagingChargeApplied Float        @default(0)
+
+  // Delivery Tracking
+  deliveryAddress        String?      @default("")
+  platformFee            Float        @default(0)
+  deliveryFee            Float        @default(0)
+  riderName              String?      @default("")
+  riderPhone             String?      @default("")
+  deliveryOtp            String?      @default("")
+  dispatchedAt           DateTime?
+  deliveredAt            DateTime?
+  deliveryBatchId        String?      @default("")
+  batchStopSequence      Int?         @default(1)
 
   // Payment Tracking
   transactionId          String?      @default("")
@@ -140,6 +161,21 @@ model Order {
   refunds                Refund[]
 
   @@map("orders")
+}
+
+model VendorDeliveryStaff {
+  id          String    @id @default(uuid())
+  storeId     String
+  name        String
+  phone       String
+  vehicleNo   String?   @default("")
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+
+  store       Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([storeId])
+  @@map("vendor_delivery_staff")
 }
 
 model Customer {

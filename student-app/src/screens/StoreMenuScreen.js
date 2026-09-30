@@ -130,23 +130,21 @@ const StoreMenuScreen = ({ route, navigation }) => {
     shareStall(store);
   };
 
-  // SuperAdmin Dietary Settings Parity - Exactly mirroring webapp StoreMenu.jsx lines 464-482
+  // SuperAdmin Dietary Settings Parity - 100% Dynamic Location Configuration
   const effectiveDietaryMode = useMemo(() => {
-    if (!store) return 'veg';
-    const loc = store.location || store.locationId || currentLocation || {};
-    const locName = (loc.name || currentLocation?.name || '').toLowerCase();
+    if (!store) return 'both';
+    const locObj = (typeof store.location === 'object' && store.location) 
+      ? store.location 
+      : ((typeof store.locationId === 'object' && store.locationId) ? store.locationId : currentLocation || {});
     
-    // Explicit setting on location from SuperAdmin
-    if (loc.dietaryType === 'veg') return 'veg';
-    if (loc.dietaryType === 'non-veg') return 'non-veg';
-    if (loc.dietaryType === 'both') return 'both';
+    const locDietary = locObj?.dietaryType || currentLocation?.dietaryType;
 
-    // Heuristics for Lovely Professional University
-    if (locName.includes('lovely') || locName.includes('lpu')) {
-      return 'veg';
-    }
+    // Dynamically evaluate strictly against SuperAdmin panel configuration for the location
+    if (locDietary === 'veg') return 'veg';
+    if (locDietary === 'non-veg') return 'non-veg';
+    if (locDietary === 'both') return 'both';
 
-    // Check store products: if store has non-veg or egg items, allow 'both', otherwise 'veg'
+    // Fallback if dietaryType is not specified on the location: check store products
     const hasNonVeg = (store.products || []).some(p => ['non-veg', 'egg'].includes(p.dietaryPreference));
     return hasNonVeg ? 'both' : 'veg';
   }, [store, currentLocation]);
@@ -227,7 +225,9 @@ const StoreMenuScreen = ({ route, navigation }) => {
       const matchesSearch = (p.name || '').toLowerCase().includes(searchQuery.toLowerCase());
       
       let matchesDiet = true;
-      if (dietaryFilter === 'veg') {
+      if (effectiveDietaryMode === 'veg') {
+        matchesDiet = p.dietaryPreference !== 'non-veg' && p.dietaryPreference !== 'egg';
+      } else if (dietaryFilter === 'veg') {
         matchesDiet = p.dietaryPreference === 'veg';
       } else if (dietaryFilter === 'non-veg') {
         matchesDiet = ['non-veg', 'egg'].includes(p.dietaryPreference);
@@ -242,7 +242,7 @@ const StoreMenuScreen = ({ route, navigation }) => {
       const pCat = (p.category || 'Specialty').trim();
       return pCat.toLowerCase() === selectedCategory.toLowerCase();
     });
-  }, [store, searchQuery, selectedCategory, dietaryFilter]);
+  }, [store, searchQuery, selectedCategory, dietaryFilter, effectiveDietaryMode]);
 
   const handleOpenVariantModal = (product) => {
     setSelectedProductForModal(product);

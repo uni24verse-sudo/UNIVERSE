@@ -51,7 +51,21 @@ function calculateCartPricing(store, cartItems = [], options = {}) {
     };
   });
 
-  const packagingFee = orderType === 'Take Away' ? Number(store?.packagingCharge || 0) : 0;
+  const packagingFee = (orderType === 'Take Away' || orderType === 'Delivery') ? Number(store?.packagingCharge || 0) : 0;
+
+  // Delivery & Platform Fee calculation
+  let deliveryFee = 0;
+  let platformFee = 0;
+  if (orderType === 'Delivery') {
+    platformFee = 5.0; // Fixed ₹5 platform convenience fee
+    const storeDeliveryFee = Number(store?.deliveryFee || 0);
+    const freeThreshold = Number(store?.freeDeliveryThreshold || 0);
+    if (freeThreshold > 0 && originalSubtotal >= freeThreshold) {
+      deliveryFee = 0;
+    } else {
+      deliveryFee = storeDeliveryFee;
+    }
+  }
 
   // 2. Fetch and combine store offers and platform global offers
   const rawStoreOffers = Array.isArray(store?.offers) ? store.offers.map(o => ({ ...o, isGlobal: false })) : [];
@@ -237,7 +251,7 @@ function calculateCartPricing(store, cartItems = [], options = {}) {
 
   const discountAmount = selectedEvaluation ? selectedEvaluation.discountAmount : 0;
   const discountedSubtotal = Math.max(0, originalSubtotal - discountAmount);
-  const finalTotal = Math.max(0, Math.round((discountedSubtotal + packagingFee) * 100) / 100);
+  const finalTotal = Math.max(0, Math.round((discountedSubtotal + packagingFee + deliveryFee + platformFee) * 100) / 100);
 
   // Compute item-level final details
   const itemPricing = normalizedItems.map((item) => {
@@ -264,6 +278,8 @@ function calculateCartPricing(store, cartItems = [], options = {}) {
     discountAmount: Math.round(discountAmount * 100) / 100,
     discountedSubtotal: Math.round(discountedSubtotal * 100) / 100,
     packagingFee: Math.round(packagingFee * 100) / 100,
+    deliveryFee: Math.round(deliveryFee * 100) / 100,
+    platformFee: Math.round(platformFee * 100) / 100,
     finalTotal,
     appliedOffer: selectedEvaluation
       ? {

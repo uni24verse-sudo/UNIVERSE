@@ -180,7 +180,12 @@ class StoreRepository {
     if (details.autoAcceptOrders !== undefined) data.autoAcceptOrders = Boolean(details.autoAcceptOrders);
     if (details.accentColor !== undefined) data.accentColor = details.accentColor;
     if (details.image) data.image = details.image;
-    if (details.isOpen !== undefined) data.isOpen = Boolean(details.isOpen);
+    if (details.hasTableService !== undefined) data.hasTableService = Boolean(details.hasTableService);
+    if (details.hasDeliveryService !== undefined) data.hasDeliveryService = Boolean(details.hasDeliveryService);
+    if (details.deliveryFee !== undefined) data.deliveryFee = Number(details.deliveryFee) || 0;
+    if (details.freeDeliveryThreshold !== undefined) data.freeDeliveryThreshold = Number(details.freeDeliveryThreshold) || 0;
+    if (details.minDeliveryOrderValue !== undefined) data.minDeliveryOrderValue = Number(details.minDeliveryOrderValue) || 0;
+    if (details.estimatedDeliveryTime !== undefined) data.estimatedDeliveryTime = parseInt(details.estimatedDeliveryTime, 10) || 30;
 
     const updated = await prisma.store.update({
       where: { id: storeId },
@@ -453,6 +458,12 @@ class StoreRepository {
     if (details.telegramBotToken !== undefined) updateData.telegramBotToken = details.telegramBotToken;
     if (details.accentColor !== undefined) updateData.accentColor = details.accentColor;
     if (details.storeType !== undefined) updateData.storeType = details.storeType;
+    if (details.hasTableService !== undefined) updateData.hasTableService = Boolean(details.hasTableService);
+    if (details.hasDeliveryService !== undefined) updateData.hasDeliveryService = Boolean(details.hasDeliveryService);
+    if (details.deliveryFee !== undefined) updateData.deliveryFee = Number(details.deliveryFee) || 0;
+    if (details.freeDeliveryThreshold !== undefined) updateData.freeDeliveryThreshold = Number(details.freeDeliveryThreshold) || 0;
+    if (details.minDeliveryOrderValue !== undefined) updateData.minDeliveryOrderValue = Number(details.minDeliveryOrderValue) || 0;
+    if (details.estimatedDeliveryTime !== undefined) updateData.estimatedDeliveryTime = parseInt(details.estimatedDeliveryTime, 10) || 30;
 
     const updated = await prisma.store.update({
       where: { id: storeId },

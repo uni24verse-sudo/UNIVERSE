@@ -20,6 +20,7 @@ const TermsAndConditions = lazy(() => import('./pages/TermsAndConditions'));
 const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
 const VendorAppDownload = lazy(() => import('./pages/VendorAppDownload'));
 const ShareRedirect = lazy(() => import('./pages/ShareRedirect'));
+const RiderCockpit = lazy(() => import('./pages/RiderCockpit'));
 
 import Navbar from './components/Navbar';
 import UnifiedStudentDock from './components/UnifiedStudentDock';
@@ -92,6 +93,9 @@ const AppLayout = () => {
     setIsSessionStarted(true);
   };
 
+  const isDeliveryCockpit = location.pathname.startsWith('/deliver');
+  const isCleanView = isAdminPath || isDeliveryCockpit;
+
   const isDirectBypass = location.pathname.startsWith('/order-tracker') || 
                          location.pathname.startsWith('/orders') || 
                          location.pathname.startsWith('/store/') ||
@@ -99,7 +103,8 @@ const AppLayout = () => {
                          location.pathname.startsWith('/s/') ||
                          location.pathname.startsWith('/terms') ||
                          location.pathname.startsWith('/privacy') ||
-                         location.pathname.startsWith('/vendor-app-download');
+                         location.pathname.startsWith('/vendor-app-download') ||
+                         isDeliveryCockpit;
 
   if (!isSessionStarted && !isAdminPath && !isDirectBypass) {
     return <SplashScreen onComplete={handleSplashComplete} />;
@@ -112,15 +117,15 @@ const AppLayout = () => {
 
   const hubType = localStorage.getItem('universe_location_type');
 
-  const hasPromo = !isAdminPath && hubType === 'College';
+  const hasPromo = !isCleanView && hubType === 'College';
 
   return (
     <div className={`app-container ${hasPromo ? 'has-promo' : ''}`} style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       {hasPromo && <TopPromoBanner />}
-      <Navbar bannerVisible={!isAdminPath && hubType === 'College'} />
+      <Navbar bannerVisible={!isCleanView && hubType === 'College'} />
       
       {/* Header Spacer - Manages Flow for Fixed Elements */}
-      {!isAdminPath && (
+      {!isCleanView && (
         <div style={{ 
           height: hasPromo ? 'calc(var(--nav-height) + var(--promo-height))' : 'var(--nav-height)',
           flexShrink: 0 
@@ -128,7 +133,7 @@ const AppLayout = () => {
       )}
       <NotificationsToast />
       <ToastFeedback />
-      <UnifiedStudentDock />
+      {!isCleanView && <UnifiedStudentDock />}
       <div style={{ flex: 1 }}>
         <React.Suspense fallback={
           <div className="auth-wrapper">
@@ -177,11 +182,13 @@ const AppLayout = () => {
             <Route path="/terms" element={<TermsAndConditions />} />
             <Route path="/privacy" element={<PrivacyPolicy />} />
             <Route path="/vendor-app-download" element={<VendorAppDownload />} />
+            <Route path="/deliver/:id" element={<RiderCockpit />} />
+            <Route path="/delivery/:id" element={<RiderCockpit />} />
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
         </React.Suspense>
       </div>
-      {!isAdminPath && <Footer />}
+      {!isCleanView && <Footer />}
     </div>
   );
 };

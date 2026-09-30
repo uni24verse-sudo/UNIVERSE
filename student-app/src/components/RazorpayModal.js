@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, Modal, TouchableOpacity, StyleSheet, ActivityIndicator, SafeAreaView } from 'react-native';
+import React, { useEffect } from 'react';
+import { View, Text, Modal, TouchableOpacity, StyleSheet, ActivityIndicator, SafeAreaView, Platform } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { Feather } from '@expo/vector-icons';
 import { THEME } from '../constants/theme';
@@ -11,7 +11,55 @@ const RazorpayModal = ({
   onFailure,
   onClose,
 }) => {
+  // On Web browser (localhost / web), use official Razorpay script instead of native WebView
+  useEffect(() => {
+    if (Platform.OS !== 'web' || !visible || !options) return;
+
+    const openWebRazorpay = () => {
+      try {
+        const rzpOptions = {
+          ...options,
+          handler: function (response) {
+            onSuccess({
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_signature: response.razorpay_signature,
+            });
+          },
+          modal: {
+            ondismiss: function () {
+              onClose();
+            },
+          },
+        };
+
+        const rzp = new window.Razorpay(rzpOptions);
+        rzp.on('payment.failed', function (response) {
+          onFailure(response.error);
+        });
+        rzp.open();
+      } catch (err) {
+        console.error('Error opening Razorpay on web:', err);
+      }
+    };
+
+    if (typeof window !== 'undefined' && window.Razorpay) {
+      openWebRazorpay();
+    } else if (typeof document !== 'undefined') {
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.async = true;
+      script.onload = openWebRazorpay;
+      document.body.appendChild(script);
+    }
+  }, [visible, options]);
+
   if (!visible || !options) return null;
+
+  // On Web, Razorpay creates its own native modal over the DOM
+  if (Platform.OS === 'web') {
+    return null;
+  }
 
   const htmlContent = `
     <!DOCTYPE html>

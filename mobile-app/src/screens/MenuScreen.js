@@ -73,11 +73,7 @@ export default function MenuScreen({ navigation }) {
   const currentStore = activeStore || store;
   const isVegOnlyLocation = useMemo(() => {
     const loc = currentStore?.location;
-    if (loc?.dietaryType === 'veg') return true;
-    if (currentStore?.dietaryType === 'veg') return true;
-    const locName = (loc?.name || '').toLowerCase();
-    if (locName.includes('lpu') || locName.includes('lovely')) return true;
-    return false;
+    return loc?.dietaryType === 'veg' || currentStore?.dietaryType === 'veg';
   }, [currentStore]);
 
   // Tab bar hiding when any modal/sheet is open

@@ -70,7 +70,7 @@ const globalOfferRepository = require('../repositories/globalOfferRepository');
 // NOTE: For Razorpay checkouts, use /api/payments/razorpay/verify
 router.post('/create', async (req, res) => {
   try {
-    const { storeId, items, totalAmount, paymentMethod, customerPhone, customerName, orderType, packagingChargeApplied, isPreOrder, scheduledTime, isQRScan, selectedOfferId, couponCode, removeOffer } = req.body;
+    const { storeId, items, totalAmount, paymentMethod, customerPhone, customerName, orderType, tableNumber, cookingInstructions, packagingChargeApplied, isPreOrder, scheduledTime, isQRScan, selectedOfferId, couponCode, removeOffer, deliveryAddress } = req.body;
 
     const store = await prisma.store.findUnique({
       where: { id: String(storeId) },
@@ -108,7 +108,13 @@ router.post('/create', async (req, res) => {
         customerPhone: String(customerPhone || ''),
         customerName: customerName || 'UniVerse Student',
         orderType: orderType || 'Dine In',
+        tableNumber: String(tableNumber || ''),
+        cookingInstructions: String(cookingInstructions || ''),
         packagingChargeApplied: pricing.packagingFee,
+        deliveryAddress: String(deliveryAddress || ''),
+        platformFee: pricing.platformFee || 0,
+        deliveryFee: pricing.deliveryFee || 0,
+        deliveryOtp: (orderType === 'Delivery' ? Math.floor(1000 + Math.random() * 9000).toString() : ''),
         status: 'Payment Pending',
         paymentStatus: 'Pending',
         isPreOrder: Boolean(isPreOrder),

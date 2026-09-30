@@ -85,7 +85,7 @@ router.post('/razorpay/verify', async (req, res) => {
     }
 
     // Payment verified - NOW Create the Order in PostgreSQL
-    const { storeId, items, totalAmount, paymentMethod, customerPhone, customerName, orderType, packagingChargeApplied, isPreOrder, scheduledTime, isQRScan } = orderData;
+    const { storeId, items, totalAmount, paymentMethod, customerPhone, customerName, orderType, tableNumber, cookingInstructions, packagingChargeApplied, isPreOrder, scheduledTime, isQRScan, deliveryAddress } = orderData;
 
     const store = await prisma.store.findUnique({
       where: { id: String(storeId) },
@@ -151,7 +151,13 @@ router.post('/razorpay/verify', async (req, res) => {
         customerName: customerName || 'UniVerse Student',
         customerEmail: orderData.customerEmail || (customer?.email || ''),
         orderType: orderType || 'Dine In',
+        tableNumber: String(tableNumber || orderData.tableNumber || ''),
+        cookingInstructions: String(cookingInstructions || orderData.cookingInstructions || ''),
         packagingChargeApplied: pricing.packagingFee,
+        deliveryAddress: String(deliveryAddress || orderData.deliveryAddress || ''),
+        platformFee: pricing.platformFee || 0,
+        deliveryFee: pricing.deliveryFee || 0,
+        deliveryOtp: (orderType === 'Delivery' ? Math.floor(1000 + Math.random() * 9000).toString() : ''),
         paymentStatus: 'Confirmed',
         status: initialStatus,
         transactionId: razorpay_payment_id,

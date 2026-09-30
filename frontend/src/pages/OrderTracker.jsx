@@ -616,8 +616,99 @@ const OrderTracker = () => {
           </div>
         )}
 
-        {/* Handover QR Code Section - Visible only when order is Ready for pickup */}
-        {order.status === 'Ready' && order.handoverToken && (
+        {/* Handover Section: Delivery vs Pickup QR Code */}
+        {order.status === 'Ready' && order.orderType === 'Delivery' ? (
+          <div style={{ 
+            background: '#f0fdf4', 
+            padding: '2rem', 
+            borderRadius: '24px', 
+            marginBottom: '2rem',
+            border: '2px solid #10b981',
+            position: 'relative',
+            overflow: 'hidden'
+          }}>
+            <div style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              height: '6px',
+              background: '#10b981',
+              opacity: 0.8
+            }}></div>
+            
+            <h3 style={{ fontSize: '1.25rem', fontWeight: '800', marginBottom: '0.4rem', color: '#065f46' }}>
+              {order.riderName ? '🛵 Rider Out For Delivery' : '🛵 Order Packed & Ready'}
+            </h3>
+            <p style={{ fontSize: '0.85rem', color: '#047857', marginBottom: '1.25rem' }}>
+              {order.riderName 
+                ? `Your delivery partner ${order.riderName} is on the way to your destination.`
+                : 'Your order is packed. Stall is dispatching it to their delivery boy.'}
+            </p>
+
+            {/* Batch Nearby Notification */}
+            {order.deliveryBatchId && (
+              <div style={{ background: '#dcfce7', border: '1px solid #86efac', borderRadius: '12px', padding: '0.6rem 1rem', marginBottom: '1rem', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem', color: '#166534', fontWeight: '700' }}>
+                🛵 Batch delivery in progress • Driver is arriving shortly
+              </div>
+            )}
+
+            {/* Delivery OTP PIN Box */}
+            {order.deliveryOtp ? (
+              <div>
+                <div style={{ 
+                  background: 'white', 
+                  padding: '1.25rem 2rem', 
+                  borderRadius: '20px', 
+                  display: 'inline-block',
+                  boxShadow: '0 10px 30px rgba(16, 185, 129, 0.1)',
+                  border: '2px solid #86efac',
+                  margin: '0.5rem 0 1rem'
+                }}>
+                  <span style={{ fontSize: '0.75rem', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    Delivery Verification PIN
+                  </span>
+                  <div style={{ fontSize: '2.5rem', fontWeight: '900', color: '#047857', letterSpacing: '8px', margin: '0.25rem 0' }}>
+                    {order.deliveryOtp}
+                  </div>
+                  <span style={{ fontSize: '0.75rem', color: '#059669', fontWeight: '600' }}>
+                    Share this 4-digit PIN with the delivery boy upon arrival
+                  </span>
+                </div>
+              </div>
+            ) : null}
+
+            {/* Rider Contact Button */}
+            {order.riderName && order.riderPhone && (
+              <div style={{ marginTop: '0.5rem' }}>
+                <a
+                  href={`tel:${order.riderPhone}`}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    background: '#10b981',
+                    color: 'white',
+                    padding: '0.7rem 1.5rem',
+                    borderRadius: '12px',
+                    textDecoration: 'none',
+                    fontWeight: '800',
+                    fontSize: '0.875rem',
+                    boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)'
+                  }}
+                >
+                  <Phone size={16} /> Call Rider ({order.riderName})
+                </a>
+              </div>
+            )}
+
+            {order.deliveryAddress && (
+              <div style={{ marginTop: '1rem', fontSize: '0.8rem', color: '#065f46' }}>
+                <strong>Drop Destination:</strong> {order.deliveryAddress}
+              </div>
+            )}
+          </div>
+        ) : order.status === 'Ready' && order.handoverToken ? (
           <div style={{ 
             background: 'white', 
             padding: '2rem', 
@@ -659,7 +750,7 @@ const OrderTracker = () => {
               />
             </div>
           </div>
-        )}
+        ) : null}
 
         {/* Handover Completed Confirmation */}
         {order.status === 'Completed' && (
@@ -770,6 +861,13 @@ const OrderTracker = () => {
              <span style={{ color: 'var(--text-secondary)' }}>Order Type</span>
              <span style={{ fontWeight: '800', color: 'var(--text-primary)' }}>{order.orderType}</span>
            </div>
+
+           {order.orderType === 'Delivery' && order.deliveryAddress && (
+             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem', fontSize: '0.85rem' }}>
+               <span style={{ color: 'var(--text-secondary)' }}>Drop Address</span>
+               <span style={{ fontWeight: '800', color: 'var(--text-primary)', maxWidth: '60%', textAlign: 'right' }}>{order.deliveryAddress}</span>
+             </div>
+           )}
            
            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
              {order.items.map((item, idx) => (
