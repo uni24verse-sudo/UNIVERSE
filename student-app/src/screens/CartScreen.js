@@ -516,74 +516,114 @@ const CartScreen = ({ navigation }) => {
             </View>
           </View>
 
-          {/* Order Type Toggle: Takeaway vs Dine In */}
-          <View style={styles.orderTypeCard}>
-            <TouchableOpacity
-              style={[styles.typeOption, orderType === 'takeaway' && styles.typeOptionActive]}
-              onPress={() => setOrderType('takeaway')}
-              activeOpacity={0.8}
-            >
-              <MaterialCommunityIcons
-                name="bag-personal"
-                size={18}
-                color={orderType === 'takeaway' ? THEME.colors.primary : '#64748B'}
-              />
-              <Text style={[styles.typeText, orderType === 'takeaway' && styles.typeTextActive]}>
-                Takeaway
-              </Text>
-            </TouchableOpacity>
+          {/* Order Preference Section */}
+          <View style={styles.orderPreferenceSection}>
+            <View style={styles.preferenceHeaderRow}>
+              <Text style={styles.preferenceSectionTitle}>ORDER PREFERENCE</Text>
+              {orderType === 'delivery' && Boolean(store?.estimatedDeliveryTime) && (
+                <View style={styles.deliveryTimeBadge}>
+                  <Feather name="clock" size={11} color="#EA580C" />
+                  <Text style={styles.deliveryTimeBadgeText}>{store.estimatedDeliveryTime} mins</Text>
+                </View>
+              )}
+            </View>
 
-            <TouchableOpacity
-              style={[styles.typeOption, orderType === 'dine_in' && styles.typeOptionActive]}
-              onPress={() => setOrderType('dine_in')}
-              activeOpacity={0.8}
-            >
-              <Ionicons
-                name="restaurant-outline"
-                size={17}
-                color={orderType === 'dine_in' ? THEME.colors.primary : '#64748B'}
-              />
-              <Text style={[styles.typeText, orderType === 'dine_in' && styles.typeTextActive]}>
-                Dine In
-              </Text>
-            </TouchableOpacity>
-
-            {Boolean(store?.hasDeliveryService) && (
+            <View style={styles.orderTypeCard}>
               <TouchableOpacity
-                style={[styles.typeOption, orderType === 'delivery' && styles.typeOptionActive]}
-                onPress={() => setOrderType('delivery')}
+                style={[styles.typeOption, orderType === 'takeaway' && styles.typeOptionActive]}
+                onPress={() => setOrderType('takeaway')}
                 activeOpacity={0.8}
               >
-                <MaterialCommunityIcons
-                  name="moped"
-                  size={19}
-                  color={orderType === 'delivery' ? THEME.colors.primary : '#64748B'}
+                <Feather
+                  name="shopping-bag"
+                  size={15}
+                  color={orderType === 'takeaway' ? THEME.colors.primary : '#64748B'}
                 />
-                <Text style={[styles.typeText, orderType === 'delivery' && styles.typeTextActive]}>
-                  Delivery
+                <Text style={[styles.typeText, orderType === 'takeaway' && styles.typeTextActive]}>
+                  Takeaway
                 </Text>
               </TouchableOpacity>
-            )}
+
+              <TouchableOpacity
+                style={[styles.typeOption, orderType === 'dine_in' && styles.typeOptionActive]}
+                onPress={() => setOrderType('dine_in')}
+                activeOpacity={0.8}
+              >
+                <Ionicons
+                  name="restaurant-outline"
+                  size={15}
+                  color={orderType === 'dine_in' ? THEME.colors.primary : '#64748B'}
+                />
+                <Text style={[styles.typeText, orderType === 'dine_in' && styles.typeTextActive]}>
+                  Dine In
+                </Text>
+              </TouchableOpacity>
+
+              {Boolean(store?.hasDeliveryService) && (
+                <TouchableOpacity
+                  style={[styles.typeOption, orderType === 'delivery' && styles.typeOptionActive]}
+                  onPress={() => setOrderType('delivery')}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons
+                    name="bicycle-outline"
+                    size={17}
+                    color={orderType === 'delivery' ? THEME.colors.primary : '#64748B'}
+                  />
+                  <Text style={[styles.typeText, orderType === 'delivery' && styles.typeTextActive]}>
+                    Delivery
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            <View style={styles.preferenceSubRow}>
+              <Text style={styles.preferenceSubText}>
+                {orderType === 'takeaway' && 'Pack order to collect directly at stall counter'}
+                {orderType === 'dine_in' && 'Dine in and enjoy your meal at the stall'}
+                {orderType === 'delivery' && `Delivered directly to your hostel block or location by ${store?.name || 'stall'} staff`}
+              </Text>
+            </View>
           </View>
 
           {/* Delivery Address Field */}
           {orderType === 'delivery' && (
-            <View style={styles.card}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
-                <Ionicons name="location" size={16} color={THEME.colors.primary} style={{ marginRight: 6 }} />
-                <Text style={styles.cardLabel}>Delivery Address *</Text>
+            <View style={styles.addressCard}>
+              <View style={styles.addressHeaderRow}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Ionicons name="location-outline" size={17} color={THEME.colors.primary} />
+                  <Text style={styles.addressCardTitle}>Delivery Drop-off Address</Text>
+                </View>
+                <View style={styles.requiredBadge}>
+                  <Text style={styles.requiredBadgeText}>REQUIRED</Text>
+                </View>
               </View>
+
               <TextInput
-                style={[styles.inputField, { height: 60, textAlignVertical: 'top', paddingTop: 8 }]}
-                placeholder="e.g. BH-1 Room 312, Boys Hostel or Law Gate PG"
+                style={styles.addressInputField}
+                placeholder="Enter complete address (e.g. Hostel BH-1, Room 304, 3rd Floor)"
                 placeholderTextColor="#94A3B8"
                 multiline
-                numberOfLines={2}
+                numberOfLines={3}
                 value={deliveryAddress}
                 onChangeText={setDeliveryAddress}
               />
-              <Text style={{ fontSize: 11, color: '#64748B', marginTop: 4 }}>
-                Delivery partner will bring your order directly to this address.
+
+              <View style={styles.addressFooterRow}>
+                <Feather name="info" size={12} color="#64748B" style={{ marginTop: 2 }} />
+                <Text style={styles.addressFooterText}>
+                  Please ensure room number or landmark is clearly mentioned. 4-digit PIN is required at drop-off.
+                </Text>
+              </View>
+            </View>
+          )}
+
+          {/* Minimum Delivery Order Value Notice */}
+          {orderType === 'delivery' && Boolean(store?.minDeliveryOrderValue > 0 && subtotal < store.minDeliveryOrderValue) && (
+            <View style={styles.minOrderNoticeCard}>
+              <Feather name="alert-circle" size={15} color="#D97706" />
+              <Text style={styles.minOrderNoticeText}>
+                Minimum order for delivery is ₹{store.minDeliveryOrderValue}. Add ₹{(store.minDeliveryOrderValue - subtotal).toFixed(0)} more to place a delivery order.
               </Text>
             </View>
           )}
@@ -593,7 +633,7 @@ const CartScreen = ({ navigation }) => {
             <View style={styles.card}>
               <Text style={styles.cardLabel}>Table Number or Seating Spot</Text>
               <TextInput
-                style={styles.inputField}
+                style={styles.singleInputField}
                 placeholder="e.g. Table 4 or Counter Area"
                 placeholderTextColor="#94A3B8"
                 value={tableNumber}
@@ -602,8 +642,8 @@ const CartScreen = ({ navigation }) => {
             </View>
           )}
 
-          {/* Advance Pre-Order & Pickup Time Slot Selector (Only for College hubs - hidden for External Hubs matching webapp Cart.jsx line 645) */}
-          {!isExternalHub && (
+          {/* Advance Pre-Order & Pickup Time Slot Selector (Only for Counter Pickup & Takeaway) */}
+          {orderType !== 'delivery' && !isExternalHub && (
             <View style={styles.card}>
               <View style={styles.slotHeaderRow}>
                 <View style={{ flex: 1 }}>
@@ -1308,17 +1348,22 @@ const CartScreen = ({ navigation }) => {
         </View>
 
         <TouchableOpacity
-          style={[styles.payButton, loading && styles.payButtonDisabled]}
+          style={[
+            styles.payButton,
+            (loading || (orderType === 'delivery' && Boolean(store?.minDeliveryOrderValue > 0 && subtotal < store.minDeliveryOrderValue))) && styles.payButtonDisabled
+          ]}
           onPress={handleInitiatePayment}
-          disabled={loading}
+          disabled={loading || Boolean(orderType === 'delivery' && store?.minDeliveryOrderValue > 0 && subtotal < store.minDeliveryOrderValue)}
           activeOpacity={0.88}
         >
           {loading ? (
             <ActivityIndicator size="small" color="#FFFFFF" />
           ) : (
             <>
-              <Text style={styles.payButtonText}>Proceed to Pay</Text>
-              <Feather name="arrow-right" size={18} color="#FFFFFF" />
+              <Text style={styles.payButtonText}>
+                {orderType === 'delivery' ? 'Pay & Order Delivery' : 'Proceed to Pay'}
+              </Text>
+              <Feather name="arrow-right" size={17} color="#FFFFFF" />
             </>
           )}
         </TouchableOpacity>
@@ -1412,12 +1457,44 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     marginTop: 1,
   },
+  orderPreferenceSection: {
+    marginBottom: 12,
+  },
+  preferenceHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+    paddingHorizontal: 2,
+  },
+  preferenceSectionTitle: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#64748B',
+    letterSpacing: 0.8,
+  },
+  deliveryTimeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(234, 88, 12, 0.08)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  deliveryTimeBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#EA580C',
+  },
   orderTypeCard: {
     flexDirection: 'row',
     backgroundColor: '#F1F5F9',
-    borderRadius: 16,
-    padding: 4,
-    gap: 6,
+    borderRadius: 14,
+    padding: 3,
+    gap: 4,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
   typeOption: {
     flex: 1,
@@ -1425,15 +1502,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 10,
-    borderRadius: 12,
+    borderRadius: 11,
     gap: 6,
   },
   typeOptionActive: {
     backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.08)',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
     elevation: 2,
   },
   typeText: {
@@ -1443,7 +1522,104 @@ const styles = StyleSheet.create({
   },
   typeTextActive: {
     color: THEME.colors.primary,
-    fontWeight: '900',
+    fontWeight: '800',
+  },
+  preferenceSubRow: {
+    marginTop: 6,
+    paddingHorizontal: 4,
+  },
+  preferenceSubText: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: '#64748B',
+  },
+  addressCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  addressHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  addressCardTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  requiredBadge: {
+    backgroundColor: 'rgba(239, 65, 35, 0.08)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  requiredBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: THEME.colors.primary,
+    letterSpacing: 0.4,
+  },
+  addressInputField: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    padding: 12,
+    fontSize: 13,
+    color: '#0F172A',
+    fontWeight: '500',
+    minHeight: 68,
+    textAlignVertical: 'top',
+  },
+  singleInputField: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 13,
+    color: '#0F172A',
+    fontWeight: '500',
+  },
+  addressFooterRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 6,
+    marginTop: 8,
+  },
+  addressFooterText: {
+    flex: 1,
+    fontSize: 11,
+    color: '#64748B',
+    lineHeight: 15,
+  },
+  minOrderNoticeCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#FEF3C7',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 12,
+  },
+  minOrderNoticeText: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#92400E',
   },
   cardLabel: {
     fontSize: 13,

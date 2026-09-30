@@ -6,7 +6,7 @@ import {
   Trash2, Plus, Minus, ArrowLeft, CreditCard, Coins, ShoppingBag,
   ChevronRight, ShieldCheck, Store, Clock, User, Phone, Mail,
   CheckCircle, AlertCircle, X, Utensils, ChefHat, Check,
-  Sun, CloudSun, Moon, Coffee, Sparkles, Tag, Flame, Zap
+  Sun, CloudSun, Moon, Coffee, Sparkles, Tag, Flame, Zap, MapPin, Bike
 } from 'lucide-react';
 import { useStoreTheme } from '../hooks/useStoreTheme';
 
@@ -1051,72 +1051,94 @@ const Cart = () => {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
 
             <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '24px' }}>
-              <h3 style={{ marginBottom: '1.5rem' }}>Dining Preference</h3>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
+                <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: '800', color: 'var(--text-primary)' }}>
+                  Order Preference
+                </h3>
+                {orderType === 'Delivery' && store?.estimatedDeliveryTime && (
+                  <span style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--primary)', background: 'rgba(239, 65, 35, 0.08)', padding: '0.25rem 0.6rem', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                    <Clock size={12} /> {store.estimatedDeliveryTime} mins
+                  </span>
+                )}
+              </div>
               <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
                 <button
+                  type="button"
                   onClick={() => setOrderType('Dine In')}
                   style={{
-                    flex: '1 1 100px', padding: '0.85rem', borderRadius: '16px', fontWeight: '700', fontSize: '0.92rem',
+                    flex: '1 1 100px', padding: '0.85rem', borderRadius: '16px', fontWeight: '700', fontSize: '0.9rem',
                     background: orderType === 'Dine In' ? 'rgba(239, 65, 35, 0.04)' : '#f8fafc',
                     border: `2px solid ${orderType === 'Dine In' ? 'var(--primary)' : 'var(--surface-border)'}`,
                     color: orderType === 'Dine In' ? 'var(--primary)' : 'var(--text-secondary)',
-                    cursor: 'pointer', transition: 'all 0.2s'
+                    cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem'
                   }}
                 >
-                  🍽️ Dine In
+                  <Utensils size={15} /> Dine In
                 </button>
                 <button
+                  type="button"
                   onClick={() => setOrderType('Take Away')}
                   style={{
-                    flex: '1 1 100px', padding: '0.85rem', borderRadius: '16px', fontWeight: '700', fontSize: '0.92rem',
+                    flex: '1 1 100px', padding: '0.85rem', borderRadius: '16px', fontWeight: '700', fontSize: '0.9rem',
                     background: orderType === 'Take Away' ? 'rgba(239, 65, 35, 0.04)' : '#f8fafc',
                     border: `2px solid ${orderType === 'Take Away' ? 'var(--primary)' : 'var(--surface-border)'}`,
                     color: orderType === 'Take Away' ? 'var(--primary)' : 'var(--text-secondary)',
-                    cursor: 'pointer', transition: 'all 0.2s'
+                    cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem'
                   }}
                 >
-                  🛍️ Take Away
+                  <ShoppingBag size={15} /> Takeaway
                 </button>
                 {store?.hasDeliveryService && (
                   <button
+                    type="button"
                     onClick={() => setOrderType('Delivery')}
                     style={{
-                      flex: '1 1 100px', padding: '0.85rem', borderRadius: '16px', fontWeight: '700', fontSize: '0.92rem',
+                      flex: '1 1 100px', padding: '0.85rem', borderRadius: '16px', fontWeight: '700', fontSize: '0.9rem',
                       background: orderType === 'Delivery' ? 'rgba(239, 65, 35, 0.04)' : '#f8fafc',
                       border: `2px solid ${orderType === 'Delivery' ? 'var(--primary)' : 'var(--surface-border)'}`,
                       color: orderType === 'Delivery' ? 'var(--primary)' : 'var(--text-secondary)',
-                      cursor: 'pointer', transition: 'all 0.2s'
+                      cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem'
                     }}
                   >
-                    🛵 Delivery
+                    <Bike size={16} /> Delivery
                   </button>
                 )}
               </div>
+              <p style={{ margin: '0.75rem 0 0 0', fontSize: '0.75rem', color: '#64748b', fontWeight: '500' }}>
+                {orderType === 'Dine In' && 'Enjoy meal served directly at your stall table'}
+                {orderType === 'Take Away' && 'Pack order to collect directly at stall counter'}
+                {orderType === 'Delivery' && `Delivered directly to your hostel block or location by ${store?.name || 'stall'} staff`}
+              </p>
             </div>
 
             {/* Delivery Address Box if Delivery Selected */}
             {orderType === 'Delivery' && (
               <div className="glass-card" style={{ padding: '1.25rem 1.5rem', borderRadius: '24px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.75rem' }}>
-                  <div style={{
-                    width: '32px', height: '32px', borderRadius: '10px',
-                    background: 'rgba(234, 88, 12, 0.1)', color: '#ea580c',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center'
-                  }}>
-                    <MapPin size={16} />
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                    <div style={{
+                      width: '32px', height: '32px', borderRadius: '10px',
+                      background: 'rgba(234, 88, 12, 0.1)', color: 'var(--primary)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center'
+                    }}>
+                      <MapPin size={16} />
+                    </div>
+                    <div>
+                      <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: '800', color: '#1e293b' }}>
+                        Delivery Address
+                      </h3>
+                      <p style={{ margin: 0, fontSize: '0.75rem', color: '#64748b', fontWeight: '500' }}>
+                        Hostel room, floor, or gate landmark
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: '800', color: '#1e293b' }}>
-                      Delivery Address
-                    </h3>
-                    <p style={{ margin: 0, fontSize: '0.75rem', color: '#64748b', fontWeight: '600' }}>
-                      Hostel, room, apartment, or street address
-                    </p>
-                  </div>
+                  <span style={{ fontSize: '0.65rem', fontWeight: '800', background: 'rgba(239, 65, 35, 0.08)', color: 'var(--primary)', padding: '0.25rem 0.55rem', borderRadius: '6px', letterSpacing: '0.04em' }}>
+                    REQUIRED
+                  </span>
                 </div>
                 <textarea
                   rows={2}
-                  placeholder="e.g. BH-1 Boys Hostel, Room 312, 3rd Floor (or Law Gate, Royal PG)"
+                  placeholder="Enter complete address (e.g. Hostel BH-1, Room 304, 3rd Floor)"
                   value={deliveryAddress}
                   onChange={(e) => {
                     setDeliveryAddress(e.target.value);
@@ -1128,13 +1150,17 @@ const Cart = () => {
                     padding: '0.75rem 1rem',
                     borderRadius: '12px',
                     border: '1.5px solid #cbd5e1',
+                    background: '#f8fafc',
                     fontSize: '0.9rem',
-                    fontWeight: '600',
+                    fontWeight: '500',
                     outline: 'none',
                     boxSizing: 'border-box',
                     resize: 'none'
                   }}
                 />
+                <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.73rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                  <AlertCircle size={12} /> Please ensure room or landmark is clear. 4-digit PIN is required at handover.
+                </p>
               </div>
             )}
 
