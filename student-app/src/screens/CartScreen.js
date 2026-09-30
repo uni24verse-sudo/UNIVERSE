@@ -618,6 +618,58 @@ const CartScreen = ({ navigation }) => {
             </View>
           )}
 
+          {/* Free Delivery Threshold Progress Nudge (Compels students to add more items) */}
+          {orderType === 'delivery' && Boolean(freeThreshold > 0 && rawDeliveryFee > 0) && (
+            <View style={[styles.freeDeliveryCard, isFreeDelivery ? styles.freeDeliveryCardUnlocked : styles.freeDeliveryCardProgress]}>
+              <View style={styles.freeDeliveryTopRow}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
+                  <View style={[styles.freeDeliveryIconBox, isFreeDelivery && { backgroundColor: 'rgba(16, 185, 129, 0.12)' }]}>
+                    <Ionicons
+                      name={isFreeDelivery ? "checkmark-circle" : "bicycle-outline"}
+                      size={18}
+                      color={isFreeDelivery ? "#10B981" : "#EA580C"}
+                    />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.freeDeliveryTitle, isFreeDelivery && { color: '#047857' }]}>
+                      {isFreeDelivery
+                        ? 'FREE DELIVERY UNLOCKED'
+                        : `Add ₹${Math.ceil(freeThreshold - subtotal)} more for Free Delivery`
+                      }
+                    </Text>
+                    <Text style={[styles.freeDeliverySub, isFreeDelivery && { color: '#065F46' }]}>
+                      {isFreeDelivery
+                        ? `You saved ₹${rawDeliveryFee} delivery fee on this order`
+                        : `Orders above ₹${freeThreshold} get free delivery from ${store?.name || 'this stall'}`
+                      }
+                    </Text>
+                  </View>
+                </View>
+
+                {!isFreeDelivery && (
+                  <TouchableOpacity
+                    onPress={() => navigation?.goBack?.()}
+                    activeOpacity={0.7}
+                    style={styles.addMoreBtn}
+                  >
+                    <Text style={styles.addMoreBtnText}>+ Add items</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {!isFreeDelivery && (
+                <View style={styles.progressBarTrack}>
+                  <View
+                    style={[
+                      styles.progressBarFill,
+                      { width: `${Math.min(100, Math.max(8, (subtotal / freeThreshold) * 100))}%` }
+                    ]}
+                  />
+                </View>
+              )}
+            </View>
+          )}
+
           {/* Minimum Delivery Order Value Notice */}
           {orderType === 'delivery' && Boolean(store?.minDeliveryOrderValue > 0 && subtotal < store.minDeliveryOrderValue) && (
             <View style={styles.minOrderNoticeCard}>
@@ -1302,10 +1354,26 @@ const CartScreen = ({ navigation }) => {
 
             {orderType === 'delivery' && (
               <View style={styles.billRow}>
-                <Text style={styles.billLabel}>Delivery Fee</Text>
-                <Text style={[styles.billValue, isFreeDelivery && { color: '#10B981', fontWeight: '800' }]}>
-                  {isFreeDelivery ? 'FREE' : `₹${deliveryFee}`}
-                </Text>
+                <View>
+                  <Text style={styles.billLabel}>Delivery Fee</Text>
+                  {!isFreeDelivery && freeThreshold > 0 && (
+                    <Text style={styles.billSubHelpText}>
+                      Free above ₹{freeThreshold} (Add ₹{Math.ceil(freeThreshold - subtotal)} more)
+                    </Text>
+                  )}
+                </View>
+                {isFreeDelivery ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Text style={[styles.billLabel, { textDecorationLine: 'line-through', color: '#94A3B8' }]}>
+                      ₹{rawDeliveryFee}
+                    </Text>
+                    <Text style={[styles.billValue, { color: '#10B981', fontWeight: '800' }]}>
+                      FREE
+                    </Text>
+                  </View>
+                ) : (
+                  <Text style={styles.billValue}>₹{deliveryFee}</Text>
+                )}
               </View>
             )}
 
@@ -1620,6 +1688,76 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: '#92400E',
+  },
+  freeDeliveryCard: {
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+  },
+  freeDeliveryCardProgress: {
+    backgroundColor: '#FFFBF5',
+    borderColor: '#FED7AA',
+  },
+  freeDeliveryCardUnlocked: {
+    backgroundColor: '#ECFDF5',
+    borderColor: '#A7F3D0',
+  },
+  freeDeliveryTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  freeDeliveryIconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: 'rgba(234, 88, 12, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  freeDeliveryTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  freeDeliverySub: {
+    fontSize: 11,
+    color: '#64748B',
+    fontWeight: '500',
+    marginTop: 1,
+  },
+  addMoreBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 6,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  addMoreBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: THEME.colors.primary,
+  },
+  progressBarTrack: {
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: '#E2E8F0',
+    marginTop: 10,
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    borderRadius: 3,
+    backgroundColor: THEME.colors.primary,
+  },
+  billSubHelpText: {
+    fontSize: 10,
+    color: '#EA580C',
+    fontWeight: '700',
+    marginTop: 1,
   },
   cardLabel: {
     fontSize: 13,

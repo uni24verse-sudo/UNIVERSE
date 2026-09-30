@@ -85,17 +85,14 @@ const Cart = () => {
   const subtotal = total;
   const offerDiscount = discountAmount || 0;
   const packagingFee = (orderType === 'Take Away' || orderType === 'Delivery') ? (store?.packagingCharge || 0) : 0;
+  const rawDeliveryFee = Number(store?.deliveryFee || 0);
+  const freeThreshold = Number(store?.freeDeliveryThreshold || 0);
+  const isFreeDelivery = freeThreshold > 0 && subtotal >= freeThreshold;
   let deliveryFee = 0;
   let platformFee = 0;
   if (orderType === 'Delivery') {
     platformFee = 5.0; // Fixed ₹5 platform fee
-    const storeDeliveryFee = Number(store?.deliveryFee || 0);
-    const freeThreshold = Number(store?.freeDeliveryThreshold || 0);
-    if (freeThreshold > 0 && subtotal >= freeThreshold) {
-      deliveryFee = 0;
-    } else {
-      deliveryFee = storeDeliveryFee;
-    }
+    deliveryFee = isFreeDelivery ? 0 : rawDeliveryFee;
   }
   const finalTotal = Math.max(0, subtotal - offerDiscount + packagingFee + deliveryFee + platformFee);
 
@@ -1164,6 +1161,78 @@ const Cart = () => {
               </div>
             )}
 
+            {/* Free Delivery Threshold Progress Nudge */}
+            {orderType === 'Delivery' && freeThreshold > 0 && rawDeliveryFee > 0 && (
+              <div 
+                className="glass-card" 
+                style={{
+                  padding: '1rem 1.25rem',
+                  borderRadius: '20px',
+                  background: isFreeDelivery ? '#ecfdf5' : '#fffbf5',
+                  border: `1.5px solid ${isFreeDelivery ? '#a7f3d0' : '#fed7aa'}`,
+                  transition: 'all 0.2s'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                    <div style={{
+                      width: '32px', height: '32px', borderRadius: '10px',
+                      background: isFreeDelivery ? 'rgba(16, 185, 129, 0.15)' : 'rgba(234, 88, 12, 0.12)',
+                      color: isFreeDelivery ? '#059669' : '#ea580c',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center'
+                    }}>
+                      {isFreeDelivery ? <CheckCircle size={16} /> : <Bike size={16} />}
+                    </div>
+                    <div>
+                      <h4 style={{ margin: 0, fontSize: '0.9rem', fontWeight: '800', color: isFreeDelivery ? '#065f46' : '#1e293b' }}>
+                        {isFreeDelivery 
+                          ? 'FREE DELIVERY UNLOCKED' 
+                          : `Add ₹${Math.ceil(freeThreshold - subtotal)} more for Free Delivery`
+                        }
+                      </h4>
+                      <p style={{ margin: 0, fontSize: '0.75rem', color: isFreeDelivery ? '#047857' : '#64748b', fontWeight: '500' }}>
+                        {isFreeDelivery
+                          ? `You saved ₹${rawDeliveryFee} delivery fee on this order`
+                          : `Orders above ₹${freeThreshold} get free delivery from ${store?.name || 'this stall'}`
+                        }
+                      </p>
+                    </div>
+                  </div>
+                  {!isFreeDelivery && (
+                    <button
+                      type="button"
+                      onClick={() => navigate(-1)}
+                      style={{
+                        padding: '0.35rem 0.65rem',
+                        borderRadius: '8px',
+                        background: '#ffffff',
+                        border: '1px solid #fed7aa',
+                        color: 'var(--primary)',
+                        fontSize: '0.75rem',
+                        fontWeight: '700',
+                        cursor: 'pointer',
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
+                      + Add items
+                    </button>
+                  )}
+                </div>
+
+                {!isFreeDelivery && (
+                  <div style={{ width: '100%', height: '6px', background: '#e2e8f0', borderRadius: '3px', marginTop: '0.75rem', overflow: 'hidden' }}>
+                    <div style={{
+                      height: '100%',
+                      borderRadius: '3px',
+                      background: 'var(--primary)',
+                      width: `${Math.min(100, Math.max(8, (subtotal / freeThreshold) * 100))}%`,
+                      transition: 'width 0.3s ease'
+                    }} />
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Table / Spot Number Selection if Dine In & Store has Table Service */}
             {orderType === 'Dine In' && store?.hasTableService && (
               <div className="glass-card" style={{ padding: '1.25rem 1.5rem', borderRadius: '24px' }}>
@@ -1382,10 +1451,24 @@ const Cart = () => {
 
                 {orderType === 'Delivery' && (
                   <>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748b' }}>
-                      <span>Delivery Fee</span>
-                      <span style={{ fontWeight: '700', color: deliveryFee === 0 ? '#16a34a' : '#1e293b' }}>
-                        {deliveryFee === 0 ? 'FREE' : `₹${deliveryFee.toFixed(2)}`}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#64748b' }}>
+                      <div>
+                        <span>Delivery Fee</span>
+                        {!isFreeDelivery && freeThreshold > 0 && (
+                          <span style={{ display: 'block', fontSize: '0.7rem', color: 'var(--primary)', fontWeight: '700' }}>
+                            Free above ₹{freeThreshold} (Add ₹{Math.ceil(freeThreshold - subtotal)} more)
+                          </span>
+                        )}
+                      </div>
+                      <span style={{ fontWeight: '700' }}>
+                        {isFreeDelivery ? (
+                          <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                            <span style={{ textDecoration: 'line-through', color: '#94a3b8' }}>₹{rawDeliveryFee.toFixed(2)}</span>
+                            <span style={{ color: '#16a34a' }}>FREE</span>
+                          </span>
+                        ) : (
+                          <span style={{ color: '#1e293b' }}>₹{deliveryFee.toFixed(2)}</span>
+                        )}
                       </span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748b' }}>
