@@ -742,12 +742,24 @@ const OrderTrackerScreen = ({ route, navigation }) => {
               <Text style={styles.metaValue}>{order.orderType || 'Take Away'}</Text>
             </View>
 
-            {order.orderType === 'Delivery' && order.deliveryAddress ? (
+            {order.orderType === 'Delivery' && (order.deliveryAddress || order.deliveryHouseNo) ? (
               <View style={styles.summaryMetaRow}>
                 <Text style={styles.metaLabel}>Drop Address</Text>
-                <Text style={[styles.metaValue, { maxWidth: '60%', textAlign: 'right' }]}>
-                  {order.deliveryAddress}
-                </Text>
+                <View style={{ maxWidth: '65%', alignItems: 'flex-end' }}>
+                  {order.deliveryHouseNo ? (
+                    <Text style={[styles.metaValue, { textAlign: 'right', fontWeight: '800' }]}>
+                      🏠 {order.deliveryHouseNo}
+                    </Text>
+                  ) : null}
+                  <Text style={[styles.metaValue, { textAlign: 'right', fontSize: 12, color: '#64748B' }]}>
+                    📍 {order.deliveryArea || order.deliveryAddress?.replace(/\s*\[GPS:[^\]]+\]/gi, '')}
+                  </Text>
+                  {order.deliveryLandmark ? (
+                    <Text style={{ fontSize: 11, fontWeight: '700', color: '#D97706', textAlign: 'right', marginTop: 2 }}>
+                      🚩 Near {order.deliveryLandmark}
+                    </Text>
+                  ) : null}
+                </View>
               </View>
             ) : null}
 

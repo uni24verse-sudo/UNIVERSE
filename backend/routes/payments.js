@@ -136,6 +136,16 @@ router.post('/razorpay/verify', async (req, res) => {
     const orderNumber = generateOrderNumber();
     const handoverToken = generateHandoverToken();
 
+    const deliveryHouseNo = String(orderData.deliveryHouseNo || deliveryHouseNo || '');
+    const deliveryLandmark = String(orderData.deliveryLandmark || deliveryLandmark || '');
+    const deliveryArea = String(orderData.deliveryArea || deliveryArea || '');
+    const deliveryCoordinates = orderData.deliveryCoordinates || deliveryCoordinates || { lat: 0, lng: 0 };
+
+    let formattedDeliveryAddress = String(deliveryAddress || orderData.deliveryAddress || '').trim();
+    if (!formattedDeliveryAddress && (deliveryHouseNo || deliveryArea || deliveryLandmark)) {
+      formattedDeliveryAddress = [deliveryHouseNo, deliveryArea, deliveryLandmark ? `Near ${deliveryLandmark}` : ''].filter(Boolean).join(', ');
+    }
+
     const createdOrder = await prisma.order.create({
       data: {
         id: orderId,
@@ -154,7 +164,11 @@ router.post('/razorpay/verify', async (req, res) => {
         tableNumber: String(tableNumber || orderData.tableNumber || ''),
         cookingInstructions: String(cookingInstructions || orderData.cookingInstructions || ''),
         packagingChargeApplied: pricing.packagingFee,
-        deliveryAddress: String(deliveryAddress || orderData.deliveryAddress || ''),
+        deliveryAddress: formattedDeliveryAddress,
+        deliveryCoordinates: deliveryCoordinates || { lat: 0, lng: 0 },
+        deliveryHouseNo: deliveryHouseNo || '',
+        deliveryLandmark: deliveryLandmark || '',
+        deliveryArea: deliveryArea || '',
         platformFee: pricing.platformFee || 0,
         deliveryFee: pricing.deliveryFee || 0,
         deliveryOtp: (orderType === 'Delivery' ? Math.floor(1000 + Math.random() * 9000).toString() : ''),

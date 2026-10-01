@@ -94,6 +94,9 @@ const CartScreen = ({ navigation }) => {
   const [store, setStore] = useState(null);
   const [orderType, setOrderType] = useState('takeaway'); // 'takeaway', 'dine_in', 'delivery'
   const [deliveryAddress, setDeliveryAddress] = useState('');
+  const [deliveryHouseNo, setDeliveryHouseNo] = useState('');
+  const [deliveryArea, setDeliveryArea] = useState('');
+  const [deliveryLandmark, setDeliveryLandmark] = useState('');
   const [cookingInstructions, setCookingInstructions] = useState('');
   const [isPreOrder, setIsPreOrder] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState('');
@@ -217,10 +220,13 @@ const CartScreen = ({ navigation }) => {
       }
 
       if (resolvedAddress) {
+        setDeliveryArea(resolvedAddress);
         setDeliveryAddress(resolvedAddress);
+        AsyncStorage.setItem('universe_delivery_area', resolvedAddress).catch(() => {});
         AsyncStorage.setItem('universe_delivery_address', resolvedAddress).catch(() => {});
         setAddressError(false);
       } else {
+        setDeliveryArea('Campus Location (Hostel Block / Academic Area)');
         setDeliveryAddress('Campus Location (Hostel Block / Academic Area)');
         setAddressError(false);
       }
@@ -232,11 +238,17 @@ const CartScreen = ({ navigation }) => {
   };
 
   useEffect(() => {
-    AsyncStorage.getItem('universe_delivery_address')
-      .then(saved => {
-        if (saved) setDeliveryAddress(saved);
-      })
-      .catch(() => {});
+    Promise.all([
+      AsyncStorage.getItem('universe_delivery_house'),
+      AsyncStorage.getItem('universe_delivery_area'),
+      AsyncStorage.getItem('universe_delivery_landmark'),
+      AsyncStorage.getItem('universe_delivery_address'),
+    ]).then(([h, a, l, full]) => {
+      if (h) setDeliveryHouseNo(h);
+      if (a) setDeliveryArea(a);
+      if (l) setDeliveryLandmark(l);
+      if (full) setDeliveryAddress(full);
+    }).catch(() => {});
   }, []);
 
   // External Hub Detection (Matches webapp Cart.jsx: store?.locationId?.type !== 'External')
@@ -426,11 +438,12 @@ const CartScreen = ({ navigation }) => {
       return;
     }
     if (orderType === 'delivery') {
-      if (!deliveryAddress.trim()) {
+      const hasAnyAddress = deliveryHouseNo.trim() || deliveryArea.trim() || deliveryAddress.trim();
+      if (!hasAnyAddress) {
         setAddressError(true);
         scrollViewRef.current?.scrollTo({ y: Math.max(0, addressCardY - 20), animated: true });
         setTimeout(() => addressInputRef.current?.focus(), 250);
-        Alert.alert('Delivery Address Required', 'Please enter your room number or hostel address.');
+        Alert.alert('Delivery Address Required', 'Please enter your room number, house/hostel block.');
         return;
       }
       const minOrderVal = Number(store?.minDeliveryOrderValue) || 0;
@@ -459,6 +472,12 @@ const CartScreen = ({ navigation }) => {
 
     setLoading(true);
     try {
+      const fullDeliveryAddress = [
+        deliveryHouseNo.trim(),
+        deliveryArea.trim(),
+        deliveryLandmark.trim() ? `Near ${deliveryLandmark.trim()}` : ''
+      ].filter(Boolean).join(', ') || deliveryAddress.trim();
+
       // Save details for next time
       const storageSaves = [
         AsyncStorage.setItem('universe_customer_phone', cleanPhone),
@@ -466,8 +485,11 @@ const CartScreen = ({ navigation }) => {
         AsyncStorage.setItem('universe_customer_email', customerEmail.trim()),
         AsyncStorage.setItem('universe_customer_spot', tableNumber.trim()),
       ];
-      if (orderType === 'delivery' && deliveryAddress.trim()) {
-        storageSaves.push(AsyncStorage.setItem('universe_delivery_address', deliveryAddress.trim()));
+      if (orderType === 'delivery') {
+        if (deliveryHouseNo.trim()) storageSaves.push(AsyncStorage.setItem('universe_delivery_house', deliveryHouseNo.trim()));
+        if (deliveryArea.trim()) storageSaves.push(AsyncStorage.setItem('universe_delivery_area', deliveryArea.trim()));
+        if (deliveryLandmark.trim()) storageSaves.push(AsyncStorage.setItem('universe_delivery_landmark', deliveryLandmark.trim()));
+        if (fullDeliveryAddress) storageSaves.push(AsyncStorage.setItem('universe_delivery_address', fullDeliveryAddress));
       }
       await Promise.all(storageSaves);
 
@@ -492,11 +514,11 @@ const CartScreen = ({ navigation }) => {
         customerEmail: customerEmail.trim(),
         tableNumber: orderType === 'dine_in' ? (tableNumber.trim() || 'Dine In') : (orderType === 'delivery' ? 'Delivery' : 'Takeaway'),
         orderType: orderType === 'delivery' ? 'Delivery' : (orderType === 'takeaway' ? 'Take Away' : 'Dine In'),
-        deliveryAddress: orderType === 'delivery' ? (
-          detectedCoords 
-            ? `${deliveryAddress.trim()} [GPS:${detectedCoords.latitude.toFixed(6)},${detectedCoords.longitude.toFixed(6)}]`
-            : deliveryAddress.trim()
-        ) : null,
+        deliveryAddress: orderType === 'delivery' ? fullDeliveryAddress : null,
+        deliveryHouseNo: orderType === 'delivery' ? deliveryHouseNo.trim() : '',
+        deliveryArea: orderType === 'delivery' ? deliveryArea.trim() : '',
+        deliveryLandmark: orderType === 'delivery' ? deliveryLandmark.trim() : '',
+        deliveryCoordinates: orderType === 'delivery' ? (detectedCoords ? { lat: detectedCoords.latitude, lng: detectedCoords.longitude } : { lat: 0, lng: 0 }) : null,
         deliveryFee,
         platformFee,
         packagingChargeApplied: packagingCharge > 0,
@@ -762,33 +784,85 @@ const CartScreen = ({ navigation }) => {
                 </TouchableOpacity>
               </View>
 
-              <TextInput
-                ref={addressInputRef}
-                style={[
-                  styles.addressInputField,
-                  addressError && { borderColor: '#EF4444', backgroundColor: '#FFFFFF' }
-                ]}
-                placeholder="Enter complete address (e.g. Hostel BH-1, Room 304, 3rd Floor)"
-                placeholderTextColor="#94A3B8"
-                multiline
-                numberOfLines={3}
-                value={deliveryAddress}
-                onChangeText={(val) => {
-                  setDeliveryAddress(val);
-                  if (addressError) setAddressError(false);
-                }}
-              />
+              {detectedCoords && (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(16, 185, 129, 0.1)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, marginBottom: 10, alignSelf: 'flex-start' }}>
+                  <Ionicons name="checkmark-circle" size={14} color="#10B981" />
+                  <Text style={{ fontSize: 11, fontWeight: '700', color: '#047857' }}>
+                    GPS Pin Locked ({detectedCoords.latitude.toFixed(4)}, {detectedCoords.longitude.toFixed(4)})
+                  </Text>
+                </View>
+              )}
+
+              {/* 1. House / Room / Flat / Hostel Block */}
+              <View style={{ marginBottom: 8 }}>
+                <Text style={{ fontSize: 11, fontWeight: '700', color: '#475569', marginBottom: 4 }}>
+                  House / Room / Flat No. <Text style={{ color: '#EF4444' }}>*</Text>
+                </Text>
+                <TextInput
+                  ref={addressInputRef}
+                  style={[
+                    styles.addressInputField,
+                    { height: 42, paddingVertical: 8 },
+                    addressError && !deliveryHouseNo.trim() && { borderColor: '#EF4444', backgroundColor: '#FFFFFF' }
+                  ]}
+                  placeholder="e.g. House 10A/59 or Room 304, BH-1"
+                  placeholderTextColor="#94A3B8"
+                  value={deliveryHouseNo}
+                  onChangeText={(val) => {
+                    setDeliveryHouseNo(val);
+                    if (addressError) setAddressError(false);
+                  }}
+                />
+              </View>
+
+              {/* 2. Area / Colony / Street */}
+              <View style={{ marginBottom: 8 }}>
+                <Text style={{ fontSize: 11, fontWeight: '700', color: '#475569', marginBottom: 4 }}>
+                  Area / Colony / Street <Text style={{ color: '#EF4444' }}>*</Text>
+                </Text>
+                <TextInput
+                  style={[
+                    styles.addressInputField,
+                    { height: 42, paddingVertical: 8 },
+                    addressError && !deliveryArea.trim() && { borderColor: '#EF4444', backgroundColor: '#FFFFFF' }
+                  ]}
+                  placeholder="e.g. Vrindavan Yojna, Sector 10"
+                  placeholderTextColor="#94A3B8"
+                  value={deliveryArea}
+                  onChangeText={(val) => {
+                    setDeliveryArea(val);
+                    if (addressError) setAddressError(false);
+                  }}
+                />
+              </View>
+
+              {/* 3. Nearby Landmark */}
+              <View style={{ marginBottom: 4 }}>
+                <Text style={{ fontSize: 11, fontWeight: '700', color: '#475569', marginBottom: 4 }}>
+                  Nearby Landmark (Optional)
+                </Text>
+                <TextInput
+                  style={[
+                    styles.addressInputField,
+                    { height: 42, paddingVertical: 8 }
+                  ]}
+                  placeholder="e.g. Opposite Water Tank / Near Gate 2"
+                  placeholderTextColor="#94A3B8"
+                  value={deliveryLandmark}
+                  onChangeText={(val) => setDeliveryLandmark(val)}
+                />
+              </View>
 
               {addressError ? (
                 <Text style={{ fontSize: 11, color: '#DC2626', fontWeight: '700', marginTop: 4 }}>
-                  * Delivery address is required to proceed with order.
+                  * Please provide your house/room number and area.
                 </Text>
               ) : null}
 
               <View style={styles.addressFooterRow}>
                 <Feather name="info" size={12} color="#64748B" style={{ marginTop: 2 }} />
                 <Text style={styles.addressFooterText}>
-                  Please ensure room number or landmark is clearly mentioned. 4-digit PIN is required at drop-off.
+                  Exact GPS coordinates & landmark will guide the rider directly to your door.
                 </Text>
               </View>
             </View>

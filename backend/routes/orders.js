@@ -70,7 +70,7 @@ const globalOfferRepository = require('../repositories/globalOfferRepository');
 // NOTE: For Razorpay checkouts, use /api/payments/razorpay/verify
 router.post('/create', async (req, res) => {
   try {
-    const { storeId, items, totalAmount, paymentMethod, customerPhone, customerName, orderType, tableNumber, cookingInstructions, packagingChargeApplied, isPreOrder, scheduledTime, isQRScan, selectedOfferId, couponCode, removeOffer, deliveryAddress } = req.body;
+    const { storeId, items, totalAmount, paymentMethod, customerPhone, customerName, orderType, tableNumber, cookingInstructions, packagingChargeApplied, isPreOrder, scheduledTime, isQRScan, selectedOfferId, couponCode, removeOffer, deliveryAddress, deliveryCoordinates, deliveryHouseNo, deliveryLandmark, deliveryArea } = req.body;
 
     const store = await prisma.store.findUnique({
       where: { id: String(storeId) },
@@ -95,6 +95,11 @@ router.post('/create', async (req, res) => {
     const orderId = crypto.randomUUID();
     const orderNumber = generateOrderNumber();
 
+    let formattedDeliveryAddress = String(deliveryAddress || '').trim();
+    if (!formattedDeliveryAddress && (deliveryHouseNo || deliveryArea || deliveryLandmark)) {
+      formattedDeliveryAddress = [deliveryHouseNo, deliveryArea, deliveryLandmark ? `Near ${deliveryLandmark}` : ''].filter(Boolean).join(', ');
+    }
+
     const createdOrder = await prisma.order.create({
       data: {
         id: orderId,
@@ -111,7 +116,11 @@ router.post('/create', async (req, res) => {
         tableNumber: String(tableNumber || ''),
         cookingInstructions: String(cookingInstructions || ''),
         packagingChargeApplied: pricing.packagingFee,
-        deliveryAddress: String(deliveryAddress || ''),
+        deliveryAddress: formattedDeliveryAddress,
+        deliveryCoordinates: deliveryCoordinates || { lat: 0, lng: 0 },
+        deliveryHouseNo: String(deliveryHouseNo || ''),
+        deliveryLandmark: String(deliveryLandmark || ''),
+        deliveryArea: String(deliveryArea || ''),
         platformFee: pricing.platformFee || 0,
         deliveryFee: pricing.deliveryFee || 0,
         deliveryOtp: (orderType === 'Delivery' ? Math.floor(1000 + Math.random() * 9000).toString() : ''),

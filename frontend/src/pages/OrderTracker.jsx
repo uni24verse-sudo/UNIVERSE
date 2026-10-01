@@ -921,10 +921,24 @@ const OrderTracker = () => {
              <span style={{ fontWeight: '800', color: 'var(--text-primary)' }}>{order.orderType}</span>
            </div>
 
-           {order.orderType === 'Delivery' && order.deliveryAddress && (
+           {order.orderType === 'Delivery' && (order.deliveryAddress || order.deliveryHouseNo) && (
              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem', fontSize: '0.85rem' }}>
                <span style={{ color: 'var(--text-secondary)' }}>Drop Address</span>
-               <span style={{ fontWeight: '800', color: 'var(--text-primary)', maxWidth: '60%', textAlign: 'right' }}>{order.deliveryAddress.replace(/\s*\[GPS:[^\]]+\]/gi, '').replace(/\s*\|\|\s*GPS:[^$]+/gi, '')}</span>
+               <div style={{ maxWidth: '65%', textAlign: 'right' }}>
+                 {order.deliveryHouseNo ? (
+                   <div style={{ fontWeight: '800', color: 'var(--text-primary)' }}>
+                     🏠 {order.deliveryHouseNo}
+                   </div>
+                 ) : null}
+                 <div style={{ color: '#64748b', fontSize: '0.8rem', marginTop: '0.15rem' }}>
+                   📍 {order.deliveryArea || order.deliveryAddress.replace(/\s*\[GPS:[^\]]+\]/gi, '').replace(/\s*\|\|\s*GPS:[^$]+/gi, '')}
+                 </div>
+                 {order.deliveryLandmark ? (
+                   <div style={{ fontSize: '0.75rem', fontWeight: '700', color: '#d97706', marginTop: '0.2rem' }}>
+                     🚩 Near {order.deliveryLandmark}
+                   </div>
+                 ) : null}
+               </div>
              </div>
            )}
            

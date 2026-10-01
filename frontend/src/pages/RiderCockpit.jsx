@@ -348,19 +348,24 @@ const RiderCockpit = () => {
 
   // Construct Google Maps Turn-By-Turn Navigation Link
   const rawAddress = currentStop?.deliveryAddress || 'Campus';
-  const gpsMatch = rawAddress.match(/\[GPS:([-\d.]+),\s*([-\d.]+)\]/i);
-  const cleanAddress = rawAddress.replace(/\s*\[GPS:[^\]]+\]/gi, '').replace(/\s*\|\|\s*GPS:[^$]+/gi, '').trim();
+  const coords = currentStop?.deliveryCoordinates || {};
+  const lat = coords.lat || coords.latitude || currentStop?.deliveryLat;
+  const lng = coords.lng || coords.longitude || currentStop?.deliveryLng;
 
   let mapsSearchUrl = '';
-  if (gpsMatch) {
-    const lat = gpsMatch[1];
-    const lng = gpsMatch[2];
+  if (lat && lng && Number(lat) !== 0 && Number(lng) !== 0) {
     mapsSearchUrl = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
-  } else if (currentStop?.deliveryLat && currentStop?.deliveryLng) {
-    mapsSearchUrl = `https://www.google.com/maps/dir/?api=1&destination=${currentStop.deliveryLat},${currentStop.deliveryLng}`;
   } else {
-    mapsSearchUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(cleanAddress || rawAddress)}`;
+    const gpsMatch = rawAddress.match(/\[GPS:([-\d.]+),\s*([-\d.]+)\]/i);
+    if (gpsMatch) {
+      mapsSearchUrl = `https://www.google.com/maps/dir/?api=1&destination=${gpsMatch[1]},${gpsMatch[2]}`;
+    } else {
+      const cleanAddr = rawAddress.replace(/\s*\[GPS:[^\]]+\]/gi, '').replace(/\s*\|\|\s*GPS:[^$]+/gi, '').trim();
+      mapsSearchUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(cleanAddr || rawAddress)}`;
+    }
   }
+
+  const cleanAddress = rawAddress.replace(/\s*\[GPS:[^\]]+\]/gi, '').replace(/\s*\|\|\s*GPS:[^$]+/gi, '').trim();
 
   return (
     <div className="rider-cockpit-container">
@@ -423,15 +428,31 @@ const RiderCockpit = () => {
           </span>
         </div>
 
-        {/* Drop Address Box (Open Text) */}
+        {/* Drop Address Box (Structured Display) */}
         <div className="rider-address-section">
           <div className="rider-address-label">
             <MapPin size={13} />
             <span>Delivery Destination</span>
           </div>
-          <h2 className="rider-address-text">
-            {cleanAddress || 'Address not specified'}
-          </h2>
+          {currentStop.deliveryHouseNo ? (
+            <div style={{ marginTop: '0.25rem' }}>
+              <div style={{ fontSize: '1.15rem', fontWeight: 800, color: '#ffffff' }}>
+                🏠 {currentStop.deliveryHouseNo}
+              </div>
+              <div style={{ fontSize: '0.92rem', color: '#cbd5e1', marginTop: '0.2rem' }}>
+                📍 {currentStop.deliveryArea || cleanAddress}
+              </div>
+              {currentStop.deliveryLandmark && (
+                <div style={{ fontSize: '0.85rem', color: '#f59e0b', fontWeight: 700, marginTop: '0.25rem' }}>
+                  🚩 Near {currentStop.deliveryLandmark}
+                </div>
+              )}
+            </div>
+          ) : (
+            <h2 className="rider-address-text">
+              {cleanAddress || 'Address not specified'}
+            </h2>
+          )}
           {currentStop.cookingInstructions && (
             <p style={{ fontSize: '0.8rem', color: '#fbbf24', marginTop: '0.45rem', marginBottom: 0 }}>
               📝 Note: "{currentStop.cookingInstructions}"
