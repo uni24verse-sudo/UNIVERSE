@@ -40,6 +40,9 @@ const Cart = () => {
   const [tableNumber, setTableNumber] = useState('');
   const [cookingInstructions, setCookingInstructions] = useState('');
   const [deliveryAddress, setDeliveryAddress] = useState(localStorage.getItem('universe_delivery_address') || '');
+  const [deliveryHouseNo, setDeliveryHouseNo] = useState(localStorage.getItem('universe_delivery_house') || '');
+  const [deliveryArea, setDeliveryArea] = useState(localStorage.getItem('universe_delivery_area') || '');
+  const [deliveryLandmark, setDeliveryLandmark] = useState(localStorage.getItem('universe_delivery_landmark') || '');
   const [customerPhone, setCustomerPhone] = useState(localStorage.getItem('universe_customer_phone') || '');
   const [customerName, setCustomerName] = useState(localStorage.getItem('universe_customer_name') || '');
   const [customerEmail, setCustomerEmail] = useState(localStorage.getItem('universe_customer_email') || '');
@@ -127,7 +130,9 @@ const Cart = () => {
         }
 
         const finalAddr = resolvedAddress || `Campus Area (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`;
+        setDeliveryArea(finalAddr);
         setDeliveryAddress(finalAddr);
+        localStorage.setItem('universe_delivery_area', finalAddr);
         localStorage.setItem('universe_delivery_address', finalAddr);
         setFieldErrors(prev => ({ ...prev, address: false }));
         if (validationError) setValidationError('');
@@ -302,9 +307,15 @@ const Cart = () => {
       setValidationError('This stall is currently closed and not accepting orders.');
       return;
     }
-    if (orderType === 'Delivery' && !deliveryAddress.trim()) {
+    const fullDeliveryAddress = [
+      deliveryHouseNo.trim(),
+      deliveryArea.trim(),
+      deliveryLandmark.trim() ? `Near ${deliveryLandmark.trim()}` : ''
+    ].filter(Boolean).join(', ') || deliveryAddress.trim();
+
+    if (orderType === 'Delivery' && !fullDeliveryAddress) {
       setFieldErrors(prev => ({ ...prev, address: true }));
-      setValidationError('Please enter your delivery drop-off address / room number');
+      setValidationError('Please enter your delivery drop-off house/room number and area');
       setTimeout(() => {
         addressRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         addressRef.current?.focus();
@@ -347,6 +358,13 @@ const Cart = () => {
     setLoading(true);
 
     try {
+      if (orderType === 'Delivery') {
+        if (deliveryHouseNo.trim()) localStorage.setItem('universe_delivery_house', deliveryHouseNo.trim());
+        if (deliveryArea.trim()) localStorage.setItem('universe_delivery_area', deliveryArea.trim());
+        if (deliveryLandmark.trim()) localStorage.setItem('universe_delivery_landmark', deliveryLandmark.trim());
+        if (fullDeliveryAddress) localStorage.setItem('universe_delivery_address', fullDeliveryAddress);
+      }
+
       // Step 1: Create Razorpay order (Backend no longer saves to DB at this point)
       const paymentRes = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/payments/razorpay/create-order`, {
         amount: finalTotal,
@@ -384,11 +402,11 @@ const Cart = () => {
         tableNumber: orderType === 'Dine In' ? tableNumber.trim() : '',
         cookingInstructions: cookingInstructions.trim(),
         packagingChargeApplied: packagingFee,
-        deliveryAddress: orderType === 'Delivery' ? (
-          detectedCoords 
-            ? `${deliveryAddress.trim()} [GPS:${detectedCoords.latitude.toFixed(6)},${detectedCoords.longitude.toFixed(6)}]`
-            : deliveryAddress.trim()
-        ) : '',
+        deliveryAddress: orderType === 'Delivery' ? fullDeliveryAddress : '',
+        deliveryHouseNo: orderType === 'Delivery' ? deliveryHouseNo.trim() : '',
+        deliveryArea: orderType === 'Delivery' ? deliveryArea.trim() : '',
+        deliveryLandmark: orderType === 'Delivery' ? deliveryLandmark.trim() : '',
+        deliveryCoordinates: orderType === 'Delivery' ? (detectedCoords ? { lat: detectedCoords.latitude, lng: detectedCoords.longitude } : { lat: 0, lng: 0 }) : null,
         deliveryFee,
         platformFee,
         isPreOrder,
@@ -1269,32 +1287,100 @@ const Cart = () => {
                   </div>
                 </div>
 
-                <textarea
-                  ref={addressRef}
-                  rows={2}
-                  placeholder="Enter complete address (e.g. Hostel BH-1, Room 304, 3rd Floor)"
-                  value={deliveryAddress}
-                  onChange={(e) => {
-                    setDeliveryAddress(e.target.value);
-                    localStorage.setItem('universe_delivery_address', e.target.value);
-                    setFieldErrors(prev => ({ ...prev, address: false }));
-                    if (validationError) setValidationError('');
-                  }}
-                  style={{
-                    width: '100%',
-                    padding: '0.75rem 1rem',
-                    borderRadius: '12px',
-                    border: fieldErrors.address ? '2px solid #ef4444' : '1.5px solid #cbd5e1',
-                    background: '#f8fafc',
-                    fontSize: '0.9rem',
-                    fontWeight: '500',
-                    outline: 'none',
-                    boxSizing: 'border-box',
-                    resize: 'none'
-                  }}
-                />
+                {detectedCoords && (
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', background: 'rgba(16, 185, 129, 0.1)', padding: '0.3rem 0.65rem', borderRadius: '8px', marginBottom: '0.75rem', fontSize: '0.75rem', fontWeight: '700', color: '#047857' }}>
+                    <CheckCircle size={13} color="#10B981" />
+                    GPS Pin Locked ({detectedCoords.latitude.toFixed(4)}, {detectedCoords.longitude.toFixed(4)})
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+                  <div>
+                    <label style={{ fontSize: '0.75rem', fontWeight: '700', color: '#475569', marginBottom: '0.25rem', display: 'block' }}>
+                      House / Flat / Room / Hostel No. <span style={{ color: '#ef4444' }}>*</span>
+                    </label>
+                    <input
+                      ref={addressRef}
+                      type="text"
+                      placeholder="e.g. House 10A/59 or Room 304, BH-1"
+                      value={deliveryHouseNo}
+                      onChange={(e) => {
+                        setDeliveryHouseNo(e.target.value);
+                        localStorage.setItem('universe_delivery_house', e.target.value);
+                        setFieldErrors(prev => ({ ...prev, address: false }));
+                        if (validationError) setValidationError('');
+                      }}
+                      style={{
+                        width: '100%',
+                        padding: '0.65rem 0.85rem',
+                        borderRadius: '10px',
+                        border: fieldErrors.address && !deliveryHouseNo.trim() ? '2px solid #ef4444' : '1.5px solid #cbd5e1',
+                        background: '#f8fafc',
+                        fontSize: '0.875rem',
+                        fontWeight: '600',
+                        outline: 'none',
+                        boxSizing: 'border-box'
+                      }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: '0.75rem', fontWeight: '700', color: '#475569', marginBottom: '0.25rem', display: 'block' }}>
+                      Area / Colony / Street <span style={{ color: '#ef4444' }}>*</span>
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Vrindavan Yojna, Sector 10"
+                      value={deliveryArea}
+                      onChange={(e) => {
+                        setDeliveryArea(e.target.value);
+                        localStorage.setItem('universe_delivery_area', e.target.value);
+                        setFieldErrors(prev => ({ ...prev, address: false }));
+                        if (validationError) setValidationError('');
+                      }}
+                      style={{
+                        width: '100%',
+                        padding: '0.65rem 0.85rem',
+                        borderRadius: '10px',
+                        border: fieldErrors.address && !deliveryArea.trim() ? '2px solid #ef4444' : '1.5px solid #cbd5e1',
+                        background: '#f8fafc',
+                        fontSize: '0.875rem',
+                        fontWeight: '600',
+                        outline: 'none',
+                        boxSizing: 'border-box'
+                      }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: '0.75rem', fontWeight: '700', color: '#475569', marginBottom: '0.25rem', display: 'block' }}>
+                      Nearby Landmark (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Opposite Water Tank / Near Gate 2"
+                      value={deliveryLandmark}
+                      onChange={(e) => {
+                        setDeliveryLandmark(e.target.value);
+                        localStorage.setItem('universe_delivery_landmark', e.target.value);
+                      }}
+                      style={{
+                        width: '100%',
+                        padding: '0.65rem 0.85rem',
+                        borderRadius: '10px',
+                        border: '1.5px solid #cbd5e1',
+                        background: '#f8fafc',
+                        fontSize: '0.875rem',
+                        fontWeight: '600',
+                        outline: 'none',
+                        boxSizing: 'border-box'
+                      }}
+                    />
+                  </div>
+                </div>
+
                 <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.73rem', color: fieldErrors.address ? '#dc2626' : '#64748b', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                  <AlertCircle size={12} /> {fieldErrors.address ? 'Delivery address is required before payment.' : 'Please ensure room or landmark is clear. 4-digit PIN is required at handover.'}
+                  <AlertCircle size={12} /> {fieldErrors.address ? 'Please enter your house/room number and area.' : 'Exact GPS coordinates & landmark will guide the rider directly to your door.'}
                 </p>
               </div>
             )}

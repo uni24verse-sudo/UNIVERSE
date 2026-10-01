@@ -188,6 +188,10 @@ async function migrate() {
 
   try {
     await prisma.$executeRawUnsafe(`ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "deliveryAddress" TEXT DEFAULT '';`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "deliveryCoordinates" JSONB DEFAULT '{"lat":0,"lng":0}'::jsonb;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "deliveryHouseNo" TEXT DEFAULT '';`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "deliveryLandmark" TEXT DEFAULT '';`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "deliveryArea" TEXT DEFAULT '';`);
     await prisma.$executeRawUnsafe(`ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "tableNumber" TEXT DEFAULT '';`);
     await prisma.$executeRawUnsafe(`ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "cookingInstructions" TEXT DEFAULT '';`);
     await prisma.$executeRawUnsafe(`ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "platformFee" DOUBLE PRECISION DEFAULT 0;`);
