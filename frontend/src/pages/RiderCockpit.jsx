@@ -347,8 +347,20 @@ const RiderCockpit = () => {
   }
 
   // Construct Google Maps Turn-By-Turn Navigation Link
-  const dropAddress = currentStop?.deliveryAddress || 'Campus';
-  const mapsSearchUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(dropAddress)}`;
+  const rawAddress = currentStop?.deliveryAddress || 'Campus';
+  const gpsMatch = rawAddress.match(/\[GPS:([-\d.]+),\s*([-\d.]+)\]/i);
+  const cleanAddress = rawAddress.replace(/\s*\[GPS:[^\]]+\]/gi, '').replace(/\s*\|\|\s*GPS:[^$]+/gi, '').trim();
+
+  let mapsSearchUrl = '';
+  if (gpsMatch) {
+    const lat = gpsMatch[1];
+    const lng = gpsMatch[2];
+    mapsSearchUrl = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+  } else if (currentStop?.deliveryLat && currentStop?.deliveryLng) {
+    mapsSearchUrl = `https://www.google.com/maps/dir/?api=1&destination=${currentStop.deliveryLat},${currentStop.deliveryLng}`;
+  } else {
+    mapsSearchUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(cleanAddress || rawAddress)}`;
+  }
 
   return (
     <div className="rider-cockpit-container">
@@ -418,7 +430,7 @@ const RiderCockpit = () => {
             <span>Delivery Destination</span>
           </div>
           <h2 className="rider-address-text">
-            {currentStop.deliveryAddress || 'Address not specified'}
+            {cleanAddress || 'Address not specified'}
           </h2>
           {currentStop.cookingInstructions && (
             <p style={{ fontSize: '0.8rem', color: '#fbbf24', marginTop: '0.45rem', marginBottom: 0 }}>

@@ -117,8 +117,25 @@ const CartScreen = ({ navigation }) => {
   const [nameError, setNameError] = useState(false);
   const [phoneError, setPhoneError] = useState(false);
   const [detectingLocation, setDetectingLocation] = useState(false);
+  const [detectedCoords, setDetectedCoords] = useState(null);
 
   const CAMPUS_PRESETS = ['BH-1', 'BH-2', 'BH-3', 'GH-1', 'GH-2', 'Block 34', 'Block 38', 'Library'];
+
+  const cleanFormatAddressParts = (parts) => {
+    const seen = new Set();
+    const filtered = [];
+    for (const raw of parts) {
+      if (!raw) continue;
+      const item = String(raw).trim();
+      if (!item) continue;
+      const lower = item.toLowerCase();
+      if (!seen.has(lower)) {
+        seen.add(lower);
+        filtered.push(item);
+      }
+    }
+    return filtered.join(', ');
+  };
 
   const handleDetectLocation = async () => {
     setDetectingLocation(true);
@@ -135,6 +152,7 @@ const CartScreen = ({ navigation }) => {
         timeout: 10000,
       });
       const { latitude, longitude } = position.coords;
+      setDetectedCoords({ latitude, longitude });
 
       let resolvedAddress = '';
 
@@ -144,21 +162,16 @@ const CartScreen = ({ navigation }) => {
         if (geoResults && geoResults.length > 0) {
           const g = geoResults[0];
           const parts = [
-            g.name && g.name !== g.street && g.name !== g.city && g.name !== g.subregion ? g.name : null,
+            g.name && g.name !== g.street && g.name !== g.city && g.name !== g.subregion && g.name !== g.district ? g.name : null,
             g.streetNumber ? `${g.streetNumber} ${g.street || ''}`.trim() : g.street,
             g.district || g.subregion || g.neighborhood,
             g.city || g.region,
             g.postalCode
-          ].filter(Boolean);
-
-          // Deduplicate components
-          const uniqueParts = parts.filter((val, idx, arr) => arr.indexOf(val) === idx);
-          if (uniqueParts.length > 0) {
-            resolvedAddress = uniqueParts.join(', ');
-          }
+          ];
+          resolvedAddress = cleanFormatAddressParts(parts);
         }
       } catch (nativeErr) {
-        console.log('[GPS Native Geocode] Falling back to online reverse geocoder:', nativeErr.message);
+        console.log('[GPS Native Geocode] Falling back to online reverse geocoder:', nativeErr?.message);
       }
 
       // 2. Secondary Fallback: Detailed Online Reverse Geocoder
@@ -174,10 +187,8 @@ const CartScreen = ({ navigation }) => {
               bdcData.principalSubdivision,
               bdcData.city,
               bdcData.postcode
-            ].filter(Boolean);
-            if (bdcParts.length > 0) {
-              resolvedAddress = bdcParts.join(', ');
-            }
+            ];
+            resolvedAddress = cleanFormatAddressParts(bdcParts);
           }
         } catch (e) {}
       }
@@ -197,8 +208,11 @@ const CartScreen = ({ navigation }) => {
             a.neighbourhood || a.suburb || a.residential,
             a.city || a.town || a.county,
             a.postcode
-          ].filter(Boolean).join(', ');
-          resolvedAddress = detailed || data.display_name?.split(',').slice(0, 4).join(', ') || '';
+          ];
+          resolvedAddress = cleanFormatAddressParts(detailed);
+          if (!resolvedAddress && data.display_name) {
+            resolvedAddress = cleanFormatAddressParts(data.display_name.split(',').slice(0, 4));
+          }
         } catch (e) {}
       }
 
@@ -478,7 +492,11 @@ const CartScreen = ({ navigation }) => {
         customerEmail: customerEmail.trim(),
         tableNumber: orderType === 'dine_in' ? (tableNumber.trim() || 'Dine In') : (orderType === 'delivery' ? 'Delivery' : 'Takeaway'),
         orderType: orderType === 'delivery' ? 'Delivery' : (orderType === 'takeaway' ? 'Take Away' : 'Dine In'),
-        deliveryAddress: orderType === 'delivery' ? deliveryAddress.trim() : null,
+        deliveryAddress: orderType === 'delivery' ? (
+          detectedCoords 
+            ? `${deliveryAddress.trim()} [GPS:${detectedCoords.latitude.toFixed(6)},${detectedCoords.longitude.toFixed(6)}]`
+            : deliveryAddress.trim()
+        ) : null,
         deliveryFee,
         platformFee,
         packagingChargeApplied: packagingCharge > 0,

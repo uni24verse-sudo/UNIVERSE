@@ -739,7 +739,7 @@ const OrderTracker = () => {
             {/* Destination Address Pill */}
             {order.deliveryAddress && (
               <div style={{ background: '#f1f5f9', borderRadius: '12px', padding: '0.6rem 1rem', fontSize: '0.82rem', color: '#334155', fontWeight: '600', display: 'inline-block', maxWidth: '100%', wordBreak: 'break-word', marginBottom: order.riderPhone ? '0.85rem' : 0 }}>
-                📍 Drop: {order.deliveryAddress}
+                📍 Drop: {order.deliveryAddress.replace(/\s*\[GPS:[^\]]+\]/gi, '').replace(/\s*\|\|\s*GPS:[^$]+/gi, '')}
               </div>
             )}
 
@@ -924,7 +924,7 @@ const OrderTracker = () => {
            {order.orderType === 'Delivery' && order.deliveryAddress && (
              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem', fontSize: '0.85rem' }}>
                <span style={{ color: 'var(--text-secondary)' }}>Drop Address</span>
-               <span style={{ fontWeight: '800', color: 'var(--text-primary)', maxWidth: '60%', textAlign: 'right' }}>{order.deliveryAddress}</span>
+               <span style={{ fontWeight: '800', color: 'var(--text-primary)', maxWidth: '60%', textAlign: 'right' }}>{order.deliveryAddress.replace(/\s*\[GPS:[^\]]+\]/gi, '').replace(/\s*\|\|\s*GPS:[^$]+/gi, '')}</span>
              </div>
            )}
            

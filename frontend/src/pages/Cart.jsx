@@ -48,6 +48,7 @@ const Cart = () => {
   const [validationError, setValidationError] = useState('');
   const [fieldErrors, setFieldErrors] = useState({ name: false, phone: false, address: false });
   const [isLocating, setIsLocating] = useState(false);
+  const [detectedCoords, setDetectedCoords] = useState(null);
   const [isPreOrder, setIsPreOrder] = useState(false);
   const [scheduledTime, setScheduledTime] = useState('');
   const [availableSlots, setAvailableSlots] = useState([]);
@@ -58,6 +59,22 @@ const Cart = () => {
   const nameRef = useRef(null);
   const phoneRef = useRef(null);
 
+  const cleanFormatAddressParts = (parts) => {
+    const seen = new Set();
+    const filtered = [];
+    for (const raw of parts) {
+      if (!raw) continue;
+      const item = String(raw).trim();
+      if (!item) continue;
+      const lower = item.toLowerCase();
+      if (!seen.has(lower)) {
+        seen.add(lower);
+        filtered.push(item);
+      }
+    }
+    return filtered.join(', ');
+  };
+
   const handleDetectLocation = () => {
     if (!navigator.geolocation) {
       alert('Location services are not supported by your browser');
@@ -67,6 +84,7 @@ const Cart = () => {
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         const { latitude, longitude } = pos.coords;
+        setDetectedCoords({ latitude, longitude });
         let resolvedAddress = '';
 
         // 1. First priority: Detailed BigDataCloud client reverse geocoding
@@ -81,10 +99,8 @@ const Cart = () => {
               bdcData.principalSubdivision,
               bdcData.city,
               bdcData.postcode
-            ].filter(Boolean);
-            if (bdcParts.length > 0) {
-              resolvedAddress = bdcParts.filter((v, i, a) => a.indexOf(v) === i).join(', ');
-            }
+            ];
+            resolvedAddress = cleanFormatAddressParts(bdcParts);
           }
         } catch (e) {}
 
@@ -102,8 +118,11 @@ const Cart = () => {
               a.neighbourhood || a.suburb || a.residential,
               a.city || a.town || a.county,
               a.postcode
-            ].filter(Boolean).join(', ');
-            resolvedAddress = detailed || data.display_name?.split(',').slice(0, 4).join(', ') || '';
+            ];
+            resolvedAddress = cleanFormatAddressParts(detailed);
+            if (!resolvedAddress && data.display_name) {
+              resolvedAddress = cleanFormatAddressParts(data.display_name.split(',').slice(0, 4));
+            }
           } catch (e) {}
         }
 
@@ -365,7 +384,11 @@ const Cart = () => {
         tableNumber: orderType === 'Dine In' ? tableNumber.trim() : '',
         cookingInstructions: cookingInstructions.trim(),
         packagingChargeApplied: packagingFee,
-        deliveryAddress: orderType === 'Delivery' ? deliveryAddress.trim() : '',
+        deliveryAddress: orderType === 'Delivery' ? (
+          detectedCoords 
+            ? `${deliveryAddress.trim()} [GPS:${detectedCoords.latitude.toFixed(6)},${detectedCoords.longitude.toFixed(6)}]`
+            : deliveryAddress.trim()
+        ) : '',
         deliveryFee,
         platformFee,
         isPreOrder,

@@ -1366,6 +1366,7 @@ export default function LiveOrdersScreen({ navigation }) {
     const isDelivery = String(item.orderType || '').toLowerCase() === 'delivery';
     const isTakeaway = String(item.orderType || '').toLowerCase().includes('take') || String(item.orderType || '').toLowerCase().includes('pack');
     const tableClean = item.tableNumber ? String(item.tableNumber).toUpperCase().replace(/DINE IN/i, '').trim() : '';
+    const cleanAddress = (item.deliveryAddress || '').replace(/\s*\[GPS:[^\]]+\]/g, '').replace(/\s*\|\|\s*GPS:[^$]+/g, '');
     
     return (
       <View style={[
@@ -1374,46 +1375,56 @@ export default function LiveOrdersScreen({ navigation }) {
         item.status === 'Pending' && styles.pendingCard,
         item.isPreOrder && styles.preOrderCard
       ]}>
-        {/* Top High-Signal Header */}
+        {/* Top High-Visibility Order Type Banner (Dine In vs Packing vs Delivery) */}
+        {isDelivery ? (
+          <View style={styles.deliveryBanner}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
+              <Ionicons name="bicycle" size={15} color="#047857" />
+              <Text style={styles.deliveryBannerText}>🛵 DELIVERY ORDER</Text>
+            </View>
+            <Text style={styles.deliverySubText} numberOfLines={1}>
+              {cleanAddress || 'Campus Drop'}
+            </Text>
+          </View>
+        ) : isTakeaway ? (
+          <View style={styles.packingBanner}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Ionicons name="bag-handle" size={15} color="#C2410C" />
+              <Text style={styles.packingBannerText}>🛍️ PACKING / TAKEAWAY</Text>
+            </View>
+            <Text style={styles.packingSubText}>Pack in container / bag</Text>
+          </View>
+        ) : (
+          <View style={styles.dineInBanner}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Ionicons name="restaurant" size={15} color="#1D4ED8" />
+              <Text style={styles.dineInBannerText}>🍽️ DINE IN</Text>
+            </View>
+            <Text style={styles.dineInSubText}>
+              {tableClean ? `Table ${tableClean}` : 'Serve in tray'}
+            </Text>
+          </View>
+        )}
+
+        {/* Top Header Row with Order ID & Status */}
         <View style={styles.cardHeader}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <Text style={styles.orderId}>#{item.orderNumber || item._id.slice(-6).toUpperCase()}</Text>
             <Text style={styles.timeElapsed}>{formatRelativeTime(item.createdAt)}</Text>
           </View>
           
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            {/* Clean Order Type Tag */}
-            {isDelivery ? (
-              <View style={styles.deliveryTypeBadge}>
-                <Ionicons name="bicycle" size={12} color="#047857" />
-                <Text style={styles.deliveryTypeBadgeText}>DELIVERY</Text>
-              </View>
-            ) : isTakeaway ? (
-              <View style={styles.takeawayTypeBadge}>
-                <Ionicons name="bag-handle" size={12} color="#C2410C" />
-                <Text style={styles.takeawayTypeBadgeText}>TAKEAWAY</Text>
-              </View>
-            ) : (
-              <View style={styles.dineInTypeBadge}>
-                <Ionicons name="restaurant" size={12} color="#4338CA" />
-                <Text style={styles.dineInTypeBadgeText}>{tableClean ? `TABLE ${tableClean}` : 'DINE IN'}</Text>
-              </View>
-            )}
-
-            {/* Status Badge */}
-            <View style={[styles.statusBadge, { backgroundColor: `${statusColor}18`, borderColor: `${statusColor}40` }]}>
-              <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
-              <Text style={[styles.statusText, { color: statusColor }]}>{item.status}</Text>
-            </View>
+          <View style={[styles.statusBadge, { backgroundColor: `${statusColor}18`, borderColor: `${statusColor}40` }]}>
+            <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
+            <Text style={[styles.statusText, { color: statusColor }]}>{item.status}</Text>
           </View>
         </View>
 
-        {/* Refined Delivery Destination Strip (Single Clean Line) */}
+        {/* Delivery Destination Strip & Rider Info (If Delivery) */}
         {isDelivery && (
           <View style={styles.refinedDeliveryStrip}>
             <Ionicons name="location-sharp" size={15} color="#059669" />
             <Text style={styles.refinedDeliveryText} numberOfLines={1}>
-              {item.deliveryAddress || 'Hostel Drop'}
+              {cleanAddress || 'Hostel Drop'}
             </Text>
             {item.riderName ? (
               <View style={styles.riderAssignedPill}>
@@ -2671,28 +2682,75 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     borderRadius: 6,
   },
-  takeawayTypeBadgeText: {
-    fontSize: 10.5,
-    fontWeight: '900',
-    color: '#C2410C',
-    letterSpacing: 0.4,
-  },
-  dineInTypeBadge: {
+  deliveryBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#EEF2FF',
-    borderWidth: 1,
-    borderColor: '#C7D2FE',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
+    justifyContent: 'space-between',
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1.5,
+    borderColor: '#6EE7B7',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    marginBottom: 10,
   },
-  dineInTypeBadgeText: {
-    fontSize: 10.5,
+  deliveryBannerText: {
+    color: '#047857',
+    fontSize: 12,
     fontWeight: '900',
-    color: '#4338CA',
-    letterSpacing: 0.4,
+    letterSpacing: 0.5,
+  },
+  deliverySubText: {
+    color: '#059669',
+    fontSize: 11,
+    fontWeight: '700',
+    maxWidth: '55%',
+  },
+  packingBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFF7ED',
+    borderWidth: 1.5,
+    borderColor: '#FDBA74',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    marginBottom: 10,
+  },
+  packingBannerText: {
+    color: '#C2410C',
+    fontSize: 12,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  packingSubText: {
+    color: '#EA580C',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  dineInBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1.5,
+    borderColor: '#93C5FD',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    marginBottom: 10,
+  },
+  dineInBannerText: {
+    color: '#1D4ED8',
+    fontSize: 12,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  dineInSubText: {
+    color: '#2563EB',
+    fontSize: 11,
+    fontWeight: '700',
   },
   refinedDeliveryStrip: {
     flexDirection: 'row',
