@@ -71,19 +71,25 @@ const generateSettlements = async (date = null, specificStoreId = null) => {
 
             const dailyRevenue = completedOrders.reduce((sum, order) => sum + (order.totalAmount || 0), 0);
             const dailyPlatformFees = completedOrders.reduce((sum, order) => sum + (order.platformFee || 0), 0);
+            const dailyPackagingCharges = completedOrders.reduce((sum, order) => sum + (order.packagingCharge || 0), 0);
+            const dailyDeliveryCharges = completedOrders.reduce((sum, order) => sum + (order.deliveryFee || 0), 0);
+
+            // Food items subtotal = totalAmount - platformFee - packagingCharge - deliveryFee
+            const dailyFoodSubtotal = Math.max(0, dailyRevenue - dailyPlatformFees - dailyPackagingCharges - dailyDeliveryCharges);
             const dailyVendorSales = Math.max(0, dailyRevenue - dailyPlatformFees);
             const dailyCancelledVolume = cancelledOrders.reduce((sum, order) => sum + (order.totalAmount || 0), 0);
 
-            // Calculate fees — standard rates, trial concept removed
-            const gatewayRate = 0.02;  // Always 2% PG fee on processed volume
-            const profitRate = 0.03;   // Always 3% UniVerse platform commission on vendor sales
+            // 5% total deduction (3% UniVerse commission + 2% PG fee) is charged ONLY on food items
+            const gatewayRate = 0.02;  // 2% PG fee on food items subtotal
+            const profitRate = 0.03;   // 3% UniVerse platform commission on food items subtotal
             const penaltyRate = 0.04;  // 4% penalty on cancelled volume
 
-            const gatewayFee = dailyRevenue * gatewayRate;
-            const platformCommission = dailyVendorSales * profitRate;
+            const gatewayFee = dailyFoodSubtotal * gatewayRate;
+            const platformCommission = dailyFoodSubtotal * profitRate;
             const cancellationPenalty = dailyCancelledVolume * penaltyRate;
             const totalPlatformProfit = platformCommission + dailyPlatformFees;
 
+            // Total deductions from Gross = 2% PG on food + 3% Commission on food + 100% Delivery Platform Fees + cancellation penalty
             const totalDeductions = gatewayFee + platformCommission + dailyPlatformFees + cancellationPenalty;
             const netPayable = dailyRevenue - totalDeductions;
 
@@ -92,7 +98,7 @@ const generateSettlements = async (date = null, specificStoreId = null) => {
 
             let finalSettlementId;
 
-            // T+1 Daily Settlement — standard commission + delivery platform fees
+            // T+1 Daily Settlement — standard commission on food + 100% packaging/delivery to vendor + delivery platform fees to platform
             const dailySettlement = await prisma.settlement.create({
                 data: {
                     id: crypto.randomUUID(),
@@ -110,6 +116,9 @@ const generateSettlements = async (date = null, specificStoreId = null) => {
                     platformCommission: Number(totalPlatformProfit.toFixed(2)),
                     cancellationPenalties: Number(cancellationPenalty.toFixed(2)),
                     feesBreakdown: {
+                        foodItemsSubtotal: Number(dailyFoodSubtotal.toFixed(2)),
+                        packagingChargesPassed: Number(dailyPackagingCharges.toFixed(2)),
+                        deliveryChargesPassed: Number(dailyDeliveryCharges.toFixed(2)),
                         gatewayFee: Number(gatewayFee.toFixed(2)),
                         commissionRate3Pct: Number(platformCommission.toFixed(2)),
                         deliveryPlatformFees: Number(dailyPlatformFees.toFixed(2)),

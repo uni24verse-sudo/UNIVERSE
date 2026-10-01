@@ -1083,7 +1083,7 @@ export default function LiveOrdersScreen({ navigation }) {
     );
     
     const count = todayCompleted.length;
-    const revenue = todayCompleted.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+    const revenue = todayCompleted.reduce((sum, o) => sum + (o.totalAmount - (o.platformFee || 0)), 0);
     return { count, revenue };
   }, [orders]);
 
@@ -1511,7 +1511,7 @@ export default function LiveOrdersScreen({ navigation }) {
             ) : null}
           </View>
 
-          <Text style={styles.orderTotal}>₹{item.totalAmount}</Text>
+          <Text style={styles.orderTotal}>₹{(item.totalAmount || 0) - (item.platformFee || 0)}</Text>
         </View>
 
         {/* Action Controls */}

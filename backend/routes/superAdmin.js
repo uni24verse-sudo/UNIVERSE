@@ -134,11 +134,13 @@ router.get('/stats', async (req, res) => {
 
     const liveCompletedVolume = unsettledCompleted.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
     const liveDeliveryPlatformFees = unsettledCompleted.reduce((sum, o) => sum + (o.platformFee || 0), 0);
-    const liveVendorSales = Math.max(0, liveCompletedVolume - liveDeliveryPlatformFees);
+    const livePackagingCharges = unsettledCompleted.reduce((sum, o) => sum + (o.packagingCharge || 0), 0);
+    const liveDeliveryCharges = unsettledCompleted.reduce((sum, o) => sum + (o.deliveryFee || 0), 0);
+    const liveFoodSubtotal = Math.max(0, liveCompletedVolume - liveDeliveryPlatformFees - livePackagingCharges - liveDeliveryCharges);
     const liveCancelledVolume = unsettledCancelled.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
 
-    const projectedGateway = liveCompletedVolume * 0.02;
-    const projectedCommission = liveVendorSales * 0.03;
+    const projectedGateway = liveFoodSubtotal * 0.02;
+    const projectedCommission = liveFoodSubtotal * 0.03;
     const projectedPlatformProfit = projectedCommission + liveDeliveryPlatformFees;
     const projectedCancellationPenalty = liveCancelledVolume * 0.04;
 
@@ -240,11 +242,13 @@ router.get('/realtime-analytics', async (req, res) => {
 
     const liveCompletedVolume = unsettledCompleted.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
     const liveDeliveryPlatformFees = unsettledCompleted.reduce((sum, o) => sum + (o.platformFee || 0), 0);
-    const liveVendorSales = Math.max(0, liveCompletedVolume - liveDeliveryPlatformFees);
+    const livePackagingCharges = unsettledCompleted.reduce((sum, o) => sum + (o.packagingCharge || 0), 0);
+    const liveDeliveryCharges = unsettledCompleted.reduce((sum, o) => sum + (o.deliveryFee || 0), 0);
+    const liveFoodSubtotal = Math.max(0, liveCompletedVolume - liveDeliveryPlatformFees - livePackagingCharges - liveDeliveryCharges);
     const liveCancelledVolume = unsettledCancelled.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
 
-    const projectedGateway = liveCompletedVolume * 0.02;
-    const projectedCommission = liveVendorSales * 0.03;
+    const projectedGateway = liveFoodSubtotal * 0.02;
+    const projectedCommission = liveFoodSubtotal * 0.03;
     const projectedPlatformProfit = projectedCommission + liveDeliveryPlatformFees;
     const projectedCancellationPenalty = liveCancelledVolume * 0.04;
 
