@@ -132,32 +132,82 @@ const CartScreen = ({ navigation }) => {
 
       const position = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.High,
-        timeout: 8000,
+        timeout: 10000,
       });
       const { latitude, longitude } = position.coords;
 
+      let resolvedAddress = '';
+
+      // 1. First Priority: Native Device Reverse Geocoding (Google Play Services / iOS CoreLocation)
       try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 4000);
-        const res = await fetch(
-          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`,
-          {
-            headers: { 'User-Agent': 'UniVerse-App/1.0' },
-            signal: controller.signal,
+        const geoResults = await Location.reverseGeocodeAsync({ latitude, longitude });
+        if (geoResults && geoResults.length > 0) {
+          const g = geoResults[0];
+          const parts = [
+            g.name && g.name !== g.street && g.name !== g.city && g.name !== g.subregion ? g.name : null,
+            g.streetNumber ? `${g.streetNumber} ${g.street || ''}`.trim() : g.street,
+            g.district || g.subregion || g.neighborhood,
+            g.city || g.region,
+            g.postalCode
+          ].filter(Boolean);
+
+          // Deduplicate components
+          const uniqueParts = parts.filter((val, idx, arr) => arr.indexOf(val) === idx);
+          if (uniqueParts.length > 0) {
+            resolvedAddress = uniqueParts.join(', ');
           }
-        );
-        clearTimeout(timeoutId);
-        const data = await res.json();
-        const road = data.address?.road || data.address?.building || data.address?.amenity || '';
-        const sub = data.address?.suburb || data.address?.neighbourhood || data.address?.university || '';
-        let detected = [road, sub].filter(Boolean).join(', ');
-        if (!detected || detected.length < 3) {
-          detected = data.display_name?.split(',').slice(0, 3).join(', ') || 'Campus Area';
         }
-        setDeliveryAddress(prev => prev ? `${prev} (${detected})` : `${detected}`);
+      } catch (nativeErr) {
+        console.log('[GPS Native Geocode] Falling back to online reverse geocoder:', nativeErr.message);
+      }
+
+      // 2. Secondary Fallback: Detailed Online Reverse Geocoder
+      if (!resolvedAddress || resolvedAddress.length < 5) {
+        try {
+          const bdcRes = await fetch(
+            `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`
+          );
+          const bdcData = await bdcRes.json();
+          if (bdcData) {
+            const bdcParts = [
+              bdcData.locality,
+              bdcData.principalSubdivision,
+              bdcData.city,
+              bdcData.postcode
+            ].filter(Boolean);
+            if (bdcParts.length > 0) {
+              resolvedAddress = bdcParts.join(', ');
+            }
+          }
+        } catch (e) {}
+      }
+
+      // 3. Third Fallback: Nominatim OpenStreetMap with full granular components
+      if (!resolvedAddress || resolvedAddress.length < 5) {
+        try {
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`,
+            { headers: { 'User-Agent': 'UniVerse-Campus-Delivery/2.0' } }
+          );
+          const data = await res.json();
+          const a = data.address || {};
+          const detailed = [
+            a.amenity || a.building || a.shop || a.house_number,
+            a.road || a.pedestrian || a.street,
+            a.neighbourhood || a.suburb || a.residential,
+            a.city || a.town || a.county,
+            a.postcode
+          ].filter(Boolean).join(', ');
+          resolvedAddress = detailed || data.display_name?.split(',').slice(0, 4).join(', ') || '';
+        } catch (e) {}
+      }
+
+      if (resolvedAddress) {
+        setDeliveryAddress(resolvedAddress);
+        AsyncStorage.setItem('universe_delivery_address', resolvedAddress).catch(() => {});
         setAddressError(false);
-      } catch (e) {
-        setDeliveryAddress(prev => prev || 'Campus Location (Academic Block)');
+      } else {
+        setDeliveryAddress('Campus Location (Hostel Block / Academic Area)');
         setAddressError(false);
       }
     } catch (err) {

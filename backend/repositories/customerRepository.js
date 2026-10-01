@@ -95,12 +95,9 @@ class CustomerRepository {
     });
 
     const normalizedOrders = orders.map(normalizeOrder);
-    const activeOrders = normalizedOrders.filter(o =>
-      ['Payment Pending', 'Pending', 'Confirmed', 'Cooking', 'Ready'].includes(o.status)
-    );
-    const pastOrders = normalizedOrders.filter(o =>
-      ['Completed', 'Cancelled'].includes(o.status)
-    );
+    const pastStatuses = ['Completed', 'Cancelled', 'Delivered', 'Refunded'];
+    const activeOrders = normalizedOrders.filter(o => !pastStatuses.includes(o.status));
+    const pastOrders = normalizedOrders.filter(o => pastStatuses.includes(o.status));
 
     return {
       orders: pastOrders,

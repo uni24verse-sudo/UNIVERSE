@@ -225,16 +225,19 @@ export default function LiveOrdersScreen({ navigation }) {
   });
   const [creatingStall, setCreatingStall] = useState(false);
 
-  // Delivery Dispatch States
+  // Delivery Dispatch & Management Hub States
   const [deliveryStaff, setDeliveryStaff] = useState([]);
   const [showDispatchModal, setShowDispatchModal] = useState(false);
+  const [showDeliveryHubModal, setShowDeliveryHubModal] = useState(false);
+  const [deliveryHubTab, setDeliveryHubTab] = useState('all'); // 'all', 'cooking', 'ready', 'delivering'
+  const [selectedBatchIds, setSelectedBatchIds] = useState([]);
   const [dispatchOrdersList, setDispatchOrdersList] = useState([]);
   const [selectedRiderId, setSelectedRiderId] = useState(null);
   const [customRiderName, setCustomRiderName] = useState('');
   const [customRiderPhone, setCustomRiderPhone] = useState('');
   const [dispatchingRider, setDispatchingRider] = useState(false);
 
-  const isAnyModalOpen = Boolean(showStallSwitcherModal || showQuickAddStallModal || showDispatchModal);
+  const isAnyModalOpen = Boolean(showStallSwitcherModal || showQuickAddStallModal || showDispatchModal || showDeliveryHubModal);
 
   const defaultTabBarStyle = useMemo(() => ({
     backgroundColor: '#FFFFFF',
@@ -773,8 +776,62 @@ export default function LiveOrdersScreen({ navigation }) {
   };
 
   // ---------------------------------------------------------
-  // Universal Self-Delivery Rider Dispatch Handlers
+  // Universal Delivery Management Memos & Dispatch Handlers
   // ---------------------------------------------------------
+  const deliveryOrders = useMemo(() => {
+    return orders.filter(o => String(o.orderType || '').toLowerCase() === 'delivery' && o.status !== 'Cancelled');
+  }, [orders]);
+
+  const activeDeliveryOrders = useMemo(() => {
+    return deliveryOrders.filter(o => o.status !== 'Completed');
+  }, [deliveryOrders]);
+
+  const preparingDeliveryOrders = useMemo(() => {
+    return deliveryOrders.filter(o => ['Pending', 'Confirmed', 'Cooking'].includes(o.status));
+  }, [deliveryOrders]);
+
+  const readyDeliveryOrders = useMemo(() => {
+    return deliveryOrders.filter(o => o.status === 'Ready');
+  }, [deliveryOrders]);
+
+  const deliveringOrders = useMemo(() => {
+    return deliveryOrders.filter(o => o.status === 'Out for Delivery' || Boolean(o.riderName && o.status !== 'Completed'));
+  }, [deliveryOrders]);
+
+  const toggleBatchSelectOrder = (orderId) => {
+    setSelectedBatchIds(prev => {
+      if (prev.includes(orderId)) {
+        return prev.filter(id => id !== orderId);
+      } else {
+        return [...prev, orderId];
+      }
+    });
+  };
+
+  const handleSelectAllReady = () => {
+    const readyIds = readyDeliveryOrders.map(o => o._id || o.id);
+    setSelectedBatchIds(readyIds);
+  };
+
+  const handleClearBatchSelection = () => {
+    setSelectedBatchIds([]);
+  };
+
+  const handleLaunchBatchDispatch = () => {
+    const targetOrders = deliveryOrders.filter(o => selectedBatchIds.includes(o._id || o.id));
+    if (targetOrders.length === 0) {
+      Alert.alert('Select Orders', 'Please tap the checkboxes to select at least one ready order to batch dispatch.');
+      return;
+    }
+    setDispatchOrdersList(targetOrders);
+    if (deliveryStaff.length > 0) {
+      setSelectedRiderId(deliveryStaff[0].id || deliveryStaff[0]._id);
+    } else {
+      setSelectedRiderId('custom');
+    }
+    setShowDispatchModal(true);
+  };
+
   const openSingleDispatchModal = (order) => {
     setDispatchOrdersList([order]);
     if (deliveryStaff.length > 0) {
@@ -786,12 +843,14 @@ export default function LiveOrdersScreen({ navigation }) {
   };
 
   const openBatchDispatchModal = () => {
-    const readyDeliveries = orders.filter(o => o.status === 'Ready' && o.orderType === 'Delivery' && !o.dispatchedAt);
-    if (readyDeliveries.length === 0) {
-      Alert.alert('No Orders', 'There are no unassigned ready delivery orders to dispatch.');
+    if (readyDeliveryOrders.length > 0) {
+      setDispatchOrdersList(readyDeliveryOrders);
+    } else if (activeDeliveryOrders.length > 0) {
+      setDispatchOrdersList(activeDeliveryOrders);
+    } else {
+      setShowDeliveryHubModal(true);
       return;
     }
-    setDispatchOrdersList(readyDeliveries);
     if (deliveryStaff.length > 0) {
       setSelectedRiderId(deliveryStaff[0].id || deliveryStaff[0]._id);
     } else {
@@ -1064,15 +1123,7 @@ export default function LiveOrdersScreen({ navigation }) {
   const readyOrders = useMemo(() => displayOrders.filter(o => o.status === 'Ready'), [displayOrders]);
   const historyOrders = useMemo(() => displayOrders.filter(o => ['Completed', 'Cancelled'].includes(o.status)), [displayOrders]);
   
-  // Dedicated delivery orders for floating hub & stats
-  const deliveryOrders = useMemo(() => 
-    displayOrders.filter(o => o.orderType === 'Delivery' && ['Confirmed', 'Cooking', 'Ready', 'Out for Delivery'].includes(o.status)),
-    [displayOrders]
-  );
-  const pendingDispatchCount = useMemo(() => 
-    deliveryOrders.filter(o => ['Cooking', 'Ready'].includes(o.status) && !o.riderName).length,
-    [deliveryOrders]
-  );
+
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -2203,11 +2254,305 @@ export default function LiveOrdersScreen({ navigation }) {
         </View>
       </Modal>
 
+      {/* =================================================== */}
+      {/* MODAL: DEDICATED DELIVERY DISPATCH & BATCHING HUB   */}
+      {/* =================================================== */}
+      <Modal
+        visible={showDeliveryHubModal}
+        transparent={true}
+        animationType="slide"
+        statusBarTranslucent={true}
+        onRequestClose={() => setShowDeliveryHubModal(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={[styles.switcherModalContent, { maxHeight: '92%', height: '90%', paddingBottom: 12 }]}>
+            {/* Header */}
+            <View style={styles.modalHeaderRow}>
+              <View style={{ flex: 1 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Ionicons name="bicycle" size={22} color="#059669" />
+                  <Text style={styles.modalTitle}>Delivery Orders Hub</Text>
+                </View>
+                <Text style={styles.modalSub}>
+                  {activeDeliveryOrders.length} active delivery orders • {activeStore?.name || storeData?.name || 'Stall'}
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={styles.modalCloseBtn}
+                onPress={() => setShowDeliveryHubModal(false)}
+              >
+                <Ionicons name="close" size={20} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Sub-Tabs: All Active, Cooking, Ready to Dispatch, Out for Delivery */}
+            <View style={styles.hubTabContainer}>
+              <TouchableOpacity
+                style={[styles.hubTabItem, deliveryHubTab === 'all' && styles.hubTabItemActive]}
+                onPress={() => setDeliveryHubTab('all')}
+              >
+                <Text style={[styles.hubTabItemText, deliveryHubTab === 'all' && styles.hubTabItemTextActive]}>
+                  All ({activeDeliveryOrders.length})
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.hubTabItem, deliveryHubTab === 'cooking' && styles.hubTabItemActive]}
+                onPress={() => setDeliveryHubTab('cooking')}
+              >
+                <Text style={[styles.hubTabItemText, deliveryHubTab === 'cooking' && styles.hubTabItemTextActive]}>
+                  🍳 Cooking ({preparingDeliveryOrders.length})
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.hubTabItem, deliveryHubTab === 'ready' && styles.hubTabItemActive]}
+                onPress={() => setDeliveryHubTab('ready')}
+              >
+                <Text style={[styles.hubTabItemText, deliveryHubTab === 'ready' && styles.hubTabItemTextActive]}>
+                  📦 Ready ({readyDeliveryOrders.length})
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.hubTabItem, deliveryHubTab === 'delivering' && styles.hubTabItemActive]}
+                onPress={() => setDeliveryHubTab('delivering')}
+              >
+                <Text style={[styles.hubTabItemText, deliveryHubTab === 'delivering' && styles.hubTabItemTextActive]}>
+                  🛵 On Trip ({deliveringOrders.length})
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Manual Batch Action Toolbar (When on Ready or All tab) */}
+            {(deliveryHubTab === 'ready' || deliveryHubTab === 'all') && readyDeliveryOrders.length > 0 && (
+              <View style={styles.hubBatchToolbar}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <TouchableOpacity
+                    style={styles.hubSelectAllBtn}
+                    onPress={selectedBatchIds.length === readyDeliveryOrders.length ? handleClearBatchSelection : handleSelectAllReady}
+                  >
+                    <Ionicons
+                      name={selectedBatchIds.length > 0 && selectedBatchIds.length === readyDeliveryOrders.length ? "checkbox" : "square-outline"}
+                      size={18}
+                      color="#059669"
+                    />
+                    <Text style={styles.hubSelectAllBtnText}>
+                      {selectedBatchIds.length === readyDeliveryOrders.length ? "Deselect All" : "Select All Ready"}
+                    </Text>
+                  </TouchableOpacity>
+                  {selectedBatchIds.length > 0 && (
+                    <Text style={{ fontSize: 11, fontWeight: '800', color: '#047857' }}>
+                      ({selectedBatchIds.length} Selected)
+                    </Text>
+                  )}
+                </View>
+
+                {selectedBatchIds.length > 0 && (
+                  <TouchableOpacity
+                    style={styles.hubBatchDispatchBtn}
+                    onPress={handleLaunchBatchDispatch}
+                  >
+                    <Ionicons name="bicycle" size={14} color="#FFFFFF" />
+                    <Text style={styles.hubBatchDispatchBtnText}>
+                      Dispatch Batch ({selectedBatchIds.length})
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
+
+            {/* List of Delivery Orders in Selected Tab */}
+            <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
+              {(() => {
+                let list = activeDeliveryOrders;
+                if (deliveryHubTab === 'cooking') list = preparingDeliveryOrders;
+                else if (deliveryHubTab === 'ready') list = readyDeliveryOrders;
+                else if (deliveryHubTab === 'delivering') list = deliveringOrders;
+
+                if (list.length === 0) {
+                  return (
+                    <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 40 }}>
+                      <Ionicons name="bicycle-outline" size={44} color="#94A3B8" />
+                      <Text style={{ fontSize: 14, fontWeight: '800', color: '#475569', marginTop: 10 }}>
+                        No Orders in this Section
+                      </Text>
+                      <Text style={{ fontSize: 12, color: '#94A3B8', marginTop: 4, textAlign: 'center', maxWidth: 260 }}>
+                        Delivery orders in this stage will appear here for instant management.
+                      </Text>
+                    </View>
+                  );
+                }
+
+                return list.map((ord) => {
+                  const oId = ord._id || ord.id;
+                  const isSelected = selectedBatchIds.includes(oId);
+                  const isReady = ord.status === 'Ready';
+                  const isDispatched = ord.status === 'Out for Delivery' || Boolean(ord.riderName && ord.status !== 'Completed');
+
+                  return (
+                    <View key={oId} style={[styles.hubOrderCard, isSelected && styles.hubOrderCardSelected]}>
+                      {/* Top Row: Checkbox, Order #, Status */}
+                      <View style={styles.hubOrderHeader}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
+                          {isReady && (
+                            <TouchableOpacity onPress={() => toggleBatchSelectOrder(oId)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                              <Ionicons
+                                name={isSelected ? "checkbox" : "square-outline"}
+                                size={22}
+                                color={isSelected ? "#059669" : "#94A3B8"}
+                              />
+                            </TouchableOpacity>
+                          )}
+                          <Text style={styles.hubOrderNumber}>#{ord.orderNumber}</Text>
+                          <Text style={styles.hubOrderTime}>{formatRelativeTime(ord.createdAt)}</Text>
+                        </View>
+
+                        <View style={[styles.hubStatusBadge, {
+                          backgroundColor: isDispatched ? '#DBEAFE' : isReady ? '#DCFCE7' : '#FEF3C7',
+                          borderColor: isDispatched ? '#93C5FD' : isReady ? '#86EFAC' : '#FDE68A'
+                        }]}>
+                          <Text style={[styles.hubStatusText, {
+                            color: isDispatched ? '#1E40AF' : isReady ? '#166534' : '#92400E'
+                          }]}>
+                            {ord.status}
+                          </Text>
+                        </View>
+                      </View>
+
+                      {/* Drop Address */}
+                      <View style={styles.hubAddressRow}>
+                        <Ionicons name="location" size={15} color="#059669" style={{ marginTop: 2 }} />
+                        <Text style={styles.hubAddressText}>
+                          {ord.deliveryAddress || 'Hostel Drop Address'}
+                        </Text>
+                      </View>
+
+                      {/* Customer Note if any */}
+                      {!!(ord.cookingInstructions || ord.specialRequest || ord.instructions) && (
+                        <View style={styles.hubNoteRow}>
+                          <Text style={styles.hubNoteText}>
+                            📝 "{ord.cookingInstructions || ord.specialRequest || ord.instructions}"
+                          </Text>
+                        </View>
+                      )}
+
+                      {/* Items */}
+                      <Text style={styles.hubItemsText} numberOfLines={2}>
+                        {(ord.items || []).map(i => `${i.quantity || 1}x ${i.name || i.menuItem?.name || 'Item'}`).join(', ')}
+                      </Text>
+
+                      {/* Customer & Total Row */}
+                      <View style={styles.hubCustomerRow}>
+                        <Text style={styles.hubCustomerName}>
+                          👤 {ord.customerName || 'Customer'} ({ord.customerPhone})
+                        </Text>
+                        <Text style={styles.hubTotalAmount}>₹{ord.totalAmount}</Text>
+                      </View>
+
+                      {/* Rider / PIN Info (If Dispatched) */}
+                      {isDispatched && (
+                        <View style={styles.hubRiderInfoStrip}>
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.hubRiderNameText}>
+                              🛵 Rider: {ord.riderName} ({ord.riderPhone})
+                            </Text>
+                            <Text style={styles.hubPinText}>
+                              Customer PIN: <Text style={{ fontWeight: '900', color: '#047857' }}>{ord.deliveryOtp || '****'}</Text>
+                            </Text>
+                          </View>
+                          <TouchableOpacity
+                            style={styles.hubWaBtn}
+                            onPress={() => handleShareRiderLink(ord)}
+                          >
+                            <Ionicons name="logo-whatsapp" size={13} color="#FFFFFF" />
+                            <Text style={styles.hubWaBtnText}>WhatsApp</Text>
+                          </TouchableOpacity>
+                        </View>
+                      )}
+
+                      {/* Action Buttons */}
+                      <View style={styles.hubCardActionRow}>
+                        {ord.status === 'Pending' && (
+                          <TouchableOpacity
+                            style={[styles.hubActionBtn, { backgroundColor: '#10B981', width: '100%' }]}
+                            onPress={() => updateStatus(ord._id, 'Pending', 'Confirmed')}
+                          >
+                            <Text style={styles.hubActionBtnText}>Accept Order</Text>
+                          </TouchableOpacity>
+                        )}
+
+                        {ord.status === 'Confirmed' && (
+                          <TouchableOpacity
+                            style={[styles.hubActionBtn, { backgroundColor: '#8B5CF6', width: '100%' }]}
+                            onPress={() => updateStatus(ord._id, 'Confirmed', 'Cooking')}
+                          >
+                            <Text style={styles.hubActionBtnText}>Start Cooking</Text>
+                          </TouchableOpacity>
+                        )}
+
+                        {ord.status === 'Cooking' && (
+                          <View style={{ flexDirection: 'row', gap: 8, width: '100%' }}>
+                            <TouchableOpacity
+                              style={[styles.hubActionBtn, { backgroundColor: '#3B82F6', flex: 1 }]}
+                              onPress={() => updateStatus(ord._id, 'Cooking', 'Ready')}
+                            >
+                              <Text style={styles.hubActionBtnText}>Mark Ready</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              style={[styles.hubActionBtn, { backgroundColor: '#10B981', flex: 1.2 }]}
+                              onPress={async () => {
+                                await updateStatus(ord._id, 'Cooking', 'Ready');
+                                openSingleDispatchModal(ord);
+                              }}
+                            >
+                              <Text style={styles.hubActionBtnText}>Ready & Dispatch</Text>
+                            </TouchableOpacity>
+                          </View>
+                        )}
+
+                        {isReady && (
+                          <View style={{ flexDirection: 'row', gap: 8, width: '100%' }}>
+                            <TouchableOpacity
+                              style={[styles.hubActionBtn, { backgroundColor: '#10B981', flex: 1.3 }]}
+                              onPress={() => openSingleDispatchModal(ord)}
+                            >
+                              <Ionicons name="bicycle" size={15} color="#FFFFFF" style={{ marginRight: 4 }} />
+                              <Text style={styles.hubActionBtnText}>Assign Rider</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              style={[styles.hubActionBtn, { backgroundColor: '#F1F5F9', borderWidth: 1, borderColor: '#CBD5E1', flex: 0.8 }]}
+                              onPress={() => handleDirectHandover(ord._id, ord.orderNumber)}
+                            >
+                              <Text style={[styles.hubActionBtnText, { color: '#475569' }]}>Complete</Text>
+                            </TouchableOpacity>
+                          </View>
+                        )}
+
+                        {isDispatched && (
+                          <TouchableOpacity
+                            style={[styles.hubActionBtn, { backgroundColor: '#F1F5F9', borderWidth: 1, borderColor: '#CBD5E1', width: '100%' }]}
+                            onPress={() => handleDirectHandover(ord._id, ord.orderNumber)}
+                          >
+                            <Ionicons name="checkmark-done" size={15} color="#475569" style={{ marginRight: 4 }} />
+                            <Text style={[styles.hubActionBtnText, { color: '#475569' }]}>Mark Handover Completed</Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    </View>
+                  );
+                });
+              })()}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
       {/* Floating Delivery Dispatch Hub Button (Always Accessible from ANY Tab) */}
-      {deliveryOrders.length > 0 && (
+      {activeDeliveryOrders.length > 0 && (
         <TouchableOpacity
           style={styles.floatingDeliveryHub}
-          onPress={() => openBatchDispatchModal()}
+          onPress={() => setShowDeliveryHubModal(true)}
           activeOpacity={0.88}
         >
           <LinearGradient
@@ -2221,16 +2566,18 @@ export default function LiveOrdersScreen({ navigation }) {
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.floatingDeliveryTitle}>
-                {deliveryOrders.length} {deliveryOrders.length === 1 ? 'Delivery' : 'Deliveries'} Active
+                {activeDeliveryOrders.length} {activeDeliveryOrders.length === 1 ? 'Delivery' : 'Deliveries'} Active
               </Text>
               <Text style={styles.floatingDeliverySub}>
-                {pendingDispatchCount > 0 ? `${pendingDispatchCount} awaiting rider dispatch` : 'All riders assigned'}
+                {readyDeliveryOrders.length > 0 
+                  ? `${readyDeliveryOrders.length} ready to dispatch` 
+                  : deliveringOrders.length > 0 
+                    ? `${deliveringOrders.length} out for delivery` 
+                    : `${preparingDeliveryOrders.length} cooking in kitchen`}
               </Text>
             </View>
             <View style={styles.floatingDeliveryActionBadge}>
-              <Text style={styles.floatingDeliveryActionText}>
-                {pendingDispatchCount > 0 ? 'Dispatch' : 'View'}
-              </Text>
+              <Text style={styles.floatingDeliveryActionText}>Manage Hub</Text>
               <Ionicons name="chevron-forward" size={13} color="#065F46" />
             </View>
           </LinearGradient>
@@ -2389,6 +2736,224 @@ const styles = StyleSheet.create({
     fontSize: 10.5,
     fontWeight: '800',
     color: '#92400E',
+  },
+  hubTabContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#F1F5F9',
+    borderRadius: 12,
+    padding: 4,
+    marginBottom: 10,
+    gap: 4,
+  },
+  hubTabItem: {
+    flex: 1,
+    paddingVertical: 7,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 8,
+  },
+  hubTabItemActive: {
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  hubTabItemText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#64748B',
+  },
+  hubTabItemTextActive: {
+    color: '#059669',
+    fontWeight: '900',
+  },
+  hubBatchToolbar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 10,
+  },
+  hubSelectAllBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  hubSelectAllBtnText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#047857',
+  },
+  hubBatchDispatchBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#059669',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    gap: 4,
+  },
+  hubBatchDispatchBtnText: {
+    color: '#FFFFFF',
+    fontSize: 11.5,
+    fontWeight: '900',
+  },
+  hubOrderCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 12,
+    marginBottom: 10,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  hubOrderCardSelected: {
+    borderColor: '#059669',
+    borderWidth: 1.5,
+    backgroundColor: '#F0FDF4',
+  },
+  hubOrderHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  hubOrderNumber: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: '#0F172A',
+  },
+  hubOrderTime: {
+    fontSize: 11,
+    color: '#94A3B8',
+    fontWeight: '600',
+  },
+  hubStatusBadge: {
+    paddingHorizontal: 7,
+    paddingVertical: 2.5,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  hubStatusText: {
+    fontSize: 10,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+  },
+  hubAddressRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 6,
+    backgroundColor: '#F8FAFC',
+    padding: 8,
+    borderRadius: 8,
+    marginBottom: 6,
+  },
+  hubAddressText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#1E293B',
+    flex: 1,
+    lineHeight: 16,
+  },
+  hubNoteRow: {
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    marginBottom: 6,
+  },
+  hubNoteText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#92400E',
+  },
+  hubItemsText: {
+    fontSize: 12,
+    color: '#475569',
+    marginBottom: 6,
+  },
+  hubCustomerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 6,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+    marginBottom: 8,
+  },
+  hubCustomerName: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#334155',
+  },
+  hubTotalAmount: {
+    fontSize: 13.5,
+    fontWeight: '900',
+    color: '#059669',
+  },
+  hubRiderInfoStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#DBEAFE',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    borderRadius: 8,
+    padding: 8,
+    marginBottom: 8,
+  },
+  hubRiderNameText: {
+    fontSize: 11.5,
+    fontWeight: '800',
+    color: '#1E40AF',
+  },
+  hubPinText: {
+    fontSize: 11,
+    color: '#1E3A8A',
+    marginTop: 1,
+  },
+  hubWaBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#25D366',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    gap: 4,
+  },
+  hubWaBtnText: {
+    color: '#FFFFFF',
+    fontSize: 10.5,
+    fontWeight: '800',
+  },
+  hubCardActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  hubActionBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+  },
+  hubActionBtnText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '800',
   },
   container: {
     flex: 1,

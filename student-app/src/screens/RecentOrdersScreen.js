@@ -58,8 +58,9 @@ const RecentOrdersScreen = ({ navigation }) => {
             return o;
           }
         }));
-        setActiveOrders(rehydrated.filter(o => ['Pending', 'Confirmed', 'Cooking', 'Ready'].includes(o.status)));
-        setPastOrders(rehydrated.filter(o => ['Completed', 'Cancelled'].includes(o.status)));
+        const pastStatuses = ['Completed', 'Cancelled', 'Delivered', 'Refunded'];
+        setActiveOrders(rehydrated.filter(o => !pastStatuses.includes(o.status)));
+        setPastOrders(rehydrated.filter(o => pastStatuses.includes(o.status)));
       }
     } catch (err) {
       console.error('Failed to load orders history:', err);

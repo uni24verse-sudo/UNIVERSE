@@ -67,29 +67,58 @@ const Cart = () => {
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         const { latitude, longitude } = pos.coords;
+        let resolvedAddress = '';
+
+        // 1. First priority: Detailed BigDataCloud client reverse geocoding
         try {
-          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
-          const data = await res.json();
-          const detected = data.display_name || `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
-          const cleanAddr = detected.length > 50 ? detected.split(',').slice(0, 3).join(', ') : detected;
-          setDeliveryAddress(cleanAddr);
-          localStorage.setItem('universe_delivery_address', cleanAddr);
-          setFieldErrors(prev => ({ ...prev, address: false }));
-          if (validationError) setValidationError('');
-        } catch {
-          const fallback = `Campus Landmark (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`;
-          setDeliveryAddress(fallback);
-          localStorage.setItem('universe_delivery_address', fallback);
-          setFieldErrors(prev => ({ ...prev, address: false }));
-        } finally {
-          setIsLocating(false);
+          const bdcRes = await fetch(
+            `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`
+          );
+          const bdcData = await bdcRes.json();
+          if (bdcData) {
+            const bdcParts = [
+              bdcData.locality,
+              bdcData.principalSubdivision,
+              bdcData.city,
+              bdcData.postcode
+            ].filter(Boolean);
+            if (bdcParts.length > 0) {
+              resolvedAddress = bdcParts.filter((v, i, a) => a.indexOf(v) === i).join(', ');
+            }
+          }
+        } catch (e) {}
+
+        // 2. Secondary priority: Nominatim with granular street/building address details
+        if (!resolvedAddress || resolvedAddress.length < 5) {
+          try {
+            const res = await fetch(
+              `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`
+            );
+            const data = await res.json();
+            const a = data.address || {};
+            const detailed = [
+              a.amenity || a.building || a.shop || a.house_number,
+              a.road || a.pedestrian || a.street,
+              a.neighbourhood || a.suburb || a.residential,
+              a.city || a.town || a.county,
+              a.postcode
+            ].filter(Boolean).join(', ');
+            resolvedAddress = detailed || data.display_name?.split(',').slice(0, 4).join(', ') || '';
+          } catch (e) {}
         }
+
+        const finalAddr = resolvedAddress || `Campus Area (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`;
+        setDeliveryAddress(finalAddr);
+        localStorage.setItem('universe_delivery_address', finalAddr);
+        setFieldErrors(prev => ({ ...prev, address: false }));
+        if (validationError) setValidationError('');
+        setIsLocating(false);
       },
       () => {
         setIsLocating(false);
-        alert('Could not auto-detect location. Please ensure location permissions are granted or select a campus landmark.');
+        alert('Could not auto-detect location. Please ensure location permissions are granted or type your hostel block manually.');
       },
-      { timeout: 8000, enableHighAccuracy: true }
+      { timeout: 10000, enableHighAccuracy: true }
     );
   };
 
