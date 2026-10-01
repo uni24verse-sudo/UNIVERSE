@@ -43,10 +43,76 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 // Initialize WhatsApp Multi-Device & Journey Engine services
 whatsappMultiDeviceService.setIO(io);
 
-// ⚡ AWS RDS PostgreSQL Connection & Background Services Boot
+// ⚡ AWS RDS / Supabase PostgreSQL Schema Auto-Sync & Background Services Boot
+async function ensureProductionSchema() {
+  try {
+    // 1. Stores columns
+    await prisma.$executeRawUnsafe(`ALTER TABLE "stores" ADD COLUMN IF NOT EXISTS "offers" JSONB DEFAULT '[]'::jsonb;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "stores" ADD COLUMN IF NOT EXISTS "categoryImages" JSONB DEFAULT '[]'::jsonb;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "stores" ADD COLUMN IF NOT EXISTS "accentColor" VARCHAR(64) DEFAULT '#ef4123';`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "stores" ADD COLUMN IF NOT EXISTS "storeType" VARCHAR(64) DEFAULT 'FastFood';`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "stores" ADD COLUMN IF NOT EXISTS "autoAcceptOrders" BOOLEAN DEFAULT false;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "stores" ADD COLUMN IF NOT EXISTS "hasDeliveryService" BOOLEAN DEFAULT false;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "stores" ADD COLUMN IF NOT EXISTS "hasTableService" BOOLEAN DEFAULT false;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "stores" ADD COLUMN IF NOT EXISTS "deliveryFee" DOUBLE PRECISION DEFAULT 0;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "stores" ADD COLUMN IF NOT EXISTS "freeDeliveryThreshold" DOUBLE PRECISION DEFAULT 0;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "stores" ADD COLUMN IF NOT EXISTS "minDeliveryOrderValue" DOUBLE PRECISION DEFAULT 0;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "stores" ADD COLUMN IF NOT EXISTS "estimatedDeliveryTime" INT DEFAULT 30;`);
+
+    // 2. Orders columns
+    await prisma.$executeRawUnsafe(`ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "deliveryAddress" TEXT DEFAULT '';`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "tableNumber" TEXT DEFAULT '';`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "cookingInstructions" TEXT DEFAULT '';`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "platformFee" DOUBLE PRECISION DEFAULT 0;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "deliveryFee" DOUBLE PRECISION DEFAULT 0;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "riderName" TEXT DEFAULT '';`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "riderPhone" TEXT DEFAULT '';`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "deliveryOtp" TEXT DEFAULT '';`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "dispatchedAt" TIMESTAMP WITH TIME ZONE;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "deliveredAt" TIMESTAMP WITH TIME ZONE;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "deliveryBatchId" TEXT DEFAULT '';`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "batchStopSequence" INT DEFAULT 1;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "discountAmount" DOUBLE PRECISION DEFAULT 0;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "appliedOffer" JSONB DEFAULT '{}'::jsonb;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "packagingChargeApplied" DOUBLE PRECISION DEFAULT 0;`);
+
+    // 3. Admins columns
+    await prisma.$executeRawUnsafe(`ALTER TABLE "admins" ADD COLUMN IF NOT EXISTS "status" TEXT DEFAULT 'ACTIVE';`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "admins" ADD COLUMN IF NOT EXISTS "telegramChatId" TEXT DEFAULT '';`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "admins" ADD COLUMN IF NOT EXISTS "isBanned" BOOLEAN DEFAULT false;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "admins" ADD COLUMN IF NOT EXISTS "storeId" TEXT DEFAULT '';`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "admins" ADD COLUMN IF NOT EXISTS "vendorId" TEXT DEFAULT '';`);
+
+    // 4. Locations columns
+    await prisma.$executeRawUnsafe(`ALTER TABLE "locations" ADD COLUMN IF NOT EXISTS "markets" TEXT DEFAULT '';`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "locations" ADD COLUMN IF NOT EXISTS "dietaryType" TEXT DEFAULT 'both';`);
+
+    // 5. Vendor delivery staff table
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS vendor_delivery_staff (
+        id TEXT PRIMARY KEY,
+        "storeId" TEXT NOT NULL REFERENCES "stores"("id") ON DELETE CASCADE,
+        name TEXT NOT NULL,
+        phone TEXT NOT NULL,
+        "vehicleNo" TEXT DEFAULT '',
+        "isActive" BOOLEAN DEFAULT true,
+        "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      );
+    `);
+    await prisma.$executeRawUnsafe(`
+      CREATE INDEX IF NOT EXISTS idx_vendor_delivery_staff_store ON vendor_delivery_staff("storeId");
+    `);
+
+    console.log('✅ [UniVerse] Production database schema verified and synchronized.');
+  } catch (err) {
+    console.log('ℹ️ [UniVerse] Schema sync check complete:', err.message);
+  }
+}
+
 prisma.$connect()
-  .then(() => {
+  .then(async () => {
     console.log('✅ [UniVerse] Connected to Supabase PostgreSQL via Prisma ORM');
+    await ensureProductionSchema();
     whatsappMultiDeviceService.init().catch(err => console.error('[WhatsApp] Engine Init Error:', err.message));
     journeyEngineService.start();
   })
