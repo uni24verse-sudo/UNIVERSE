@@ -163,26 +163,37 @@ async function runComprehensiveProfitAudit() {
   // Calculate live database profit extraction
   let settledPlatformProfit = 0;
   let settledGateway = 0;
+  let settledDeliveryFees = 0;
   for (const s of settlements) {
     settledPlatformProfit += Number(s.platformCommission || 0);
     settledGateway += Number(s.gatewayFee || 0);
+    settledDeliveryFees += Number(s.feesBreakdown?.deliveryPlatformFees || 0);
   }
 
   const liveUnsettled = completed.filter(o => !o.isSettled);
   const liveUnsettledGMV = liveUnsettled.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
-  const projectedCommission = liveUnsettledGMV * 0.03;
+  const liveDeliveryFees = liveUnsettled.reduce((sum, o) => sum + (o.platformFee || 0), 0);
+  const liveVendorSales = Math.max(0, liveUnsettledGMV - liveDeliveryFees);
+
+  const projectedCommission = liveVendorSales * 0.03;
+  const projectedDeliveryFees = liveDeliveryFees;
+  const projectedPlatformProfit = projectedCommission + projectedDeliveryFees;
   const projectedGateway = liveUnsettledGMV * 0.02;
 
-  const grandPlatformProfit = settledPlatformProfit + projectedCommission;
+  const totalDeliveryFees = completed.reduce((sum, o) => sum + (o.platformFee || 0), 0);
+  const grandPlatformProfit = settledPlatformProfit + projectedPlatformProfit;
   const grandGatewayFee = settledGateway + projectedGateway;
   const grandVendorShare = Math.max(0, totalGMV - grandGatewayFee - grandPlatformProfit);
 
   console.log('\n--- LIVE DB FINANCIAL METRICS ---');
-  console.log(`Total Completed GMV:             ₹${totalGMV.toFixed(2)}`);
-  console.log(`Total Platform Commission (3%):  ₹${grandPlatformProfit.toFixed(2)}`);
-  console.log(`Total Payment Gateway Fee (2%):  ₹${grandGatewayFee.toFixed(2)}`);
-  console.log(`Total Vendor Payouts:            ₹${grandVendorShare.toFixed(2)}`);
-  console.log(`Sum Verification:                ${(grandVendorShare + grandGatewayFee + grandPlatformProfit).toFixed(2)} === ${totalGMV.toFixed(2)}`);
+  console.log(`Total Completed GMV:                  ₹${totalGMV.toFixed(2)}`);
+  console.log(` - Vendor Sales Volume:               ₹${(totalGMV - totalDeliveryFees).toFixed(2)}`);
+  console.log(` - 3% Platform Commission on Sales:   ₹${(grandPlatformProfit - totalDeliveryFees).toFixed(2)}`);
+  console.log(` - Delivery Platform Fees (₹5/order): ₹${totalDeliveryFees.toFixed(2)} (100% UniVerse Profit)`);
+  console.log(`Total UniVerse Net Platform Profit:   ₹${grandPlatformProfit.toFixed(2)}`);
+  console.log(`Total Payment Gateway Fee (2%):       ₹${grandGatewayFee.toFixed(2)}`);
+  console.log(`Total Vendor Payouts:                 ₹${grandVendorShare.toFixed(2)}`);
+  console.log(`Sum Verification:                     ${(grandVendorShare + grandGatewayFee + grandPlatformProfit).toFixed(2)} === ${totalGMV.toFixed(2)}`);
 
   console.log('\n===============================================================');
   console.log('  🎯 ALL AUDIT TESTS PASSED: PROFIT & FEES 100% OPERATIONAL   ');

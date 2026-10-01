@@ -133,10 +133,13 @@ router.get('/stats', async (req, res) => {
     ]);
 
     const liveCompletedVolume = unsettledCompleted.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+    const liveDeliveryPlatformFees = unsettledCompleted.reduce((sum, o) => sum + (o.platformFee || 0), 0);
+    const liveVendorSales = Math.max(0, liveCompletedVolume - liveDeliveryPlatformFees);
     const liveCancelledVolume = unsettledCancelled.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
 
     const projectedGateway = liveCompletedVolume * 0.02;
-    const projectedPlatformProfit = liveCompletedVolume * 0.03;
+    const projectedCommission = liveVendorSales * 0.03;
+    const projectedPlatformProfit = projectedCommission + liveDeliveryPlatformFees;
     const projectedCancellationPenalty = liveCancelledVolume * 0.04;
 
     const rawCancellation = settledCancellationPenalty + projectedCancellationPenalty;
@@ -145,8 +148,8 @@ router.get('/stats', async (req, res) => {
     const netCancellationPenalty = parseFloat((totalCancellationPenalty - cancellationGatewayFee).toFixed(2)); // 2% UniVerse Net Penalty
 
     const totalGatewayFee = parseFloat((settledGateway + projectedGateway + cancellationGatewayFee).toFixed(2)); // All 2% PG fees (completed + cancelled)
-    const totalPlatformProfit = parseFloat((settledPlatformProfit + projectedPlatformProfit).toFixed(2)); // 3% Commission
-    const totalUniVerseNetTake = parseFloat((totalPlatformProfit + netCancellationPenalty).toFixed(2)); // 3% Commission + 2% Net Penalty
+    const totalPlatformProfit = parseFloat((settledPlatformProfit + projectedPlatformProfit).toFixed(2)); // 3% Commission + Delivery Platform Fees
+    const totalUniVerseNetTake = parseFloat((totalPlatformProfit + netCancellationPenalty).toFixed(2)); // Pure UniVerse Net Take
     const totalPlatformDeductions = parseFloat((totalGatewayFee + totalUniVerseNetTake).toFixed(2)); // Total deductions from vendors
 
     res.json({
@@ -236,10 +239,13 @@ router.get('/realtime-analytics', async (req, res) => {
     ]);
 
     const liveCompletedVolume = unsettledCompleted.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+    const liveDeliveryPlatformFees = unsettledCompleted.reduce((sum, o) => sum + (o.platformFee || 0), 0);
+    const liveVendorSales = Math.max(0, liveCompletedVolume - liveDeliveryPlatformFees);
     const liveCancelledVolume = unsettledCancelled.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
 
     const projectedGateway = liveCompletedVolume * 0.02;
-    const projectedPlatformProfit = liveCompletedVolume * 0.03;
+    const projectedCommission = liveVendorSales * 0.03;
+    const projectedPlatformProfit = projectedCommission + liveDeliveryPlatformFees;
     const projectedCancellationPenalty = liveCancelledVolume * 0.04;
 
     const rawCancellation = settledCancellationPenalty + projectedCancellationPenalty;
@@ -249,7 +255,7 @@ router.get('/realtime-analytics', async (req, res) => {
 
     const totalGatewayFee = parseFloat((settledGateway + projectedGateway + cancellationGatewayFee).toFixed(2)); // All 2% PG fees (completed + cancelled)
     const totalPlatformCommission = parseFloat((settledPlatformProfit + projectedPlatformProfit).toFixed(2));
-    // UniVerse Net Take = 3% Take + 2% Net Penalty (excludes all 2% Razorpay fees)
+    // UniVerse Net Take = 3% Commission + Delivery Platform Fees + 2% Net Penalty (excludes all 2% Razorpay fees)
     const totalPlatformProfit = parseFloat((totalPlatformCommission + netCancellationPenalty).toFixed(2));
     const totalPlatformDeductions = parseFloat((totalGatewayFee + totalPlatformProfit).toFixed(2));
 
