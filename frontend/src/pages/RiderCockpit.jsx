@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
+import { Html5Qrcode } from 'html5-qrcode';
 import {
   Navigation,
   Phone,
@@ -13,7 +14,10 @@ import {
   ArrowRight,
   Lock,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  QrCode,
+  Camera,
+  X
 } from 'lucide-react';
 import './RiderCockpit.css';
 
@@ -31,9 +35,12 @@ const RiderCockpit = () => {
   const [verifyError, setVerifyError] = useState('');
   const [isWakeLocked, setIsWakeLocked] = useState(false);
   const [showItems, setShowItems] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
+  const [scannerError, setScannerError] = useState('');
 
   const pinRefs = [useRef(), useRef(), useRef(), useRef()];
   const wakeLockRef = useRef(null);
+  const qrScannerRef = useRef(null);
 
   // 1. Screen Wake-Lock Management (Keeps phone screen on during navigation)
   useEffect(() => {
@@ -56,6 +63,20 @@ const RiderCockpit = () => {
     return () => {
       if (wakeLockRef.current) {
         wakeLockRef.current.release().catch(() => {});
+      }
+    };
+  }, []);
+
+  // Clean up QR scanner on unmount
+  useEffect(() => {
+    return () => {
+      if (qrScannerRef.current) {
+        try {
+          if (qrScannerRef.current.isScanning) {
+            qrScannerRef.current.stop().catch(() => {});
+          }
+          qrScannerRef.current.clear().catch(() => {});
+        } catch (e) {}
       }
     };
   }, []);
@@ -119,31 +140,24 @@ const RiderCockpit = () => {
     }
   };
 
-  // Submit 4-digit PIN verification
-  const handleVerifyPin = async (e) => {
-    e.preventDefault();
-    const pin = pinDigits.join('');
-    if (pin.length !== 4) {
-      setVerifyError('Please enter the full 4-digit PIN given by the customer.');
-      return;
-    }
-
-    const currentStop = tripData?.stops?.[activeStopIndex];
-    if (!currentStop) return;
-
+  // Submit Verification to backend
+  const submitVerification = async (orderId, pin) => {
+    if (!orderId || !pin) return;
     setVerifying(true);
     setVerifyError('');
 
     try {
       const res = await axios.post(`${API_BASE}/api/delivery/verify-stop`, {
-        orderId: currentStop.id,
+        orderId,
         pin
       });
 
       if (res.data.success) {
         // Update local state
-        const updatedStops = tripData.stops.map((s, idx) =>
-          idx === activeStopIndex ? { ...s, status: 'Completed', deliveredAt: new Date().toISOString() } : s
+        const updatedStops = (tripData?.stops || []).map((s) =>
+          String(s.id) === String(orderId)
+            ? { ...s, status: 'Completed', deliveredAt: new Date().toISOString() }
+            : s
         );
 
         const allDone = updatedStops.every(s => s.status === 'Completed');
@@ -163,10 +177,107 @@ const RiderCockpit = () => {
         }
       }
     } catch (err) {
-      setVerifyError(err.response?.data?.message || 'Invalid PIN. Please ask the customer again.');
+      setVerifyError(err.response?.data?.message || 'Invalid PIN or QR. Please ask the customer again.');
     } finally {
       setVerifying(false);
     }
+  };
+
+  // Submit 4-digit manual PIN verification
+  const handleVerifyPin = async (e) => {
+    e.preventDefault();
+    const pin = pinDigits.join('');
+    if (pin.length !== 4) {
+      setVerifyError('Please enter the full 4-digit PIN given by the customer.');
+      return;
+    }
+
+    const currentStop = tripData?.stops?.[activeStopIndex];
+    if (!currentStop) return;
+
+    await submitVerification(currentStop.id, pin);
+  };
+
+  // Camera QR Scanner start/stop
+  const startScanner = async () => {
+    setShowScanner(true);
+    setScannerError('');
+    setTimeout(async () => {
+      try {
+        const html5QrCode = new Html5Qrcode('rider-qr-reader');
+        qrScannerRef.current = html5QrCode;
+
+        await html5QrCode.start(
+          { facingMode: 'environment' },
+          {
+            fps: 10,
+            qrbox: { width: 250, height: 250 }
+          },
+          async (decodedText) => {
+            console.log('[Rider Scanner] Scanned text:', decodedText);
+            handleScannedData(decodedText);
+          },
+          () => {
+            // frame ignored
+          }
+        );
+      } catch (err) {
+        console.error('[Rider Scanner] Camera start error:', err);
+        setScannerError('Could not open camera. Please ensure camera permissions are granted or use manual PIN.');
+      }
+    }, 150);
+  };
+
+  const stopScanner = async () => {
+    if (qrScannerRef.current) {
+      try {
+        if (qrScannerRef.current.isScanning) {
+          await qrScannerRef.current.stop();
+        }
+        await qrScannerRef.current.clear();
+      } catch (e) {
+        console.warn('Error stopping scanner:', e);
+      }
+      qrScannerRef.current = null;
+    }
+    setShowScanner(false);
+    setScannerError('');
+  };
+
+  // Process scanned QR payload
+  const handleScannedData = async (rawText) => {
+    let targetOrderId = tripData?.stops?.[activeStopIndex]?.id;
+    let targetPin = '';
+
+    try {
+      const parsed = JSON.parse(rawText);
+      if (parsed && typeof parsed === 'object') {
+        if (parsed.pin) targetPin = String(parsed.pin);
+        if (parsed.orderId) {
+          const stopMatch = tripData?.stops?.findIndex(
+            s => String(s.id) === String(parsed.orderId) || String(s.orderNumber) === String(parsed.orderNumber)
+          );
+          if (stopMatch !== -1) {
+            targetOrderId = tripData.stops[stopMatch].id;
+            setActiveStopIndex(stopMatch);
+          }
+        }
+      }
+    } catch (e) {
+      const cleanDigits = String(rawText || '').replace(/\D/g, '');
+      if (cleanDigits.length === 4) {
+        targetPin = cleanDigits;
+      }
+    }
+
+    if (!targetPin || targetPin.length !== 4) {
+      setScannerError('Scanned QR code does not contain a valid 4-digit PIN. Please scan the customer’s Delivery QR.');
+      return;
+    }
+
+    // Stop camera and verify
+    await stopScanner();
+    await submitVerification(targetOrderId, targetPin);
   };
 
   if (loading) {
@@ -370,11 +481,25 @@ const RiderCockpit = () => {
           )}
         </div>
 
-        {/* PIN Verification Handover */}
+        {/* PIN Verification / QR Handover */}
         {currentStop.status !== 'Completed' ? (
           <div className="rider-pin-box">
             <h4 className="rider-pin-title">Verify Handover</h4>
-            <p className="rider-pin-sub">Ask {currentStop.customerName} for the 4-digit Delivery PIN</p>
+            <p className="rider-pin-sub">Scan customer QR or enter the 4-digit Delivery PIN</p>
+
+            {/* Instant Camera QR Scanner Button */}
+            <button
+              type="button"
+              onClick={startScanner}
+              className="rider-btn-scan-qr"
+            >
+              <QrCode size={20} />
+              <span>📷 Scan Customer QR Code</span>
+            </button>
+
+            <div className="rider-or-divider">
+              <span>OR ENTER 4-DIGIT PIN</span>
+            </div>
 
             <form onSubmit={handleVerifyPin}>
               <div className="pin-inputs-row">
@@ -426,6 +551,51 @@ const RiderCockpit = () => {
           </div>
         )}
       </div>
+
+      {/* QR Camera Scanner Modal */}
+      {showScanner && (
+        <div className="rider-scanner-modal-backdrop">
+          <div className="rider-scanner-modal">
+            <div className="rider-scanner-modal-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Camera size={20} color="#f97316" />
+                <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, color: '#fff' }}>
+                  Scan Handover QR
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={stopScanner}
+                className="rider-scanner-close-btn"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="rider-scanner-viewport-wrapper">
+              <div id="rider-qr-reader" style={{ width: '100%' }}></div>
+              <div className="rider-scanner-target-box">
+                <div className="scanner-target-corner top-left"></div>
+                <div className="scanner-target-corner top-right"></div>
+                <div className="scanner-target-corner bottom-left"></div>
+                <div className="scanner-target-corner bottom-right"></div>
+                <div className="scanner-laser-line"></div>
+              </div>
+            </div>
+
+            <p style={{ fontSize: '0.8rem', color: '#94a3b8', textAlign: 'center', margin: '0.85rem 0 0 0' }}>
+              Aim camera at customer's phone showing the Delivery Handover QR
+            </p>
+
+            {scannerError && (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', color: '#f87171', fontSize: '0.82rem', marginTop: '0.75rem', textAlign: 'center', background: 'rgba(239, 68, 68, 0.1)', padding: '0.5rem', borderRadius: '10px' }}>
+                <AlertCircle size={14} />
+                <span>{scannerError}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

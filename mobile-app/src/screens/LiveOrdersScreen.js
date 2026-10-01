@@ -24,7 +24,7 @@ import { SocketContext } from '../context/SocketContext';
 import apiClient from '../api/client';
 import { useAudioAlerts } from '../hooks/useAudioAlerts';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, Feather } from '@expo/vector-icons';
 const getNotifications = () => {
   if (Platform.OS === 'web') return null;
   try {
@@ -1063,6 +1063,16 @@ export default function LiveOrdersScreen({ navigation }) {
   }, [displayOrders]);
   const readyOrders = useMemo(() => displayOrders.filter(o => o.status === 'Ready'), [displayOrders]);
   const historyOrders = useMemo(() => displayOrders.filter(o => ['Completed', 'Cancelled'].includes(o.status)), [displayOrders]);
+  
+  // Dedicated delivery orders for floating hub & stats
+  const deliveryOrders = useMemo(() => 
+    displayOrders.filter(o => o.orderType === 'Delivery' && ['Confirmed', 'Cooking', 'Ready', 'Out for Delivery'].includes(o.status)),
+    [displayOrders]
+  );
+  const pendingDispatchCount = useMemo(() => 
+    deliveryOrders.filter(o => ['Cooking', 'Ready'].includes(o.status) && !o.riderName).length,
+    [deliveryOrders]
+  );
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -1177,6 +1187,36 @@ export default function LiveOrdersScreen({ navigation }) {
     }
 
     if (order.status === 'Cooking') {
+      if (order.orderType === 'Delivery') {
+        return (
+          <View style={styles.actionRow}>
+            <TouchableOpacity 
+              style={{ flex: 1.3 }}
+              onPress={async () => {
+                await updateStatus(order._id, 'Cooking', 'Ready');
+                openSingleDispatchModal(order);
+              }}
+              activeOpacity={0.85}
+            >
+              <LinearGradient colors={['#10B981', '#059669']} style={styles.gradientBtn}>
+                <Ionicons name="bicycle" size={17} color="white" style={{ marginRight: 6 }} />
+                <Text style={styles.btnText}>Ready & Dispatch</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={{ flex: 0.8 }}
+              onPress={() => updateStatus(order._id, 'Cooking', 'Ready')}
+              activeOpacity={0.8}
+            >
+              <LinearGradient colors={['#3B82F6', '#2563EB']} style={styles.gradientBtn}>
+                <Ionicons name="checkmark-done" size={16} color="white" style={{ marginRight: 4 }} />
+                <Text style={styles.btnText}>Mark Ready</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+        );
+      }
+
       return (
         <TouchableOpacity 
           onPress={() => updateStatus(order._id, 'Cooking', 'Ready')}
@@ -1203,7 +1243,7 @@ export default function LiveOrdersScreen({ navigation }) {
               <LinearGradient colors={isDispatched ? ['#059669', '#047857'] : ['#10B981', '#059669']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.gradientBtn}>
                 <Ionicons name={isDispatched ? "logo-whatsapp" : "bicycle"} size={16} color="white" style={{ marginRight: 6 }} />
                 <Text style={styles.btnText}>
-                  {isDispatched ? `WhatsApp: ${order.riderName || 'Rider'}` : 'Assign Partner'}
+                  {isDispatched ? `WhatsApp: ${order.riderName || 'Rider'}` : 'Assign Rider'}
                 </Text>
               </LinearGradient>
             </TouchableOpacity>
@@ -1283,80 +1323,61 @@ export default function LiveOrdersScreen({ navigation }) {
         item.status === 'Pending' && styles.pendingCard,
         item.isPreOrder && styles.preOrderCard
       ]}>
-        {/* Top High-Visibility Order Type Banner (Delivery vs Dine In vs Packing) */}
-        {isDelivery ? (
-          <View style={[styles.packingBanner, { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' }]}>
-            <View style={styles.packingBannerLeft}>
-              <View style={[styles.packingIconBox, { backgroundColor: '#10B981' }]}>
-                <Ionicons name="bicycle" size={17} color="#FFFFFF" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.packingBannerTitle, { color: '#047857' }]}>
-                  🛵 SELF-DELIVERY {item.riderName ? `• ${item.riderName.toUpperCase()}` : '• RIDER PENDING'}
-                </Text>
-                <Text style={[styles.packingBannerSubtitle, { color: '#065F46' }]} numberOfLines={1}>
-                  Drop: {item.deliveryAddress || 'Campus / Room Delivery'}
-                </Text>
-              </View>
-            </View>
-          </View>
-        ) : isTakeaway ? (
-          <View style={styles.packingBanner}>
-            <View style={styles.packingBannerLeft}>
-              <View style={styles.packingIconBox}>
-                <Ionicons name="bag-handle" size={17} color="#FFFFFF" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.packingBannerTitle}>PACKING / TAKEAWAY</Text>
-                <Text style={styles.packingBannerSubtitle}>Pack in parcel bag • Disposable containers</Text>
-              </View>
-            </View>
-          </View>
-        ) : (
-          <View style={styles.dineInBanner}>
-            <View style={styles.dineInBannerLeft}>
-              <View style={styles.dineInIconBox}>
-                <Ionicons name="restaurant" size={17} color="#FFFFFF" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.dineInBannerTitle}>
-                  DINE IN {tableClean ? `• TABLE ${tableClean}` : ''}
-                </Text>
-                <Text style={styles.dineInBannerSubtitle}>Serve on tray / plate • Counter dining</Text>
-              </View>
-            </View>
-          </View>
-        )}
-
-        {/* Top Meta Header */}
+        {/* Top High-Signal Header */}
         <View style={styles.cardHeader}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
             <Text style={styles.orderId}>#{item.orderNumber || item._id.slice(-6).toUpperCase()}</Text>
             <Text style={styles.timeElapsed}>{formatRelativeTime(item.createdAt)}</Text>
           </View>
           
-          <View style={[styles.statusBadge, { backgroundColor: `${statusColor}18`, borderColor: `${statusColor}40` }]}>
-            <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
-            <Text style={[styles.statusText, { color: statusColor }]}>{item.status}</Text>
-          </View>
-        </View>
-        
-        {/* Tags Row */}
-        <View style={styles.tagsRow}>
-          {item.isPreOrder && (
-            <View style={[styles.tagBadge, { backgroundColor: '#FDF2F8', borderColor: '#FCE7F3' }]}>
-              <Text style={[styles.tagText, { color: '#BE185D' }]}>⏰ Pre-Order: {item.scheduledTime}</Text>
-            </View>
-          )}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            {/* Clean Order Type Tag */}
+            {isDelivery ? (
+              <View style={styles.deliveryTypeBadge}>
+                <Ionicons name="bicycle" size={12} color="#047857" />
+                <Text style={styles.deliveryTypeBadgeText}>DELIVERY</Text>
+              </View>
+            ) : isTakeaway ? (
+              <View style={styles.takeawayTypeBadge}>
+                <Ionicons name="bag-handle" size={12} color="#C2410C" />
+                <Text style={styles.takeawayTypeBadgeText}>TAKEAWAY</Text>
+              </View>
+            ) : (
+              <View style={styles.dineInTypeBadge}>
+                <Ionicons name="restaurant" size={12} color="#4338CA" />
+                <Text style={styles.dineInTypeBadgeText}>{tableClean ? `TABLE ${tableClean}` : 'DINE IN'}</Text>
+              </View>
+            )}
 
-          <View style={[styles.tagBadge, { backgroundColor: '#F1F5F9', borderColor: '#E2E8F0' }]}>
-            <Text style={[styles.tagText, { color: '#475569' }]}>
-              {item.paymentMethod === 'Razorpay' ? '💳 Online Paid' : '💵 Paid'}
-            </Text>
+            {/* Status Badge */}
+            <View style={[styles.statusBadge, { backgroundColor: `${statusColor}18`, borderColor: `${statusColor}40` }]}>
+              <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
+              <Text style={[styles.statusText, { color: statusColor }]}>{item.status}</Text>
+            </View>
           </View>
         </View>
+
+        {/* Refined Delivery Destination Strip (Single Clean Line) */}
+        {isDelivery && (
+          <View style={styles.refinedDeliveryStrip}>
+            <Ionicons name="location-sharp" size={15} color="#059669" />
+            <Text style={styles.refinedDeliveryText} numberOfLines={1}>
+              {item.deliveryAddress || 'Hostel Drop'}
+            </Text>
+            {item.riderName ? (
+              <View style={styles.riderAssignedPill}>
+                <Ionicons name="bicycle" size={11} color="#1E40AF" />
+                <Text style={styles.riderAssignedText} numberOfLines={1}>{item.riderName}</Text>
+              </View>
+            ) : (
+              <View style={styles.riderUnassignedPill}>
+                <Text style={styles.riderUnassignedText}>No Rider</Text>
+              </View>
+            )}
+          </View>
+        )}
         
-        {/* Pre-order Live Banner */}
+        {/* Pre-order Live Banner (If Scheduled) */}
         {item.isPreOrder && item.status !== 'Completed' && item.status !== 'Cancelled' && (
           <View style={[
             styles.preOrderBanner, 
@@ -1365,13 +1386,13 @@ export default function LiveOrdersScreen({ navigation }) {
           ]}>
             <Ionicons 
               name={preOrderInfo.isWarning ? 'warning-outline' : 'flame-outline'} 
-              size={16} 
+              size={15} 
               color={preOrderInfo.isWarning ? '#DC2626' : '#EF4123'} 
             />
             <Text style={{ 
               color: preOrderInfo.isWarning ? '#DC2626' : '#EF4123', 
               fontWeight: '700', 
-              fontSize: 13,
+              fontSize: 12.5,
               flex: 1
             }}>
               {preOrderInfo.text}
@@ -1402,71 +1423,30 @@ export default function LiveOrdersScreen({ navigation }) {
           ))}
         </View>
 
-        {/* Universal Delivery Details Card */}
-        {isDelivery && (
-          <View style={{
-            backgroundColor: '#F0FDF4',
-            borderWidth: 1,
-            borderColor: '#BBF7D0',
-            borderRadius: 12,
-            padding: 12,
-            marginTop: 10,
-            marginBottom: 8,
-          }}>
-            <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
-              <Ionicons name="location" size={18} color="#059669" style={{ marginRight: 8, marginTop: 1 }} />
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 11, fontWeight: '800', color: '#047857', textTransform: 'uppercase' }}>
-                  Delivery Destination
-                </Text>
-                <Text style={{ fontSize: 13, fontWeight: '700', color: '#1E293B', marginTop: 2 }}>
-                  {item.deliveryAddress || 'Campus Room Delivery'}
-                </Text>
-                {item.riderName ? (
-                  <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6, flexWrap: 'wrap', gap: 6 }}>
-                    <View style={{ backgroundColor: '#DBEAFE', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 }}>
-                      <Text style={{ fontSize: 11, fontWeight: '700', color: '#1E40AF' }}>
-                        🛵 Rider: {item.riderName} ({item.riderPhone})
-                      </Text>
-                    </View>
-                    <View style={{ backgroundColor: '#FEF3C7', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 }}>
-                      <Text style={{ fontSize: 11, fontWeight: '800', color: '#92400E' }}>
-                        OTP PIN: {item.deliveryOtp || '****'}
-                      </Text>
-                    </View>
-                  </View>
-                ) : (
-                  <Text style={{ fontSize: 11, color: '#D97706', fontWeight: '700', marginTop: 4 }}>
-                    ⚠️ Rider unassigned. Tap "Assign & Dispatch" when packed.
-                  </Text>
-                )}
-              </View>
-            </View>
-          </View>
-        )}
-
-        {/* Special Cooking Requests / Chef Note */}
+        {/* Special Cooking Requests / Chef Note (Compact) */}
         {!!(item.cookingInstructions || item.specialRequest || item.instructions) && (
           <View style={styles.cookingInstructionsBox}>
-            <View style={styles.cookingInstructionsHeader}>
-              <Ionicons name="restaurant-outline" size={14} color="#B45309" />
-              <Text style={styles.cookingInstructionsLabel}>SPECIAL REQUEST / CHEF NOTE</Text>
-            </View>
-            <Text style={styles.cookingInstructionsText}>
+            <Ionicons name="chatbubble-ellipses" size={13} color="#B45309" />
+            <Text style={styles.cookingInstructionsText} numberOfLines={2}>
               "{item.cookingInstructions || item.specialRequest || item.instructions}"
             </Text>
           </View>
         )}
 
-        {/* Customer & Total Row (Protected Student Privacy - No Phone Number) */}
+        {/* Customer & Total Row */}
         <View style={styles.customerRow}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, flex: 1 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
             <View style={styles.customerAvatarMini}>
-              <Ionicons name="person" size={12} color="#475569" />
+              <Ionicons name="person" size={11} color="#475569" />
             </View>
             <Text style={styles.customerName} numberOfLines={1}>
-              {item.customerName || 'Student Customer'}
+              {item.customerName || 'Customer'}
             </Text>
+            {item.paymentMethod === 'Razorpay' ? (
+              <View style={{ backgroundColor: '#F0FDF4', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 4, borderWidth: 1, borderColor: '#DCFCE7' }}>
+                <Text style={{ fontSize: 9.5, color: '#16A34A', fontWeight: '800' }}>PAID</Text>
+              </View>
+            ) : null}
           </View>
 
           <Text style={styles.orderTotal}>₹{item.totalAmount}</Text>
@@ -2222,11 +2202,194 @@ export default function LiveOrdersScreen({ navigation }) {
           </View>
         </View>
       </Modal>
+
+      {/* Floating Delivery Dispatch Hub Button (Always Accessible from ANY Tab) */}
+      {deliveryOrders.length > 0 && (
+        <TouchableOpacity
+          style={styles.floatingDeliveryHub}
+          onPress={() => openBatchDispatchModal()}
+          activeOpacity={0.88}
+        >
+          <LinearGradient
+            colors={['#065F46', '#047857']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.floatingDeliveryGradient}
+          >
+            <View style={styles.floatingDeliveryIconBox}>
+              <Ionicons name="bicycle" size={18} color="#FFFFFF" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.floatingDeliveryTitle}>
+                {deliveryOrders.length} {deliveryOrders.length === 1 ? 'Delivery' : 'Deliveries'} Active
+              </Text>
+              <Text style={styles.floatingDeliverySub}>
+                {pendingDispatchCount > 0 ? `${pendingDispatchCount} awaiting rider dispatch` : 'All riders assigned'}
+              </Text>
+            </View>
+            <View style={styles.floatingDeliveryActionBadge}>
+              <Text style={styles.floatingDeliveryActionText}>
+                {pendingDispatchCount > 0 ? 'Dispatch' : 'View'}
+              </Text>
+              <Ionicons name="chevron-forward" size={13} color="#065F46" />
+            </View>
+          </LinearGradient>
+        </TouchableOpacity>
+      )}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  floatingDeliveryHub: {
+    position: 'absolute',
+    bottom: 16,
+    left: 16,
+    right: 16,
+    borderRadius: 16,
+    shadowColor: '#047857',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 8,
+    zIndex: 99,
+  },
+  floatingDeliveryGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 16,
+    gap: 12,
+  },
+  floatingDeliveryIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  floatingDeliveryTitle: {
+    fontSize: 13.5,
+    fontWeight: '900',
+    color: '#FFFFFF',
+    letterSpacing: 0.2,
+  },
+  floatingDeliverySub: {
+    fontSize: 11,
+    color: '#D1FAE5',
+    fontWeight: '600',
+    marginTop: 1,
+  },
+  floatingDeliveryActionBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+    gap: 2,
+  },
+  floatingDeliveryActionText: {
+    fontSize: 11.5,
+    fontWeight: '900',
+    color: '#065F46',
+  },
+  deliveryTypeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  deliveryTypeBadgeText: {
+    fontSize: 10.5,
+    fontWeight: '900',
+    color: '#047857',
+    letterSpacing: 0.4,
+  },
+  takeawayTypeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#FFF7ED',
+    borderWidth: 1,
+    borderColor: '#FED7AA',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  takeawayTypeBadgeText: {
+    fontSize: 10.5,
+    fontWeight: '900',
+    color: '#C2410C',
+    letterSpacing: 0.4,
+  },
+  dineInTypeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#EEF2FF',
+    borderWidth: 1,
+    borderColor: '#C7D2FE',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  dineInTypeBadgeText: {
+    fontSize: 10.5,
+    fontWeight: '900',
+    color: '#4338CA',
+    letterSpacing: 0.4,
+  },
+  refinedDeliveryStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F0FDF4',
+    borderWidth: 1,
+    borderColor: '#DCFCE7',
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    marginTop: 8,
+    gap: 6,
+  },
+  refinedDeliveryText: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#1E293B',
+  },
+  riderAssignedPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#DBEAFE',
+    paddingHorizontal: 7,
+    paddingVertical: 2.5,
+    borderRadius: 6,
+  },
+  riderAssignedText: {
+    fontSize: 10.5,
+    fontWeight: '800',
+    color: '#1E40AF',
+  },
+  riderUnassignedPill: {
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 7,
+    paddingVertical: 2.5,
+    borderRadius: 6,
+  },
+  riderUnassignedText: {
+    fontSize: 10.5,
+    fontWeight: '800',
+    color: '#92400E',
+  },
   container: {
     flex: 1,
     backgroundColor: '#F8FAFC',

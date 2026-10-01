@@ -321,6 +321,7 @@ const OrderTrackerScreen = ({ route, navigation }) => {
 
   const handoverToken = order.handoverToken || (order._id || order.id || id).slice(-4).toUpperCase();
   const orderNumber = order.orderNumber || (order._id || order.id || id).slice(-6).toUpperCase();
+  const deliveryOtp = String(order.deliveryOtp || handoverToken || '1234');
 
   // QR Code URL generating a scannable standard QR code for vendor scanner
   const qrPayload = JSON.stringify({
@@ -328,6 +329,14 @@ const OrderTrackerScreen = ({ route, navigation }) => {
     handoverToken: handoverToken,
   });
   const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=260x260&margin=8&data=${encodeURIComponent(qrPayload)}`;
+
+  // Delivery Handover QR code payload for rider camera scanner
+  const deliveryQrPayload = JSON.stringify({
+    type: 'DELIVERY_HANDOVER',
+    orderId: order._id || order.id || id,
+    pin: deliveryOtp,
+  });
+  const deliveryQrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=260x260&margin=8&data=${encodeURIComponent(deliveryQrPayload)}`;
 
   const getStatusDesc = () => {
     if (isPaymentPending) return 'Your payment is being processed';
@@ -546,103 +555,51 @@ const OrderTrackerScreen = ({ route, navigation }) => {
                 </View>
               ) : null}
 
-              {/* Live Delivery Route & Campus Map Visualizer */}
+              {/* Delivery Handover QR & PIN Card */}
               {order.deliveryAddress ? (
-                <View style={{
-                  backgroundColor: '#FFFFFF',
-                  borderRadius: 14,
-                  padding: 12,
-                  marginTop: 10,
-                  borderWidth: 1,
-                  borderColor: '#E2E8F0',
-                }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                <View style={styles.deliveryHandoverCard}>
+                  <View style={styles.deliveryHandoverHeader}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                      <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#10B981' }} />
-                      <Text style={{ fontSize: 11, fontWeight: '900', color: '#065F46', textTransform: 'uppercase' }}>
-                        {currentStatus === 'Out for Delivery' ? 'Live En-Route Tracking' : 'Dispatch Route'}
-                      </Text>
+                      <Ionicons name="bicycle" size={16} color="#059669" />
+                      <Text style={styles.deliveryHandoverTitle}>Delivery Handover</Text>
                     </View>
-                    <View style={{ backgroundColor: '#DCFCE7', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
-                      <Text style={{ fontSize: 10, fontWeight: '800', color: '#059669' }}>~8-12 mins ETA</Text>
+                    <View style={styles.deliveryEtaBadge}>
+                      <Text style={styles.deliveryEtaText}>Drop-off Verification</Text>
                     </View>
                   </View>
 
-                  {/* Route Progress Graphic */}
-                  <View style={{ position: 'relative', marginVertical: 6 }}>
-                    <View style={{ height: 4, backgroundColor: '#E2E8F0', borderRadius: 2 }}>
-                      <View style={{
-                        height: 4,
-                        borderRadius: 2,
-                        backgroundColor: '#10B981',
-                        width: currentStatus === 'Out for Delivery' ? '65%' : '25%',
-                      }} />
-                    </View>
+                  <Text style={styles.deliveryHandoverSub}>
+                    Show this QR code to the rider or share your 4-digit PIN upon delivery:
+                  </Text>
 
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: 8 }}>
-                      <View style={{ maxWidth: '40%' }}>
-                        <Text style={{ fontSize: 11, fontWeight: '800', color: '#1E293B' }} numberOfLines={1}>
-                          {order.store?.name || 'Stall Counter'}
-                        </Text>
-                        <Text style={{ fontSize: 9.5, color: '#94A3B8', fontWeight: '600' }}>Pickup Point</Text>
-                      </View>
+                  {/* Scannable Delivery QR Code Container */}
+                  <View style={styles.deliveryQrWrapper}>
+                    <Image
+                      source={{ uri: deliveryQrCodeUrl }}
+                      style={styles.qrImage}
+                      resizeMode="contain"
+                    />
+                  </View>
 
-                      <View style={{ alignItems: 'center', transform: [{ translateY: -16 }] }}>
-                        <View style={{
-                          width: 26,
-                          height: 26,
-                          borderRadius: 13,
-                          backgroundColor: '#10B981',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          shadowColor: '#10B981',
-                          shadowOffset: { width: 0, height: 2 },
-                          shadowOpacity: 0.3,
-                          shadowRadius: 4,
-                          elevation: 3,
-                        }}>
-                          <Ionicons name="bicycle" size={14} color="#FFFFFF" />
+                  {/* 4-Digit Delivery PIN Pill */}
+                  <View style={styles.deliveryPinBox}>
+                    <Text style={styles.deliveryPinLabel}>4-DIGIT DELIVERY PIN</Text>
+                    <TouchableOpacity
+                      onPress={() => handleCopyOtp(deliveryOtp)}
+                      activeOpacity={0.8}
+                      style={styles.deliveryPinDigitsRow}
+                    >
+                      {String(deliveryOtp).split('').map((digit, idx) => (
+                        <View key={idx} style={styles.deliveryPinDigitPill}>
+                          <Text style={styles.deliveryPinDigitText}>{digit}</Text>
                         </View>
-                        <Text style={{ fontSize: 9, fontWeight: '800', color: '#065F46', marginTop: 1 }}>
-                          {order.riderName || 'Rider'}
-                        </Text>
+                      ))}
+                      <View style={styles.deliveryPinCopyBtn}>
+                        <Feather name={copiedOtp ? 'check' : 'copy'} size={13} color="#059669" />
+                        <Text style={styles.deliveryPinCopyText}>{copiedOtp ? 'Copied' : 'Copy'}</Text>
                       </View>
-
-                      <View style={{ maxWidth: '40%', alignItems: 'flex-end' }}>
-                        <Text style={{ fontSize: 11, fontWeight: '800', color: '#1E293B', textAlign: 'right' }} numberOfLines={1}>
-                          {order.deliveryAddress}
-                        </Text>
-                        <Text style={{ fontSize: 9.5, color: '#94A3B8', fontWeight: '600' }}>Drop Destination</Text>
-                      </View>
-                    </View>
+                    </TouchableOpacity>
                   </View>
-
-                  {/* Google Maps Directions Button */}
-                  <TouchableOpacity
-                    onPress={() => {
-                      const origin = encodeURIComponent(order.store?.name || 'Campus Food Court');
-                      const dest = encodeURIComponent(order.deliveryAddress);
-                      Linking.openURL(`https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${dest}`);
-                    }}
-                    style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      backgroundColor: '#F0FDF4',
-                      borderWidth: 1,
-                      borderColor: '#BBF7D0',
-                      paddingVertical: 7,
-                      borderRadius: 8,
-                      marginTop: 8,
-                      gap: 6,
-                    }}
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons name="map-outline" size={13} color="#059669" />
-                    <Text style={{ fontSize: 11, fontWeight: '800', color: '#059669' }}>
-                      Open Route in Google Maps
-                    </Text>
-                  </TouchableOpacity>
                 </View>
               ) : null}
             </View>
@@ -1372,6 +1329,120 @@ const styles = StyleSheet.create({
     color: THEME.colors.textSecondary,
     textAlign: 'center',
     marginBottom: 14,
+  },
+  deliveryHandoverCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    padding: 16,
+    borderWidth: 1.5,
+    borderColor: '#A7F3D0',
+    marginTop: 12,
+    alignItems: 'center',
+    shadowColor: '#10B981',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 3,
+  },
+  deliveryHandoverHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginBottom: 8,
+  },
+  deliveryHandoverTitle: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: '#065F46',
+    letterSpacing: 0.2,
+  },
+  deliveryEtaBadge: {
+    backgroundColor: '#ECFDF5',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+  },
+  deliveryEtaText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#047857',
+  },
+  deliveryHandoverSub: {
+    fontSize: 11.5,
+    color: '#64748B',
+    textAlign: 'center',
+    marginBottom: 12,
+    lineHeight: 16,
+  },
+  deliveryQrWrapper: {
+    padding: 10,
+    backgroundColor: '#F0FDF4',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#BBF7D0',
+    marginBottom: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  deliveryPinBox: {
+    width: '100%',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  deliveryPinLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#64748B',
+    letterSpacing: 0.8,
+    marginBottom: 6,
+  },
+  deliveryPinDigitsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  deliveryPinDigitPill: {
+    width: 32,
+    height: 36,
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: '#10B981',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#10B981',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  deliveryPinDigitText: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: '#065F46',
+  },
+  deliveryPinCopyBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginLeft: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 6,
+    backgroundColor: '#ECFDF5',
+  },
+  deliveryPinCopyText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#059669',
   },
   qrWrapper: {
     padding: 10,

@@ -639,11 +639,12 @@ const OrderTracker = () => {
         {/* Handover Section: Delivery vs Pickup QR Code */}
         {(order.status === 'Ready' || order.status === 'Out for Delivery') && order.orderType === 'Delivery' ? (
           <div style={{ 
-            background: '#f0fdf4', 
-            padding: '2rem', 
+            background: '#ffffff', 
+            padding: '2rem 1.5rem', 
             borderRadius: '24px', 
             marginBottom: '2rem',
             border: '2px solid #10b981',
+            boxShadow: '0 12px 36px rgba(16, 185, 129, 0.12)',
             position: 'relative',
             overflow: 'hidden'
           }}>
@@ -654,54 +655,97 @@ const OrderTracker = () => {
               right: 0,
               height: '6px',
               background: '#10b981',
-              opacity: 0.8
+              opacity: 0.9
             }}></div>
             
-            <h3 style={{ fontSize: '1.25rem', fontWeight: '800', marginBottom: '0.4rem', color: '#065f46', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <Bike size={20} color="#059669" />
-              {order.riderName ? 'Rider Out For Delivery' : 'Order Packed & Ready'}
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', background: '#ecfdf5', border: '1px solid #a7f3d0', padding: '0.35rem 0.85rem', borderRadius: '999px', color: '#059669', fontSize: '0.78rem', fontWeight: '800', marginBottom: '0.75rem' }}>
+              <Bike size={14} />
+              {order.status === 'Out for Delivery' ? 'RIDER ON THE WAY' : 'PACKED & READY FOR RIDER'}
+            </div>
+
+            <h3 style={{ fontSize: '1.3rem', fontWeight: '800', marginBottom: '0.3rem', color: '#0f172a' }}>
+              Show QR to Delivery Partner
             </h3>
-            <p style={{ fontSize: '0.85rem', color: '#047857', marginBottom: '1.25rem' }}>
+            <p style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '1.25rem' }}>
               {order.riderName 
-                ? `Your delivery partner ${order.riderName} is on the way to your destination.`
-                : 'Your order is packed. Stall is dispatching it to their delivery partner.'}
+                ? `Delivery partner ${order.riderName} will scan this QR or ask for your 4-digit PIN upon arrival.`
+                : 'The rider will scan this QR or ask for your 4-digit PIN for contact-free handover.'}
             </p>
 
-            {/* Batch Nearby Notification */}
-            {order.deliveryBatchId && (
-              <div style={{ background: '#dcfce7', border: '1px solid #86efac', borderRadius: '12px', padding: '0.6rem 1rem', marginBottom: '1rem', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem', color: '#166534', fontWeight: '700' }}>
-                🛵 Batch delivery in progress • Driver is arriving shortly
+            {/* Scannable Handover QR Code */}
+            <div style={{
+              background: '#ffffff',
+              padding: '1.25rem',
+              borderRadius: '20px',
+              display: 'inline-block',
+              border: '2px solid #e2e8f0',
+              boxShadow: '0 8px 24px rgba(0,0,0,0.06)',
+              marginBottom: '1.25rem'
+            }}>
+              <QRCodeSVG
+                value={JSON.stringify({
+                  type: 'DELIVERY_HANDOVER',
+                  orderId: order._id || order.id || id,
+                  pin: order.deliveryOtp || ''
+                })}
+                size={180}
+                level="M"
+                includeMargin={false}
+              />
+              <div style={{ fontSize: '0.75rem', fontWeight: '700', color: '#64748b', marginTop: '0.6rem' }}>
+                🛵 Auto-Scannable by Rider
               </div>
-            )}
+            </div>
 
             {/* Delivery OTP PIN Box */}
             {order.deliveryOtp ? (
-              <div>
-                <div style={{ 
-                  background: 'white', 
-                  padding: '1.25rem 2rem', 
-                  borderRadius: '20px', 
-                  display: 'inline-block',
-                  boxShadow: '0 10px 30px rgba(16, 185, 129, 0.1)',
-                  border: '2px solid #86efac',
-                  margin: '0.5rem 0 1rem'
-                }}>
-                  <span style={{ fontSize: '0.75rem', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    Delivery Verification PIN
-                  </span>
-                  <div style={{ fontSize: '2.5rem', fontWeight: '900', color: '#047857', letterSpacing: '8px', margin: '0.25rem 0' }}>
-                    {order.deliveryOtp}
-                  </div>
-                  <span style={{ fontSize: '0.75rem', color: '#059669', fontWeight: '600' }}>
-                    Share this 4-digit PIN with the delivery boy upon arrival
-                  </span>
+              <div style={{ 
+                background: '#f8fafc', 
+                padding: '1.1rem 1.5rem', 
+                borderRadius: '18px', 
+                border: '1.5px dashed #cbd5e1',
+                maxWidth: '360px',
+                margin: '0 auto 1.25rem'
+              }}>
+                <div style={{ fontSize: '0.72rem', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>
+                  Or Share 4-Digit Delivery PIN
                 </div>
+                <div style={{ display: 'flex', justifyContent: 'center', gap: '0.6rem', marginBottom: '0.4rem' }}>
+                  {order.deliveryOtp.split('').map((char, i) => (
+                    <span key={i} style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: '44px',
+                      height: '48px',
+                      borderRadius: '12px',
+                      background: '#ffffff',
+                      border: '2px solid #10b981',
+                      fontSize: '1.5rem',
+                      fontWeight: '900',
+                      color: '#065f46',
+                      boxShadow: '0 2px 6px rgba(16, 185, 129, 0.15)'
+                    }}>
+                      {char}
+                    </span>
+                  ))}
+                </div>
+                <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                  Give this PIN to the delivery boy if camera scan is unavailable
+                </span>
               </div>
             ) : null}
 
+            {/* Destination Address Pill */}
+            {order.deliveryAddress && (
+              <div style={{ background: '#f1f5f9', borderRadius: '12px', padding: '0.6rem 1rem', fontSize: '0.82rem', color: '#334155', fontWeight: '600', display: 'inline-block', maxWidth: '100%', wordBreak: 'break-word', marginBottom: order.riderPhone ? '0.85rem' : 0 }}>
+                📍 Drop: {order.deliveryAddress}
+              </div>
+            )}
+
             {/* Rider Contact Button */}
             {order.riderName && order.riderPhone && (
-              <div style={{ marginTop: '0.5rem' }}>
+              <div style={{ marginTop: '0.75rem' }}>
                 <a
                   href={`tel:${order.riderPhone}`}
                   style={{
@@ -720,110 +764,6 @@ const OrderTracker = () => {
                 >
                   <Phone size={16} /> Call Rider ({order.riderName})
                 </a>
-              </div>
-            )}
-
-            {/* Live Delivery Route & Map Visualizer */}
-            {order.deliveryAddress && (
-              <div style={{
-                background: '#ffffff',
-                border: '1.5px solid #d1fae5',
-                borderRadius: '16px',
-                padding: '1.25rem',
-                marginTop: '1.25rem',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.03)',
-                textAlign: 'left'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981', boxShadow: '0 0 0 3px rgba(16,185,129,0.2)' }} />
-                    <span style={{ fontSize: '0.82rem', fontWeight: '800', color: '#065f46' }}>
-                      {order.status === 'Out for Delivery' ? 'LIVE DELIVERY ROUTE' : 'DISPATCH ROUTE'}
-                    </span>
-                  </div>
-                  <span style={{ fontSize: '0.72rem', fontWeight: '700', color: '#059669', background: '#dcfce7', padding: '0.2rem 0.55rem', borderRadius: '6px' }}>
-                    ~8-12 mins ETA
-                  </span>
-                </div>
-
-                {/* Animated Route Line */}
-                <div style={{ position: 'relative', padding: '0.5rem 0', margin: '0.5rem 0' }}>
-                  <div style={{ height: '3px', background: '#e2e8f0', borderRadius: '2px', position: 'relative' }}>
-                    <div style={{
-                      position: 'absolute',
-                      left: 0,
-                      top: 0,
-                      height: '100%',
-                      width: order.status === 'Out for Delivery' ? '65%' : '25%',
-                      background: 'linear-gradient(90deg, #10b981, #059669)',
-                      borderRadius: '2px'
-                    }} />
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: '0.6rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', maxWidth: '35%' }}>
-                      <Store size={14} color="#64748b" />
-                      <div>
-                        <div style={{ fontSize: '0.75rem', fontWeight: '800', color: '#1e293b' }}>{order.store?.name || 'Stall Counter'}</div>
-                        <div style={{ fontSize: '0.65rem', color: '#94a3b8' }}>Pickup Point</div>
-                      </div>
-                    </div>
-
-                    <div style={{ textAlign: 'center', transform: 'translateY(-14px)' }}>
-                      <div style={{
-                        width: '32px',
-                        height: '32px',
-                        borderRadius: '50%',
-                        background: '#10b981',
-                        color: '#fff',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        boxShadow: '0 4px 10px rgba(16,185,129,0.35)',
-                        margin: '0 auto'
-                      }}>
-                        <Bike size={16} />
-                      </div>
-                      <div style={{ fontSize: '0.68rem', fontWeight: '800', color: '#065f46', marginTop: '2px' }}>
-                        {order.riderName || 'Partner En Route'}
-                      </div>
-                    </div>
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', textAlign: 'right', maxWidth: '35%', justifyContent: 'flex-end' }}>
-                      <div>
-                        <div style={{ fontSize: '0.75rem', fontWeight: '800', color: '#1e293b' }}>{order.deliveryAddress}</div>
-                        <div style={{ fontSize: '0.65rem', color: '#94a3b8' }}>Drop Destination</div>
-                      </div>
-                      <MapPin size={14} color="#ea580c" />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Google Maps External Live Route Button */}
-                <div style={{ marginTop: '0.85rem', paddingTop: '0.65rem', borderTop: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: '0.73rem', color: '#64748b', fontWeight: '600' }}>
-                    Track campus route & directions
-                  </span>
-                  <a
-                    href={`https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(order.store?.name || 'Campus Food Court')}&destination=${encodeURIComponent(order.deliveryAddress)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '0.35rem',
-                      fontSize: '0.75rem',
-                      fontWeight: '800',
-                      color: '#059669',
-                      background: '#f0fdf4',
-                      border: '1px solid #bbf7d0',
-                      padding: '0.35rem 0.75rem',
-                      borderRadius: '8px',
-                      textDecoration: 'none'
-                    }}
-                  >
-                    <Navigation size={12} /> Open in Google Maps
-                  </a>
-                </div>
               </div>
             )}
           </div>
