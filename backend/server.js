@@ -76,12 +76,13 @@ async function ensureProductionSchema() {
     await prisma.$executeRawUnsafe(`ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "appliedOffer" JSONB DEFAULT '{}'::jsonb;`);
     await prisma.$executeRawUnsafe(`ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "packagingChargeApplied" DOUBLE PRECISION DEFAULT 0;`);
 
-    // 3. Admins columns
+    // 3. Admins columns & email casing normalization
     await prisma.$executeRawUnsafe(`ALTER TABLE "admins" ADD COLUMN IF NOT EXISTS "status" TEXT DEFAULT 'ACTIVE';`);
     await prisma.$executeRawUnsafe(`ALTER TABLE "admins" ADD COLUMN IF NOT EXISTS "telegramChatId" TEXT DEFAULT '';`);
     await prisma.$executeRawUnsafe(`ALTER TABLE "admins" ADD COLUMN IF NOT EXISTS "isBanned" BOOLEAN DEFAULT false;`);
     await prisma.$executeRawUnsafe(`ALTER TABLE "admins" ADD COLUMN IF NOT EXISTS "storeId" TEXT DEFAULT '';`);
     await prisma.$executeRawUnsafe(`ALTER TABLE "admins" ADD COLUMN IF NOT EXISTS "vendorId" TEXT DEFAULT '';`);
+    await prisma.$executeRawUnsafe(`UPDATE "admins" SET "email" = LOWER(TRIM("email")) WHERE "email" != LOWER(TRIM("email"));`);
 
     // 4. Locations columns
     await prisma.$executeRawUnsafe(`ALTER TABLE "locations" ADD COLUMN IF NOT EXISTS "markets" TEXT DEFAULT '';`);

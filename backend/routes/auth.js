@@ -77,10 +77,17 @@ router.post('/login', async (req, res) => {
     if (!email) return res.status(400).json({ message: 'Email is required' });
 
     const cleanEmail = email.toLowerCase().trim();
-    const admin = await prisma.admin.findUnique({ 
+    let admin = await prisma.admin.findUnique({ 
       where: { email: cleanEmail },
       include: { stores: true }
     });
+
+    if (!admin) {
+      admin = await prisma.admin.findFirst({
+        where: { email: { equals: cleanEmail, mode: 'insensitive' } },
+        include: { stores: true }
+      });
+    }
 
     if (!admin) return res.status(400).json({ message: 'Invalid email or password' });
 

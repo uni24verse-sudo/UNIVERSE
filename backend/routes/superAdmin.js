@@ -787,12 +787,15 @@ router.put('/vendor/:id/password', async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(newPassword.trim(), 10);
 
-    await prisma.admin.update({
+    const updatedVendor = await prisma.admin.update({
       where: { id },
-      data: { password: hashedPassword }
+      data: { 
+        password: hashedPassword,
+        email: vendor.email.toLowerCase().trim()
+      }
     });
 
-    console.log(`🔐 [SuperAdmin] Password updated for vendor "${vendor.name}" (${vendor.email})`);
+    console.log(`🔐 [SuperAdmin] Password updated for vendor "${updatedVendor.name}" (${updatedVendor.email})`);
 
     res.json({
       success: true,
