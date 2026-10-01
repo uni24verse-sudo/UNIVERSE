@@ -30,15 +30,19 @@ async function migrate() {
       AND ("markets" IS NULL OR "markets" = '');
   `);
 
-  // 2. Stores: Ensure market is nullable with empty default (removes forced BH1 default)
+  // 2. Stores: Ensure market is nullable with empty default, add missing columns
   console.log('📦 Updating "stores" table...');
   try {
     await prisma.$executeRawUnsafe(`ALTER TABLE "stores" ALTER COLUMN "market" DROP DEFAULT;`);
     await prisma.$executeRawUnsafe(`ALTER TABLE "stores" ALTER COLUMN "market" SET DEFAULT '';`);
     await prisma.$executeRawUnsafe(`ALTER TABLE "stores" ALTER COLUMN "market" DROP NOT NULL;`);
     await prisma.$executeRawUnsafe(`ALTER TABLE "stores" ADD COLUMN IF NOT EXISTS "autoAcceptOrders" BOOLEAN DEFAULT false;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "stores" ADD COLUMN IF NOT EXISTS "offers" JSONB DEFAULT '[]'::jsonb;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "stores" ADD COLUMN IF NOT EXISTS "categoryImages" JSONB DEFAULT '[]'::jsonb;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "stores" ADD COLUMN IF NOT EXISTS "accentColor" VARCHAR(64) DEFAULT '#ef4123';`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "stores" ADD COLUMN IF NOT EXISTS "storeType" VARCHAR(64) DEFAULT 'FastFood';`);
   } catch (err) {
-    console.log('  ℹ️ Store market/autoAcceptOrders column already altered or compatible.');
+    console.log('  ℹ️ Store columns already altered or compatible:', err.message);
   }
 
   // 3. Hero Banners: Create table and indexes
