@@ -36,7 +36,11 @@ import {
   Clock,
   Phone,
   Mail,
-  Tag
+  Tag,
+  Key,
+  Lock,
+  RefreshCw,
+  X
 } from 'lucide-react';
 import SuperAdmin3DAnalytics from '../components/superadmin/SuperAdmin3DAnalytics';
 import SuperAdminMasterTemplates from '../components/superadmin/SuperAdminMasterTemplates';
@@ -80,6 +84,14 @@ const SuperAdminPanel = () => {
   const [selectedStores, setSelectedStores] = useState([]);
   const [selectedLocations, setSelectedLocations] = useState([]);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Vendor Password Management State
+  const [passwordModalVendor, setPasswordModalVendor] = useState(null);
+  const [newVendorPassword, setNewVendorPassword] = useState('');
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+  const [passwordSuccessMessage, setPasswordSuccessMessage] = useState('');
+  const [passwordErrorMessage, setPasswordErrorMessage] = useState('');
+  const [showPasswordText, setShowPasswordText] = useState(true);
 
   const pendingVendors = React.useMemo(() => (vendors || []).filter(v => v.status === 'PENDING_APPROVAL'), [vendors]);
   const activeVendors = React.useMemo(() => (vendors || []).filter(v => v.status !== 'PENDING_APPROVAL'), [vendors]);
@@ -534,6 +546,48 @@ const SuperAdminPanel = () => {
     } finally {
       setIsDeleting(false);
     }
+  };
+
+  const handleUpdateVendorPassword = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    if (!passwordModalVendor) return;
+    if (!newVendorPassword || newVendorPassword.trim().length < 6) {
+      setPasswordErrorMessage('Password must be at least 6 characters long.');
+      return;
+    }
+
+    try {
+      setIsUpdatingPassword(true);
+      setPasswordErrorMessage('');
+      setPasswordSuccessMessage('');
+
+      const vId = passwordModalVendor._id || passwordModalVendor.id;
+      const res = await axios.put(
+        `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/super-admin/vendor/${vId}/password`,
+        { newPassword: newVendorPassword.trim() },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      setPasswordSuccessMessage(`Password updated successfully! New password: "${newVendorPassword.trim()}"`);
+      setTimeout(() => {
+        setPasswordModalVendor(null);
+        setNewVendorPassword('');
+        setPasswordSuccessMessage('');
+      }, 2500);
+    } catch (err) {
+      setPasswordErrorMessage(err.response?.data?.message || err.message || 'Failed to update vendor password');
+    } finally {
+      setIsUpdatingPassword(false);
+    }
+  };
+
+  const generateRandomPassword = () => {
+    const words = ['UniVerse', 'Vendor', 'Campus', 'FastFood', 'Market', 'Store'];
+    const randomWord = words[Math.floor(Math.random() * words.length)];
+    const randomNum = Math.floor(1000 + Math.random() * 9000);
+    const generated = `${randomWord}@${randomNum}`;
+    setNewVendorPassword(generated);
+    setPasswordErrorMessage('');
   };
 
   // Locations Delete & Checkbox Handlers
@@ -1275,29 +1329,55 @@ const SuperAdminPanel = () => {
                               <div style={{ fontWeight: '900', color: 'var(--primary)', fontSize: '1.1rem' }}>₹{v.stats?.profitGenerated || 0}</div>
                               <div style={{ color: '#6366f1', fontSize: '0.7rem', marginTop: '0.25rem', fontWeight: '700' }}>Standard (3% Platform)</div>
                             </td>
-                            <td style={{ padding: '1.25rem', textAlign: 'right' }}>
-                              <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
-                                <button 
-                                  onClick={async () => {
-                                    try {
-                                      await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/super-admin/vendor/${vId}/suspend`, {}, { headers: { Authorization: `Bearer ${token}` } });
-                                      fetchDashboardData(true);
-                                    } catch(err) { alert('Action failed'); }
-                                  }}
-                                  style={{ padding: '0.5rem 1rem', background: v.isBanned ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)', color: v.isBanned ? '#10b981' : '#f59e0b', border: `1px solid ${v.isBanned ? 'rgba(16, 185, 129, 0.2)' : 'rgba(245, 158, 11, 0.2)'}`, borderRadius: '8px', cursor: 'pointer', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
-                                >
-                                  <Ban size={16} /> {v.isBanned ? 'Unban' : 'Suspend'}
-                                </button>
-                                <button 
-                                  onClick={() => deleteVendor(vId, v.name)}
-                                  style={{ padding: '0.5rem 1rem', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.2)', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', transition: 'all 0.2s' }}
-                                  onMouseEnter={(e) => { e.target.style.background = '#ef4444'; e.target.style.color = 'white'; }}
-                                  onMouseLeave={(e) => { e.target.style.background = 'rgba(239, 68, 68, 0.1)'; e.target.style.color = '#ef4444'; }}
-                                >
-                                  <Trash2 size={16} /> Terminate
-                                </button>
-                              </div>
-                            </td>
+                              <td style={{ padding: '1.25rem', textAlign: 'right' }}>
+                                <div style={{ display: 'flex', gap: '0.45rem', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                                  <button 
+                                    type="button"
+                                    onClick={() => {
+                                      setPasswordModalVendor(v);
+                                      setNewVendorPassword('');
+                                      setPasswordSuccessMessage('');
+                                      setPasswordErrorMessage('');
+                                    }}
+                                    style={{ 
+                                      padding: '0.5rem 0.85rem', 
+                                      background: 'rgba(59, 130, 246, 0.08)', 
+                                      color: '#2563eb', 
+                                      border: '1px solid rgba(59, 130, 246, 0.25)', 
+                                      borderRadius: '8px', 
+                                      cursor: 'pointer', 
+                                      fontWeight: '700', 
+                                      fontSize: '0.8rem', 
+                                      display: 'flex', 
+                                      alignItems: 'center', 
+                                      gap: '0.4rem',
+                                      transition: 'all 0.15s ease'
+                                    }}
+                                    title="Change Vendor Password"
+                                  >
+                                    <Key size={15} /> Password
+                                  </button>
+                                  <button 
+                                    onClick={async () => {
+                                      try {
+                                        await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/super-admin/vendor/${vId}/suspend`, {}, { headers: { Authorization: `Bearer ${token}` } });
+                                        fetchDashboardData(true);
+                                      } catch(err) { alert('Action failed'); }
+                                    }}
+                                    style={{ padding: '0.5rem 0.85rem', background: v.isBanned ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)', color: v.isBanned ? '#10b981' : '#f59e0b', border: `1px solid ${v.isBanned ? 'rgba(16, 185, 129, 0.2)' : 'rgba(245, 158, 11, 0.2)'}`, borderRadius: '8px', cursor: 'pointer', fontWeight: '600', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+                                  >
+                                    <Ban size={15} /> {v.isBanned ? 'Unban' : 'Suspend'}
+                                  </button>
+                                  <button 
+                                    onClick={() => deleteVendor(vId, v.name)}
+                                    style={{ padding: '0.5rem 0.85rem', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.2)', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '0.4rem', transition: 'all 0.2s' }}
+                                    onMouseEnter={(e) => { e.target.style.background = '#ef4444'; e.target.style.color = 'white'; }}
+                                    onMouseLeave={(e) => { e.target.style.background = 'rgba(239, 68, 68, 0.1)'; e.target.style.color = '#ef4444'; }}
+                                  >
+                                    <Trash2 size={15} /> Terminate
+                                  </button>
+                                </div>
+                              </td>
                           </tr>
                         );
                       })}
@@ -2501,6 +2581,254 @@ const SuperAdminPanel = () => {
         )}
       </main>
       </div>
+
+      {/* 🔐 SUPERADMIN VENDOR PASSWORD MANAGEMENT MODAL */}
+      {passwordModalVendor && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(15, 23, 42, 0.65)',
+          backdropFilter: 'blur(6px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 99999,
+          padding: '1rem'
+        }}>
+          <div style={{
+            background: '#ffffff',
+            borderRadius: '20px',
+            width: '100%',
+            maxWidth: '480px',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+            border: '1px solid #e2e8f0',
+            overflow: 'hidden'
+          }}>
+            {/* Modal Header */}
+            <div style={{
+              background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
+              padding: '1.25rem 1.5rem',
+              color: '#ffffff',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                <div style={{
+                  width: '34px',
+                  height: '34px',
+                  borderRadius: '10px',
+                  background: 'rgba(239, 65, 35, 0.2)',
+                  border: '1px solid rgba(239, 65, 35, 0.4)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#ef4123'
+                }}>
+                  <Key size={18} />
+                </div>
+                <div>
+                  <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: '800', color: '#ffffff' }}>Change Vendor Password</h4>
+                  <p style={{ margin: 0, fontSize: '0.75rem', color: '#94a3b8' }}>SuperAdmin Privileged Override</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setPasswordModalVendor(null)}
+                style={{
+                  background: 'rgba(255,255,255,0.1)',
+                  border: 'none',
+                  borderRadius: '8px',
+                  width: '30px',
+                  height: '30px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#cbd5e1',
+                  cursor: 'pointer'
+                }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <form onSubmit={handleUpdateVendorPassword} style={{ padding: '1.5rem' }}>
+              {/* Vendor Information Box */}
+              <div style={{
+                background: '#f8fafc',
+                border: '1px solid #e2e8f0',
+                borderRadius: '12px',
+                padding: '0.85rem 1rem',
+                marginBottom: '1.25rem'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
+                  <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '600' }}>Vendor Name:</span>
+                  <span style={{ fontSize: '0.8rem', fontWeight: '800', color: '#0f172a' }}>{passwordModalVendor.name}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
+                  <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '600' }}>Email ID:</span>
+                  <span style={{ fontSize: '0.8rem', fontWeight: '700', color: '#ef4123' }}>{passwordModalVendor.email}</span>
+                </div>
+                {passwordModalVendor.store?.name && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '600' }}>Store:</span>
+                    <span style={{ fontSize: '0.8rem', fontWeight: '700', color: '#3b82f6' }}>{passwordModalVendor.store.name}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Password Input */}
+              <div style={{ marginBottom: '1.25rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.45rem' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: '700', color: '#334155' }}>
+                    New Password <span style={{ color: '#ef4444' }}>*</span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={generateRandomPassword}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#2563eb',
+                      fontSize: '0.75rem',
+                      fontWeight: '700',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.25rem'
+                    }}
+                  >
+                    <RefreshCw size={12} /> Auto Generate
+                  </button>
+                </div>
+                <div style={{ position: 'relative' }}>
+                  <Lock size={16} style={{ position: 'absolute', left: '0.85rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                  <input
+                    type={showPasswordText ? 'text' : 'password'}
+                    value={newVendorPassword}
+                    onChange={(e) => {
+                      setNewVendorPassword(e.target.value);
+                      setPasswordErrorMessage('');
+                    }}
+                    placeholder="Enter new password (min 6 characters)"
+                    style={{
+                      width: '100%',
+                      padding: '0.75rem 2.5rem 0.75rem 2.5rem',
+                      borderRadius: '10px',
+                      border: '1.5px solid #cbd5e1',
+                      fontSize: '0.9rem',
+                      fontWeight: '600',
+                      outline: 'none',
+                      color: '#0f172a',
+                      background: '#ffffff',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPasswordText(!showPasswordText)}
+                    style={{
+                      position: 'absolute',
+                      right: '0.85rem',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      color: '#94a3b8'
+                    }}
+                  >
+                    {showPasswordText ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+                <p style={{ margin: '0.35rem 0 0 0', fontSize: '0.72rem', color: '#64748b' }}>
+                  The vendor can immediately log in with this new password.
+                </p>
+              </div>
+
+              {/* Error / Success Messages */}
+              {passwordErrorMessage && (
+                <div style={{
+                  padding: '0.65rem 0.85rem',
+                  background: '#fef2f2',
+                  border: '1px solid #fecaca',
+                  borderRadius: '8px',
+                  color: '#b91c1c',
+                  fontSize: '0.78rem',
+                  fontWeight: '600',
+                  marginBottom: '1rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.4rem'
+                }}>
+                  <AlertCircle size={15} /> {passwordErrorMessage}
+                </div>
+              )}
+
+              {passwordSuccessMessage && (
+                <div style={{
+                  padding: '0.65rem 0.85rem',
+                  background: '#f0fdf4',
+                  border: '1px solid #bbf7d0',
+                  borderRadius: '8px',
+                  color: '#15803d',
+                  fontSize: '0.78rem',
+                  fontWeight: '700',
+                  marginBottom: '1rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.4rem'
+                }}>
+                  <CheckCircle size={15} /> {passwordSuccessMessage}
+                </div>
+              )}
+
+              {/* Modal Actions */}
+              <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '1.25rem' }}>
+                <button
+                  type="button"
+                  onClick={() => setPasswordModalVendor(null)}
+                  style={{
+                    padding: '0.65rem 1.15rem',
+                    background: '#f1f5f9',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '10px',
+                    fontWeight: '700',
+                    fontSize: '0.85rem',
+                    color: '#475569',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isUpdatingPassword || !newVendorPassword.trim()}
+                  style={{
+                    padding: '0.65rem 1.35rem',
+                    background: isUpdatingPassword || !newVendorPassword.trim() ? '#94a3b8' : 'var(--primary)',
+                    border: 'none',
+                    borderRadius: '10px',
+                    fontWeight: '800',
+                    fontSize: '0.85rem',
+                    color: '#ffffff',
+                    cursor: isUpdatingPassword || !newVendorPassword.trim() ? 'not-allowed' : 'pointer',
+                    boxShadow: isUpdatingPassword || !newVendorPassword.trim() ? 'none' : '0 4px 12px rgba(239, 65, 35, 0.3)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.4rem'
+                  }}
+                >
+                  {isUpdatingPassword ? 'Updating...' : 'Save New Password'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

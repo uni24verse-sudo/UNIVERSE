@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const crypto = require('crypto');
+const bcrypt = require('bcryptjs');
 const superAdminAuth = require('../middleware/superAdminAuth');
 const prisma = require('../config/prisma');
 const { normalizeOrder, normalizeStore, normalizeRefund, normalizeSettlement } = require('../utils/pgAdapter');
@@ -761,6 +762,49 @@ router.post('/vendors/bulk-delete', async (req, res) => {
     }
     res.json({ success: true, message: `Successfully terminated and removed ${count} vendors.`, count });
   } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 2f. SuperAdmin Reset/Change Any Vendor Password
+router.put('/vendor/:id/password', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { newPassword } = req.body;
+
+    if (!newPassword || typeof newPassword !== 'string' || newPassword.trim().length < 6) {
+      return res.status(400).json({ message: 'New password must be at least 6 characters long.' });
+    }
+
+    const vendor = await prisma.admin.findUnique({
+      where: { id },
+      include: { stores: true }
+    });
+
+    if (!vendor) {
+      return res.status(404).json({ message: 'Vendor not found' });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword.trim(), 10);
+
+    await prisma.admin.update({
+      where: { id },
+      data: { password: hashedPassword }
+    });
+
+    console.log(`🔐 [SuperAdmin] Password updated for vendor "${vendor.name}" (${vendor.email})`);
+
+    res.json({
+      success: true,
+      message: `Password for "${vendor.name}" (${vendor.email}) has been changed successfully.`,
+      vendor: {
+        id: vendor.id,
+        name: vendor.name,
+        email: vendor.email
+      }
+    });
+  } catch (err) {
+    console.error('❌ [SuperAdmin] Failed to update vendor password:', err);
     res.status(500).json({ message: err.message });
   }
 });
