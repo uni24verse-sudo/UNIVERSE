@@ -21,21 +21,23 @@ export const setCustomApiUrl = async (url) => {
 
 export const getBaseUrl = () => {
   if (customBaseUrl) return customBaseUrl;
-  
+
+  // 1. Explicit env variable (UAT during testing via .env, Production in EAS builds via eas.json)
   if (process.env.EXPO_PUBLIC_API_URL) {
     return process.env.EXPO_PUBLIC_API_URL;
   }
 
+  // 2. Web Browser environment (localhost, 127.0.0.1)
   if (Platform.OS === 'web' && typeof window !== 'undefined') {
     const hostname = window.location.hostname;
     if (hostname === 'localhost' || hostname === '127.0.0.1') {
-      return 'http://localhost:5000/api';
+      return `http://${hostname}:5000/api`;
     }
     return `${window.location.origin}/api`;
   }
 
-  // Mobile phones (Android/iOS): always connect to public UAT cloud endpoint
-  return 'https://uat.food.universeorder.co.in/api';
+  // 3. Active production cloud server
+  return 'https://food.universeorder.co.in/api';
 };
 
 export const getSocketUrl = () => {

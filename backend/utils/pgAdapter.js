@@ -8,11 +8,7 @@ function normalizeStore(store) {
   if (!store) return null;
   const loc = store.location ? {
     ...store.location,
-    dietaryType: store.location.dietaryType || (
-      (store.location.name && (store.location.name.toLowerCase().includes('lpu') || store.location.name.toLowerCase().includes('lovely'))) 
-        ? 'veg' 
-        : 'both'
-    ),
+    dietaryType: store.location.dietaryType || 'both',
     markets: store.location.markets || (
       (store.location.name && (store.location.name.toLowerCase().includes('lpu') || store.location.name.toLowerCase().includes('lovely')))
         ? 'BH1 Market, Block34 Market, LIT Market, Mall Market, BH6 Market, Apartment Market'
@@ -28,6 +24,7 @@ function normalizeStore(store) {
     location: loc,
     locationId: store.locationId || null,
     products: Array.isArray(store.products) ? store.products : [],
+    offers: Array.isArray(store.offers) ? store.offers : [],
     categoryImages: Array.isArray(store.categoryImages) ? store.categoryImages : []
   };
 }
@@ -59,6 +56,8 @@ function normalizeOrder(order) {
     store: order.store ? normalizeStore(order.store) : order.storeId,
     storeId: order.storeId,
     items: Array.isArray(order.items) ? order.items : [],
+    discountAmount: Number(order.discountAmount) || 0,
+    appliedOffer: order.appliedOffer || {},
     cancelledBy: order.cancelledBy || {},
     acceptDeadline
   };

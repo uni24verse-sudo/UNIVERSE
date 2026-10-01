@@ -224,18 +224,66 @@ router.put('/:id', async (req, res) => {
 });
 
 /**
- * 5. DELETE / ARCHIVE TEMPLATE
+ * 5. DELETE TEMPLATE (Single)
  */
 router.delete('/:id', async (req, res) => {
   try {
-    await prisma.masterTemplate.update({
-      where: { id: req.params.id },
-      data: { status: 'Archived' }
+    const { id } = req.params;
+    // Unlink any broadcast campaigns referencing this template
+    await prisma.broadcastCampaign.updateMany({
+      where: { masterTemplateId: id },
+      data: { masterTemplateId: null }
+    }).catch(() => {});
+
+    await prisma.masterTemplate.delete({
+      where: { id }
     });
-    res.json({ success: true, message: 'Template archived successfully' });
+
+    res.json({ success: true, message: 'Template permanently deleted successfully' });
   } catch (err) {
+    // Fallback: If delete fails due to constraint, mark as Archived
+    try {
+      await prisma.masterTemplate.update({
+        where: { id: req.params.id },
+        data: { status: 'Archived' }
+      });
+      return res.json({ success: true, message: 'Template archived successfully' });
+    } catch (archiveErr) {
+      res.status(500).json({ message: err.message });
+    }
+  }
+});
+
+/**
+ * 6. BULK DELETE TEMPLATES
+ */
+router.post('/bulk-delete', async (req, res) => {
+  try {
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ message: 'No template IDs provided' });
+    }
+
+    // Unlink broadcasts
+    await prisma.broadcastCampaign.updateMany({
+      where: { masterTemplateId: { in: ids } },
+      data: { masterTemplateId: null }
+    }).catch(() => {});
+
+    const result = await prisma.masterTemplate.deleteMany({
+      where: { id: { in: ids } }
+    });
+
+    res.json({
+      success: true,
+      message: `Successfully deleted ${result.count} templates.`,
+      count: result.count
+    });
+  } catch (err) {
+    console.error('[MasterTemplates] Bulk delete error:', err);
     res.status(500).json({ message: err.message });
   }
 });
 
 module.exports = router;
+

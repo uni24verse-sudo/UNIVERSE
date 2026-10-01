@@ -2,7 +2,6 @@ const dns = require('dns');
 if (dns.setDefaultResultOrder) {
   dns.setDefaultResultOrder('ipv4first');
 }
-
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
@@ -23,25 +22,21 @@ const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
     origin: '*',
-    methods: ['GET', 'POST', 'PUT', 'DELETE']
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
   }
 });
 
 // Make io accessible to our router
 app.set('io', io);
 
-// Middleware
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-
+// Middleware - CORS must be registered first so all preflights and errors have CORS headers
 app.use(cors({
-  origin: (origin, callback) => {
-    callback(null, true);
-  },
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  origin: true,
   credentials: true
 }));
+
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
@@ -61,6 +56,9 @@ prisma.$connect()
 
 // Health check endpoint
 app.get('/ping', (req, res) => res.status(200).send('pong'));
+app.get('/api/ping', (req, res) => res.status(200).send('pong'));
+app.get('/health', (req, res) => res.status(200).json({ status: 'ok', time: new Date().toISOString() }));
+app.get('/api/health', (req, res) => res.status(200).json({ status: 'ok', time: new Date().toISOString() }));
 
 // Route Registrations
 app.use('/api/auth', require('./routes/auth'));
@@ -73,6 +71,7 @@ app.use('/api/super-admin/partners', require('./routes/partners'));
 app.use('/api/super-admin/channels', require('./routes/channelSettings'));
 app.use('/api/super-admin/broadcasting', require('./routes/broadcasting'));
 app.use('/api/super-admin/customers', require('./routes/superAdminCustomers'));
+app.use('/api/super-admin/offers', require('./routes/superAdminOffers'));
 app.use('/api/super-admin', require('./routes/superAdmin'));
 app.use('/api/payments', require('./routes/payments'));
 app.use('/api/whatsapp', require('./routes/whatsapp'));
@@ -80,6 +79,7 @@ app.use('/api/analytics', require('./routes/analytics'));
 app.use('/api/finance', require('./routes/finance'));
 app.use('/api/employees', require('./routes/employees'));
 app.use('/api/banners', require('./routes/banners'));
+app.use('/api/delivery', require('./routes/deliveryRoutes'));
 app.use(require('./routes/share'));
 
 // Direct fallback for client SPA store route on backend port (prevents 'Cannot GET /store/...')

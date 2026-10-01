@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
 import * as Device from 'expo-device';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { isRunningInExpoGo } from 'expo';
 
 export function usePushNotifications() {
@@ -11,7 +12,12 @@ export function usePushNotifications() {
 
   useEffect(() => {
     // In Expo Go or Web, completely bypass remote push notifications to allow fast live development
-    const inExpoGo = typeof isRunningInExpoGo === 'function' ? isRunningInExpoGo() : false;
+    const inExpoGo = Boolean(
+      (typeof isRunningInExpoGo === 'function' && isRunningInExpoGo()) ||
+      Constants?.appOwnership === 'expo' ||
+      Constants?.executionEnvironment === ExecutionEnvironment?.StoreClient ||
+      Constants?.executionEnvironment === 'storeClient'
+    );
     if (Platform.OS === 'web' || inExpoGo) {
       console.log('[usePushNotifications] Running in Expo Go / Web — remote push bypassed.');
       return;

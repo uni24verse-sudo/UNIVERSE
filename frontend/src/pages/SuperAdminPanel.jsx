@@ -35,7 +35,8 @@ import {
   PieChart,
   Clock,
   Phone,
-  Mail
+  Mail,
+  Tag
 } from 'lucide-react';
 import SuperAdmin3DAnalytics from '../components/superadmin/SuperAdmin3DAnalytics';
 import SuperAdminMasterTemplates from '../components/superadmin/SuperAdminMasterTemplates';
@@ -48,6 +49,7 @@ import SuperAdminRefunds from '../components/superadmin/SuperAdminRefunds';
 import SuperAdminHeroPromotions from '../components/superadmin/SuperAdminHeroPromotions';
 import SuperAdminOrdersFeed from '../components/superadmin/SuperAdminOrdersFeed';
 import SuperAdminPartnerEquity from '../components/superadmin/SuperAdminPartnerEquity';
+import SuperAdminOffersMaster from '../components/superadmin/SuperAdminOffersMaster';
 import { useSocket } from '../context/SocketContext';
 
 const SuperAdminPanel = () => {
@@ -71,7 +73,13 @@ const SuperAdminPanel = () => {
   const [pendingRefundCount, setPendingRefundCount] = useState(0);
   const [storeSearch, setStoreSearch] = useState('');
   const [storeStatusFilter, setStoreStatusFilter] = useState('all');
+  const [storeLocationFilter, setStoreLocationFilter] = useState('all');
   const [vendorSubTab, setVendorSubTab] = useState('active');
+  const [selectedActiveVendors, setSelectedActiveVendors] = useState([]);
+  const [selectedPendingVendors, setSelectedPendingVendors] = useState([]);
+  const [selectedStores, setSelectedStores] = useState([]);
+  const [selectedLocations, setSelectedLocations] = useState([]);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const pendingVendors = React.useMemo(() => (vendors || []).filter(v => v.status === 'PENDING_APPROVAL'), [vendors]);
   const activeVendors = React.useMemo(() => (vendors || []).filter(v => v.status !== 'PENDING_APPROVAL'), [vendors]);
@@ -367,6 +375,21 @@ const SuperAdminPanel = () => {
     }
   };
 
+  // Active Vendors Checkbox & Bulk Actions
+  const toggleSelectActiveVendor = (id) => {
+    setSelectedActiveVendors(prev => 
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAllActiveVendors = () => {
+    if (selectedActiveVendors.length === activeVendors.length) {
+      setSelectedActiveVendors([]);
+    } else {
+      setSelectedActiveVendors(activeVendors.map(v => v._id || v.id));
+    }
+  };
+
   const deleteVendor = async (vendorId, vendorName) => {
     if (!window.confirm(`CRITICAL WARNING:\n\nAre you absolutely sure you want to permanently delete vendor "${vendorName}" AND their store AND all their orders?\n\nThis cannot be undone.`)) return;
     
@@ -374,9 +397,45 @@ const SuperAdminPanel = () => {
       await axios.delete(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/super-admin/vendor/${vendorId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
+      setSelectedActiveVendors(prev => prev.filter(id => id !== vendorId));
       fetchDashboardData(true); // Refresh everything
     } catch (err) {
       alert('Failed to delete vendor: ' + (err.response?.data?.message || err.message));
+    }
+  };
+
+  const bulkDeleteActiveVendors = async () => {
+    if (selectedActiveVendors.length === 0) return;
+    if (!window.confirm(`CRITICAL WARNING:\n\nAre you sure you want to permanently delete ${selectedActiveVendors.length} selected vendors AND their stores AND orders?\n\nThis cannot be undone.`)) return;
+
+    try {
+      setIsDeleting(true);
+      await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/super-admin/vendors/bulk-delete`, 
+        { ids: selectedActiveVendors },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setSelectedActiveVendors([]);
+      fetchDashboardData(true);
+      alert('Selected vendors successfully deleted.');
+    } catch (err) {
+      alert('Bulk delete failed: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  // Pending Vendors Checkbox & Bulk Actions
+  const toggleSelectPendingVendor = (id) => {
+    setSelectedPendingVendors(prev => 
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAllPendingVendors = () => {
+    if (selectedPendingVendors.length === pendingVendors.length) {
+      setSelectedPendingVendors([]);
+    } else {
+      setSelectedPendingVendors(pendingVendors.map(v => v._id || v.id));
     }
   };
 
@@ -399,10 +458,116 @@ const SuperAdminPanel = () => {
       await axios.delete(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/super-admin/vendor/${vendorId}/reject`, {
         headers: { Authorization: `Bearer ${token}` }
       });
+      setSelectedPendingVendors(prev => prev.filter(id => id !== vendorId));
       alert(`Applicant "${vendorName}" rejected and credentials permanently purged.`);
       fetchDashboardData(true);
     } catch (err) {
       alert('Failed to reject vendor: ' + (err.response?.data?.message || err.message));
+    }
+  };
+
+  const bulkRejectPendingVendors = async () => {
+    if (selectedPendingVendors.length === 0) return;
+    if (!window.confirm(`REJECT & PURGE:\n\nAre you sure you want to reject and purge ${selectedPendingVendors.length} selected vendor applications?`)) return;
+
+    try {
+      setIsDeleting(true);
+      await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/super-admin/vendors/reject/bulk-delete`, 
+        { ids: selectedPendingVendors },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setSelectedPendingVendors([]);
+      fetchDashboardData(true);
+      alert('Selected vendor applications rejected and purged.');
+    } catch (err) {
+      alert('Bulk reject failed: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  // Stores Delete & Checkbox Handlers
+  const toggleSelectStore = (id) => {
+    setSelectedStores(prev => 
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAllStores = (visibleStoreIds) => {
+    if (selectedStores.length === visibleStoreIds.length && visibleStoreIds.length > 0) {
+      setSelectedStores([]);
+    } else {
+      setSelectedStores(visibleStoreIds);
+    }
+  };
+
+  const deleteStore = async (storeId, storeName) => {
+    if (!window.confirm(`PERMANENT STORE DELETION:\n\nAre you sure you want to permanently delete store "${storeName}"?\n\nThis will remove all menu items, orders, and settlements associated with this stall.`)) return;
+
+    try {
+      await axios.delete(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/super-admin/store/${storeId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setSelectedStores(prev => prev.filter(id => id !== storeId));
+      fetchDashboardData(true);
+      alert(`Store "${storeName}" deleted successfully.`);
+    } catch (err) {
+      alert('Failed to delete store: ' + (err.response?.data?.message || err.message));
+    }
+  };
+
+  const bulkDeleteStores = async () => {
+    if (selectedStores.length === 0) return;
+    if (!window.confirm(`PERMANENT BULK DELETION:\n\nAre you sure you want to delete ${selectedStores.length} selected stores and all their associated orders and menu data?\n\nThis action cannot be undone.`)) return;
+
+    try {
+      setIsDeleting(true);
+      await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/super-admin/stores/bulk-delete`, 
+        { ids: selectedStores },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setSelectedStores([]);
+      fetchDashboardData(true);
+      alert('Selected stores deleted successfully.');
+    } catch (err) {
+      alert('Bulk store delete failed: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  // Locations Delete & Checkbox Handlers
+  const toggleSelectLocation = (id) => {
+    setSelectedLocations(prev => 
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAllLocations = () => {
+    if (selectedLocations.length === locations.length && locations.length > 0) {
+      setSelectedLocations([]);
+    } else {
+      setSelectedLocations(locations.map(l => l._id || l.id));
+    }
+  };
+
+  const bulkDeleteLocations = async () => {
+    if (selectedLocations.length === 0) return;
+    if (!window.confirm(`Delete ${selectedLocations.length} selected locations?\n\nLocations with active linked stores will be skipped automatically.`)) return;
+
+    try {
+      setIsDeleting(true);
+      const res = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/super-admin/locations/bulk-delete`, 
+        { ids: selectedLocations },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setSelectedLocations([]);
+      fetchDashboardData(true);
+      alert(res.data.message || 'Locations deleted.');
+    } catch (err) {
+      alert('Bulk location delete failed: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -413,98 +578,347 @@ const SuperAdminPanel = () => {
     </div>
   );
 
+  const navTabs = [
+    { id: '3d_analytics', icon: TrendingUp, label: 'Executive Analytics' },
+    { id: 'refunds', icon: RotateCcw, label: 'Instant Refunds', badge: pendingRefundCount > 0 ? pendingRefundCount : null },
+    { id: 'customers', icon: Users, label: 'Customer 360 & Audit' },
+    { id: 'master_data', icon: Database, label: 'Master Data' },
+    { id: 'master_templates', icon: FileText, label: 'Master Templates' },
+    { id: 'broadcasting', icon: Radio, label: 'Broadcasting Hub' },
+    { id: 'journey_builder', icon: GitBranch, label: 'Journey Builder' },
+    { id: 'hero_promotions', icon: Sparkles, label: 'Hero Promotions' },
+    { id: 'offers_master', icon: Tag, label: 'Offers & Deals Master' },
+    { id: 'channel_settings', icon: Sliders, label: 'Channels & Devices' },
+    { id: 'overview', icon: Activity, label: 'Platform Overview' },
+    { id: 'vendors', icon: Users, label: 'Vendor Registry', badge: pendingVendors.length > 0 ? pendingVendors.length : null },
+    { id: 'stores', icon: Store, label: 'Store Directory' },
+    { id: 'locations', icon: MapPin, label: 'Location Manager' },
+    { id: 'finance', icon: Banknote, label: 'Finance Tracker' },
+    { id: 'partner_equity', icon: PieChart, label: 'Partner Profit & Equity' },
+    { id: 'orders', icon: ShoppingBag, label: 'Global Orders' }
+  ];
+
+  const currentTabObj = navTabs.find(t => t.id === activeTab);
+
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--background)' }}>
-      {/* Sidebar Navigation */}
+    <div style={{ display: 'flex', height: '100vh', width: '100vw', overflow: 'hidden', background: '#0B0F19' }}>
+      {/* Dark Sidebar Navigation */}
       <aside style={{ 
-        width: '280px', 
-        background: '#ffffff', 
-        borderRight: '1px solid var(--surface-border)', 
+        width: '270px', 
+        minWidth: '270px',
+        maxWidth: '270px',
+        height: '100vh',
+        background: '#0B0F19', 
+        borderRight: '1px solid rgba(255, 255, 255, 0.08)', 
         display: 'flex', 
         flexDirection: 'column',
-        position: 'fixed',
-        top: 0,
-        bottom: 0,
         zIndex: 100,
-        overflowY: 'auto'
+        boxShadow: '4px 0 24px rgba(0, 0, 0, 0.35)'
       }}>
-        <div style={{ padding: '2rem 1.5rem', borderBottom: '1px solid var(--surface-border)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'linear-gradient(135deg, #ef4123 0%, #ea580c 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ffffff', boxShadow: '0 4px 12px rgba(239, 65, 35, 0.2)' }}>
-            <Shield size={24} />
+        {/* Brand Header */}
+        <div style={{ 
+          padding: '1.25rem 1.5rem', 
+          borderBottom: '1px solid rgba(255, 255, 255, 0.08)', 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: '0.85rem',
+          flexShrink: 0
+        }}>
+          <div style={{ 
+            width: '40px', 
+            height: '40px', 
+            borderRadius: '12px', 
+            background: 'linear-gradient(135deg, #ef4123 0%, #ea580c 100%)', 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center', 
+            color: '#ffffff', 
+            boxShadow: '0 4px 14px rgba(239, 65, 35, 0.35)',
+            flexShrink: 0
+          }}>
+            <Shield size={22} />
           </div>
           <div>
-            <h2 style={{ fontSize: '1.25rem', fontWeight: '900', margin: 0, letterSpacing: '-0.02em' }}>UniVerse</h2>
-            <span style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Super Admin</span>
+            <h2 style={{ fontSize: '1.2rem', fontWeight: '900', margin: 0, letterSpacing: '-0.02em', color: '#ffffff' }}>UniVerse</h2>
+            <span style={{ color: '#94a3b8', fontSize: '0.72rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Super Admin</span>
           </div>
         </div>
 
-        <nav style={{ padding: '1.5rem 1rem', flex: 1, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-          {[
-            { id: '3d_analytics', icon: TrendingUp, label: 'Executive Analytics', badge: 'LIVE' },
-            { id: 'refunds', icon: RotateCcw, label: '⚡ Instant Refunds', badge: pendingRefundCount > 0 ? `${pendingRefundCount} PENDING` : null },
-            { id: 'customers', icon: Users, label: 'Customer 360 & Audit', badge: 'NEW' },
-            { id: 'master_data', icon: Database, label: 'Master Data', badge: 'SUPERADMIN' },
-            { id: 'master_templates', icon: FileText, label: 'Master Templates' },
-            { id: 'broadcasting', icon: Radio, label: 'Broadcasting Hub' },
-            { id: 'journey_builder', icon: GitBranch, label: 'Journey Builder' },
-            { id: 'hero_promotions', icon: Sparkles, label: 'Hero Promotions', badge: '5 SLOTS' },
-            { id: 'channel_settings', icon: Sliders, label: 'Channels & Devices', badge: '5 SLOTS' },
-            { id: 'overview', icon: Activity, label: 'Platform Overview' },
-            { id: 'vendors', icon: Users, label: 'Vendor Registry', badge: pendingVendors.length > 0 ? `${pendingVendors.length} PENDING` : null },
-            { id: 'stores', icon: Store, label: 'Store Directory' },
-            { id: 'locations', icon: MapPin, label: 'Location Manager' },
-            { id: 'finance', icon: Banknote, label: 'Finance Tracker' },
-            { id: 'partner_equity', icon: PieChart, label: 'Partner Profit & Equity', badge: 'PRO' },
-            { id: 'orders', icon: ShoppingBag, label: 'Global Orders' }
-          ].map(tab => (
-            <button 
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem', 
-                borderRadius: '12px', background: activeTab === tab.id ? 'var(--primary)' : 'transparent', 
-                color: activeTab === tab.id ? 'white' : 'var(--text-secondary)', 
-                border: 'none', cursor: 'pointer', fontWeight: '600', textAlign: 'left',
-                transition: 'all 0.2s ease'
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                <tab.icon size={20} /> {tab.label}
-              </div>
-              {tab.badge && (
-                <span style={{
-                  fontSize: '0.65rem',
-                  fontWeight: '900',
-                  letterSpacing: '0.05em',
-                  padding: '2px 6px',
-                  borderRadius: '6px',
-                  background: activeTab === tab.id ? 'rgba(255,255,255,0.25)' : 'rgba(239, 65, 35, 0.15)',
-                  color: activeTab === tab.id ? '#ffffff' : '#ef4123'
-                }}>
-                  {tab.badge}
-                </span>
-              )}
-            </button>
-          ))}
+        {/* Scrollable Nav Items */}
+        <nav style={{ 
+          padding: '0.85rem 0.75rem', 
+          flex: 1, 
+          display: 'flex', 
+          flexDirection: 'column', 
+          gap: '0.25rem',
+          overflowY: 'auto',
+          overflowX: 'hidden'
+        }}>
+          {navTabs.map(tab => {
+            const isActive = activeTab === tab.id;
+            return (
+              <button 
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                style={{
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'space-between', 
+                  padding: '0.7rem 0.85rem', 
+                  borderRadius: '10px', 
+                  background: isActive ? 'linear-gradient(135deg, #ef4123 0%, #ea580c 100%)' : 'transparent', 
+                  color: isActive ? '#ffffff' : '#94a3b8', 
+                  border: 'none', 
+                  cursor: 'pointer', 
+                  fontWeight: isActive ? '700' : '600', 
+                  fontSize: '0.84rem',
+                  textAlign: 'left',
+                  transition: 'all 0.18s cubic-bezier(0.4, 0, 0.2, 1)',
+                  boxShadow: isActive ? '0 4px 14px rgba(239, 65, 35, 0.35)' : 'none'
+                }}
+                onMouseEnter={(e) => {
+                  if (!isActive) {
+                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.06)';
+                    e.currentTarget.style.color = '#ffffff';
+                    e.currentTarget.style.transform = 'translateX(4px)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!isActive) {
+                    e.currentTarget.style.background = 'transparent';
+                    e.currentTarget.style.color = '#94a3b8';
+                    e.currentTarget.style.transform = 'translateX(0)';
+                  }
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <tab.icon size={18} style={{ color: isActive ? '#ffffff' : '#64748b' }} /> 
+                  <span style={{ letterSpacing: '0.01em' }}>{tab.label}</span>
+                </div>
+                {tab.badge && (
+                  <span style={{
+                    fontSize: '0.68rem',
+                    fontWeight: '800',
+                    padding: '2px 7px',
+                    borderRadius: '8px',
+                    background: isActive ? 'rgba(255, 255, 255, 0.25)' : 'rgba(239, 68, 68, 0.2)',
+                    color: isActive ? '#ffffff' : '#f87171'
+                  }}>
+                    {tab.badge}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </nav>
 
-        <div style={{ padding: '1rem', borderTop: '1px solid var(--surface-border)' }}>
-          <button onClick={() => { logout(); navigate('/super-admin/login'); }} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem', borderRadius: '12px', color: '#ef4444', background: 'rgba(239, 68, 68, 0.1)', border: 'none', cursor: 'pointer', fontWeight: '600' }}>
-            <LogOut size={20} /> Terminate Session
+        {/* Pinned Logout / Terminate Session */}
+        <div style={{ padding: '0.85rem 1rem', borderTop: '1px solid rgba(255, 255, 255, 0.08)', background: '#0B0F19', flexShrink: 0 }}>
+          <button 
+            onClick={() => { logout(); navigate('/super-admin/login'); }} 
+            style={{ 
+              width: '100%', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              gap: '0.65rem', 
+              padding: '0.75rem 1rem', 
+              borderRadius: '10px', 
+              color: '#f87171', 
+              background: 'rgba(239, 68, 68, 0.1)', 
+              border: '1px solid rgba(239, 68, 68, 0.25)', 
+              cursor: 'pointer', 
+              fontWeight: '700',
+              fontSize: '0.82rem',
+              transition: 'all 0.2s ease'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)';
+              e.currentTarget.style.color = '#ffffff';
+              e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.45)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)';
+              e.currentTarget.style.color = '#f87171';
+              e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.25)';
+            }}
+          >
+            <LogOut size={16} /> Terminate Session
           </button>
         </div>
       </aside>
 
-      {/* Main Content */}
-      <main style={{
-        marginLeft: '280px',
-        flex: 1,
-        width: 'calc(100vw - 280px)',
-        maxWidth: 'calc(100vw - 280px)',
-        boxSizing: 'border-box',
-        padding: activeTab === 'journey_builder' ? '1.25rem 1.5rem' : '2.5rem 3rem',
-        overflowX: 'hidden'
-      }}>
+      {/* Main View Area: Fixed Top Header + Viewport */}
+      <div style={{ flex: 1, height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0, background: '#f8fafc' }}>
+        {/* Fixed Top Navbar */}
+        <header style={{
+          height: '62px',
+          flexShrink: 0,
+          background: '#ffffff',
+          borderBottom: '1px solid #e2e8f0',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '0 2rem',
+          zIndex: 50,
+          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)'
+        }}>
+          {/* Left: Active Page Heading */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+            {currentTabObj?.icon && (
+              <div style={{
+                width: '32px',
+                height: '32px',
+                borderRadius: '8px',
+                background: 'rgba(239, 65, 35, 0.08)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#ef4123'
+              }}>
+                <currentTabObj.icon size={17} />
+              </div>
+            )}
+            <h1 style={{
+              fontSize: '1.15rem',
+              fontWeight: '900',
+              color: '#0f172a',
+              margin: 0,
+              letterSpacing: '-0.02em',
+              whiteSpace: 'nowrap'
+            }}>
+              {currentTabObj?.label || activeTab.replace(/_/g, ' ')}
+            </h1>
+          </div>
+
+          {/* Right: Actions Slot & Profile */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            {/* Topbar Actions Slot */}
+            <div id="superadmin-topbar-actions" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              {activeTab === 'locations' && (
+                <button 
+                  onClick={() => { setShowLocationForm(true); setEditingLocation(null); setLocationName(''); setLocationCity(''); setLocationDietaryType('both'); setLocationMarkets(''); }}
+                  style={{
+                    padding: '0.45rem 0.95rem',
+                    background: 'var(--primary)',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontWeight: '800',
+                    fontSize: '0.8rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.4rem',
+                    boxShadow: '0 2px 8px rgba(239, 65, 35, 0.25)'
+                  }}
+                >
+                  <Plus size={15} /> Add New Location
+                </button>
+              )}
+
+              {activeTab === 'stores' && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                  <span style={{ padding: '0.35rem 0.75rem', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: '100px', fontSize: '0.75rem', fontWeight: '800', color: '#475569' }}>
+                    {stores.length} Total Stalls
+                  </span>
+                  <span style={{ padding: '0.35rem 0.75rem', background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', borderRadius: '100px', fontSize: '0.75rem', fontWeight: '800' }}>
+                    {stores.filter(s => s.isOpen).length} Live Online
+                  </span>
+                </div>
+              )}
+
+              {activeTab === 'vendors' && (
+                <div style={{ display: 'flex', gap: '0.3rem', background: '#f1f5f9', padding: '0.2rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                  <button
+                    type="button"
+                    onClick={() => setVendorSubTab('active')}
+                    style={{
+                      padding: '0.35rem 0.8rem',
+                      borderRadius: '6px',
+                      border: 'none',
+                      background: vendorSubTab === 'active' ? '#ffffff' : 'transparent',
+                      color: vendorSubTab === 'active' ? '#0f172a' : '#64748b',
+                      fontWeight: '700',
+                      fontSize: '0.75rem',
+                      cursor: 'pointer',
+                      boxShadow: vendorSubTab === 'active' ? '0 1px 3px rgba(0,0,0,0.06)' : 'none'
+                    }}
+                  >
+                    Active ({vendors.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setVendorSubTab('pending')}
+                    style={{
+                      padding: '0.35rem 0.8rem',
+                      borderRadius: '6px',
+                      border: 'none',
+                      background: vendorSubTab === 'pending' ? '#ef4123' : 'transparent',
+                      color: vendorSubTab === 'pending' ? '#ffffff' : '#64748b',
+                      fontWeight: '700',
+                      fontSize: '0.75rem',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.35rem'
+                    }}
+                  >
+                    Pending {pendingVendors.length > 0 && <span style={{ background: '#ffffff', color: '#ef4123', padding: '1px 5px', borderRadius: '100px', fontSize: '0.68rem' }}>{pendingVendors.length}</span>}
+                  </button>
+                </div>
+              )}
+              {activeTab === 'finance' && (
+                <div style={{ display: 'flex', gap: '0.3rem', background: '#f1f5f9', padding: '0.2rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                  <button 
+                    onClick={() => setFinanceSubTab('dues')}
+                    style={{ 
+                      padding: '0.35rem 0.8rem', borderRadius: '6px', border: 'none', 
+                      background: financeSubTab === 'dues' ? 'white' : 'transparent',
+                      color: financeSubTab === 'dues' ? 'var(--primary)' : '#64748b',
+                      fontWeight: '700', fontSize: '0.75rem', cursor: 'pointer',
+                      boxShadow: financeSubTab === 'dues' ? '0 1px 3px rgba(0,0,0,0.06)' : 'none'
+                    }}
+                  >
+                    Current Dues
+                  </button>
+                  <button 
+                    onClick={() => setFinanceSubTab('history')}
+                    style={{ 
+                      padding: '0.35rem 0.8rem', borderRadius: '6px', border: 'none', 
+                      background: financeSubTab === 'history' ? 'white' : 'transparent',
+                      color: financeSubTab === 'history' ? 'var(--primary)' : '#64748b',
+                      fontWeight: '700', fontSize: '0.75rem', cursor: 'pointer',
+                      boxShadow: financeSubTab === 'history' ? '0 1px 3px rgba(0,0,0,0.06)' : 'none'
+                    }}
+                  >
+                    Settlement History
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.25rem 0.65rem', borderRadius: '8px', background: '#f1f5f9', border: '1px solid #e2e8f0' }}>
+              <div style={{ width: '26px', height: '26px', borderRadius: '6px', background: '#0B0F19', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ffffff', fontSize: '0.72rem', fontWeight: '800' }}>
+                SA
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: '800', color: '#0f172a', lineHeight: 1.1 }}>Root Admin</span>
+                <span style={{ fontSize: '0.65rem', color: '#64748b' }}>active</span>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        {/* Scrollable Main Viewport */}
+        <main style={{
+          flex: 1,
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          padding: activeTab === 'journey_builder' ? '1.25rem 1.5rem' : '2rem 2.5rem',
+          background: '#f8fafc',
+          position: 'relative'
+        }}>
         
         {/* 3D LIVE ANALYTICS TAB */}
         {activeTab === '3d_analytics' && (
@@ -551,13 +965,14 @@ const SuperAdminPanel = () => {
           <SuperAdminHeroPromotions token={token} socket={socket} />
         )}
 
+        {/* OFFERS & DEALS MASTER TAB */}
+        {activeTab === 'offers_master' && (
+          <SuperAdminOffersMaster token={token} socket={socket} />
+        )}
+
         {/* OVERVIEW TAB */}
         {activeTab === 'overview' && stats && (
           <div>
-            <header style={{ marginBottom: '3rem' }}>
-              <h1 style={{ fontSize: '2rem', fontWeight: '900', marginBottom: '0.5rem' }}>Global Analytics</h1>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '1.1rem' }}>Welcome back, Commander. Here's the platform pulse.</p>
-            </header>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem', marginBottom: '3rem' }}>
               {/* Stat Cards */}
@@ -597,74 +1012,6 @@ const SuperAdminPanel = () => {
         {/* VENDORS TAB */}
         {activeTab === 'vendors' && (
           <div>
-            <header style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-              <div>
-                <h1 style={{ fontSize: '2rem', fontWeight: '900', margin: 0 }}>Vendor Registry</h1>
-                <p style={{ color: 'var(--text-secondary)', margin: '0.25rem 0 0 0', fontSize: '0.875rem' }}>
-                  Manage verified campus vendors and review new merchant applications.
-                </p>
-              </div>
-
-              {/* Sub-Tabs: Active Vendors vs Pending Approvals */}
-              <div style={{ display: 'flex', gap: '0.5rem', background: '#f1f5f9', padding: '0.35rem', borderRadius: '14px', border: '1px solid var(--surface-border)' }}>
-                <button
-                  type="button"
-                  onClick={() => setVendorSubTab('active')}
-                  style={{
-                    padding: '0.5rem 1.25rem',
-                    borderRadius: '10px',
-                    border: 'none',
-                    background: vendorSubTab === 'active' ? '#ffffff' : 'transparent',
-                    color: vendorSubTab === 'active' ? 'var(--text-primary)' : 'var(--text-secondary)',
-                    fontWeight: '700',
-                    fontSize: '0.875rem',
-                    cursor: 'pointer',
-                    boxShadow: vendorSubTab === 'active' ? '0 2px 8px rgba(0,0,0,0.06)' : 'none',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.5rem',
-                    transition: 'all 0.2s'
-                  }}
-                >
-                  <Users size={16} />
-                  Active Vendors ({activeVendors.length})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setVendorSubTab('pending')}
-                  style={{
-                    padding: '0.5rem 1.25rem',
-                    borderRadius: '10px',
-                    border: 'none',
-                    background: vendorSubTab === 'pending' ? '#ef4123' : (pendingVendors.length > 0 ? 'rgba(239, 65, 35, 0.1)' : 'transparent'),
-                    color: vendorSubTab === 'pending' ? '#ffffff' : (pendingVendors.length > 0 ? '#ef4123' : 'var(--text-secondary)'),
-                    fontWeight: '700',
-                    fontSize: '0.875rem',
-                    cursor: 'pointer',
-                    boxShadow: vendorSubTab === 'pending' ? '0 2px 8px rgba(239, 65, 35, 0.3)' : 'none',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.5rem',
-                    transition: 'all 0.2s'
-                  }}
-                >
-                  <Clock size={16} />
-                  Pending Approvals
-                  {pendingVendors.length > 0 && (
-                    <span style={{
-                      background: vendorSubTab === 'pending' ? 'rgba(255,255,255,0.3)' : '#ef4123',
-                      color: '#ffffff',
-                      padding: '2px 8px',
-                      borderRadius: '100px',
-                      fontSize: '0.75rem',
-                      fontWeight: '800'
-                    }}>
-                      {pendingVendors.length}
-                    </span>
-                  )}
-                </button>
-              </div>
-            </header>
 
             {/* PENDING APPROVALS QUEUE */}
             {vendorSubTab === 'pending' && (
@@ -680,110 +1027,154 @@ const SuperAdminPanel = () => {
                     </p>
                   </div>
                 ) : (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: '1.5rem' }}>
-                    {pendingVendors.map(v => (
-                      <div 
-                        key={v._id || v.id}
-                        style={{
-                          background: '#ffffff',
-                          borderRadius: '20px',
-                          border: '2px solid rgba(239, 65, 35, 0.2)',
-                          padding: '1.75rem',
-                          boxShadow: '0 10px 25px -5px rgba(239, 65, 35, 0.05)',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          justifyContent: 'space-between',
-                          position: 'relative'
-                        }}
-                      >
-                        <div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+                  <div>
+                    {/* Bulk Selection Bar for Pending Vendors */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc', padding: '0.75rem 1.25rem', borderRadius: '16px', border: '1px solid var(--surface-border)', marginBottom: '1.25rem' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', fontSize: '0.85rem', fontWeight: '700', cursor: 'pointer', color: 'var(--text-primary)' }}>
+                        <input
+                          type="checkbox"
+                          checked={selectedPendingVendors.length === pendingVendors.length && pendingVendors.length > 0}
+                          onChange={toggleSelectAllPendingVendors}
+                          style={{ cursor: 'pointer', width: '16px', height: '16px' }}
+                        />
+                        Select All Applicants ({pendingVendors.length})
+                      </label>
+                      {selectedPendingVendors.length > 0 && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                          <span style={{ fontSize: '0.8rem', fontWeight: '800', color: '#b91c1c' }}>
+                            {selectedPendingVendors.length} selected
+                          </span>
+                          <button
+                            type="button"
+                            onClick={bulkRejectPendingVendors}
+                            disabled={isDeleting}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: '0.4rem', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '8px', padding: '0.45rem 0.9rem', fontWeight: '700', fontSize: '0.8rem', cursor: 'pointer'
+                            }}
+                          >
+                            <Trash2 size={14} /> Reject & Purge Selected ({selectedPendingVendors.length})
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: '1.5rem' }}>
+                      {pendingVendors.map(v => {
+                        const vId = v._id || v.id;
+                        const isChecked = selectedPendingVendors.includes(vId);
+                        return (
+                          <div 
+                            key={vId}
+                            style={{
+                              background: '#ffffff',
+                              borderRadius: '20px',
+                              border: isChecked ? '2px solid #ef4444' : '2px solid rgba(239, 65, 35, 0.2)',
+                              padding: '1.75rem',
+                              boxShadow: '0 10px 25px -5px rgba(239, 65, 35, 0.05)',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              justifyContent: 'space-between',
+                              position: 'relative'
+                            }}
+                          >
                             <div>
-                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.7rem', fontWeight: '800', padding: '0.2rem 0.6rem', borderRadius: '100px', background: 'rgba(245, 158, 11, 0.15)', color: '#b45309', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>
-                                <Clock size={12} /> Awaiting Verification
-                              </span>
-                              <h3 style={{ fontSize: '1.25rem', fontWeight: '800', margin: '0.25rem 0 0 0', color: 'var(--text-primary)' }}>
-                                {v.name}
-                              </h3>
-                            </div>
-                            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                              {v.createdAt ? new Date(v.createdAt).toLocaleDateString() : 'Recent'}
-                            </span>
-                          </div>
-
-                          <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '12px', border: '1px solid var(--surface-border)', marginBottom: '1.25rem' }}>
-                            <div style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.35rem' }}>
-                              Proposed Stall / Brand Name
-                            </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: '800', fontSize: '1.1rem', color: 'var(--primary)' }}>
-                              <Store size={18} />
-                              {v.store?.name || 'Unassigned / Not Specified'}
-                            </div>
-                          </div>
-
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                              <Mail size={15} style={{ color: 'var(--text-secondary)' }} />
-                              <span style={{ color: 'var(--text-primary)', fontWeight: '600' }}>{v.email}</span>
-                            </div>
-                            {v.phone && (
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                <Phone size={15} style={{ color: 'var(--text-secondary)' }} />
-                                <span style={{ color: 'var(--text-primary)', fontWeight: '600' }}>{v.phone}</span>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+                                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+                                  <input 
+                                    type="checkbox" 
+                                    checked={isChecked} 
+                                    onChange={() => toggleSelectPendingVendor(vId)}
+                                    style={{ marginTop: '0.25rem', cursor: 'pointer', width: '16px', height: '16px' }}
+                                  />
+                                  <div>
+                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.7rem', fontWeight: '800', padding: '0.2rem 0.6rem', borderRadius: '100px', background: 'rgba(245, 158, 11, 0.15)', color: '#b45309', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>
+                                      <Clock size={12} /> Awaiting Verification
+                                    </span>
+                                    <h3 style={{ fontSize: '1.25rem', fontWeight: '800', margin: '0.25rem 0 0 0', color: 'var(--text-primary)' }}>
+                                      {v.name}
+                                    </h3>
+                                  </div>
+                                </div>
+                                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                                  {v.createdAt ? new Date(v.createdAt).toLocaleDateString() : 'Recent'}
+                                </span>
                               </div>
-                            )}
-                          </div>
-                        </div>
 
-                        <div style={{ display: 'flex', gap: '0.75rem', paddingTop: '1rem', borderTop: '1px solid var(--surface-border)' }}>
-                          <button
-                            type="button"
-                            onClick={() => approveVendor(v._id || v.id, v.name)}
-                            style={{
-                              flex: 1,
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              gap: '0.5rem',
-                              padding: '0.75rem 1rem',
-                              background: '#10b981',
-                              color: '#ffffff',
-                              border: 'none',
-                              borderRadius: '10px',
-                              fontWeight: '700',
-                              fontSize: '0.875rem',
-                              cursor: 'pointer',
-                              boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)',
-                              transition: 'all 0.2s'
-                            }}
-                          >
-                            <CheckCircle size={16} /> Approve
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => rejectVendor(v._id || v.id, v.name)}
-                            style={{
-                              flex: 1,
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              gap: '0.5rem',
-                              padding: '0.75rem 1rem',
-                              background: 'rgba(239, 68, 68, 0.1)',
-                              color: '#ef4444',
-                              border: '1px solid rgba(239, 68, 68, 0.3)',
-                              borderRadius: '10px',
-                              fontWeight: '700',
-                              fontSize: '0.875rem',
-                              cursor: 'pointer',
-                              transition: 'all 0.2s'
-                            }}
-                          >
-                            <Trash2 size={16} /> Reject & Purge
-                          </button>
-                        </div>
-                      </div>
-                    ))}
+                              <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '12px', border: '1px solid var(--surface-border)', marginBottom: '1.25rem' }}>
+                                <div style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.35rem' }}>
+                                  Proposed Stall / Brand Name
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: '800', fontSize: '1.1rem', color: 'var(--primary)' }}>
+                                  <Store size={18} />
+                                  {v.store?.name || 'Unassigned / Not Specified'}
+                                </div>
+                              </div>
+
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                  <Mail size={15} style={{ color: 'var(--text-secondary)' }} />
+                                  <span style={{ color: 'var(--text-primary)', fontWeight: '600' }}>{v.email}</span>
+                                </div>
+                                {v.phone && (
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                    <Phone size={15} style={{ color: 'var(--text-secondary)' }} />
+                                    <span style={{ color: 'var(--text-primary)', fontWeight: '600' }}>{v.phone}</span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            <div style={{ display: 'flex', gap: '0.75rem', paddingTop: '1rem', borderTop: '1px solid var(--surface-border)' }}>
+                              <button
+                                type="button"
+                                onClick={() => approveVendor(v._id || v.id, v.name)}
+                                style={{
+                                  flex: 1,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: '0.5rem',
+                                  padding: '0.75rem 1rem',
+                                  background: '#10b981',
+                                  color: '#ffffff',
+                                  border: 'none',
+                                  borderRadius: '10px',
+                                  fontWeight: '700',
+                                  fontSize: '0.875rem',
+                                  cursor: 'pointer',
+                                  boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)',
+                                  transition: 'all 0.2s'
+                                }}
+                              >
+                                <CheckCircle size={16} /> Approve
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => rejectVendor(v._id || v.id, v.name)}
+                                style={{
+                                  flex: 1,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: '0.5rem',
+                                  padding: '0.75rem 1rem',
+                                  background: 'rgba(239, 68, 68, 0.1)',
+                                  color: '#ef4444',
+                                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                                  borderRadius: '10px',
+                                  fontWeight: '700',
+                                  fontSize: '0.875rem',
+                                  cursor: 'pointer',
+                                  transition: 'all 0.2s'
+                                }}
+                              >
+                                <Trash2 size={16} /> Reject & Purge
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
               </div>
@@ -791,81 +1182,131 @@ const SuperAdminPanel = () => {
 
             {/* ACTIVE VENDORS TABLE */}
             {vendorSubTab === 'active' && (
-              <div style={{ background: '#ffffff', borderRadius: '24px', border: '1px solid var(--surface-border)', overflow: 'hidden' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-                  <thead>
-                    <tr style={{ background: '#f8fafc', borderBottom: '1px solid var(--surface-border)' }}>
-                      <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Vendor Details</th>
-                      <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Associated Store</th>
-                      <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Performance</th>
-                      <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Platform Profit</th>
-                      <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem', textAlign: 'right' }}>Destructive Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {activeVendors.map(v => (
-                      <tr key={v._id || v.id} style={{ borderBottom: '1px solid var(--surface-border)' }}>
-                        <td style={{ padding: '1.25rem' }}>
-                          <div style={{ fontWeight: '700', fontSize: '1rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            {v.name}
-                            {v.isBanned && <span style={{ fontSize: '0.65rem', padding: '0.1rem 0.4rem', background: '#ef4444', color: 'white', borderRadius: '4px', fontWeight: '900', letterSpacing: '0.05em' }}>SUSPENDED</span>}
-                          </div>
-                          <div style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: '0.25rem' }}>{v.email}</div>
-                          {v.phone && <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', marginTop: '0.2rem' }}>📞 {v.phone}</div>}
-                          {v.upiId && <div style={{ color: '#3b82f6', fontSize: '0.75rem', marginTop: '0.25rem', padding: '0.1rem 0.4rem', background: 'rgba(59, 130, 246, 0.1)', borderRadius: '4px', display: 'inline-block' }}>{v.upiId}</div>}
-                        </td>
-                        <td style={{ padding: '1.25rem' }}>
-                          {v.store ? (
-                            <>
-                              <div style={{ fontWeight: '600' }}>{v.store.name}</div>
-                              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
-                                <span style={{ fontSize: '0.75rem', background: 'rgba(239, 65, 35, 0.1)', color: 'var(--primary)', padding: '0.1rem 0.4rem', borderRadius: '4px', fontWeight: '700' }}>{v.store.market || 'BH1 Market'}</span>
-                                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{v.store.productCount} Items</span>
-                                <span style={{ fontSize: '0.75rem', color: v.store.isOpen ? '#10b981' : '#ef4444' }}>• {v.store.isOpen ? 'ONLINE' : 'OFFLINE'}</span>
-                              </div>
-                            </>
-                          ) : (
-                            <span style={{ color: 'var(--text-secondary)', fontStyle: 'italic', fontSize: '0.875rem' }}>No store created</span>
-                          )}
-                        </td>
-                        <td style={{ padding: '1.25rem' }}>
-                          <div style={{ fontWeight: '800', color: 'var(--secondary)' }}>₹{v.stats?.revenue || 0} generated</div>
-                          <div style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: '0.25rem' }}>Across {v.stats?.orderCount || 0} total orders</div>
-                        </td>
-                        <td style={{ padding: '1.25rem' }}>
-                          <div style={{ fontWeight: '900', color: 'var(--primary)', fontSize: '1.1rem' }}>₹{v.stats?.profitGenerated || 0}</div>
-                          <div style={{ color: '#6366f1', fontSize: '0.7rem', marginTop: '0.25rem', fontWeight: '700' }}>Standard (3% Platform)</div>
-                        </td>
-                        <td style={{ padding: '1.25rem', textAlign: 'right' }}>
-                          <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
-                            <button 
-                              onClick={async () => {
-                                try {
-                                  await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/super-admin/vendor/${v._id || v.id}/suspend`, {}, { headers: { Authorization: `Bearer ${token}` } });
-                                  fetchDashboardData(true);
-                                } catch(err) { alert('Action failed'); }
-                              }}
-                              style={{ padding: '0.5rem 1rem', background: v.isBanned ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)', color: v.isBanned ? '#10b981' : '#f59e0b', border: `1px solid ${v.isBanned ? 'rgba(16, 185, 129, 0.2)' : 'rgba(245, 158, 11, 0.2)'}`, borderRadius: '8px', cursor: 'pointer', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
-                            >
-                              <Ban size={16} /> {v.isBanned ? 'Unban' : 'Suspend'}
-                            </button>
-                            <button 
-                              onClick={() => deleteVendor(v._id || v.id, v.name)}
-                              style={{ padding: '0.5rem 1rem', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.2)', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', transition: 'all 0.2s' }}
-                              onMouseEnter={(e) => { e.target.style.background = '#ef4444'; e.target.style.color = 'white'; }}
-                              onMouseLeave={(e) => { e.target.style.background = 'rgba(239, 68, 68, 0.1)'; e.target.style.color = '#ef4444'; }}
-                            >
-                              <Trash2 size={16} /> Terminate
-                            </button>
-                          </div>
-                        </td>
+              <div>
+                {/* Bulk Actions Banner for Active Vendors */}
+                {selectedActiveVendors.length > 0 && (
+                  <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '16px', padding: '0.85rem 1.25rem', marginBottom: '1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <span style={{ fontWeight: '800', color: '#991b1b', fontSize: '0.875rem' }}>
+                        {selectedActiveVendors.length} vendor{selectedActiveVendors.length > 1 ? 's' : ''} selected
+                      </span>
+                      <button 
+                        type="button" 
+                        onClick={() => setSelectedActiveVendors([])} 
+                        style={{ background: 'none', border: 'none', color: '#6b7280', fontSize: '0.75rem', fontWeight: '700', cursor: 'pointer', textDecoration: 'underline' }}
+                      >
+                        Clear Selection
+                      </button>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={bulkDeleteActiveVendors}
+                      disabled={isDeleting}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#dc2626', color: '#fff', border: 'none', borderRadius: '8px', padding: '0.5rem 1rem', fontWeight: '700', fontSize: '0.85rem', cursor: 'pointer'
+                      }}
+                    >
+                      <Trash2 size={15} /> Terminate Selected ({selectedActiveVendors.length})
+                    </button>
+                  </div>
+                )}
+
+                <div style={{ background: '#ffffff', borderRadius: '24px', border: '1px solid var(--surface-border)', overflow: 'hidden' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                    <thead>
+                      <tr style={{ background: '#f8fafc', borderBottom: '1px solid var(--surface-border)' }}>
+                        <th style={{ width: '48px', padding: '1.25rem 0.5rem 1.25rem 1.25rem' }}>
+                          <input 
+                            type="checkbox" 
+                            checked={selectedActiveVendors.length === activeVendors.length && activeVendors.length > 0} 
+                            onChange={toggleSelectAllActiveVendors} 
+                            style={{ cursor: 'pointer', width: '16px', height: '16px' }} 
+                          />
+                        </th>
+                        <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Vendor Details</th>
+                        <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Associated Store</th>
+                        <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Performance</th>
+                        <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Platform Profit</th>
+                        <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem', textAlign: 'right' }}>Destructive Actions</th>
                       </tr>
-                    ))}
-                    {activeVendors.length === 0 && (
-                      <tr><td colSpan="5" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>No active vendors registered yet.</td></tr>
-                    )}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {activeVendors.map(v => {
+                        const vId = v._id || v.id;
+                        const isChecked = selectedActiveVendors.includes(vId);
+                        return (
+                          <tr key={vId} style={{ borderBottom: '1px solid var(--surface-border)', background: isChecked ? 'rgba(239, 68, 68, 0.03)' : 'transparent' }}>
+                            <td style={{ width: '48px', padding: '1.25rem 0.5rem 1.25rem 1.25rem' }}>
+                              <input 
+                                type="checkbox" 
+                                checked={isChecked} 
+                                onChange={() => toggleSelectActiveVendor(vId)} 
+                                style={{ cursor: 'pointer', width: '16px', height: '16px' }} 
+                              />
+                            </td>
+                            <td style={{ padding: '1.25rem' }}>
+                              <div style={{ fontWeight: '700', fontSize: '1rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                {v.name}
+                                {v.isBanned && <span style={{ fontSize: '0.65rem', padding: '0.1rem 0.4rem', background: '#ef4444', color: 'white', borderRadius: '4px', fontWeight: '900', letterSpacing: '0.05em' }}>SUSPENDED</span>}
+                              </div>
+                              <div style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: '0.25rem' }}>{v.email}</div>
+                              {v.phone && <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', marginTop: '0.2rem' }}>📞 {v.phone}</div>}
+                              {v.upiId && <div style={{ color: '#3b82f6', fontSize: '0.75rem', marginTop: '0.25rem', padding: '0.1rem 0.4rem', background: 'rgba(59, 130, 246, 0.1)', borderRadius: '4px', display: 'inline-block' }}>{v.upiId}</div>}
+                            </td>
+                            <td style={{ padding: '1.25rem' }}>
+                              {v.store ? (
+                                <>
+                                  <div style={{ fontWeight: '600' }}>{v.store.name}</div>
+                                  <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
+                                    <span style={{ fontSize: '0.75rem', background: 'rgba(239, 65, 35, 0.1)', color: 'var(--primary)', padding: '0.1rem 0.4rem', borderRadius: '4px', fontWeight: '700' }}>{v.store.market || 'BH1 Market'}</span>
+                                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{v.store.productCount} Items</span>
+                                    <span style={{ fontSize: '0.75rem', color: v.store.isOpen ? '#10b981' : '#ef4444' }}>• {v.store.isOpen ? 'ONLINE' : 'OFFLINE'}</span>
+                                  </div>
+                                </>
+                              ) : (
+                                <span style={{ color: 'var(--text-secondary)', fontStyle: 'italic', fontSize: '0.875rem' }}>No store created</span>
+                              )}
+                            </td>
+                            <td style={{ padding: '1.25rem' }}>
+                              <div style={{ fontWeight: '800', color: 'var(--secondary)' }}>₹{v.stats?.revenue || 0} generated</div>
+                              <div style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: '0.25rem' }}>Across {v.stats?.orderCount || 0} total orders</div>
+                            </td>
+                            <td style={{ padding: '1.25rem' }}>
+                              <div style={{ fontWeight: '900', color: 'var(--primary)', fontSize: '1.1rem' }}>₹{v.stats?.profitGenerated || 0}</div>
+                              <div style={{ color: '#6366f1', fontSize: '0.7rem', marginTop: '0.25rem', fontWeight: '700' }}>Standard (3% Platform)</div>
+                            </td>
+                            <td style={{ padding: '1.25rem', textAlign: 'right' }}>
+                              <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                                <button 
+                                  onClick={async () => {
+                                    try {
+                                      await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/super-admin/vendor/${vId}/suspend`, {}, { headers: { Authorization: `Bearer ${token}` } });
+                                      fetchDashboardData(true);
+                                    } catch(err) { alert('Action failed'); }
+                                  }}
+                                  style={{ padding: '0.5rem 1rem', background: v.isBanned ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)', color: v.isBanned ? '#10b981' : '#f59e0b', border: `1px solid ${v.isBanned ? 'rgba(16, 185, 129, 0.2)' : 'rgba(245, 158, 11, 0.2)'}`, borderRadius: '8px', cursor: 'pointer', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                                >
+                                  <Ban size={16} /> {v.isBanned ? 'Unban' : 'Suspend'}
+                                </button>
+                                <button 
+                                  onClick={() => deleteVendor(vId, v.name)}
+                                  style={{ padding: '0.5rem 1rem', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.2)', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', transition: 'all 0.2s' }}
+                                  onMouseEnter={(e) => { e.target.style.background = '#ef4444'; e.target.style.color = 'white'; }}
+                                  onMouseLeave={(e) => { e.target.style.background = 'rgba(239, 68, 68, 0.1)'; e.target.style.color = '#ef4444'; }}
+                                >
+                                  <Trash2 size={16} /> Terminate
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                      {activeVendors.length === 0 && (
+                        <tr><td colSpan="6" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>No active vendors registered yet.</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             )}
           </div>
@@ -881,6 +1322,12 @@ const SuperAdminPanel = () => {
 
             if (!matchesSearch) return false;
 
+            const matchesLocation = storeLocationFilter === 'all' || 
+              String(store.locationId || '') === String(storeLocationFilter) ||
+              (storeLocationFilter === 'unassigned' && !store.locationId);
+
+            if (!matchesLocation) return false;
+
             if (storeStatusFilter === 'open') return store.isOpen && !store.isHidden;
             if (storeStatusFilter === 'closed') return !store.isOpen && !store.isHidden;
             if (storeStatusFilter === 'hidden') return store.isHidden;
@@ -889,44 +1336,56 @@ const SuperAdminPanel = () => {
 
           return (
             <div>
-              <header style={{ marginBottom: '1.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-                <div>
-                  <h1 style={{ fontSize: '2rem', fontWeight: '900', margin: 0, color: 'var(--text-primary)' }}>Store Directory</h1>
-                  <p style={{ color: 'var(--text-secondary)', margin: '0.25rem 0 0 0', fontSize: '0.9rem' }}>
-                    Control stall operational status, auto-scheduling, location assignments, and 5% commission profiles.
-                  </p>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                  <span style={{ padding: '0.5rem 1rem', background: '#ffffff', border: '1px solid var(--surface-border)', borderRadius: '100px', fontSize: '0.85rem', fontWeight: '800', color: 'var(--text-primary)' }}>
-                    {stores.length} Total Stalls
-                  </span>
-                  <span style={{ padding: '0.5rem 1rem', background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', borderRadius: '100px', fontSize: '0.85rem', fontWeight: '800' }}>
-                    {stores.filter(s => s.isOpen).length} Live Online
-                  </span>
-                </div>
-              </header>
 
               {/* Search & Filter Bar */}
               <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div style={{ position: 'relative', minWidth: '280px', flex: '1', maxWidth: '420px' }}>
-                  <Search size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
-                  <input 
-                    type="text"
-                    placeholder="Search stall, category, or vendor name..."
-                    value={storeSearch}
-                    onChange={(e) => setStoreSearch(e.target.value)}
+                <div style={{ display: 'flex', gap: '0.75rem', flex: 1, minWidth: '300px', flexWrap: 'wrap' }}>
+                  <div style={{ position: 'relative', flex: '1', minWidth: '220px', maxWidth: '380px' }}>
+                    <Search size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
+                    <input 
+                      type="text"
+                      placeholder="Search stall, category, or vendor name..."
+                      value={storeSearch}
+                      onChange={(e) => setStoreSearch(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '0.7rem 1rem 0.7rem 2.85rem',
+                        borderRadius: '14px',
+                        border: '1px solid var(--surface-border)',
+                        background: '#ffffff',
+                        fontSize: '0.875rem',
+                        fontWeight: '600',
+                        outline: 'none',
+                        color: 'var(--text-primary)'
+                      }}
+                    />
+                  </div>
+
+                  {/* Location-wise Dropdown Filter */}
+                  <select
+                    value={storeLocationFilter}
+                    onChange={(e) => setStoreLocationFilter(e.target.value)}
                     style={{
-                      width: '100%',
-                      padding: '0.7rem 1rem 0.7rem 2.85rem',
+                      padding: '0.7rem 1rem',
                       borderRadius: '14px',
-                      border: '1px solid var(--surface-border)',
-                      background: '#ffffff',
+                      border: storeLocationFilter !== 'all' ? '1.5px solid var(--primary)' : '1px solid var(--surface-border)',
+                      background: storeLocationFilter !== 'all' ? 'rgba(239, 65, 35, 0.04)' : '#ffffff',
                       fontSize: '0.875rem',
-                      fontWeight: '600',
+                      fontWeight: '700',
+                      color: storeLocationFilter !== 'all' ? 'var(--primary)' : 'var(--text-primary)',
                       outline: 'none',
-                      color: 'var(--text-primary)'
+                      cursor: 'pointer',
+                      minWidth: '220px'
                     }}
-                  />
+                  >
+                    <option value="all">📍 All Locations ({locations.length})</option>
+                    <option value="unassigned">⚠️ Unassigned Stalls</option>
+                    {locations.map(loc => (
+                      <option key={loc._id || loc.id} value={loc._id || loc.id}>
+                        📍 {loc.name} ({loc.city || loc.type})
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', background: '#f1f5f9', padding: '0.35rem', borderRadius: '14px' }}>
                   {[
@@ -963,17 +1422,67 @@ const SuperAdminPanel = () => {
                 </div>
               </div>
               
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: '1.5rem' }}>
-                {filteredStores.map(store => (
-                <div key={store._id} style={{ padding: '1.5rem', background: '#ffffff', borderRadius: '24px', border: '1px solid var(--surface-border)', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <div>
-                      <h3 style={{ fontSize: '1.25rem', fontWeight: '800', margin: '0 0 0.5rem 0' }}>{store.name}</h3>
-                      <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        Managed by: <span style={{ color: 'var(--text-primary)' }}>{store.admin?.name || 'Unknown'}</span>
-                      </p>
+              {/* Bulk Selection Bar for Stores */}
+              {filteredStores.length > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc', padding: '0.75rem 1.25rem', borderRadius: '16px', border: '1px solid var(--surface-border)', marginBottom: '1.25rem' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', fontSize: '0.85rem', fontWeight: '700', cursor: 'pointer', color: 'var(--text-primary)' }}>
+                    <input
+                      type="checkbox"
+                      checked={filteredStores.length > 0 && filteredStores.every(s => selectedStores.includes(s._id || s.id))}
+                      onChange={() => toggleSelectAllStores(filteredStores.map(s => s._id || s.id))}
+                      style={{ cursor: 'pointer', width: '16px', height: '16px' }}
+                    />
+                    Select All Visible Stalls ({filteredStores.length})
+                  </label>
+                  {selectedStores.length > 0 && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <span style={{ fontSize: '0.8rem', fontWeight: '800', color: '#b91c1c' }}>
+                        {selectedStores.length} selected
+                      </span>
+                      <button 
+                        type="button" 
+                        onClick={() => setSelectedStores([])} 
+                        style={{ background: 'none', border: 'none', color: '#6b7280', fontSize: '0.75rem', fontWeight: '700', cursor: 'pointer', textDecoration: 'underline' }}
+                      >
+                        Clear Selection
+                      </button>
+                      <button
+                        type="button"
+                        onClick={bulkDeleteStores}
+                        disabled={isDeleting}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: '0.4rem', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '8px', padding: '0.45rem 0.9rem', fontWeight: '700', fontSize: '0.8rem', cursor: 'pointer'
+                        }}
+                      >
+                        <Trash2 size={14} /> Delete Selected Stalls ({selectedStores.length})
+                      </button>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                  )}
+                </div>
+              )}
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: '1.5rem' }}>
+                {filteredStores.map(store => {
+                  const sId = store._id || store.id;
+                  const isChecked = selectedStores.includes(sId);
+                  return (
+                  <div key={sId} style={{ padding: '1.5rem', background: '#ffffff', borderRadius: '24px', border: isChecked ? '2px solid #ef4444' : '1px solid var(--surface-border)', display: 'flex', flexDirection: 'column', gap: '1.25rem', boxShadow: isChecked ? '0 10px 25px -5px rgba(239, 68, 68, 0.1)' : 'none' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+                        <input 
+                          type="checkbox" 
+                          checked={isChecked} 
+                          onChange={() => toggleSelectStore(sId)}
+                          style={{ marginTop: '0.35rem', cursor: 'pointer', width: '16px', height: '16px' }}
+                        />
+                        <div>
+                          <h3 style={{ fontSize: '1.25rem', fontWeight: '800', margin: '0 0 0.5rem 0' }}>{store.name}</h3>
+                          <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
+                            Managed by: <span style={{ color: 'var(--text-primary)' }}>{store.admin?.name || 'Unknown'}</span>
+                          </p>
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                       <button 
                          onClick={async () => {
                            const targetId = store._id || store.id;
@@ -1279,6 +1788,32 @@ const SuperAdminPanel = () => {
                          <option value="Restaurant">RESTAURANT</option>
                        </select>
                     </div>
+
+                    {/* Table / Seating Spot Feature Toggle */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', padding: '0.6rem 0.75rem', background: store.hasTableService ? 'rgba(37, 99, 235, 0.06)' : '#ffffff', borderRadius: '10px', border: `1px solid ${store.hasTableService ? 'rgba(37, 99, 235, 0.25)' : 'var(--surface-border)'}` }}>
+                      <div>
+                        <p style={{ margin: 0, fontWeight: '800', fontSize: '0.7rem', textTransform: 'uppercase', color: store.hasTableService ? '#2563eb' : 'var(--text-primary)' }}>🪑 Table / Seating Service</p>
+                        <p style={{ margin: 0, fontSize: '0.6rem', color: 'var(--text-secondary)' }}>
+                          {store.hasTableService ? 'Enabled: Prompts student for table/seat #' : 'Disabled: Takeaway cart (no seating input)'}
+                        </p>
+                      </div>
+                      <input 
+                        type="checkbox" 
+                        checked={Boolean(store.hasTableService)} 
+                        onChange={async (e) => {
+                          const nextVal = e.target.checked;
+                          setStores(prev => prev.map(s => (s._id === store._id || s.id === store._id) ? { ...s, hasTableService: nextVal } : s));
+                          try {
+                            await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/super-admin/store/${store._id}/update-details`, 
+                              { hasTableService: nextVal }, 
+                              { headers: { Authorization: `Bearer ${token}` } }
+                            );
+                            fetchDashboardData(true);
+                          } catch(err) { alert('Failed to update table service setting'); }
+                        }}
+                        style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: '#2563eb' }}
+                      />
+                    </div>
                     
                     {/* Auto-Timing Schedule Control */}
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem', padding: '0.4rem 0.6rem', background: store.isAutomated ? 'rgba(79, 70, 229, 0.08)' : '#f8fafc', borderRadius: '8px' }}>
@@ -1401,8 +1936,33 @@ const SuperAdminPanel = () => {
                     <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem', textTransform: 'uppercase', fontWeight: '700' }}>Overall Stall Revenue</p>
                     <p style={{ fontSize: '1.5rem', fontWeight: '900', color: 'var(--text-primary)', margin: 0 }}>₹{store.totalRevenue}</p>
                   </div>
+
+                  <button
+                    type="button"
+                    onClick={() => deleteStore(store._id || store.id, store.name)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.5rem',
+                      padding: '0.65rem',
+                      background: 'rgba(239, 68, 68, 0.08)',
+                      color: '#ef4444',
+                      border: '1px solid rgba(239, 68, 68, 0.25)',
+                      borderRadius: '12px',
+                      fontWeight: '700',
+                      fontSize: '0.8rem',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s'
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = '#ef4444'; e.currentTarget.style.color = '#fff'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(239, 68, 68, 0.08)'; e.currentTarget.style.color = '#ef4444'; }}
+                  >
+                    <Trash2 size={15} /> Delete Stall & Data
+                  </button>
                 </div>
-              ))}
+              );
+            })}
               {filteredStores.length === 0 && (
                 <div style={{ padding: '4rem 2rem', background: '#ffffff', borderRadius: '24px', border: '1px dashed var(--surface-border)', textAlign: 'center', gridColumn: '1 / -1' }}>
                   <Store size={48} color="var(--primary)" style={{ opacity: 0.25, margin: '0 auto 1rem' }} />
@@ -1420,18 +1980,6 @@ const SuperAdminPanel = () => {
         {/* LOCATIONS TAB */}
         {activeTab === 'locations' && (
           <div>
-            <header style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <h1 style={{ fontSize: '2rem', fontWeight: '900' }}>Location Manager</h1>
-                <p style={{ color: 'var(--text-secondary)' }}>Manage Colleges and External expansion regions.</p>
-              </div>
-              <button 
-                onClick={() => { setShowLocationForm(true); setEditingLocation(null); setLocationName(''); setLocationCity(''); setLocationDietaryType('both'); setLocationMarkets(''); }}
-                style={{ padding: '0.75rem 1.5rem', background: 'var(--primary)', color: 'white', border: 'none', borderRadius: '12px', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
-              >
-                <Plus size={18} /> Add New Location
-              </button>
-            </header>
 
             {showLocationForm && (
               <div style={{ padding: '2rem', background: '#ffffff', borderRadius: '24px', border: '1px solid var(--surface-border)', marginBottom: '2rem' }}>
@@ -1505,14 +2053,63 @@ const SuperAdminPanel = () => {
               </div>
             )}
 
+            {/* Bulk Selection Bar for Locations */}
+            {locations.length > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc', padding: '0.75rem 1.25rem', borderRadius: '16px', border: '1px solid var(--surface-border)', marginBottom: '1.5rem' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', fontSize: '0.85rem', fontWeight: '700', cursor: 'pointer', color: 'var(--text-primary)' }}>
+                  <input
+                    type="checkbox"
+                    checked={locations.length > 0 && selectedLocations.length === locations.length}
+                    onChange={toggleSelectAllLocations}
+                    style={{ cursor: 'pointer', width: '16px', height: '16px' }}
+                  />
+                  Select All Locations ({locations.length})
+                </label>
+                {selectedLocations.length > 0 && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <span style={{ fontSize: '0.8rem', fontWeight: '800', color: '#b91c1c' }}>
+                      {selectedLocations.length} selected
+                    </span>
+                    <button 
+                      type="button" 
+                      onClick={() => setSelectedLocations([])} 
+                      style={{ background: 'none', border: 'none', color: '#6b7280', fontSize: '0.75rem', fontWeight: '700', cursor: 'pointer', textDecoration: 'underline' }}
+                    >
+                      Clear Selection
+                    </button>
+                    <button
+                      type="button"
+                      onClick={bulkDeleteLocations}
+                      disabled={isDeleting}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: '0.4rem', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '8px', padding: '0.45rem 0.9rem', fontWeight: '700', fontSize: '0.8rem', cursor: 'pointer'
+                      }}
+                    >
+                      <Trash2 size={14} /> Delete Selected Locations ({selectedLocations.length})
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem' }}>
               {locations.map(loc => {
-                const storeCount = stores.filter(s => s.locationId === loc._id).length;
+                const lId = loc._id || loc.id;
+                const isChecked = selectedLocations.includes(lId);
+                const storeCount = stores.filter(s => s.locationId === lId).length;
                 return (
-                  <div key={loc._id} style={{ padding: '1.5rem', background: '#ffffff', borderRadius: '24px', border: '1px solid var(--surface-border)' }}>
+                  <div key={lId} style={{ padding: '1.5rem', background: '#ffffff', borderRadius: '24px', border: isChecked ? '2px solid #ef4444' : '1px solid var(--surface-border)', boxShadow: isChecked ? '0 10px 25px -5px rgba(239, 68, 68, 0.1)' : 'none' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
-                      <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: loc.type === 'College' ? 'rgba(99, 102, 241, 0.1)' : 'rgba(56, 189, 248, 0.1)', color: loc.type === 'College' ? 'var(--primary)' : '#0ea5e9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        {loc.type === 'College' ? <GraduationCap size={20} /> : <Building2 size={20} />}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <input 
+                          type="checkbox" 
+                          checked={isChecked} 
+                          onChange={() => toggleSelectLocation(lId)}
+                          style={{ cursor: 'pointer', width: '16px', height: '16px' }}
+                        />
+                        <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: loc.type === 'College' ? 'rgba(99, 102, 241, 0.1)' : 'rgba(56, 189, 248, 0.1)', color: loc.type === 'College' ? 'var(--primary)' : '#0ea5e9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          {loc.type === 'College' ? <GraduationCap size={20} /> : <Building2 size={20} />}
+                        </div>
                       </div>
                       <div style={{ display: 'flex', gap: '0.5rem' }}>
                         <button 
@@ -1521,7 +2118,7 @@ const SuperAdminPanel = () => {
                             setLocationName(loc.name);
                             setLocationType(loc.type);
                             setLocationCity(loc.city || '');
-                            setLocationDietaryType(loc.dietaryType || (loc.name?.toLowerCase().includes('lpu') || loc.name?.toLowerCase().includes('lovely') ? 'veg' : 'both'));
+                            setLocationDietaryType(loc.dietaryType || 'both');
                             setLocationMarkets(loc.markets || '');
                             setShowLocationForm(true);
                           }}
@@ -1541,7 +2138,7 @@ const SuperAdminPanel = () => {
                     <p style={{ color: 'var(--text-secondary)', fontSize: '0.8125rem', fontWeight: '600', margin: '0 0 0.5rem 0' }}>{loc.city || 'No City Specified'}</p>
                     
                     <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '0.5rem' }}>
-                      {loc.dietaryType === 'veg' || (!loc.dietaryType && (loc.name?.toLowerCase().includes('lpu') || loc.name?.toLowerCase().includes('lovely'))) ? (
+                      {loc.dietaryType === 'veg' ? (
                         <span style={{ fontSize: '0.6875rem', fontWeight: '800', color: '#059669', background: 'rgba(16, 185, 129, 0.1)', padding: '0.2rem 0.6rem', borderRadius: '100px', border: '1px solid rgba(16, 185, 129, 0.25)' }}>
                           🌿 Pure Veg Only
                         </span>
@@ -1618,39 +2215,6 @@ const SuperAdminPanel = () => {
         {/* FINANCE TAB */}
         {activeTab === 'finance' && (
           <div>
-            <header style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <h1 style={{ fontSize: '2rem', fontWeight: '900' }}>Finance & Revenue Distribution</h1>
-                <p style={{ color: 'var(--text-secondary)' }}>Monthly billing cycles and commission settlement status.</p>
-              </div>
-              
-              <div style={{ display: 'flex', background: '#f1f5f9', padding: '0.4rem', borderRadius: '12px', gap: '0.4rem' }}>
-                <button 
-                  onClick={() => setFinanceSubTab('dues')}
-                  style={{ 
-                    padding: '0.5rem 1rem', borderRadius: '8px', border: 'none', 
-                    background: financeSubTab === 'dues' ? 'white' : 'transparent',
-                    color: financeSubTab === 'dues' ? 'var(--primary)' : 'var(--text-secondary)',
-                    fontWeight: '700', fontSize: '0.875rem', cursor: 'pointer',
-                    boxShadow: financeSubTab === 'dues' ? '0 2px 4px rgba(0,0,0,0.05)' : 'none'
-                  }}
-                >
-                  Current Dues
-                </button>
-                <button 
-                  onClick={() => setFinanceSubTab('history')}
-                  style={{ 
-                    padding: '0.5rem 1rem', borderRadius: '8px', border: 'none', 
-                    background: financeSubTab === 'history' ? 'white' : 'transparent',
-                    color: financeSubTab === 'history' ? 'var(--primary)' : 'var(--text-secondary)',
-                    fontWeight: '700', fontSize: '0.875rem', cursor: 'pointer',
-                    boxShadow: financeSubTab === 'history' ? '0 2px 4px rgba(0,0,0,0.05)' : 'none'
-                  }}
-                >
-                  Settlement History
-                </button>
-              </div>
-            </header>
 
             {financeSubTab === 'dues' ? (
               <>
@@ -1936,6 +2500,7 @@ const SuperAdminPanel = () => {
           <SuperAdminPartnerEquity token={token} />
         )}
       </main>
+      </div>
     </div>
   );
 };

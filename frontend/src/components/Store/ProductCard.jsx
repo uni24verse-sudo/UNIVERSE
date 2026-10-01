@@ -1,5 +1,5 @@
-import React from 'react';
-import { Share2 } from 'lucide-react';
+import React, { useMemo } from 'react';
+import { Share2, Tag, Flame } from 'lucide-react';
 import OptimizedImage from '../OptimizedImage';
 import QuantitySelector from '../QuantitySelector';
 import { shareContent } from '../../utils/shareHelper';
@@ -14,13 +14,55 @@ const ProductCard = ({
   index, 
   showDietaryBadge = true,
   viewMode = 'list',
-  isHighlighted = false
+  isHighlighted = false,
+  activeOffers = []
 }) => {
   const isUnavailable = product.isAvailable === false;
   const dietaryPref = product.dietaryPreference || 'veg';
   const isComboItem = product.isCombo || (product.category || '').toLowerCase().includes('combo');
   const hasVariants = product.variants && product.variants.length > 0;
   const minPrice = hasVariants ? Math.min(...product.variants.map(v => v.price)) : product.price;
+
+  const productCategory = (product.category || '').toLowerCase().trim();
+  const productId = String(product._id || product.id || '');
+
+  const applicableOffer = useMemo(() => {
+    if (!Array.isArray(activeOffers) || activeOffers.length === 0) return null;
+    for (const offer of activeOffers) {
+      if (!offer || offer.isActive === false) continue;
+      const targetCats = Array.isArray(offer.targetCategories) ? offer.targetCategories.map(c => c.toLowerCase().trim()) : [];
+      const targetProductIds = Array.isArray(offer.targetProductIds) ? offer.targetProductIds.map(p => String(p).trim()) : [];
+
+      if (offer.discountType === 'FLAT_PRICE_CATEGORY' && targetCats.includes(productCategory)) {
+        const flatPrice = Number(offer.discountValue);
+        if (minPrice > flatPrice) {
+          return {
+            type: 'FLAT_PRICE',
+            discountedPrice: flatPrice,
+            badge: offer.badgeText || `AT ₹${flatPrice}`
+          };
+        }
+      } else if (offer.discountType === 'FLAT_PRICE_ITEMS' && targetProductIds.includes(productId)) {
+        const flatPrice = Number(offer.discountValue);
+        if (minPrice > flatPrice) {
+          return {
+            type: 'FLAT_PRICE',
+            discountedPrice: flatPrice,
+            badge: offer.badgeText || `AT ₹${flatPrice}`
+          };
+        }
+      } else if (offer.discountType === 'PERCENTAGE_CATEGORY' && targetCats.includes(productCategory)) {
+        const pct = Number(offer.discountValue);
+        const discounted = Math.round(minPrice * (1 - pct / 100));
+        return {
+          type: 'PERCENTAGE',
+          discountedPrice: discounted,
+          badge: offer.badgeText || `${pct}% OFF`
+        };
+      }
+    }
+    return null;
+  }, [activeOffers, productCategory, productId, minPrice]);
 
   const handleShareDish = (e) => {
     e.stopPropagation();
@@ -90,11 +132,28 @@ const ProductCard = ({
           </h3>
 
           {/* Price */}
-          <div className="product-list-price">
-            <span style={{ fontSize: '0.85rem', fontWeight: '800', color: 'var(--primary)' }}>₹</span>
-            <span style={{ fontSize: '1.15rem', fontWeight: '900', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
-              {minPrice}
-            </span>
+          <div className="product-list-price" style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
+            {applicableOffer ? (
+              <>
+                <span style={{ fontSize: '0.85rem', fontWeight: '800', color: '#10b981' }}>₹</span>
+                <span style={{ fontSize: '1.2rem', fontWeight: '900', color: '#10b981', letterSpacing: '-0.02em' }}>
+                  {applicableOffer.discountedPrice}
+                </span>
+                <span style={{ fontSize: '0.85rem', color: '#94a3b8', textDecoration: 'line-through', fontWeight: '600' }}>
+                  ₹{minPrice}
+                </span>
+                <span style={{ background: 'rgba(16, 185, 129, 0.12)', color: '#10b981', fontSize: '0.7rem', fontWeight: '900', padding: '0.15rem 0.5rem', borderRadius: '4px' }}>
+                  {applicableOffer.badge}
+                </span>
+              </>
+            ) : (
+              <>
+                <span style={{ fontSize: '0.85rem', fontWeight: '800', color: 'var(--primary)' }}>₹</span>
+                <span style={{ fontSize: '1.15rem', fontWeight: '900', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
+                  {minPrice}
+                </span>
+              </>
+            )}
             {hasVariants && <span style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-secondary)' }}>+</span>}
           </div>
 
@@ -261,12 +320,26 @@ const ProductCard = ({
           </div>
         )}
 
-        <div style={{ marginTop: 'auto', paddingTop: '0.65rem', display: 'flex', alignItems: 'baseline', gap: '0.25rem' }}>
-          <span style={{ fontSize: '0.8125rem', fontWeight: '800', color: 'var(--primary)' }}>₹</span>
-          <span style={{ fontWeight: '900', fontSize: '1.15rem', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
-            {minPrice}
-            {hasVariants && <span style={{ fontSize: '0.75rem', marginLeft: '2px', color: 'var(--text-secondary)' }}>+</span>}
-          </span>
+        <div style={{ marginTop: 'auto', paddingTop: '0.65rem', display: 'flex', alignItems: 'baseline', gap: '0.35rem', flexWrap: 'wrap' }}>
+          {applicableOffer ? (
+            <>
+              <span style={{ fontSize: '0.8125rem', fontWeight: '800', color: '#10b981' }}>₹</span>
+              <span style={{ fontWeight: '900', fontSize: '1.15rem', color: '#10b981', letterSpacing: '-0.02em' }}>
+                {applicableOffer.discountedPrice}
+              </span>
+              <span style={{ fontSize: '0.8rem', color: '#94a3b8', textDecoration: 'line-through', fontWeight: '600' }}>
+                ₹{minPrice}
+              </span>
+            </>
+          ) : (
+            <>
+              <span style={{ fontSize: '0.8125rem', fontWeight: '800', color: 'var(--primary)' }}>₹</span>
+              <span style={{ fontWeight: '900', fontSize: '1.15rem', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
+                {minPrice}
+              </span>
+            </>
+          )}
+          {hasVariants && <span style={{ fontSize: '0.75rem', marginLeft: '2px', color: 'var(--text-secondary)' }}>+</span>}
         </div>
       </div>
     </div>

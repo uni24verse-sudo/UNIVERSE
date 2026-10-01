@@ -24,12 +24,24 @@ import { shareOrder } from '../utils/shareHelper';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-const STATUS_STEPS = [
-  { key: 'Pending', label: 'Pending', desc: 'Vendor is reviewing your order' },
-  { key: 'Confirmed', label: 'Confirmed', desc: 'Great! Your order is being prepared' },
-  { key: 'Ready', label: 'Ready', desc: 'Order is ready for collection!' },
-  { key: 'Completed', label: 'Completed', desc: 'Order handed over successfully' },
-];
+const getStatusSteps = (orderType) => {
+  if (orderType === 'Delivery') {
+    return [
+      { key: 'Pending', label: 'Pending', desc: 'Vendor is reviewing your order' },
+      { key: 'Confirmed', label: 'Confirmed', desc: 'Order confirmed! Waiting for kitchen to start' },
+      { key: 'Cooking', label: 'Cooking', desc: 'Your food is sizzling hot in the kitchen!' },
+      { key: 'Out for Delivery', label: 'On Way', desc: 'Rider is on the way with your order!' },
+      { key: 'Completed', label: 'Delivered', desc: 'Order delivered successfully' },
+    ];
+  }
+  return [
+    { key: 'Pending', label: 'Pending', desc: 'Vendor is reviewing your order' },
+    { key: 'Confirmed', label: 'Confirmed', desc: 'Order confirmed! Waiting for kitchen to start' },
+    { key: 'Cooking', label: 'Cooking', desc: 'Your food is sizzling hot in the kitchen!' },
+    { key: 'Ready', label: 'Ready', desc: 'Order is ready for collection!' },
+    { key: 'Completed', label: 'Completed', desc: 'Order handed over successfully' },
+  ];
+};
 
 const CountdownTimer = ({ deadline }) => {
   const [timeLeft, setTimeLeft] = useState(() => {
@@ -188,23 +200,41 @@ const OrderTrackerScreen = ({ route, navigation }) => {
     Alert.alert('UTR Copied', `Bank reference ${utr} copied to clipboard.`);
   };
 
-  const handleCallStall = () => {
-    const phone = order?.storeId?.phone || order?.store?.phone;
-    if (phone) {
-      Linking.openURL(`tel:${phone}`);
-    } else {
-      Alert.alert('Contact Stall', 'Stall counter is preparing your order. Please visit the counter for pickup.');
+  const handleWhatsAppSupport = () => {
+    const orderNum = order?.orderNumber || (order?._id || id).slice(-6);
+    const storeName = order?.storeId?.name || order?.store?.name || 'Counter';
+    const status = currentStatus || 'Pending';
+    const total = order?.totalAmount || 0;
+    const itemsList = (order?.items || [])
+      .map(i => `• ${i.quantity || 1}x ${i.name || i.title || 'Item'} (₹${(i.price || 0) * (i.quantity || 1)})`)
+      .join('\n');
+
+    let text = `Hi UniVerse Support, I need help with my Order #${orderNum}.\n\n` +
+      `📋 *Order Details:*\n` +
+      `• *Store / Stall:* ${storeName}\n` +
+      `• *Status:* ${status}\n` +
+      `• *Total Paid:* ₹${total}\n`;
+
+    if (itemsList) {
+      text += `\n🛒 *Items:*\n${itemsList}\n`;
     }
+
+    text += `\nPlease assist me with this order.`;
+
+    const cleanNumber = '918295886832';
+    Linking.openURL(`https://wa.me/${cleanNumber}?text=${encodeURIComponent(text)}`);
   };
 
   const handleWhatsAppStall = () => {
     const phone = order?.storeId?.phone || order?.store?.phone;
     if (phone) {
       const cleanPhone = phone.replace(/\D/g, '');
-      const text = `Hi, I ordered Order #${order.orderNumber || (order._id || id).slice(-6)} on UniVerse. Checking on pickup status.`;
+      const orderNum = order.orderNumber || (order._id || id).slice(-6);
+      const text = `Hi, I placed Order #${orderNum} on UniVerse. Checking on pickup status.`;
       Linking.openURL(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}`);
     } else {
-      Alert.alert('WhatsApp Support', 'WhatsApp chat is not configured for this stall.');
+      // Route to UniVerse Support directly if stall number not provided
+      handleWhatsAppSupport();
     }
   };
 
@@ -276,10 +306,22 @@ const OrderTrackerScreen = ({ route, navigation }) => {
   const currentStatus = order.status || 'Pending';
   const isCancelled = currentStatus === 'Cancelled';
   const isPaymentPending = currentStatus === 'Payment Pending';
-  const currentStepIndex = STATUS_STEPS.findIndex(s => s.key === currentStatus);
+  const isDelivery = order.orderType === 'Delivery';
+  const statusSteps = getStatusSteps(order.orderType);
+
+  const getStepIndex = () => {
+    if (isDelivery) {
+      if (currentStatus === 'Ready' || currentStatus === 'Out for Delivery') return 3;
+      if (currentStatus === 'Completed') return 4;
+    }
+    const idx = statusSteps.findIndex(s => s.key === currentStatus);
+    return idx >= 0 ? idx : 0;
+  };
+  const currentStepIndex = getStepIndex();
 
   const handoverToken = order.handoverToken || (order._id || order.id || id).slice(-4).toUpperCase();
   const orderNumber = order.orderNumber || (order._id || order.id || id).slice(-6).toUpperCase();
+  const deliveryOtp = String(order.deliveryOtp || handoverToken || '1234');
 
   // QR Code URL generating a scannable standard QR code for vendor scanner
   const qrPayload = JSON.stringify({
@@ -288,10 +330,20 @@ const OrderTrackerScreen = ({ route, navigation }) => {
   });
   const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=260x260&margin=8&data=${encodeURIComponent(qrPayload)}`;
 
+  // Delivery Handover QR code payload for rider camera scanner
+  const deliveryQrPayload = JSON.stringify({
+    type: 'DELIVERY_HANDOVER',
+    orderId: order._id || order.id || id,
+    pin: deliveryOtp,
+  });
+  const deliveryQrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=260x260&margin=8&data=${encodeURIComponent(deliveryQrPayload)}`;
+
   const getStatusDesc = () => {
     if (isPaymentPending) return 'Your payment is being processed';
     if (isCancelled) return 'This order has been cancelled by the vendor';
-    const found = STATUS_STEPS[currentStepIndex >= 0 ? currentStepIndex : 0];
+    if (currentStatus === 'Out for Delivery') return 'Rider is on the way with your order!';
+    if (currentStatus === 'Ready' && isDelivery) return 'Order packed! Waiting for rider to dispatch';
+    const found = statusSteps.find(s => s.key === currentStatus);
     return found ? found.desc : 'Order status updated';
   };
 
@@ -299,7 +351,9 @@ const OrderTrackerScreen = ({ route, navigation }) => {
     switch (currentStatus) {
       case 'Pending': return '#F59E0B';
       case 'Confirmed': return '#3B82F6';
-      case 'Ready': return '#8B5CF6';
+      case 'Cooking': return '#8B5CF6';
+      case 'Ready': return '#EC4899';
+      case 'Out for Delivery': return '#10B981';
       case 'Completed': return '#10B981';
       case 'Cancelled': return '#EF4444';
       default: return THEME.colors.primary;
@@ -361,10 +415,14 @@ const OrderTrackerScreen = ({ route, navigation }) => {
                 <Feather name="x" size={48} color="#EF4444" />
               ) : isPaymentPending ? (
                 <Feather name="clock" size={48} color="#F59E0B" />
+              ) : currentStatus === 'Out for Delivery' ? (
+                <Ionicons name="bicycle" size={46} color="#10B981" />
+              ) : currentStatus === 'Cooking' ? (
+                <MaterialCommunityIcons name="chef-hat" size={48} color="#8B5CF6" />
               ) : currentStatus === 'Confirmed' ? (
-                <MaterialCommunityIcons name="chef-hat" size={48} color="#3B82F6" />
+                <Ionicons name="receipt-outline" size={48} color="#3B82F6" />
               ) : currentStatus === 'Ready' ? (
-                <Feather name="package" size={48} color="#8B5CF6" />
+                <Feather name="package" size={48} color="#EC4899" />
               ) : (
                 <Feather name="clock" size={48} color="#F59E0B" />
               )}
@@ -404,8 +462,148 @@ const OrderTrackerScreen = ({ route, navigation }) => {
             </View>
           )}
 
-          {/* Handover QR Code Section - Visible ONLY when order is Ready for pickup */}
-          {currentStatus === 'Ready' && (
+          {/* Handover Section: Delivery vs Pickup QR Code */}
+          {(currentStatus === 'Ready' || currentStatus === 'Out for Delivery') && order.orderType === 'Delivery' ? (
+            <View style={[styles.handoverCard, { borderColor: '#10B981', backgroundColor: '#F0FDF4' }]}>
+              <View style={[styles.handoverAccentBar, { backgroundColor: '#10B981' }]} />
+
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                <Ionicons name="bicycle" size={18} color="#047857" />
+                <Text style={[styles.handoverTitle, { color: '#047857', marginBottom: 0 }]}>
+                  {order.riderName ? 'Rider Out For Delivery' : 'Order Packed & Preparing Dispatch'}
+                </Text>
+              </View>
+              <Text style={styles.handoverSubtitle}>
+                {order.riderName
+                  ? `Your delivery partner ${order.riderName} is heading to your drop address.`
+                  : 'Your meal is packed! Stall is dispatching it to their delivery partner.'}
+              </Text>
+
+              {/* Delivery OTP PIN Box */}
+              {order.deliveryOtp ? (
+                <View style={{
+                  backgroundColor: '#FFFFFF',
+                  borderRadius: 16,
+                  padding: 16,
+                  marginVertical: 12,
+                  alignItems: 'center',
+                  borderWidth: 1.5,
+                  borderColor: '#BBF7D0',
+                  shadowColor: '#10B981',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 6,
+                  elevation: 2,
+                }}>
+                  <Text style={{ fontSize: 11, fontWeight: '800', color: '#64748B', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                    Delivery Verification PIN
+                  </Text>
+                  <Text style={{ fontSize: 32, fontWeight: '900', color: '#047857', letterSpacing: 6, marginVertical: 4 }}>
+                    {order.deliveryOtp}
+                  </Text>
+                  <Text style={{ fontSize: 11, color: '#059669', fontWeight: '600' }}>
+                    Share this 4-digit PIN with the delivery partner upon arrival
+                  </Text>
+                </View>
+              ) : null}
+
+              {/* Rider Contact Card if assigned */}
+              {order.riderName ? (
+                <View style={{
+                  backgroundColor: '#FFFFFF',
+                  borderRadius: 12,
+                  padding: 12,
+                  marginTop: 6,
+                  borderWidth: 1,
+                  borderColor: '#D1FAE5',
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}>
+                  <View style={{ flex: 1, paddingRight: 8 }}>
+                    <Text style={{ fontSize: 10, color: '#64748B', fontWeight: '800', textTransform: 'uppercase' }}>
+                      Delivery Partner
+                    </Text>
+                    <Text style={{ fontSize: 14, fontWeight: '900', color: '#065F46', marginTop: 1 }}>
+                      {order.riderName}
+                    </Text>
+                    {order.riderPhone ? (
+                      <Text style={{ fontSize: 12, color: '#047857', fontWeight: '600' }}>
+                        +91 {order.riderPhone}
+                      </Text>
+                    ) : null}
+                  </View>
+
+                  {order.riderPhone ? (
+                    <TouchableOpacity
+                      onPress={() => Linking.openURL(`tel:${order.riderPhone}`)}
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        backgroundColor: '#10B981',
+                        paddingVertical: 8,
+                        paddingHorizontal: 14,
+                        borderRadius: 10,
+                        gap: 5,
+                      }}
+                      activeOpacity={0.85}
+                    >
+                      <Ionicons name="call" size={14} color="#FFFFFF" />
+                      <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 12 }}>Call</Text>
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
+              ) : null}
+
+              {/* Delivery Handover QR & PIN Card */}
+              {order.deliveryAddress ? (
+                <View style={styles.deliveryHandoverCard}>
+                  <View style={styles.deliveryHandoverHeader}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Ionicons name="bicycle" size={16} color="#059669" />
+                      <Text style={styles.deliveryHandoverTitle}>Delivery Handover</Text>
+                    </View>
+                    <View style={styles.deliveryEtaBadge}>
+                      <Text style={styles.deliveryEtaText}>Drop-off Verification</Text>
+                    </View>
+                  </View>
+
+                  <Text style={styles.deliveryHandoverSub}>
+                    Show this QR code to the rider or share your 4-digit PIN upon delivery:
+                  </Text>
+
+                  {/* Scannable Delivery QR Code Container */}
+                  <View style={styles.deliveryQrWrapper}>
+                    <Image
+                      source={{ uri: deliveryQrCodeUrl }}
+                      style={styles.qrImage}
+                      resizeMode="contain"
+                    />
+                  </View>
+
+                  {/* 4-Digit Delivery PIN Pill */}
+                  <View style={styles.deliveryPinBox}>
+                    <Text style={styles.deliveryPinLabel}>4-DIGIT DELIVERY PIN</Text>
+                    <TouchableOpacity
+                      onPress={() => handleCopyOtp(deliveryOtp)}
+                      activeOpacity={0.8}
+                      style={styles.deliveryPinDigitsRow}
+                    >
+                      {String(deliveryOtp).split('').map((digit, idx) => (
+                        <View key={idx} style={styles.deliveryPinDigitPill}>
+                          <Text style={styles.deliveryPinDigitText}>{digit}</Text>
+                        </View>
+                      ))}
+                      <View style={styles.deliveryPinCopyBtn}>
+                        <Feather name={copiedOtp ? 'check' : 'copy'} size={13} color="#059669" />
+                        <Text style={styles.deliveryPinCopyText}>{copiedOtp ? 'Copied' : 'Copy'}</Text>
+                      </View>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ) : null}
+            </View>
+          ) : currentStatus === 'Ready' ? (
             <View style={styles.handoverCard}>
               <View style={[styles.handoverAccentBar, { backgroundColor: THEME.colors.primary }]} />
 
@@ -423,7 +621,7 @@ const OrderTrackerScreen = ({ route, navigation }) => {
                 />
               </View>
             </View>
-          )}
+          ) : null}
 
           {/* Handover Completed Confirmation - Clean card without QR code */}
           {currentStatus === 'Completed' && (
@@ -451,17 +649,13 @@ const OrderTrackerScreen = ({ route, navigation }) => {
                     width:
                       currentStepIndex <= 0
                         ? '0%'
-                        : currentStepIndex === 1
-                        ? '25%'
-                        : currentStepIndex === 2
-                        ? '50%'
-                        : '75%',
+                        : `${Math.min(80, (currentStepIndex / 4) * 80)}%`,
                   },
                 ]}
               />
 
               <View style={styles.timelineStepsRow}>
-                {STATUS_STEPS.map((step, idx) => {
+                {statusSteps.map((step, idx) => {
                   const isCompleted = idx < currentStepIndex;
                   const isActive = idx === currentStepIndex;
 
@@ -475,18 +669,25 @@ const OrderTrackerScreen = ({ route, navigation }) => {
                         ]}
                       >
                         {isCompleted ? (
-                          <Ionicons name="checkmark" size={20} color="#FFFFFF" />
+                          <Ionicons name="checkmark" size={17} color="#FFFFFF" />
                         ) : idx === 0 ? (
-                          <Feather name="clock" size={16} color={isActive ? '#FFFFFF' : '#94A3B8'} />
+                          <Feather name="clock" size={14} color={isActive ? '#FFFFFF' : '#94A3B8'} />
                         ) : idx === 1 ? (
-                          <MaterialCommunityIcons name="chef-hat" size={17} color={isActive ? '#FFFFFF' : '#94A3B8'} />
+                          <Ionicons name="receipt-outline" size={14} color={isActive ? '#FFFFFF' : '#94A3B8'} />
                         ) : idx === 2 ? (
-                          <Feather name="package" size={16} color={isActive ? '#FFFFFF' : '#94A3B8'} />
+                          <MaterialCommunityIcons name="chef-hat" size={16} color={isActive ? '#FFFFFF' : '#94A3B8'} />
+                        ) : idx === 3 ? (
+                          isDelivery ? (
+                            <Ionicons name="bicycle" size={16} color={isActive ? '#FFFFFF' : '#94A3B8'} />
+                          ) : (
+                            <Feather name="package" size={14} color={isActive ? '#FFFFFF' : '#94A3B8'} />
+                          )
                         ) : (
-                          <Ionicons name="checkmark-circle-outline" size={18} color={isActive ? '#FFFFFF' : '#94A3B8'} />
+                          <Ionicons name="checkmark-circle-outline" size={16} color={isActive ? '#FFFFFF' : '#94A3B8'} />
                         )}
                       </View>
                       <Text
+                        numberOfLines={1}
                         style={[
                           styles.stepNodeLabel,
                           isActive && styles.stepNodeLabelActive,
@@ -541,6 +742,15 @@ const OrderTrackerScreen = ({ route, navigation }) => {
               <Text style={styles.metaValue}>{order.orderType || 'Take Away'}</Text>
             </View>
 
+            {order.orderType === 'Delivery' && order.deliveryAddress ? (
+              <View style={styles.summaryMetaRow}>
+                <Text style={styles.metaLabel}>Drop Address</Text>
+                <Text style={[styles.metaValue, { maxWidth: '60%', textAlign: 'right' }]}>
+                  {order.deliveryAddress}
+                </Text>
+              </View>
+            ) : null}
+
             <View style={styles.itemsListContainer}>
               {(order.items || []).map((item, idx) => (
                 <View key={idx} style={[styles.itemItemRow, idx === order.items.length - 1 && { borderBottomWidth: 0 }]}>
@@ -577,22 +787,72 @@ const OrderTrackerScreen = ({ route, navigation }) => {
               ))}
             </View>
 
+            {/* Financial Itemized Breakdown */}
+            {(() => {
+              const itemsSubtotal = (order.items || []).reduce((sum, item) => sum + ((Number(item.price) || 0) * (Number(item.quantity) || 1)), 0);
+              const packagingCharge = Number(order.packagingChargeApplied ? (order.packagingCharge || order.store?.packagingCharge || 5) : 0);
+              const deliveryFee = Number(order.deliveryFee || 0);
+              const platformFee = Number(order.platformFee !== undefined ? order.platformFee : (order.orderType === 'Delivery' ? 5 : 0));
+              const totalPaid = Number(order.totalAmount || 0);
+              const computedGross = itemsSubtotal + packagingCharge + (order.orderType === 'Delivery' ? deliveryFee : 0) + platformFee;
+              const discountAmount = Number(order.discountAmount || (computedGross > totalPaid ? (computedGross - totalPaid) : 0));
+
+              return (
+                <View style={{ marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#F1F5F9', gap: 6 }}>
+                  <View style={styles.summaryMetaRow}>
+                    <Text style={styles.metaLabel}>Item Total</Text>
+                    <Text style={styles.metaValue}>₹{itemsSubtotal}</Text>
+                  </View>
+
+                  {discountAmount > 0 ? (
+                    <View style={styles.summaryMetaRow}>
+                      <Text style={[styles.metaLabel, { color: '#059669', fontWeight: '700' }]}>Coupon / Offer Discount</Text>
+                      <Text style={[styles.metaValue, { color: '#059669', fontWeight: '800' }]}>-₹{discountAmount.toFixed(0)}</Text>
+                    </View>
+                  ) : null}
+
+                  {packagingCharge > 0 ? (
+                    <View style={styles.summaryMetaRow}>
+                      <Text style={styles.metaLabel}>Packaging Charge</Text>
+                      <Text style={styles.metaValue}>₹{packagingCharge}</Text>
+                    </View>
+                  ) : null}
+
+                  {order.orderType === 'Delivery' ? (
+                    <View style={styles.summaryMetaRow}>
+                      <Text style={styles.metaLabel}>Delivery Fee</Text>
+                      {deliveryFee === 0 ? (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                          <Text style={[styles.metaValue, { textDecorationLine: 'line-through', color: '#94A3B8' }]}>₹20</Text>
+                          <Text style={[styles.metaValue, { color: '#10B981', fontWeight: '800' }]}>FREE</Text>
+                        </View>
+                      ) : (
+                        <Text style={styles.metaValue}>₹{deliveryFee}</Text>
+                      )}
+                    </View>
+                  ) : null}
+
+                  {order.orderType === 'Delivery' && platformFee > 0 ? (
+                    <View style={styles.summaryMetaRow}>
+                      <Text style={styles.metaLabel}>Platform Convenience Fee</Text>
+                      <Text style={styles.metaValue}>₹{platformFee}</Text>
+                    </View>
+                  ) : null}
+                </View>
+              );
+            })()}
+
             <View style={styles.summaryTotalRow}>
               <Text style={styles.summaryTotalLabel}>Total Paid</Text>
               <Text style={styles.summaryTotalValue}>₹{order.totalAmount}</Text>
             </View>
           </View>
 
-          {/* Direct Stall Actions (Call / WhatsApp) */}
+          {/* Direct Action: Need Support via WhatsApp */}
           <View style={styles.stallContactRow}>
-            <TouchableOpacity style={styles.contactBtn} onPress={handleCallStall} activeOpacity={0.8}>
-              <Feather name="phone-call" size={15} color={THEME.colors.textPrimary} />
-              <Text style={styles.contactBtnText}>Call Stall</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.whatsappBtn} onPress={handleWhatsAppStall} activeOpacity={0.8}>
-              <Ionicons name="logo-whatsapp" size={17} color="#FFFFFF" />
-              <Text style={styles.whatsappBtnText}>WhatsApp</Text>
+            <TouchableOpacity style={styles.whatsappBtn} onPress={handleWhatsAppSupport} activeOpacity={0.8}>
+              <Ionicons name="logo-whatsapp" size={18} color="#FFFFFF" />
+              <Text style={styles.whatsappBtnText}>Need Support</Text>
             </TouchableOpacity>
           </View>
 
@@ -1070,6 +1330,120 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 14,
   },
+  deliveryHandoverCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    padding: 16,
+    borderWidth: 1.5,
+    borderColor: '#A7F3D0',
+    marginTop: 12,
+    alignItems: 'center',
+    shadowColor: '#10B981',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 3,
+  },
+  deliveryHandoverHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginBottom: 8,
+  },
+  deliveryHandoverTitle: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: '#065F46',
+    letterSpacing: 0.2,
+  },
+  deliveryEtaBadge: {
+    backgroundColor: '#ECFDF5',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+  },
+  deliveryEtaText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#047857',
+  },
+  deliveryHandoverSub: {
+    fontSize: 11.5,
+    color: '#64748B',
+    textAlign: 'center',
+    marginBottom: 12,
+    lineHeight: 16,
+  },
+  deliveryQrWrapper: {
+    padding: 10,
+    backgroundColor: '#F0FDF4',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#BBF7D0',
+    marginBottom: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  deliveryPinBox: {
+    width: '100%',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  deliveryPinLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#64748B',
+    letterSpacing: 0.8,
+    marginBottom: 6,
+  },
+  deliveryPinDigitsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  deliveryPinDigitPill: {
+    width: 32,
+    height: 36,
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: '#10B981',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#10B981',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  deliveryPinDigitText: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: '#065F46',
+  },
+  deliveryPinCopyBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginLeft: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 6,
+    backgroundColor: '#ECFDF5',
+  },
+  deliveryPinCopyText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#059669',
+  },
   qrWrapper: {
     padding: 10,
     backgroundColor: '#FFFFFF',
@@ -1137,17 +1511,17 @@ const styles = StyleSheet.create({
   },
   timelineTrackBackground: {
     position: 'absolute',
-    top: 21,
-    left: '12.5%',
-    right: '12.5%',
+    top: 17,
+    left: '10%',
+    right: '10%',
     height: 3,
     backgroundColor: '#E2E8F0',
     zIndex: 1,
   },
   timelineTrackActive: {
     position: 'absolute',
-    top: 21,
-    left: '12.5%',
+    top: 17,
+    left: '10%',
     height: 3,
     backgroundColor: THEME.colors.primary,
     zIndex: 2,
@@ -1159,12 +1533,12 @@ const styles = StyleSheet.create({
   },
   stepNodeCol: {
     alignItems: 'center',
-    width: '25%',
+    width: '20%',
   },
   stepNodeCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: '#FFFFFF',
     borderWidth: 2,
     borderColor: '#E2E8F0',
@@ -1189,7 +1563,7 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   stepNodeLabel: {
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: '700',
     color: '#94A3B8',
     textAlign: 'center',
@@ -1331,40 +1705,22 @@ const styles = StyleSheet.create({
     color: THEME.colors.primary,
   },
   stallContactRow: {
-    flexDirection: 'row',
-    gap: 10,
     width: '100%',
     marginVertical: 8,
   },
-  contactBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    paddingVertical: 11,
-    borderRadius: 14,
-    gap: 6,
-  },
-  contactBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: THEME.colors.textPrimary,
-  },
   whatsappBtn: {
-    flex: 1,
+    width: '100%',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#25D366',
-    paddingVertical: 11,
+    paddingVertical: 13,
     borderRadius: 14,
-    gap: 6,
+    gap: 8,
+    ...THEME.shadows.card,
   },
   whatsappBtnText: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '800',
     color: '#FFFFFF',
   },

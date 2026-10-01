@@ -501,6 +501,37 @@ router.get('/campaigns/:id/status', async (req, res) => {
   }
 });
 
+/**
+ * 2.2 DELETE SINGLE CAMPAIGN
+ */
+router.delete('/campaigns/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    await prisma.broadcastCampaign.delete({ where: { id } });
+    res.json({ success: true, message: 'Campaign deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+/**
+ * 2.3 BULK DELETE CAMPAIGNS
+ */
+router.post('/campaigns/bulk-delete', async (req, res) => {
+  try {
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ message: 'No campaign IDs provided' });
+    }
+    const result = await prisma.broadcastCampaign.deleteMany({
+      where: { id: { in: ids } }
+    });
+    res.json({ success: true, message: `Successfully deleted ${result.count} campaigns.`, count: result.count });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 // Helper to safely unpack nodes from PostgreSQL Prisma Json column
 const parseNodes = (nodes) => {
   if (Array.isArray(nodes)) return nodes;

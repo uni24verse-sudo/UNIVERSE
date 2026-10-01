@@ -1,12 +1,12 @@
-import React, { useContext, useState, useEffect, useCallback } from 'react';
+import React, { useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { CartContext } from '../context/CartContext';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import {
   Trash2, Plus, Minus, ArrowLeft, CreditCard, Coins, ShoppingBag,
   ChevronRight, ShieldCheck, Store, Clock, User, Phone, Mail,
-  CheckCircle, AlertCircle, X, Utensils,
-  Sun, CloudSun, Moon, Coffee, Sparkles
+  CheckCircle, AlertCircle, X, Utensils, ChefHat, Check,
+  Sun, CloudSun, Moon, Coffee, Sparkles, Tag, Flame, Zap, MapPin, Bike, Navigation, Loader2
 } from 'lucide-react';
 import { useStoreTheme } from '../hooks/useStoreTheme';
 
@@ -22,34 +22,169 @@ const Cart = () => {
     hasOutOfStockItems,
     outOfStockItems,
     removeOutOfStockItems,
-    isStoreClosed
+    isStoreClosed,
+    offers,
+    selectedOfferId,
+    setSelectedOfferId,
+    appliedOffer,
+    discountAmount,
+    eligibleOffers,
+    ineligibleOffers,
+    applyCoupon,
+    removeCoupon
   } = useContext(CartContext);
   const navigate = useNavigate();
   const [store, setStore] = useState(null);
   const [loading, setLoading] = useState(false);
   const [orderType, setOrderType] = useState('Dine In');
+  const [tableNumber, setTableNumber] = useState('');
+  const [cookingInstructions, setCookingInstructions] = useState('');
+  const [deliveryAddress, setDeliveryAddress] = useState(localStorage.getItem('universe_delivery_address') || '');
   const [customerPhone, setCustomerPhone] = useState(localStorage.getItem('universe_customer_phone') || '');
   const [customerName, setCustomerName] = useState(localStorage.getItem('universe_customer_name') || '');
   const [customerEmail, setCustomerEmail] = useState(localStorage.getItem('universe_customer_email') || '');
   const [orderPlaced, setOrderPlaced] = useState(false);
   const [currentOrder, setCurrentOrder] = useState(null);
   const [validationError, setValidationError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({ name: false, phone: false, address: false });
+  const [isLocating, setIsLocating] = useState(false);
+  const [detectedCoords, setDetectedCoords] = useState(null);
   const [isPreOrder, setIsPreOrder] = useState(false);
   const [scheduledTime, setScheduledTime] = useState('');
   const [availableSlots, setAvailableSlots] = useState([]);
   const [pairings, setPairings] = useState([]);
+
+  // Auto-scroll / Focus references
+  const addressRef = useRef(null);
+  const nameRef = useRef(null);
+  const phoneRef = useRef(null);
+
+  const cleanFormatAddressParts = (parts) => {
+    const seen = new Set();
+    const filtered = [];
+    for (const raw of parts) {
+      if (!raw) continue;
+      const item = String(raw).trim();
+      if (!item) continue;
+      const lower = item.toLowerCase();
+      if (!seen.has(lower)) {
+        seen.add(lower);
+        filtered.push(item);
+      }
+    }
+    return filtered.join(', ');
+  };
+
+  const handleDetectLocation = () => {
+    if (!navigator.geolocation) {
+      alert('Location services are not supported by your browser');
+      return;
+    }
+    setIsLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude, longitude } = pos.coords;
+        setDetectedCoords({ latitude, longitude });
+        let resolvedAddress = '';
+
+        // 1. First priority: Detailed BigDataCloud client reverse geocoding
+        try {
+          const bdcRes = await fetch(
+            `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`
+          );
+          const bdcData = await bdcRes.json();
+          if (bdcData) {
+            const bdcParts = [
+              bdcData.locality,
+              bdcData.principalSubdivision,
+              bdcData.city,
+              bdcData.postcode
+            ];
+            resolvedAddress = cleanFormatAddressParts(bdcParts);
+          }
+        } catch (e) {}
+
+        // 2. Secondary priority: Nominatim with granular street/building address details
+        if (!resolvedAddress || resolvedAddress.length < 5) {
+          try {
+            const res = await fetch(
+              `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`
+            );
+            const data = await res.json();
+            const a = data.address || {};
+            const detailed = [
+              a.amenity || a.building || a.shop || a.house_number,
+              a.road || a.pedestrian || a.street,
+              a.neighbourhood || a.suburb || a.residential,
+              a.city || a.town || a.county,
+              a.postcode
+            ];
+            resolvedAddress = cleanFormatAddressParts(detailed);
+            if (!resolvedAddress && data.display_name) {
+              resolvedAddress = cleanFormatAddressParts(data.display_name.split(',').slice(0, 4));
+            }
+          } catch (e) {}
+        }
+
+        const finalAddr = resolvedAddress || `Campus Area (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`;
+        setDeliveryAddress(finalAddr);
+        localStorage.setItem('universe_delivery_address', finalAddr);
+        setFieldErrors(prev => ({ ...prev, address: false }));
+        if (validationError) setValidationError('');
+        setIsLocating(false);
+      },
+      () => {
+        setIsLocating(false);
+        alert('Could not auto-detect location. Please ensure location permissions are granted or type your hostel block manually.');
+      },
+      { timeout: 10000, enableHighAccuracy: true }
+    );
+  };
+
+  // Coupon search and dropdown state
+  const [couponInput, setCouponInput] = useState('');
+  const [couponFeedback, setCouponFeedback] = useState(null);
+  const [showOffersDropdown, setShowOffersDropdown] = useState(false);
+
+  const handleApplyCoupon = () => {
+    if (!couponInput.trim()) {
+      setCouponFeedback({ type: 'error', message: 'Please enter a coupon code' });
+      return;
+    }
+    const res = applyCoupon(couponInput);
+    if (res.success) {
+      setCouponFeedback({ type: 'success', message: res.message });
+      setCouponInput('');
+      setShowOffersDropdown(false);
+    } else {
+      setCouponFeedback({ type: 'error', message: res.message });
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    removeCoupon();
+    setCouponFeedback({ type: 'success', message: 'Coupon removed' });
+    setTimeout(() => setCouponFeedback(null), 3000);
+  };
   const { addToCart } = useContext(CartContext);
   
   // Apply Dynamic Brand Theme
   useStoreTheme(store);
 
-
-
-  // Calculate order totals
+  // Calculate order totals with vendor offers & delivery
   const subtotal = total;
-  const deliveryFee = orderType === 'Take Away' ? (store?.packagingCharge || 0) : 0;
-  const platformFee = 0;
-  const finalTotal = subtotal + deliveryFee + platformFee;
+  const offerDiscount = discountAmount || 0;
+  const packagingFee = (orderType === 'Take Away' || orderType === 'Delivery') ? (store?.packagingCharge || 0) : 0;
+  const rawDeliveryFee = Number(store?.deliveryFee || 0);
+  const freeThreshold = Number(store?.freeDeliveryThreshold || 0);
+  const isFreeDelivery = freeThreshold > 0 && subtotal >= freeThreshold;
+  let deliveryFee = 0;
+  let platformFee = 0;
+  if (orderType === 'Delivery') {
+    platformFee = 5.0; // Fixed ₹5 platform fee
+    deliveryFee = isFreeDelivery ? 0 : rawDeliveryFee;
+  }
+  const finalTotal = Math.max(0, subtotal - offerDiscount + packagingFee + deliveryFee + platformFee);
 
   useEffect(() => {
     if (storeId) {
@@ -167,12 +302,36 @@ const Cart = () => {
       setValidationError('This stall is currently closed and not accepting orders.');
       return;
     }
+    if (orderType === 'Delivery' && !deliveryAddress.trim()) {
+      setFieldErrors(prev => ({ ...prev, address: true }));
+      setValidationError('Please enter your delivery drop-off address / room number');
+      setTimeout(() => {
+        addressRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        addressRef.current?.focus();
+      }, 50);
+      return;
+    }
+    if (orderType === 'Delivery' && store?.minDeliveryOrderValue > 0 && subtotal < store.minDeliveryOrderValue) {
+      setValidationError(`Minimum order value for delivery from this stall is ₹${store.minDeliveryOrderValue}`);
+      return;
+    }
+
     if (!customerName.trim()) {
+      setFieldErrors(prev => ({ ...prev, name: true }));
       setValidationError('Please enter your name to proceed');
+      setTimeout(() => {
+        nameRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        nameRef.current?.focus();
+      }, 50);
       return;
     }
     if (!customerPhone || customerPhone.length < 10) {
-      setValidationError('Please enter a valid 10-digit phone number');
+      setFieldErrors(prev => ({ ...prev, phone: true }));
+      setValidationError('Please enter a valid 10-digit mobile number');
+      setTimeout(() => {
+        phoneRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        phoneRef.current?.focus();
+      }, 50);
       return;
     }
 
@@ -183,9 +342,7 @@ const Cart = () => {
       }
     }
 
-
     setValidationError('');
-
 
     setLoading(true);
 
@@ -216,12 +373,24 @@ const Cart = () => {
           freeItems: item.freeItems
         })),
         totalAmount: finalTotal,
+        discountAmount: offerDiscount,
+        appliedOffer: appliedOffer || null,
+        selectedOfferId: appliedOffer?.id || selectedOfferId || null,
         paymentMethod: 'Razorpay',
         customerPhone,
         customerName,
         customerEmail,
         orderType,
-        packagingChargeApplied: deliveryFee > 0,
+        tableNumber: orderType === 'Dine In' ? tableNumber.trim() : '',
+        cookingInstructions: cookingInstructions.trim(),
+        packagingChargeApplied: packagingFee,
+        deliveryAddress: orderType === 'Delivery' ? (
+          detectedCoords 
+            ? `${deliveryAddress.trim()} [GPS:${detectedCoords.latitude.toFixed(6)},${detectedCoords.longitude.toFixed(6)}]`
+            : deliveryAddress.trim()
+        ) : '',
+        deliveryFee,
+        platformFee,
         isPreOrder,
         scheduledTime: isPreOrder ? scheduledTime : null,
         isQRScan: localStorage.getItem('universe_order_source') === 'qr'
@@ -496,11 +665,379 @@ const Cart = () => {
                 })}
               </div>
 
-              <div style={{ marginTop: '2rem', padding: '1.25rem', background: '#f8fafc', borderRadius: '16px', border: '1px solid var(--surface-border)' }}>
+              {/* Zomato/Swiggy-style Search Coupon & Smart Offers Drawer */}
+              {offers && offers.length > 0 && (
+                <div style={{
+                  marginTop: '1.5rem',
+                  background: '#ffffff',
+                  borderRadius: '20px',
+                  border: '1.5px solid #fed7aa',
+                  padding: '1.25rem',
+                  boxShadow: '0 8px 24px rgba(234, 88, 12, 0.06)'
+                }}>
+                  {/* Header Row */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                      <div style={{
+                        width: '32px',
+                        height: '32px',
+                        borderRadius: '10px',
+                        background: 'linear-gradient(135deg, #ffedd5 0%, #fed7aa 100%)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: 'var(--primary)'
+                      }}>
+                        <Tag size={16} />
+                      </div>
+                      <div>
+                        <h4 style={{ margin: 0, fontSize: '0.92rem', fontWeight: '800', color: '#0f172a' }}>
+                          Coupons & Platform Deals
+                        </h4>
+                        <p style={{ margin: 0, fontSize: '0.72rem', color: '#64748b', fontWeight: '600' }}>
+                          {offers.filter(o => o.isActive !== false).length} exclusive offers available for this cart
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 1. COUPON SEARCH & INPUT BAR */}
+                  <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                    <div style={{ flex: 1, position: 'relative' }}>
+                      <Tag size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                      <input 
+                        type="text"
+                        placeholder="Enter coupon code (e.g. CAMPUS10)"
+                        value={couponInput}
+                        onChange={(e) => { setCouponInput(e.target.value); setCouponFeedback(null); }}
+                        onKeyDown={(e) => { if (e.key === 'Enter') handleApplyCoupon(); }}
+                        style={{
+                          width: '100%',
+                          padding: '0.65rem 0.85rem 0.65rem 2.2rem',
+                          borderRadius: '10px',
+                          border: '1.5px solid #e2e8f0',
+                          fontSize: '0.85rem',
+                          fontWeight: '700',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.04em',
+                          outline: 'none',
+                          boxSizing: 'border-box'
+                        }}
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleApplyCoupon}
+                      style={{
+                        background: 'var(--primary)',
+                        color: '#ffffff',
+                        border: 'none',
+                        borderRadius: '10px',
+                        padding: '0 1.25rem',
+                        fontSize: '0.82rem',
+                        fontWeight: '800',
+                        cursor: 'pointer',
+                        whiteSpace: 'nowrap',
+                        transition: 'opacity 0.15s ease'
+                      }}
+                    >
+                      APPLY
+                    </button>
+                  </div>
+
+                  {/* Coupon Validation Feedback Banner */}
+                  {couponFeedback && (
+                    <div style={{
+                      padding: '0.5rem 0.75rem',
+                      borderRadius: '8px',
+                      marginBottom: '0.75rem',
+                      fontSize: '0.78rem',
+                      fontWeight: '700',
+                      background: couponFeedback.type === 'success' ? '#f0fdf4' : '#fef2f2',
+                      color: couponFeedback.type === 'success' ? '#15803d' : '#dc2626',
+                      border: couponFeedback.type === 'success' ? '1px solid #bbf7d0' : '1px solid #fecaca',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between'
+                    }}>
+                      <span>{couponFeedback.message}</span>
+                      <button 
+                        type="button"
+                        onClick={() => setCouponFeedback(null)} 
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', padding: 0 }}
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  )}
+
+                  {/* 2. SLEEK APPLIED COUPON CARD */}
+                  {appliedOffer ? (
+                    <div style={{
+                      background: '#ffffff',
+                      border: '1.5px solid #dcfce7',
+                      borderRadius: '12px',
+                      padding: '0.75rem 0.95rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '0.75rem',
+                      boxShadow: '0 1px 4px rgba(16, 185, 129, 0.06)'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1, minWidth: 0 }}>
+                        <div style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.3rem',
+                          background: '#f0fdf4',
+                          border: '1px dashed #16a34a',
+                          color: '#15803d',
+                          borderRadius: '6px',
+                          padding: '0.25rem 0.55rem',
+                          fontSize: '0.72rem',
+                          fontWeight: '800',
+                          letterSpacing: '0.04em',
+                          flexShrink: 0
+                        }}>
+                          <Check size={12} strokeWidth={3} />
+                          <span>{appliedOffer.code || appliedOffer.badgeText}</span>
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <p style={{ margin: 0, fontSize: '0.82rem', fontWeight: '700', color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {appliedOffer.title}
+                          </p>
+                          <p style={{ margin: '0.15rem 0 0 0', fontSize: '0.74rem', color: '#15803d', fontWeight: '700' }}>
+                            ₹{offerDiscount.toFixed(2)} savings applied
+                          </p>
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexShrink: 0 }}>
+                        <button
+                          type="button"
+                          onClick={() => setShowOffersDropdown(prev => !prev)}
+                          style={{
+                            background: '#f8fafc',
+                            border: '1px solid #e2e8f0',
+                            borderRadius: '6px',
+                            padding: '0.3rem 0.6rem',
+                            fontSize: '0.72rem',
+                            fontWeight: '700',
+                            color: '#475569',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          {showOffersDropdown ? 'Close' : 'Switch'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleRemoveCoupon}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            padding: '0.3rem 0.5rem',
+                            fontSize: '0.72rem',
+                            fontWeight: '700',
+                            color: '#ef4444',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <button
+                        type="button"
+                        onClick={() => setShowOffersDropdown(prev => !prev)}
+                        style={{
+                          background: 'none', border: 'none', color: '#ea580c',
+                          fontSize: '0.8rem', fontWeight: '800', cursor: 'pointer',
+                          display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.25rem 0'
+                        }}
+                      >
+                        <Tag size={14} />
+                        <span>{showOffersDropdown ? 'Hide available offers ▴' : `View available offers (${offers.filter(o => o.isActive !== false).length} available) ▾`}</span>
+                      </button>
+                    </div>
+                  )}
+
+                  {/* 3. COLLAPSIBLE OFFERS DROPDOWN / LIST */}
+                  {showOffersDropdown && (
+                    <div style={{
+                      marginTop: '0.85rem',
+                      paddingTop: '0.85rem',
+                      borderTop: '1px solid #f1f5f9',
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+                      gap: '0.85rem'
+                    }}>
+                      {offers.filter(o => o.isActive !== false).map((offer) => {
+                        const isEligible = eligibleOffers && eligibleOffers.some(e => String(e.id) === String(offer.id));
+                        const isApplied = appliedOffer && String(appliedOffer.id) === String(offer.id);
+                        const ineligibility = ineligibleOffers && ineligibleOffers.find(ie => String(ie.offer?.id) === String(offer.id) || String(ie.id) === String(offer.id));
+                        const isFullCartOffer = offer.discountType === 'PERCENTAGE_CART' || offer.discountType === 'FLAT_DISCOUNT_CART';
+
+                        return (
+                          <div
+                            key={offer.id}
+                            style={{
+                              border: isApplied 
+                                ? '1.5px solid #10b981' 
+                                : isEligible 
+                                ? '1.5px solid #e2e8f0' 
+                                : '1.5px dashed #e2e8f0',
+                              borderRadius: '16px',
+                              padding: '1rem 1.15rem',
+                              background: isApplied ? '#f0fdf4' : '#ffffff',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              justifyContent: 'space-between',
+                              boxShadow: isApplied ? '0 4px 12px rgba(16, 185, 129, 0.08)' : '0 2px 8px rgba(0,0,0,0.03)',
+                              transition: 'all 0.2s ease',
+                              opacity: isEligible ? 1 : 0.8
+                            }}
+                          >
+                            <div>
+                              {/* Badges Row */}
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.4rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                  <span style={{
+                                    background: isApplied ? '#10b981' : '#fff7ed',
+                                    color: isApplied ? '#ffffff' : '#c2410c',
+                                    border: isApplied ? 'none' : '1px solid #fed7aa',
+                                    fontSize: '0.72rem',
+                                    fontWeight: '800',
+                                    padding: '0.2rem 0.55rem',
+                                    borderRadius: '6px',
+                                    letterSpacing: '0.02em'
+                                  }}>
+                                    {offer.badgeText || (offer.discountType?.includes('PERCENTAGE') ? `${offer.discountValue}% OFF` : `₹${offer.discountValue} OFF`)}
+                                  </span>
+                                  {offer.code && (
+                                    <span style={{
+                                      background: '#f8fafc',
+                                      border: '1px dashed #cbd5e1',
+                                      color: '#334155',
+                                      fontSize: '0.72rem',
+                                      fontWeight: '800',
+                                      padding: '0.2rem 0.5rem',
+                                      borderRadius: '6px'
+                                    }}>
+                                      {offer.code}
+                                    </span>
+                                  )}
+                                </div>
+
+                                {offer.isGlobal ? (
+                                  <span style={{
+                                    background: '#f1f5f9',
+                                    color: '#475569',
+                                    fontSize: '0.65rem',
+                                    fontWeight: '700',
+                                    padding: '0.2rem 0.45rem',
+                                    borderRadius: '6px'
+                                  }}>
+                                    Campus Wide
+                                  </span>
+                                ) : isFullCartOffer ? (
+                                  <span style={{
+                                    background: '#f1f5f9',
+                                    color: '#475569',
+                                    fontSize: '0.65rem',
+                                    fontWeight: '700',
+                                    padding: '0.2rem 0.45rem',
+                                    borderRadius: '6px'
+                                  }}>
+                                    Entire Cart
+                                  </span>
+                                ) : null}
+                              </div>
+
+                              {/* Title & Description */}
+                              <h5 style={{ margin: '0.2rem 0 0.15rem 0', fontSize: '0.92rem', fontWeight: '800', color: '#0f172a' }}>
+                                {offer.title}
+                              </h5>
+                              <p style={{ margin: '0 0 0.4rem 0', fontSize: '0.75rem', color: '#64748b', lineHeight: '1.35' }}>
+                                {offer.description || (isFullCartOffer ? 'Valid on total cart value' : 'Applicable on select items')}
+                              </p>
+
+                              {/* Terms / Min Order info */}
+                              <div style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: '600' }}>
+                                {offer.minOrderValue > 0 ? `Min. order ₹${offer.minOrderValue}` : 'No minimum order'}
+                                {offer.maxDiscountCap > 0 ? ` • Max savings ₹${offer.maxDiscountCap}` : ''}
+                              </div>
+                            </div>
+
+                            {/* Bottom Action / Status Row */}
+                            <div style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              marginTop: '0.75rem',
+                              paddingTop: '0.6rem',
+                              borderTop: '1px solid #f1f5f9'
+                            }}>
+                              {isEligible ? (
+                                <>
+                                  <span style={{ fontSize: '0.75rem', fontWeight: '700', color: isApplied ? '#059669' : '#059669' }}>
+                                    {isApplied ? `✓ Applied (Saved ₹${offerDiscount.toFixed(2)})` : `Save on this order!`}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      if (isApplied) {
+                                        handleRemoveCoupon();
+                                      } else {
+                                        setSelectedOfferId(offer.id);
+                                        setShowOffersDropdown(false);
+                                        setCouponFeedback({ type: 'success', message: `Coupon "${offer.code || offer.title}" applied!` });
+                                      }
+                                    }}
+                                    style={{
+                                      background: isApplied ? '#e2e8f0' : 'var(--primary)',
+                                      color: isApplied ? '#475569' : '#ffffff',
+                                      border: 'none',
+                                      padding: '0.4rem 0.9rem',
+                                      borderRadius: '8px',
+                                      fontSize: '0.75rem',
+                                      fontWeight: '800',
+                                      cursor: 'pointer',
+                                      transition: 'all 0.15s ease'
+                                    }}
+                                  >
+                                    {isApplied ? 'REMOVE' : 'APPLY'}
+                                  </button>
+                                </>
+                              ) : (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: '#d97706', fontSize: '0.72rem', fontWeight: '700' }}>
+                                  <span>{ineligibility ? ineligibility.reason : `Add ₹${Math.max(0, (offer.minOrderValue || 0) - total)} more to unlock`}</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div style={{ marginTop: '1.5rem', padding: '1.25rem', background: '#f8fafc', borderRadius: '16px', border: '1px solid var(--surface-border)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
                   <span style={{ color: 'var(--text-secondary)' }}>Item Total</span>
                   <span>₹{total}</span>
                 </div>
+
+                {offerDiscount > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', color: '#10b981', fontWeight: '800' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                      <Tag size={15} /> Stall Offer ({appliedOffer?.badgeText || 'Discount'})
+                    </span>
+                    <span>-₹{offerDiscount.toFixed(2)}</span>
+                  </div>
+                )}
+
                 {orderType === 'Take Away' && deliveryFee > 0 && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
                     <span style={{ color: 'var(--text-secondary)' }}>Packaging Fee</span>
@@ -513,7 +1050,7 @@ const Cart = () => {
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.25rem', fontWeight: '800', borderTop: '1px dashed var(--surface-border)', paddingTop: '1rem' }}>
                   <span>To Pay</span>
-                  <span>₹{finalTotal}</span>
+                  <span style={{ color: 'var(--primary)' }}>₹{finalTotal}</span>
                 </div>
               </div>
             </div>
@@ -613,33 +1150,302 @@ const Cart = () => {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
 
             <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '24px' }}>
-              <h3 style={{ marginBottom: '1.5rem' }}>Dining Preference</h3>
-              <div style={{ display: 'flex', gap: '1rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
+                <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: '800', color: 'var(--text-primary)' }}>
+                  Order Preference
+                </h3>
+                {orderType === 'Delivery' && store?.estimatedDeliveryTime && (
+                  <span style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--primary)', background: 'rgba(239, 65, 35, 0.08)', padding: '0.25rem 0.6rem', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                    <Clock size={12} /> {store.estimatedDeliveryTime} mins
+                  </span>
+                )}
+              </div>
+              <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
                 <button
+                  type="button"
                   onClick={() => setOrderType('Dine In')}
                   style={{
-                    flex: 1, padding: '1rem', borderRadius: '16px', fontWeight: '700', fontSize: '1rem',
+                    flex: '1 1 100px', padding: '0.85rem', borderRadius: '16px', fontWeight: '700', fontSize: '0.9rem',
                     background: orderType === 'Dine In' ? 'rgba(239, 65, 35, 0.04)' : '#f8fafc',
                     border: `2px solid ${orderType === 'Dine In' ? 'var(--primary)' : 'var(--surface-border)'}`,
                     color: orderType === 'Dine In' ? 'var(--primary)' : 'var(--text-secondary)',
-                    cursor: 'pointer', transition: 'all 0.2s'
+                    cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem'
                   }}
                 >
-                  🍽️ Dine In
+                  <Utensils size={15} /> Dine In
                 </button>
                 <button
+                  type="button"
                   onClick={() => setOrderType('Take Away')}
                   style={{
-                    flex: 1, padding: '1rem', borderRadius: '16px', fontWeight: '700', fontSize: '1rem',
+                    flex: '1 1 100px', padding: '0.85rem', borderRadius: '16px', fontWeight: '700', fontSize: '0.9rem',
                     background: orderType === 'Take Away' ? 'rgba(239, 65, 35, 0.04)' : '#f8fafc',
                     border: `2px solid ${orderType === 'Take Away' ? 'var(--primary)' : 'var(--surface-border)'}`,
                     color: orderType === 'Take Away' ? 'var(--primary)' : 'var(--text-secondary)',
-                    cursor: 'pointer', transition: 'all 0.2s'
+                    cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem'
                   }}
                 >
-                  🛍️ Take Away
+                  <ShoppingBag size={15} /> Takeaway
                 </button>
+                {store?.hasDeliveryService && (
+                  <button
+                    type="button"
+                    onClick={() => setOrderType('Delivery')}
+                    style={{
+                      flex: '1 1 100px', padding: '0.85rem', borderRadius: '16px', fontWeight: '700', fontSize: '0.9rem',
+                      background: orderType === 'Delivery' ? 'rgba(239, 65, 35, 0.04)' : '#f8fafc',
+                      border: `2px solid ${orderType === 'Delivery' ? 'var(--primary)' : 'var(--surface-border)'}`,
+                      color: orderType === 'Delivery' ? 'var(--primary)' : 'var(--text-secondary)',
+                      cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem'
+                    }}
+                  >
+                    <Bike size={16} /> Delivery
+                  </button>
+                )}
               </div>
+              <p style={{ margin: '0.75rem 0 0 0', fontSize: '0.75rem', color: '#64748b', fontWeight: '500' }}>
+                {orderType === 'Dine In' && 'Enjoy meal served directly at your stall table'}
+                {orderType === 'Take Away' && 'Pack order to collect directly at stall counter'}
+                {orderType === 'Delivery' && `Delivered directly to your hostel block or location by ${store?.name || 'stall'} staff`}
+              </p>
+            </div>
+
+            {/* Delivery Address Box if Delivery Selected */}
+            {orderType === 'Delivery' && (
+              <div 
+                className="glass-card" 
+                style={{ 
+                  padding: '1.25rem 1.5rem', 
+                  borderRadius: '24px',
+                  border: fieldErrors.address ? '2px solid #ef4444' : '1px solid var(--surface-border)',
+                  background: fieldErrors.address ? '#fff5f5' : '#ffffff',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                    <div style={{
+                      width: '32px', height: '32px', borderRadius: '10px',
+                      background: 'rgba(234, 88, 12, 0.1)', color: 'var(--primary)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center'
+                    }}>
+                      <MapPin size={16} />
+                    </div>
+                    <div>
+                      <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: '800', color: '#1e293b' }}>
+                        Delivery Address
+                      </h3>
+                      <p style={{ margin: 0, fontSize: '0.75rem', color: '#64748b', fontWeight: '500' }}>
+                        Hostel room, floor, or gate landmark
+                      </p>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <button
+                      type="button"
+                      onClick={handleDetectLocation}
+                      disabled={isLocating}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.35rem',
+                        fontSize: '0.72rem',
+                        fontWeight: '700',
+                        color: 'var(--primary)',
+                        background: 'rgba(239, 65, 35, 0.08)',
+                        border: '1px solid rgba(239, 65, 35, 0.2)',
+                        padding: '0.3rem 0.65rem',
+                        borderRadius: '8px',
+                        cursor: isLocating ? 'not-allowed' : 'pointer',
+                        transition: 'all 0.2s ease'
+                      }}
+                    >
+                      {isLocating ? <Loader2 size={12} className="animate-spin" /> : <Navigation size={12} />}
+                      {isLocating ? 'Locating...' : 'Auto-Detect'}
+                    </button>
+                    <span style={{ fontSize: '0.65rem', fontWeight: '800', background: 'rgba(239, 65, 35, 0.08)', color: 'var(--primary)', padding: '0.25rem 0.55rem', borderRadius: '6px', letterSpacing: '0.04em' }}>
+                      REQUIRED
+                    </span>
+                  </div>
+                </div>
+
+                <textarea
+                  ref={addressRef}
+                  rows={2}
+                  placeholder="Enter complete address (e.g. Hostel BH-1, Room 304, 3rd Floor)"
+                  value={deliveryAddress}
+                  onChange={(e) => {
+                    setDeliveryAddress(e.target.value);
+                    localStorage.setItem('universe_delivery_address', e.target.value);
+                    setFieldErrors(prev => ({ ...prev, address: false }));
+                    if (validationError) setValidationError('');
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem 1rem',
+                    borderRadius: '12px',
+                    border: fieldErrors.address ? '2px solid #ef4444' : '1.5px solid #cbd5e1',
+                    background: '#f8fafc',
+                    fontSize: '0.9rem',
+                    fontWeight: '500',
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                    resize: 'none'
+                  }}
+                />
+                <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.73rem', color: fieldErrors.address ? '#dc2626' : '#64748b', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                  <AlertCircle size={12} /> {fieldErrors.address ? 'Delivery address is required before payment.' : 'Please ensure room or landmark is clear. 4-digit PIN is required at handover.'}
+                </p>
+              </div>
+            )}
+
+            {/* Free Delivery Threshold Progress Nudge */}
+            {orderType === 'Delivery' && freeThreshold > 0 && rawDeliveryFee > 0 && (
+              <div 
+                className="glass-card" 
+                style={{
+                  padding: '1rem 1.25rem',
+                  borderRadius: '20px',
+                  background: isFreeDelivery ? '#ecfdf5' : '#fffbf5',
+                  border: `1.5px solid ${isFreeDelivery ? '#a7f3d0' : '#fed7aa'}`,
+                  transition: 'all 0.2s'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                    <div style={{
+                      width: '32px', height: '32px', borderRadius: '10px',
+                      background: isFreeDelivery ? 'rgba(16, 185, 129, 0.15)' : 'rgba(234, 88, 12, 0.12)',
+                      color: isFreeDelivery ? '#059669' : '#ea580c',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center'
+                    }}>
+                      {isFreeDelivery ? <CheckCircle size={16} /> : <Bike size={16} />}
+                    </div>
+                    <div>
+                      <h4 style={{ margin: 0, fontSize: '0.9rem', fontWeight: '800', color: isFreeDelivery ? '#065f46' : '#1e293b' }}>
+                        {isFreeDelivery 
+                          ? 'FREE DELIVERY UNLOCKED' 
+                          : `Add ₹${Math.ceil(freeThreshold - subtotal)} more for Free Delivery`
+                        }
+                      </h4>
+                      <p style={{ margin: 0, fontSize: '0.75rem', color: isFreeDelivery ? '#047857' : '#64748b', fontWeight: '500' }}>
+                        {isFreeDelivery
+                          ? `You saved ₹${rawDeliveryFee} delivery fee on this order`
+                          : `Orders above ₹${freeThreshold} get free delivery from ${store?.name || 'this stall'}`
+                        }
+                      </p>
+                    </div>
+                  </div>
+                  {!isFreeDelivery && (
+                    <button
+                      type="button"
+                      onClick={() => navigate(-1)}
+                      style={{
+                        padding: '0.35rem 0.65rem',
+                        borderRadius: '8px',
+                        background: '#ffffff',
+                        border: '1px solid #fed7aa',
+                        color: 'var(--primary)',
+                        fontSize: '0.75rem',
+                        fontWeight: '700',
+                        cursor: 'pointer',
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
+                      + Add items
+                    </button>
+                  )}
+                </div>
+
+                {!isFreeDelivery && (
+                  <div style={{ width: '100%', height: '6px', background: '#e2e8f0', borderRadius: '3px', marginTop: '0.75rem', overflow: 'hidden' }}>
+                    <div style={{
+                      height: '100%',
+                      borderRadius: '3px',
+                      background: 'var(--primary)',
+                      width: `${Math.min(100, Math.max(8, (subtotal / freeThreshold) * 100))}%`,
+                      transition: 'width 0.3s ease'
+                    }} />
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Table / Spot Number Selection if Dine In & Store has Table Service */}
+            {orderType === 'Dine In' && store?.hasTableService && (
+              <div className="glass-card" style={{ padding: '1.25rem 1.5rem', borderRadius: '24px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.75rem' }}>
+                  <div style={{
+                    width: '32px', height: '32px', borderRadius: '10px',
+                    background: 'rgba(37, 99, 235, 0.1)', color: '#2563eb',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center'
+                  }}>
+                    <Utensils size={16} />
+                  </div>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: '800', color: '#1e293b' }}>
+                      Table / Seating Spot
+                    </h3>
+                    <p style={{ margin: 0, fontSize: '0.75rem', color: '#64748b', fontWeight: '600' }}>
+                      Enter your table or seat number for direct service
+                    </p>
+                  </div>
+                </div>
+                <input
+                  type="text"
+                  placeholder="e.g. Table 4, Booth B, Spot 12"
+                  value={tableNumber}
+                  onChange={(e) => setTableNumber(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem 1rem',
+                    borderRadius: '12px',
+                    border: '1.5px solid #cbd5e1',
+                    fontSize: '0.9rem',
+                    fontWeight: '700',
+                    outline: 'none',
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+            )}
+
+            {/* Special Cooking Request / Chef Note */}
+            <div className="glass-card" style={{ padding: '1.25rem 1.5rem', borderRadius: '24px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.75rem' }}>
+                <div style={{
+                  width: '32px', height: '32px', borderRadius: '10px',
+                  background: 'rgba(234, 88, 12, 0.1)', color: '#ea580c',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center'
+                }}>
+                  <ChefHat size={16} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: '800', color: '#1e293b' }}>
+                    Special Cooking Request
+                  </h3>
+                  <p style={{ margin: 0, fontSize: '0.75rem', color: '#64748b', fontWeight: '600' }}>
+                    Less spicy, no onion/garlic, extra crispy, etc.
+                  </p>
+                </div>
+              </div>
+              <input
+                type="text"
+                placeholder="Add note for the kitchen (e.g. Extra spicy, no cutlery)..."
+                value={cookingInstructions}
+                onChange={(e) => setCookingInstructions(e.target.value)}
+                maxLength={120}
+                style={{
+                  width: '100%',
+                  padding: '0.75rem 1rem',
+                  borderRadius: '12px',
+                  border: '1.5px solid #cbd5e1',
+                  fontSize: '0.85rem',
+                  fontWeight: '600',
+                  outline: 'none',
+                  boxSizing: 'border-box'
+                }}
+              />
             </div>
 
             {store?.locationId?.type !== 'External' && (
@@ -756,6 +1562,77 @@ const Cart = () => {
               </div>
             )}
 
+            {/* Bill Summary Card */}
+            <div className="glass-card" style={{ padding: '1.25rem 1.5rem', borderRadius: '24px' }}>
+              <h3 style={{ margin: '0 0 1rem 0', fontSize: '1rem', fontWeight: '800', color: '#1e293b' }}>
+                Bill Details
+              </h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', fontSize: '0.88rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748b' }}>
+                  <span>Item Subtotal</span>
+                  <span style={{ fontWeight: '700', color: '#1e293b' }}>₹{subtotal.toFixed(2)}</span>
+                </div>
+
+                {offerDiscount > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', color: '#16a34a' }}>
+                    <span>Coupon / Offer Discount</span>
+                    <span style={{ fontWeight: '700' }}>-₹{offerDiscount.toFixed(2)}</span>
+                  </div>
+                )}
+
+                {packagingFee > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748b' }}>
+                    <span>Packaging Charge</span>
+                    <span style={{ fontWeight: '700', color: '#1e293b' }}>₹{packagingFee.toFixed(2)}</span>
+                  </div>
+                )}
+
+                {orderType === 'Delivery' && (
+                  <>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#64748b' }}>
+                      <div>
+                        <span>Delivery Fee</span>
+                        {!isFreeDelivery && freeThreshold > 0 && (
+                          <span style={{ display: 'block', fontSize: '0.7rem', color: 'var(--primary)', fontWeight: '700' }}>
+                            Free above ₹{freeThreshold} (Add ₹{Math.ceil(freeThreshold - subtotal)} more)
+                          </span>
+                        )}
+                      </div>
+                      <span style={{ fontWeight: '700' }}>
+                        {isFreeDelivery ? (
+                          <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                            <span style={{ textDecoration: 'line-through', color: '#94a3b8' }}>₹{rawDeliveryFee.toFixed(2)}</span>
+                            <span style={{ color: '#16a34a' }}>FREE</span>
+                          </span>
+                        ) : (
+                          <span style={{ color: '#1e293b' }}>₹{deliveryFee.toFixed(2)}</span>
+                        )}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748b' }}>
+                      <span>Platform & Convenience Fee</span>
+                      <span style={{ fontWeight: '700', color: '#1e293b' }}>₹5.00</span>
+                    </div>
+                  </>
+                )}
+
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginTop: '0.5rem',
+                  paddingTop: '0.75rem',
+                  borderTop: '1px dashed #cbd5e1',
+                  fontSize: '1.05rem',
+                  fontWeight: '800',
+                  color: '#0f172a'
+                }}>
+                  <span>To Pay</span>
+                  <span style={{ color: 'var(--primary)', fontSize: '1.2rem' }}>₹{finalTotal.toFixed(2)}</span>
+                </div>
+              </div>
+            </div>
+
             <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '24px' }}>
               <h3 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
                 <CreditCard size={20} color="var(--primary)" /> Your Details
@@ -763,24 +1640,26 @@ const Cart = () => {
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 <div>
-                  <label style={{ fontSize: '0.8rem', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '0.5rem', display: 'block' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: '600', color: fieldErrors.name ? '#dc2626' : 'var(--text-secondary)', marginBottom: '0.5rem', display: 'block' }}>
                     <User size={14} style={{ marginRight: '0.4rem', verticalAlign: 'middle' }} />
-                    Name
+                    Name {fieldErrors.name && <span style={{ color: '#dc2626' }}>(Required)</span>}
                   </label>
                   <input
+                    ref={nameRef}
                     type="text"
                     placeholder="Enter your name"
                     value={customerName}
                     onChange={(e) => {
                       setCustomerName(e.target.value);
+                      setFieldErrors(prev => ({ ...prev, name: false }));
                       if (validationError) setValidationError('');
                     }}
                     style={{
                       width: '100%',
                       padding: '0.75rem',
                       borderRadius: '12px',
-                      border: '1px solid var(--surface-border)',
-                      background: '#f8fafc',
+                      border: fieldErrors.name ? '2px solid #ef4444' : '1px solid var(--surface-border)',
+                      background: fieldErrors.name ? '#fff5f5' : '#f8fafc',
                       fontSize: '0.9rem',
                       fontWeight: '600',
                       color: 'var(--text-primary)',
@@ -790,17 +1669,19 @@ const Cart = () => {
                   />
                 </div>
                 <div>
-                  <label style={{ fontSize: '0.8rem', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '0.5rem', display: 'block' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: '600', color: fieldErrors.phone ? '#dc2626' : 'var(--text-secondary)', marginBottom: '0.5rem', display: 'block' }}>
                     <Phone size={14} style={{ marginRight: '0.4rem', verticalAlign: 'middle' }} />
-                    Phone Number
+                    Phone Number {fieldErrors.phone && <span style={{ color: '#dc2626' }}>(10 digits required)</span>}
                   </label>
                   <input
+                    ref={phoneRef}
                     type="tel"
                     placeholder="Enter 10-digit number"
                     value={customerPhone}
                     onChange={(e) => {
                       const val = e.target.value.replace(/\D/g, '');
                       setCustomerPhone(val);
+                      setFieldErrors(prev => ({ ...prev, phone: false }));
                       if (validationError) setValidationError('');
                     }}
                     maxLength={10}
@@ -808,8 +1689,8 @@ const Cart = () => {
                       width: '100%',
                       padding: '0.75rem',
                       borderRadius: '12px',
-                      border: '1px solid var(--surface-border)',
-                      background: '#f8fafc',
+                      border: fieldErrors.phone ? '2px solid #ef4444' : '1px solid var(--surface-border)',
+                      background: fieldErrors.phone ? '#fff5f5' : '#f8fafc',
                       fontSize: '0.9rem',
                       fontWeight: '600',
                       color: 'var(--text-primary)',

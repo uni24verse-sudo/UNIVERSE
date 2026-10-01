@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import axios from 'axios';
 import { 
   Users, 
@@ -31,6 +32,13 @@ const SuperAdminPartnerEquity = ({ token }) => {
   const [poolInfo, setPoolInfo] = useState(null);
   const [historyRuns, setHistoryRuns] = useState([]);
   const [activeSubTab, setActiveSubTab] = useState('partners'); // 'partners' | 'history'
+  const [selectedPartnerIds, setSelectedPartnerIds] = useState([]);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [topBarTarget, setTopBarTarget] = useState(null);
+
+  useEffect(() => {
+    setTopBarTarget(document.getElementById('superadmin-topbar-actions'));
+  }, []);
 
   // Modals
   const [showAddModal, setShowAddModal] = useState(false);
@@ -264,6 +272,60 @@ const SuperAdminPartnerEquity = ({ token }) => {
     executeDeletePartner(partner, equityToken);
   };
 
+  const executeBulkDeletePartners = async (ids, authToken) => {
+    try {
+      setIsDeleting(true);
+      const res = await axios.post(`${API_URL}/api/super-admin/partners/bulk-delete`, 
+        { ids },
+        {
+          headers: { 
+            Authorization: `Bearer ${token}`,
+            'x-equity-auth': authToken
+          }
+        }
+      );
+      alert(res.data.message || 'Selected partners removed / deactivated successfully');
+      setSelectedPartnerIds([]);
+      fetchData(true);
+    } catch (err) {
+      if (err.response?.data?.require2FA) {
+        setEquityToken('');
+        sessionStorage.removeItem('universe_equity_token');
+        requestEquityOtp((validToken) => executeBulkDeletePartners(ids, validToken));
+        return;
+      }
+      alert(err.response?.data?.message || 'Failed to bulk delete partners');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleBulkDeletePartners = async () => {
+    if (selectedPartnerIds.length === 0) return;
+    if (!window.confirm(`Are you sure you want to permanently remove/deactivate ${selectedPartnerIds.length} selected partners? This requires Equity 2FA verification.`)) return;
+    if (!equityToken) {
+      requestEquityOtp((validToken) => executeBulkDeletePartners(selectedPartnerIds, validToken));
+      return;
+    }
+    executeBulkDeletePartners(selectedPartnerIds, equityToken);
+  };
+
+  const toggleSelectPartner = (id) => {
+    setSelectedPartnerIds(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAllPartners = () => {
+    const allIds = partners.map(p => p.id);
+    const allSelected = allIds.length > 0 && allIds.every(id => selectedPartnerIds.includes(id));
+    if (allSelected) {
+      setSelectedPartnerIds(prev => prev.filter(id => !allIds.includes(id)));
+    } else {
+      setSelectedPartnerIds(prev => [...new Set([...prev, ...allIds])]);
+    }
+  };
+
   // Open Distribution Run Modal
   const openDistributeModal = async () => {
     const currentPool = poolInfo?.availableDistributablePool || 0;
@@ -364,143 +426,146 @@ const SuperAdminPartnerEquity = ({ token }) => {
   return (
     <div>
       {/* Header */}
-      <header style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.25rem' }}>
-            <span style={{ background: 'rgba(239, 65, 35, 0.1)', color: 'var(--primary)', padding: '0.2rem 0.6rem', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '800', letterSpacing: '0.05em' }}>
-              ENTERPRISE LEDGER
-            </span>
-            <span style={{ color: '#10b981', fontSize: '0.75rem', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-              <CheckCircle size={13} /> Full-Proof Dual Reconciliation
-            </span>
-          </div>
-          <h1 style={{ fontSize: '2rem', fontWeight: '900', margin: 0, letterSpacing: '-0.02em' }}>Partner Profit & Equity Distribution</h1>
-          <p style={{ color: 'var(--text-secondary)', margin: '0.25rem 0 0 0' }}>Cap table equity shares, live dividend allocations, and immutable settlement runs.</p>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <button
-            onClick={() => fetchData(true)}
-            disabled={refreshing}
-            style={{
-              padding: '0.65rem 1.1rem', borderRadius: '12px', border: '1px solid var(--surface-border)',
-              background: '#ffffff', color: 'var(--text-secondary)', fontWeight: '700', fontSize: '0.85rem',
-              display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer'
-            }}
-          >
-            <RefreshCw size={15} className={refreshing ? 'spin' : ''} /> Refresh
-          </button>
-
-          {/* 2FA Security Status Pill */}
+      {/* Topbar Action Portal */}
+      {topBarTarget && createPortal(
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           {equityToken ? (
             <div style={{
-              display: 'flex', alignItems: 'center', gap: '0.4rem',
+              display: 'flex', alignItems: 'center', gap: '4px',
               background: '#ecfdf5', color: '#059669', border: '1px solid #a7f3d0',
-              padding: '0.65rem 1rem', borderRadius: '12px', fontSize: '0.8rem', fontWeight: '800'
+              padding: '0.4rem 0.75rem', borderRadius: '8px', fontSize: '0.75rem', fontWeight: '800'
             }}>
-              <Shield size={15} /> Authorized
+              <Shield size={13} /> Authorized
             </div>
           ) : (
             <button
               onClick={() => requestEquityOtp()}
               type="button"
               style={{
-                display: 'flex', alignItems: 'center', gap: '0.4rem',
+                display: 'flex', alignItems: 'center', gap: '4px',
                 background: '#fff1f2', color: '#e11d48', border: '1px solid #fecdd3',
-                padding: '0.65rem 1rem', borderRadius: '12px', fontSize: '0.8rem', fontWeight: '800',
+                padding: '0.4rem 0.75rem', borderRadius: '8px', fontSize: '0.75rem', fontWeight: '800',
                 cursor: 'pointer'
               }}
             >
-              <Lock size={15} /> 2FA Protected
+              <Lock size={13} /> 2FA Protected
             </button>
           )}
+
           <button
             onClick={openAddModal}
             style={{
-              padding: '0.65rem 1.25rem', borderRadius: '12px', border: 'none',
-              background: '#f1f5f9', color: 'var(--text-primary)', fontWeight: '800', fontSize: '0.85rem',
-              display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer'
+              padding: '0.45rem 0.85rem', borderRadius: '8px', border: '1px solid #cbd5e1',
+              background: '#ffffff', color: 'var(--text-primary)', fontWeight: '700', fontSize: '0.78rem',
+              display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer'
             }}
           >
-            <Plus size={16} /> Add Partner
+            <Plus size={14} /> Add Partner
           </button>
+
           <button
             onClick={openDistributeModal}
             style={{
-              padding: '0.65rem 1.4rem', borderRadius: '12px', border: 'none',
+              padding: '0.45rem 0.9rem', borderRadius: '8px', border: 'none',
               background: 'linear-gradient(135deg, #ef4123 0%, #ea580c 100%)',
-              color: '#ffffff', fontWeight: '800', fontSize: '0.85rem',
-              display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer',
-              boxShadow: '0 4px 14px rgba(239, 65, 35, 0.25)'
+              color: '#ffffff', fontWeight: '700', fontSize: '0.78rem',
+              display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer',
+              boxShadow: '0 2px 8px rgba(239, 65, 35, 0.25)'
             }}
           >
-            <Sparkles size={16} /> Run Distribution
+            <Sparkles size={14} /> Run Distribution
           </button>
-        </div>
-      </header>
 
-      {/* Executive Overview KPI Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.25rem', marginBottom: '2rem' }}>
-        {/* Card 1: Available Distributable Pool */}
-        <div style={{ padding: '1.5rem', background: 'linear-gradient(135deg, rgba(239, 65, 35, 0.05) 0%, rgba(245, 158, 11, 0.08) 100%)', borderRadius: '20px', border: '1.5px solid rgba(239, 65, 35, 0.25)', boxShadow: '0 4px 12px rgba(239, 65, 35, 0.04)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-            <span style={{ color: 'var(--primary)', fontSize: '0.75rem', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Distributable Profit Pool
-            </span>
-            <span style={{ fontSize: '0.7rem', padding: '0.2rem 0.5rem', borderRadius: '6px', background: availablePoolAmount > 0 ? '#10b981' : '#64748b', color: '#fff', fontWeight: '800' }}>
-              {availablePoolAmount > 0 ? 'READY' : 'SETTLED'}
-            </span>
+          <button
+            onClick={() => fetchData(true)}
+            disabled={refreshing}
+            title="Refresh Ledger"
+            style={{
+              width: '32px', height: '32px', borderRadius: '8px', border: '1px solid #cbd5e1',
+              background: '#ffffff', color: 'var(--text-secondary)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer'
+            }}
+          >
+            <RefreshCw size={13} className={refreshing ? 'animate-spin' : ''} />
+          </button>
+        </div>,
+        topBarTarget
+      )}
+
+      {/* Sticky KPI Cards Strip */}
+      <div style={{
+        position: 'sticky',
+        top: 0,
+        zIndex: 10,
+        background: '#f8fafc',
+        paddingTop: '0.25rem',
+        paddingBottom: '0.75rem',
+        marginBottom: '1rem',
+        borderBottom: '1px solid #e2e8f0'
+      }}>
+        {/* Executive Overview KPI Cards */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem' }}>
+          {/* Card 1: Available Distributable Pool */}
+          <div style={{ padding: '1rem 1.25rem', background: 'linear-gradient(135deg, rgba(239, 65, 35, 0.05) 0%, rgba(245, 158, 11, 0.08) 100%)', borderRadius: '16px', border: '1.5px solid rgba(239, 65, 35, 0.25)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
+              <span style={{ color: 'var(--primary)', fontSize: '0.72rem', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Distributable Profit Pool
+              </span>
+              <span style={{ fontSize: '0.68rem', padding: '0.15rem 0.4rem', borderRadius: '4px', background: availablePoolAmount > 0 ? '#10b981' : '#64748b', color: '#fff', fontWeight: '800' }}>
+                {availablePoolAmount > 0 ? 'READY' : 'SETTLED'}
+              </span>
+            </div>
+            <h2 style={{ fontSize: '1.5rem', fontWeight: '900', margin: 0, color: 'var(--primary)' }}>
+              ₹{availablePoolAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </h2>
+            <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: '600' }}>
+              Net Platform Profit (3% Take + 2% Net Penalty)
+            </p>
           </div>
-          <h2 style={{ fontSize: '2.1rem', fontWeight: '900', margin: 0, color: 'var(--primary)' }}>
-            ₹{availablePoolAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-          </h2>
-          <p style={{ margin: '0.4rem 0 0 0', fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: '600' }}>
-            Net Platform Profit (3% Take + 2% Net Penalty • Excludes all 2% PG Fees)
-          </p>
-        </div>
 
-        {/* Card 2: Cumulative Platform Deductions */}
-        <div style={{ padding: '1.5rem', background: '#ffffff', borderRadius: '20px', border: '1px solid var(--surface-border)', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
-          <span style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '0.5rem' }}>
-            Total Platform Deductions
-          </span>
-          <h2 style={{ fontSize: '2.1rem', fontWeight: '900', margin: 0, color: 'var(--text-primary)' }}>
-            ₹{(poolInfo?.totalPlatformDeductions || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-          </h2>
-          <p style={{ margin: '0.4rem 0 0 0', fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: '600' }}>
-            2% PG (₹{(poolInfo?.totalGatewayFee || 0).toFixed(2)}) + 3% Take (₹{(poolInfo?.totalPlatformProfit || 0).toFixed(2)}) + 2% Net Penalty (₹{(poolInfo?.netCancellationPenalty || ((poolInfo?.totalCancellationPenalty || 0) * 0.5)).toFixed(2)})
-          </p>
-        </div>
-
-        {/* Card 3: Cap Table Equity Status */}
-        <div style={{ padding: '1.5rem', background: '#ffffff', borderRadius: '20px', border: '1px solid var(--surface-border)', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-            <span style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Cap Table Allocation
+          {/* Card 2: Cumulative Platform Deductions */}
+          <div style={{ padding: '1rem 1.25rem', background: '#ffffff', borderRadius: '16px', border: '1px solid var(--surface-border)' }}>
+            <span style={{ color: 'var(--text-secondary)', fontSize: '0.72rem', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '0.25rem' }}>
+              Total Platform Deductions
             </span>
-            <span style={{ fontSize: '0.7rem', padding: '0.2rem 0.5rem', borderRadius: '6px', background: capTable.isFullyAllocated ? '#10b981' : '#3b82f6', color: '#fff', fontWeight: '800' }}>
-              {capTable.isFullyAllocated ? '100% ALLOCATED' : `${capTable.totalAllocatedEquity}% ALLOCATED`}
-            </span>
+            <h2 style={{ fontSize: '1.5rem', fontWeight: '900', margin: 0, color: 'var(--text-primary)' }}>
+              ₹{(poolInfo?.totalPlatformDeductions || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </h2>
+            <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: '600' }}>
+              2% PG + 3% Take + 2% Net Penalty
+            </p>
           </div>
-          <h2 style={{ fontSize: '2.1rem', fontWeight: '900', margin: 0, color: '#3b82f6' }}>
-            {capTable.totalAllocatedEquity}%
-          </h2>
-          <p style={{ margin: '0.4rem 0 0 0', fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: '600' }}>
-            {capTable.treasuryReserveEquity > 0 ? `Unallocated ${capTable.treasuryReserveEquity}% stays in Company Treasury` : 'All equity distributed to partners'}
-          </p>
-        </div>
 
-        {/* Card 4: Historical Distributions */}
-        <div style={{ padding: '1.5rem', background: '#ffffff', borderRadius: '20px', border: '1px solid var(--surface-border)', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
-          <span style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '0.5rem' }}>
-            Settled to Date
-          </span>
-          <h2 style={{ fontSize: '2.1rem', fontWeight: '900', margin: 0, color: '#10b981' }}>
-            ₹{(poolInfo?.previouslyDistributed || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-          </h2>
-          <p style={{ margin: '0.4rem 0 0 0', fontSize: '0.75rem', color: '#10b981', fontWeight: '600' }}>
-            Cleared across {poolInfo?.previousRunsCount || 0} distribution runs with UTRs
-          </p>
+          {/* Card 3: Cap Table Equity Status */}
+          <div style={{ padding: '1rem 1.25rem', background: '#ffffff', borderRadius: '16px', border: '1px solid var(--surface-border)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
+              <span style={{ color: 'var(--text-secondary)', fontSize: '0.72rem', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Cap Table Allocation
+              </span>
+              <span style={{ fontSize: '0.68rem', padding: '0.15rem 0.4rem', borderRadius: '4px', background: capTable.isFullyAllocated ? '#10b981' : '#3b82f6', color: '#fff', fontWeight: '800' }}>
+                {capTable.isFullyAllocated ? '100% ALLOCATED' : `${capTable.totalAllocatedEquity}% ALLOCATED`}
+              </span>
+            </div>
+            <h2 style={{ fontSize: '1.5rem', fontWeight: '900', margin: 0, color: '#3b82f6' }}>
+              {capTable.totalAllocatedEquity}%
+            </h2>
+            <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: '600' }}>
+              {capTable.treasuryReserveEquity > 0 ? `Unallocated ${capTable.treasuryReserveEquity}% in Treasury` : 'Fully distributed'}
+            </p>
+          </div>
+
+          {/* Card 4: Historical Distributions */}
+          <div style={{ padding: '1rem 1.25rem', background: '#ffffff', borderRadius: '16px', border: '1px solid var(--surface-border)' }}>
+            <span style={{ color: 'var(--text-secondary)', fontSize: '0.72rem', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '0.25rem' }}>
+              Settled to Date
+            </span>
+            <h2 style={{ fontSize: '1.5rem', fontWeight: '900', margin: 0, color: '#10b981' }}>
+              ₹{(poolInfo?.previouslyDistributed || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </h2>
+            <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.7rem', color: '#10b981', fontWeight: '600' }}>
+              Cleared across {poolInfo?.previousRunsCount || 0} runs
+            </p>
+          </div>
         </div>
       </div>
 
@@ -587,7 +652,78 @@ const SuperAdminPartnerEquity = ({ token }) => {
 
       {/* TAB 1: PARTNERS ROSTER */}
       {activeSubTab === 'partners' && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.25rem' }}>
+        <div>
+          {/* BULK ACTION BAR */}
+          <div style={{
+            marginBottom: '1.25rem',
+            padding: '0.85rem 1.25rem',
+            background: selectedPartnerIds.length > 0 ? '#fff1f2' : '#ffffff',
+            border: selectedPartnerIds.length > 0 ? '1.5px solid #fecdd3' : '1px solid var(--surface-border)',
+            borderRadius: '16px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '0.75rem'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <input 
+                type="checkbox"
+                checked={partners.length > 0 && partners.every(p => selectedPartnerIds.includes(p.id))}
+                onChange={toggleSelectAllPartners}
+                style={{ cursor: 'pointer', width: '18px', height: '18px', accentColor: 'var(--primary, #ef4123)' }}
+                title="Select All Partners"
+              />
+              <span style={{ fontSize: '0.875rem', fontWeight: '800', color: selectedPartnerIds.length > 0 ? '#e11d48' : 'var(--text-primary)' }}>
+                {selectedPartnerIds.length > 0 
+                  ? `${selectedPartnerIds.length} of ${partners.length} partners selected`
+                  : `Select All (${partners.length} partners)`}
+              </span>
+              {selectedPartnerIds.length > 0 && (
+                <button
+                  onClick={() => setSelectedPartnerIds([])}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#64748b',
+                    fontSize: '0.8rem',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                    textDecoration: 'underline'
+                  }}
+                >
+                  Clear selection
+                </button>
+              )}
+            </div>
+
+            {selectedPartnerIds.length > 0 && (
+              <button
+                onClick={handleBulkDeletePartners}
+                disabled={isDeleting}
+                style={{
+                  padding: '0.5rem 1.1rem',
+                  borderRadius: '10px',
+                  border: 'none',
+                  background: '#e11d48',
+                  color: '#ffffff',
+                  fontWeight: '800',
+                  fontSize: '0.85rem',
+                  cursor: isDeleting ? 'not-allowed' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  boxShadow: '0 2px 8px rgba(225, 29, 72, 0.25)',
+                  opacity: isDeleting ? 0.7 : 1
+                }}
+              >
+                <Trash2 size={14} />
+                {isDeleting ? 'Processing...' : `Remove / Deactivate Selected (${selectedPartnerIds.length})`}
+              </button>
+            )}
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.25rem' }}>
           {partners.map((partner, idx) => {
             const colors = ['#ef4123', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6'];
             const accentColor = colors[idx % colors.length];
@@ -596,25 +732,33 @@ const SuperAdminPartnerEquity = ({ token }) => {
               <div 
                 key={partner.id} 
                 style={{ 
-                  background: '#ffffff', borderRadius: '20px', border: '1px solid var(--surface-border)', 
+                  background: '#ffffff', borderRadius: '20px', border: selectedPartnerIds.includes(partner.id) ? '1.5px solid var(--primary, #ef4123)' : '1px solid var(--surface-border)', 
                   padding: '1.5rem', position: 'relative', overflow: 'hidden',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.02)'
+                  boxShadow: selectedPartnerIds.includes(partner.id) ? '0 4px 20px rgba(239, 65, 35, 0.15)' : '0 2px 8px rgba(0,0,0,0.02)'
                 }}
               >
                 <div style={{ position: 'absolute', top: 0, left: 0, width: '4px', height: '100%', background: accentColor }} />
                 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
-                  <div>
-                    <h3 style={{ fontSize: '1.2rem', fontWeight: '900', margin: '0 0 0.2rem 0', color: 'var(--text-primary)' }}>
-                      {partner.name}
-                    </h3>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: '0.7rem', padding: '0.15rem 0.5rem', borderRadius: '6px', background: '#f1f5f9', color: 'var(--text-secondary)', fontWeight: '700' }}>
-                        {partner.role}
-                      </span>
-                      <span style={{ fontSize: '0.7rem', padding: '0.15rem 0.5rem', borderRadius: '6px', background: partner.status === 'ACTIVE' ? 'rgba(16, 185, 129, 0.1)' : '#f1f5f9', color: partner.status === 'ACTIVE' ? '#10b981' : '#64748b', fontWeight: '800' }}>
-                        {partner.status}
-                      </span>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+                    <input 
+                      type="checkbox"
+                      checked={selectedPartnerIds.includes(partner.id)}
+                      onChange={() => toggleSelectPartner(partner.id)}
+                      style={{ cursor: 'pointer', width: '16px', height: '16px', accentColor: 'var(--primary, #ef4123)', marginTop: '4px' }}
+                    />
+                    <div>
+                      <h3 style={{ fontSize: '1.2rem', fontWeight: '900', margin: '0 0 0.2rem 0', color: 'var(--text-primary)' }}>
+                        {partner.name}
+                      </h3>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: '0.7rem', padding: '0.15rem 0.5rem', borderRadius: '6px', background: '#f1f5f9', color: 'var(--text-secondary)', fontWeight: '700' }}>
+                          {partner.role}
+                        </span>
+                        <span style={{ fontSize: '0.7rem', padding: '0.15rem 0.5rem', borderRadius: '6px', background: partner.status === 'ACTIVE' ? 'rgba(16, 185, 129, 0.1)' : '#f1f5f9', color: partner.status === 'ACTIVE' ? '#10b981' : '#64748b', fontWeight: '800' }}>
+                          {partner.status}
+                        </span>
+                      </div>
                     </div>
                   </div>
 
@@ -753,6 +897,7 @@ const SuperAdminPartnerEquity = ({ token }) => {
               </button>
             </div>
           )}
+          </div>
         </div>
       )}
 

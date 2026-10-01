@@ -12,6 +12,7 @@ backend/config/firebase-key.json
 *.apk
 backend/sessions/
 backend/backup/
+backend/backup_archive/
 scratch/
 .agents/
 

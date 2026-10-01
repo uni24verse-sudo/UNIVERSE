@@ -322,6 +322,50 @@ router.delete('/:id', requireEquityAuth, async (req, res) => {
 });
 
 /**
+ * 4b. BULK DELETE / DEACTIVATE PARTNERS (Strictly OTP-Protected)
+ */
+router.post('/bulk-delete', requireEquityAuth, async (req, res) => {
+  try {
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ message: 'No partner IDs provided' });
+    }
+
+    let removedCount = 0;
+    let deactivatedCount = 0;
+
+    for (const id of ids) {
+      const partner = await prisma.partner.findUnique({
+        where: { id },
+        include: { payouts: true }
+      });
+      if (!partner) continue;
+
+      if (partner.payouts && partner.payouts.length > 0) {
+        await prisma.partner.update({
+          where: { id },
+          data: { status: 'INACTIVE', equityShare: 0 }
+        });
+        deactivatedCount++;
+      } else {
+        await prisma.partner.delete({ where: { id } });
+        removedCount++;
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Processed ${removedCount + deactivatedCount} partners: ${removedCount} permanently removed, ${deactivatedCount} deactivated due to past payout ledger integrity.`,
+      removedCount,
+      deactivatedCount
+    });
+  } catch (err) {
+    console.error('[partners.bulk-delete] Error:', err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+/**
  * 5. GET /api/super-admin/partners/distribution/preview
  * Simulate distribution math before committing (Zero-leakage guarantee)
  */

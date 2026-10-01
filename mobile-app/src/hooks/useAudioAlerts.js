@@ -58,7 +58,9 @@ export const useAudioAlerts = () => {
     if (!isAudioEnabled) return;
     try {
       if (player1) {
-        player1.volume = 1.0;
+        if (Platform.OS !== 'web') {
+          try { player1.volume = 1.0; } catch (_) {}
+        }
         player1.seekTo(0);
         player1.play();
       }
@@ -68,7 +70,9 @@ export const useAudioAlerts = () => {
         if (!isAudioEnabled) return;
         try {
           if (player2) {
-            player2.volume = 1.0;
+            if (Platform.OS !== 'web') {
+              try { player2.volume = 1.0; } catch (_) {}
+            }
             player2.seekTo(0);
             player2.play();
           }
@@ -81,41 +85,14 @@ export const useAudioAlerts = () => {
     }
   }, [player1, player2, isAudioEnabled]);
 
-  // Voice announcement synthesis with cross-platform fallback
-  const speakAnnouncement = useCallback((text) => {
-    if (!isAudioEnabled || !text) return;
-    try {
-      if (Platform.OS === 'web' && typeof window !== 'undefined' && 'speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = 'en-IN';
-        utterance.rate = 0.95;
-        window.speechSynthesis.speak(utterance);
-      } else if (Speech && typeof Speech.speak === 'function') {
-        Speech.stop();
-        Speech.speak(text, {
-          language: 'en-IN',
-          pitch: 1.02,
-          rate: 0.92,
-        });
-      }
-    } catch (err) {
-      console.log('[useAudioAlerts] Speech error:', err?.message || err);
-    }
-  }, [isAudioEnabled]);
-
-  // Crisp chime followed by voice announcement for specific store order
+  // Crisp chime alert for incoming orders (no spoken voice)
   const speakOrderAlert = useCallback((storeName, orderNumber) => {
     if (!isAudioEnabled) return;
     playDoubleDing();
+  }, [isAudioEnabled, playDoubleDing]);
 
-    setTimeout(() => {
-      const storePhrase = storeName ? `for ${storeName}` : '';
-      const orderPhrase = orderNumber ? `Order number ${orderNumber}` : '';
-      const fullText = `New order received ${storePhrase}. ${orderPhrase}`.replace(/\s+/g, ' ').trim();
-      speakAnnouncement(fullText);
-    }, 450);
-  }, [isAudioEnabled, playDoubleDing, speakAnnouncement]);
+  // Voice announcement disabled - crisp sound chime only
+  const speakAnnouncement = useCallback(() => {}, []);
 
   // Starts or stops the reminder loop based on pending orders count
   const syncPendingOrders = useCallback((count = 0) => {
@@ -190,7 +167,7 @@ export const useAudioAlerts = () => {
     playDoubleDing();
   }, [playDoubleDing]);
 
-  // Test sound: plays the new crisp double-ding (ding.ding) and brief test speech
+  // Test sound: plays the crisp double-ding chime
   const playTestSound = useCallback(async () => {
     try {
       if (!isAudioEnabled) {
@@ -198,13 +175,10 @@ export const useAudioAlerts = () => {
         await AsyncStorage.setItem('universe_audio_enabled', 'true');
       }
       playDoubleDing();
-      setTimeout(() => {
-        speakAnnouncement('UniVerse audio alerts are active');
-      }, 500);
     } catch (err) {
       console.log('Test sound playback error:', err?.message || err);
     }
-  }, [playDoubleDing, isAudioEnabled, speakAnnouncement]);
+  }, [playDoubleDing, isAudioEnabled]);
 
   return { 
     isAudioEnabled, 

@@ -21,7 +21,8 @@ import {
   Copy,
   AlertCircle,
   Send,
-  Edit3
+  Edit3,
+  Bike
 } from 'lucide-react';
 import { playOrderCompletedSound, playOrderConfirmedSound } from '../utils/soundHelper';
 
@@ -234,14 +235,34 @@ const OrderTracker = () => {
     setTimeout(() => setCopiedUtr(false), 2000);
   };
 
-  const statusSteps = [
-    { label: 'Pending', icon: Clock, color: '#f59e0b', desc: 'Vendor is reviewing your order' },
-    { label: 'Confirmed', icon: ChefHat, color: '#3b82f6', desc: 'Great! Your order is being prepared' },
-    { label: 'Ready', icon: PackageCheck, color: '#8b5cf6', desc: 'Order is ready for collection!' },
-    { label: 'Completed', icon: CheckCircle2, color: '#10b981', desc: 'Order handed over successfully' }
-  ];
+  const getStatusSteps = (orderType) => {
+    if (orderType === 'Delivery') {
+      return [
+        { label: 'Pending', icon: Clock, color: '#f59e0b', desc: 'Vendor is reviewing your order' },
+        { label: 'Confirmed', icon: Receipt, color: '#3b82f6', desc: 'Order confirmed! Kitchen is prepping' },
+        { label: 'Cooking', icon: ChefHat, color: '#8b5cf6', desc: 'Your food is sizzling hot in the kitchen!' },
+        { label: 'Out for Delivery', icon: Bike, color: '#10b981', desc: 'Rider is on the way with your order!' },
+        { label: 'Completed', icon: CheckCircle2, color: '#10b981', desc: 'Order delivered successfully' }
+      ];
+    }
+    return [
+      { label: 'Pending', icon: Clock, color: '#f59e0b', desc: 'Vendor is reviewing your order' },
+      { label: 'Confirmed', icon: Receipt, color: '#3b82f6', desc: 'Order confirmed! Waiting for kitchen to start' },
+      { label: 'Cooking', icon: ChefHat, color: '#8b5cf6', desc: 'Your food is sizzling hot in the kitchen!' },
+      { label: 'Ready', icon: PackageCheck, color: '#ec4899', desc: 'Order is ready for collection!' },
+      { label: 'Completed', icon: CheckCircle2, color: '#10b981', desc: 'Order handed over successfully' }
+    ];
+  };
 
-  const currentStepIndex = order ? statusSteps.findIndex(s => s.label === order.status) : -1;
+  const statusSteps = order ? getStatusSteps(order.orderType) : [];
+  const currentStepIndex = order ? (() => {
+    if (order.orderType === 'Delivery') {
+      if (order.status === 'Ready' || order.status === 'Out for Delivery') return 3;
+      if (order.status === 'Completed') return 4;
+    }
+    const idx = statusSteps.findIndex(s => s.label === order.status);
+    return idx >= 0 ? idx : 0;
+  })() : -1;
 
   if (loading) {
     return (
@@ -270,6 +291,31 @@ const OrderTracker = () => {
   const activeRefundUpi = order.customerUpiId || originalPayerUpi || '';
   const isRefunded = order.refundStatus === 'Refunded' || order.refundStatus === 'Processed';
   const isRequested = order.refundStatus === 'Requested';
+
+  const handleWhatsAppSupport = () => {
+    const orderNum = order?.orderNumber || (order?._id || id).slice(-6);
+    const storeName = order?.store?.name || 'Counter';
+    const status = order?.status || 'Pending';
+    const total = order?.totalAmount || 0;
+    const itemsList = (order?.items || [])
+      .map(i => `• ${i.quantity || 1}x ${i.name || 'Item'} (₹${(i.price || 0) * (i.quantity || 1)})`)
+      .join('\n');
+
+    let text = `Hi UniVerse Support, I need help with my Order #${orderNum}.\n\n` +
+      `📋 *Order Details:*\n` +
+      `• *Store / Stall:* ${storeName}\n` +
+      `• *Status:* ${status}\n` +
+      `• *Total Paid:* ₹${total}\n`;
+
+    if (itemsList) {
+      text += `\n🛒 *Items:*\n${itemsList}\n`;
+    }
+
+    text += `\nPlease assist me with this order.`;
+
+    const cleanNumber = '918295886832';
+    window.open(`https://wa.me/${cleanNumber}?text=${encodeURIComponent(text)}`, '_blank');
+  };
 
   return (
     <div style={{ minHeight: '100vh', padding: '2rem 1rem', maxWidth: '600px', margin: '0 auto' }}>
@@ -535,11 +581,13 @@ const OrderTracker = () => {
         </div>
       )}
 
-      <header style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '2.5rem' }}>
-        <button onClick={() => navigate('/')} style={{ background: '#ffffff', border: '1px solid var(--surface-border)', color: 'var(--text-primary)', padding: '0.6rem', borderRadius: '12px', cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
-           <ArrowLeft size={20} />
-        </button>
-        <h1 style={{ fontSize: '1.5rem', fontWeight: '800', margin: 0, color: 'var(--text-primary)' }}>Track Order</h1>
+      <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <button onClick={() => navigate('/')} style={{ background: '#ffffff', border: '1px solid var(--surface-border)', color: 'var(--text-primary)', padding: '0.6rem', borderRadius: '12px', cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
+             <ArrowLeft size={20} />
+          </button>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: '800', margin: 0, color: 'var(--text-primary)' }}>Track Order</h1>
+        </div>
       </header>
 
       <div className="glass-card" style={{ padding: '2rem', borderRadius: '28px', textAlign: 'center', marginBottom: '2rem' }}>
@@ -588,8 +636,138 @@ const OrderTracker = () => {
           </div>
         )}
 
-        {/* Handover QR Code Section - Visible only when order is Ready for pickup */}
-        {order.status === 'Ready' && order.handoverToken && (
+        {/* Handover Section: Delivery vs Pickup QR Code */}
+        {(order.status === 'Ready' || order.status === 'Out for Delivery') && order.orderType === 'Delivery' ? (
+          <div style={{ 
+            background: '#ffffff', 
+            padding: '2rem 1.5rem', 
+            borderRadius: '24px', 
+            marginBottom: '2rem',
+            border: '2px solid #10b981',
+            boxShadow: '0 12px 36px rgba(16, 185, 129, 0.12)',
+            position: 'relative',
+            overflow: 'hidden'
+          }}>
+            <div style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              height: '6px',
+              background: '#10b981',
+              opacity: 0.9
+            }}></div>
+            
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', background: '#ecfdf5', border: '1px solid #a7f3d0', padding: '0.35rem 0.85rem', borderRadius: '999px', color: '#059669', fontSize: '0.78rem', fontWeight: '800', marginBottom: '0.75rem' }}>
+              <Bike size={14} />
+              {order.status === 'Out for Delivery' ? 'RIDER ON THE WAY' : 'PACKED & READY FOR RIDER'}
+            </div>
+
+            <h3 style={{ fontSize: '1.3rem', fontWeight: '800', marginBottom: '0.3rem', color: '#0f172a' }}>
+              Show QR to Delivery Partner
+            </h3>
+            <p style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '1.25rem' }}>
+              {order.riderName 
+                ? `Delivery partner ${order.riderName} will scan this QR or ask for your 4-digit PIN upon arrival.`
+                : 'The rider will scan this QR or ask for your 4-digit PIN for contact-free handover.'}
+            </p>
+
+            {/* Scannable Handover QR Code */}
+            <div style={{
+              background: '#ffffff',
+              padding: '1.25rem',
+              borderRadius: '20px',
+              display: 'inline-block',
+              border: '2px solid #e2e8f0',
+              boxShadow: '0 8px 24px rgba(0,0,0,0.06)',
+              marginBottom: '1.25rem'
+            }}>
+              <QRCodeSVG
+                value={JSON.stringify({
+                  type: 'DELIVERY_HANDOVER',
+                  orderId: order._id || order.id || id,
+                  pin: order.deliveryOtp || ''
+                })}
+                size={180}
+                level="M"
+                includeMargin={false}
+              />
+              <div style={{ fontSize: '0.75rem', fontWeight: '700', color: '#64748b', marginTop: '0.6rem' }}>
+                🛵 Auto-Scannable by Rider
+              </div>
+            </div>
+
+            {/* Delivery OTP PIN Box */}
+            {order.deliveryOtp ? (
+              <div style={{ 
+                background: '#f8fafc', 
+                padding: '1.1rem 1.5rem', 
+                borderRadius: '18px', 
+                border: '1.5px dashed #cbd5e1',
+                maxWidth: '360px',
+                margin: '0 auto 1.25rem'
+              }}>
+                <div style={{ fontSize: '0.72rem', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>
+                  Or Share 4-Digit Delivery PIN
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'center', gap: '0.6rem', marginBottom: '0.4rem' }}>
+                  {order.deliveryOtp.split('').map((char, i) => (
+                    <span key={i} style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: '44px',
+                      height: '48px',
+                      borderRadius: '12px',
+                      background: '#ffffff',
+                      border: '2px solid #10b981',
+                      fontSize: '1.5rem',
+                      fontWeight: '900',
+                      color: '#065f46',
+                      boxShadow: '0 2px 6px rgba(16, 185, 129, 0.15)'
+                    }}>
+                      {char}
+                    </span>
+                  ))}
+                </div>
+                <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                  Give this PIN to the delivery boy if camera scan is unavailable
+                </span>
+              </div>
+            ) : null}
+
+            {/* Destination Address Pill */}
+            {order.deliveryAddress && (
+              <div style={{ background: '#f1f5f9', borderRadius: '12px', padding: '0.6rem 1rem', fontSize: '0.82rem', color: '#334155', fontWeight: '600', display: 'inline-block', maxWidth: '100%', wordBreak: 'break-word', marginBottom: order.riderPhone ? '0.85rem' : 0 }}>
+                📍 Drop: {order.deliveryAddress.replace(/\s*\[GPS:[^\]]+\]/gi, '').replace(/\s*\|\|\s*GPS:[^$]+/gi, '')}
+              </div>
+            )}
+
+            {/* Rider Contact Button */}
+            {order.riderName && order.riderPhone && (
+              <div style={{ marginTop: '0.75rem' }}>
+                <a
+                  href={`tel:${order.riderPhone}`}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    background: '#10b981',
+                    color: 'white',
+                    padding: '0.7rem 1.5rem',
+                    borderRadius: '12px',
+                    textDecoration: 'none',
+                    fontWeight: '800',
+                    fontSize: '0.875rem',
+                    boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)'
+                  }}
+                >
+                  <Phone size={16} /> Call Rider ({order.riderName})
+                </a>
+              </div>
+            )}
+          </div>
+        ) : order.status === 'Ready' && order.handoverToken ? (
           <div style={{ 
             background: 'white', 
             padding: '2rem', 
@@ -631,7 +809,7 @@ const OrderTracker = () => {
               />
             </div>
           </div>
-        )}
+        ) : null}
 
         {/* Handover Completed Confirmation */}
         {order.status === 'Completed' && (
@@ -674,7 +852,7 @@ const OrderTracker = () => {
         {order.status !== 'Payment Pending' && order.status !== 'Cancelled' && (
           <div style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', marginBottom: '3rem', padding: '0 1rem' }}>
              <div style={{ position: 'absolute', top: '24px', left: '10%', right: '10%', height: '2px', background: 'var(--surface-border)', zIndex: 0 }}></div>
-             <div style={{ position: 'absolute', top: '24px', left: '10%', width: currentStepIndex === 0 ? '0%' : currentStepIndex === 1 ? '40%' : '80%', height: '2px', background: 'var(--primary)', zIndex: 1, transition: 'width 1s ease' }}></div>
+             <div style={{ position: 'absolute', top: '24px', left: '10%', width: currentStepIndex <= 0 ? '0%' : `${Math.min(80, (currentStepIndex / 4) * 80)}%`, height: '2px', background: 'var(--primary)', zIndex: 1, transition: 'width 1s ease' }}></div>
              
              {statusSteps.map((step, idx) => {
                const Icon = step.icon;
@@ -742,6 +920,13 @@ const OrderTracker = () => {
              <span style={{ color: 'var(--text-secondary)' }}>Order Type</span>
              <span style={{ fontWeight: '800', color: 'var(--text-primary)' }}>{order.orderType}</span>
            </div>
+
+           {order.orderType === 'Delivery' && order.deliveryAddress && (
+             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem', fontSize: '0.85rem' }}>
+               <span style={{ color: 'var(--text-secondary)' }}>Drop Address</span>
+               <span style={{ fontWeight: '800', color: 'var(--text-primary)', maxWidth: '60%', textAlign: 'right' }}>{order.deliveryAddress.replace(/\s*\[GPS:[^\]]+\]/gi, '').replace(/\s*\|\|\s*GPS:[^$]+/gi, '')}</span>
+             </div>
+           )}
            
            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
              {order.items.map((item, idx) => (
@@ -776,14 +961,93 @@ const OrderTracker = () => {
              ))}
            </div>
            
+           {/* Financial Itemized Breakdown */}
+           {(() => {
+             const itemsSubtotal = (order.items || []).reduce((sum, item) => sum + ((Number(item.price) || 0) * (Number(item.quantity) || 1)), 0);
+             const packagingCharge = Number(order.packagingChargeApplied ? (order.packagingCharge || order.store?.packagingCharge || 5) : 0);
+             const deliveryFee = Number(order.deliveryFee || 0);
+             const platformFee = Number(order.platformFee !== undefined ? order.platformFee : (order.orderType === 'Delivery' ? 5 : 0));
+             const totalPaid = Number(order.totalAmount || 0);
+             const computedGross = itemsSubtotal + packagingCharge + (order.orderType === 'Delivery' ? deliveryFee : 0) + platformFee;
+             const discountAmount = Number(order.discountAmount || (computedGross > totalPaid ? (computedGross - totalPaid) : 0));
+
+             return (
+               <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--surface-border)', display: 'flex', flexDirection: 'column', gap: '0.45rem', fontSize: '0.85rem' }}>
+                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                   <span style={{ color: 'var(--text-secondary)' }}>Item Total</span>
+                   <span style={{ fontWeight: '700', color: 'var(--text-primary)' }}>₹{itemsSubtotal}</span>
+                 </div>
+
+                 {discountAmount > 0 && (
+                   <div style={{ display: 'flex', justifyContent: 'space-between', color: '#059669', fontWeight: '700' }}>
+                     <span>Coupon / Offer Discount</span>
+                     <span style={{ fontWeight: '800' }}>-₹{discountAmount.toFixed(0)}</span>
+                   </div>
+                 )}
+
+                 {packagingCharge > 0 && (
+                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                     <span style={{ color: 'var(--text-secondary)' }}>Packaging Charge</span>
+                     <span style={{ fontWeight: '700', color: 'var(--text-primary)' }}>₹{packagingCharge}</span>
+                   </div>
+                 )}
+
+                 {order.orderType === 'Delivery' && (
+                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                     <span style={{ color: 'var(--text-secondary)' }}>Delivery Fee</span>
+                     {deliveryFee === 0 ? (
+                       <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                         <span style={{ textDecoration: 'line-through', color: '#94a3b8' }}>₹20</span>
+                         <span style={{ color: '#10b981', fontWeight: '800' }}>FREE</span>
+                       </span>
+                     ) : (
+                       <span style={{ fontWeight: '700', color: 'var(--text-primary)' }}>₹{deliveryFee}</span>
+                     )}
+                   </div>
+                 )}
+
+                 {order.orderType === 'Delivery' && platformFee > 0 && (
+                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                     <span style={{ color: 'var(--text-secondary)' }}>Platform Convenience Fee</span>
+                     <span style={{ fontWeight: '700', color: 'var(--text-primary)' }}>₹{platformFee}</span>
+                   </div>
+                 )}
+               </div>
+             );
+           })()}
+
            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '1.5rem', paddingTop: '1.25rem', borderTop: '1px dashed var(--surface-border)', fontWeight: '900', fontSize: '1.25rem', color: 'var(--text-primary)' }}>
              <span>Total Paid</span>
              <span style={{ color: 'var(--secondary)' }}>₹{order.totalAmount}</span>
            </div>
         </div>
 
-        <button onClick={() => navigate('/')} className="btn btn-secondary" style={{ height: '60px', borderRadius: '16px', width: '100%' }}>
-           <Home size={20} /> Return to Home
+        <div style={{ marginBottom: '0.75rem', width: '100%' }}>
+          <button
+            onClick={handleWhatsAppSupport}
+            style={{
+              width: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '0.5rem',
+              height: '48px',
+              borderRadius: '14px',
+              background: '#25D366',
+              border: 'none',
+              color: '#ffffff',
+              fontWeight: '800',
+              fontSize: '0.9rem',
+              cursor: 'pointer',
+              boxShadow: '0 4px 12px rgba(37, 211, 102, 0.25)'
+            }}
+          >
+            <MessageCircle size={18} color="#ffffff" /> Need Support
+          </button>
+        </div>
+
+        <button onClick={() => navigate('/')} className="btn btn-secondary" style={{ height: '52px', borderRadius: '14px', width: '100%' }}>
+           <Home size={18} /> Return to Home
         </button>
       </div>
     </div>

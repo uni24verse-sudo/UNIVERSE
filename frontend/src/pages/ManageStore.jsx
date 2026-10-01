@@ -6,10 +6,12 @@ import { QRCodeSVG } from 'qrcode.react';
 import { 
   ArrowLeft, Store, LayoutDashboard, QrCode, LogOut, Plus, Pencil, Trash2, Eye, EyeOff, Save, X, Image as LucideImage, Download, ExternalLink, ShoppingBag, Tag, Sparkles, Loader2, Check, Menu, Globe, Upload, Link as LucideLink, Zap
 } from 'lucide-react';
+import VendorOfferManager from '../components/VendorOfferManager';
 
 const ManageStore = () => {
   const { token, vendor, logout, updateVendor } = useContext(AuthContext);
   const navigate = useNavigate();
+  const [activeSubTab, setActiveSubTab] = useState('menu');
   const [stores, setStores] = useState([]);
   const [store, setStore] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -28,6 +30,11 @@ const ManageStore = () => {
   const [storeClosingTime, setStoreClosingTime] = useState('22:00');
   const [storeIsAutomated, setStoreIsAutomated] = useState(true);
   const [storeAutoAccept, setStoreAutoAccept] = useState(false);
+  const [storeHasTableService, setStoreHasTableService] = useState(false);
+  const [storeHasDeliveryService, setStoreHasDeliveryService] = useState(false);
+  const [storeDeliveryFee, setStoreDeliveryFee] = useState(0);
+  const [storeFreeDeliveryThreshold, setStoreFreeDeliveryThreshold] = useState(0);
+  const [storeMinDeliveryOrderValue, setStoreMinDeliveryOrderValue] = useState(0);
   const [storeType, setStoreType] = useState('FastFood');
   const [storeImageFile, setStoreImageFile] = useState(null);
 
@@ -129,6 +136,11 @@ const ManageStore = () => {
           setStoreClosingTime(defaultStore.closingTime || '22:00');
           setStoreIsAutomated(defaultStore.isAutomated !== false);
           setStoreAutoAccept(defaultStore.autoAcceptOrders === true);
+          setStoreHasTableService(defaultStore.hasTableService === true);
+          setStoreHasDeliveryService(defaultStore.hasDeliveryService === true);
+          setStoreDeliveryFee(defaultStore.deliveryFee || 0);
+          setStoreFreeDeliveryThreshold(defaultStore.freeDeliveryThreshold || 0);
+          setStoreMinDeliveryOrderValue(defaultStore.minDeliveryOrderValue || 0);
           setStoreAccentColor(defaultStore.accentColor || '#ef4123');
           setStoreType(defaultStore.storeType || 'FastFood');
 
@@ -165,6 +177,11 @@ const ManageStore = () => {
       setStoreClosingTime(selected.closingTime || '22:00');
       setStoreIsAutomated(selected.isAutomated !== false);
       setStoreAutoAccept(selected.autoAcceptOrders === true);
+      setStoreHasTableService(selected.hasTableService === true);
+      setStoreHasDeliveryService(selected.hasDeliveryService === true);
+      setStoreDeliveryFee(selected.deliveryFee || 0);
+      setStoreFreeDeliveryThreshold(selected.freeDeliveryThreshold || 0);
+      setStoreMinDeliveryOrderValue(selected.minDeliveryOrderValue || 0);
       setStoreAccentColor(selected.accentColor || '#ef4123');
       setStoreType(selected.storeType || 'FastFood');
       setIsEditingStore(false);
@@ -309,6 +326,60 @@ const ManageStore = () => {
     }
   };
 
+  const toggleTableService = async () => {
+    if (!store) return;
+    const targetId = store._id || store.id;
+    const nextStatus = !store.hasTableService;
+    setStore(prev => ({ ...prev, hasTableService: nextStatus }));
+    setStores(prev => prev.map(s => (s._id === targetId || s.id === targetId) ? { ...s, hasTableService: nextStatus } : s));
+    setStoreHasTableService(nextStatus);
+
+    try {
+      const res = await axios.put(
+        `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/store/${targetId}/update-details`,
+        { hasTableService: nextStatus },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (res.data && res.data.hasTableService !== undefined) {
+        setStore(prev => ({ ...prev, hasTableService: res.data.hasTableService }));
+        setStores(prev => prev.map(s => (s._id === targetId || s.id === targetId) ? { ...s, hasTableService: res.data.hasTableService } : s));
+        setStoreHasTableService(res.data.hasTableService);
+      }
+    } catch (err) {
+      alert('Failed to update Table Service setting');
+      setStore(prev => ({ ...prev, hasTableService: !nextStatus }));
+      setStores(prev => prev.map(s => (s._id === targetId || s.id === targetId) ? { ...s, hasTableService: !nextStatus } : s));
+      setStoreHasTableService(!nextStatus);
+    }
+  };
+
+  const toggleDeliveryService = async () => {
+    if (!store) return;
+    const targetId = store._id || store.id;
+    const nextStatus = !store.hasDeliveryService;
+    setStore(prev => ({ ...prev, hasDeliveryService: nextStatus }));
+    setStores(prev => prev.map(s => (s._id === targetId || s.id === targetId) ? { ...s, hasDeliveryService: nextStatus } : s));
+    setStoreHasDeliveryService(nextStatus);
+
+    try {
+      const res = await axios.put(
+        `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/store/${targetId}/update-details`,
+        { hasDeliveryService: nextStatus },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (res.data && res.data.hasDeliveryService !== undefined) {
+        setStore(prev => ({ ...prev, hasDeliveryService: res.data.hasDeliveryService }));
+        setStores(prev => prev.map(s => (s._id === targetId || s.id === targetId) ? { ...s, hasDeliveryService: res.data.hasDeliveryService } : s));
+        setStoreHasDeliveryService(res.data.hasDeliveryService);
+      }
+    } catch (err) {
+      alert('Failed to update Delivery Service setting');
+      setStore(prev => ({ ...prev, hasDeliveryService: !nextStatus }));
+      setStores(prev => prev.map(s => (s._id === targetId || s.id === targetId) ? { ...s, hasDeliveryService: !nextStatus } : s));
+      setStoreHasDeliveryService(!nextStatus);
+    }
+  };
+
   const handleUploadCategoryImage = async (categoryName, file) => {
     if (!file) return;
     try {
@@ -407,7 +478,12 @@ const ManageStore = () => {
           isAutomated: storeIsAutomated,
           autoAcceptOrders: storeAutoAccept,
           accentColor: storeAccentColor,
-          storeType: storeType
+          storeType: storeType,
+          hasTableService: storeHasTableService,
+          hasDeliveryService: storeHasDeliveryService,
+          deliveryFee: Number(storeDeliveryFee) || 0,
+          freeDeliveryThreshold: Number(storeFreeDeliveryThreshold) || 0,
+          minDeliveryOrderValue: Number(storeMinDeliveryOrderValue) || 0
         },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -434,9 +510,14 @@ const ManageStore = () => {
         closingTime: storeRes.data.closingTime,
         isAutomated: storeRes.data.isAutomated,
         autoAcceptOrders: storeRes.data.autoAcceptOrders,
-        storeType: storeRes.data.storeType
+        storeType: storeRes.data.storeType,
+        hasTableService: storeRes.data.hasTableService,
+        hasDeliveryService: storeRes.data.hasDeliveryService,
+        deliveryFee: storeRes.data.deliveryFee,
+        freeDeliveryThreshold: storeRes.data.freeDeliveryThreshold,
+        minDeliveryOrderValue: storeRes.data.minDeliveryOrderValue
       }));
-      setStores(prev => prev.map(s => s._id === store._id ? { ...s, name: storeRes.data.name, category: storeRes.data.category, packagingCharge: storeRes.data.packagingCharge, market: storeRes.data.market, upiId: storeRes.data.upiId, telegramChatId: storeRes.data.telegramChatId, telegramBotToken: storeRes.data.telegramBotToken, openingTime: storeRes.data.openingTime, closingTime: storeRes.data.closingTime, isAutomated: storeRes.data.isAutomated, autoAcceptOrders: storeRes.data.autoAcceptOrders, storeType: storeRes.data.storeType } : s));
+      setStores(prev => prev.map(s => s._id === store._id ? { ...s, ...storeRes.data } : s));
 
       updateVendor(adminRes.data.admin);
       setIsEditingStore(false);
@@ -746,7 +827,53 @@ const ManageStore = () => {
           </div>
         </header>
 
-        <div className="manage-store-grid" style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 2fr', gap: '2rem' }}>
+        {/* Navigation Tabs: Menu vs Offers */}
+        <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '2rem', borderBottom: '1px solid var(--surface-border)', paddingBottom: '0.75rem', flexWrap: 'wrap' }}>
+          <button
+            onClick={() => setActiveSubTab('menu')}
+            style={{
+              padding: '0.65rem 1.4rem',
+              borderRadius: '100px',
+              border: 'none',
+              background: activeSubTab === 'menu' ? 'var(--primary)' : 'rgba(0,0,0,0.05)',
+              color: activeSubTab === 'menu' ? '#fff' : 'var(--text-secondary)',
+              fontWeight: '800',
+              fontSize: '0.9rem',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              transition: 'var(--transition)'
+            }}
+          >
+            <ShoppingBag size={16} /> Stall & Menu ({store.products?.length || 0})
+          </button>
+
+          <button
+            onClick={() => setActiveSubTab('offers')}
+            style={{
+              padding: '0.65rem 1.4rem',
+              borderRadius: '100px',
+              border: 'none',
+              background: activeSubTab === 'offers' ? 'var(--primary)' : 'rgba(0,0,0,0.05)',
+              color: activeSubTab === 'offers' ? '#fff' : 'var(--text-secondary)',
+              fontWeight: '800',
+              fontSize: '0.9rem',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              transition: 'var(--transition)'
+            }}
+          >
+            <Zap size={16} /> Offers & Deals Engine ({store.offers?.length || 0})
+          </button>
+        </div>
+
+        {activeSubTab === 'offers' ? (
+          <VendorOfferManager store={store} onStoreUpdate={(updated) => setStore(updated)} />
+        ) : (
+          <div className="manage-store-grid" style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 2fr', gap: '2rem' }}>
           
           {/* Left Column: QR & Details */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
@@ -978,6 +1105,44 @@ const ManageStore = () => {
                         style={{ height: '40px', borderRadius: '10px', fontSize: '0.875rem' }}
                       />
                     </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', background: '#f0fdf4', padding: '0.75rem', borderRadius: '12px', border: '1px solid #bbf7d0' }}>
+                      <div>
+                        <label className="form-label" style={{ fontSize: '0.75rem', color: '#166534' }}>Delivery Fee (₹)</label>
+                        <input 
+                          type="number" 
+                          className="form-input" 
+                          placeholder="25"
+                          min="0"
+                          value={storeDeliveryFee} 
+                          onChange={e => setStoreDeliveryFee(e.target.value)}
+                          style={{ height: '40px', borderRadius: '10px', fontSize: '0.875rem', background: '#fff' }}
+                        />
+                      </div>
+                      <div>
+                        <label className="form-label" style={{ fontSize: '0.75rem', color: '#166534' }}>Free Delivery Above (₹)</label>
+                        <input 
+                          type="number" 
+                          className="form-input" 
+                          placeholder="199"
+                          min="0"
+                          value={storeFreeDeliveryThreshold} 
+                          onChange={e => setStoreFreeDeliveryThreshold(e.target.value)}
+                          style={{ height: '40px', borderRadius: '10px', fontSize: '0.875rem', background: '#fff' }}
+                        />
+                      </div>
+                      <div style={{ gridColumn: '1 / span 2' }}>
+                        <label className="form-label" style={{ fontSize: '0.75rem', color: '#166534' }}>Min. Delivery Order Value (₹)</label>
+                        <input 
+                          type="number" 
+                          className="form-input" 
+                          placeholder="99"
+                          min="0"
+                          value={storeMinDeliveryOrderValue} 
+                          onChange={e => setStoreMinDeliveryOrderValue(e.target.value)}
+                          style={{ height: '40px', borderRadius: '10px', fontSize: '0.875rem', background: '#fff' }}
+                        />
+                      </div>
+                    </div>
                     <div>
                       <label className="form-label" style={{ fontSize: '0.75rem' }}>UPI ID for Payouts</label>
                       <input 
@@ -1148,6 +1313,64 @@ const ManageStore = () => {
                       }}
                     >
                       <Zap size={13} fill={store.autoAcceptOrders ? '#ef4123' : 'none'} /> {store.autoAcceptOrders ? 'ENABLED' : 'DISABLED'}
+                    </button>
+                  </div>
+
+                  <div style={{ padding: '1rem', background: store.hasTableService ? 'rgba(37, 99, 235, 0.05)' : '#f8fafc', borderRadius: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: `1px solid ${store.hasTableService ? 'rgba(37, 99, 235, 0.25)' : 'rgba(0, 0, 0, 0.08)'}`, marginTop: '0.85rem' }}>
+                    <div>
+                      <p style={{ fontSize: '0.75rem', color: store.hasTableService ? '#2563eb' : 'var(--text-secondary)', marginBottom: '0.25rem', fontWeight: '800', textTransform: 'uppercase' }}>🪑 Table / Seating Spot Service</p>
+                      <p style={{ fontWeight: '700', margin: 0, fontSize: '0.85rem' }}>
+                        {store.hasTableService ? 'Enabled (Prompts student for table / seat number)' : 'Disabled (Takeaway cart / no seating prompts)'}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={toggleTableService}
+                      style={{
+                        padding: '0.4rem 0.8rem',
+                        borderRadius: '100px',
+                        border: `1px solid ${store.hasTableService ? 'rgba(37, 99, 235, 0.3)' : 'var(--surface-border)'}`,
+                        background: store.hasTableService ? 'rgba(37, 99, 235, 0.1)' : 'rgba(0,0,0,0.05)',
+                        color: store.hasTableService ? '#2563eb' : 'var(--text-secondary)',
+                        fontWeight: '800',
+                        fontSize: '0.75rem',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.35rem'
+                      }}
+                    >
+                      {store.hasTableService ? 'ENABLED' : 'DISABLED'}
+                    </button>
+                  </div>
+
+                  <div style={{ padding: '1rem', background: store.hasDeliveryService ? 'rgba(16, 185, 129, 0.05)' : '#f8fafc', borderRadius: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: `1px solid ${store.hasDeliveryService ? 'rgba(16, 185, 129, 0.3)' : 'rgba(0, 0, 0, 0.08)'}`, marginTop: '0.85rem' }}>
+                    <div>
+                      <p style={{ fontSize: '0.75rem', color: store.hasDeliveryService ? '#059669' : 'var(--text-secondary)', marginBottom: '0.25rem', fontWeight: '800', textTransform: 'uppercase' }}>🛵 Self-Delivery Service</p>
+                      <p style={{ fontWeight: '700', margin: 0, fontSize: '0.85rem' }}>
+                        {store.hasDeliveryService 
+                          ? `Active (Fee: ₹${store.deliveryFee || 0} • Free above ₹${store.freeDeliveryThreshold || 'N/A'} • Min order ₹${store.minDeliveryOrderValue || 0})` 
+                          : 'Disabled (Takeaway / Dine-in only)'}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={toggleDeliveryService}
+                      style={{
+                        padding: '0.4rem 0.8rem',
+                        borderRadius: '100px',
+                        border: `1px solid ${store.hasDeliveryService ? 'rgba(16, 185, 129, 0.3)' : 'var(--surface-border)'}`,
+                        background: store.hasDeliveryService ? 'rgba(16, 185, 129, 0.1)' : 'rgba(0,0,0,0.05)',
+                        color: store.hasDeliveryService ? '#059669' : 'var(--text-secondary)',
+                        fontWeight: '800',
+                        fontSize: '0.75rem',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.35rem'
+                      }}
+                    >
+                      {store.hasDeliveryService ? 'ENABLED' : 'DISABLED'}
                     </button>
                   </div>
                 </div>
@@ -1708,8 +1931,7 @@ const ManageStore = () => {
             </div>
           </div>
         </div>
-
-
+        )}
 
       </main>
 

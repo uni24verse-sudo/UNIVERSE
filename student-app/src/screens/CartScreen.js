@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import {
   Image,
 } from 'react-native';
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import * as Location from 'expo-location';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { THEME } from '../constants/theme';
@@ -48,14 +49,51 @@ const CartScreen = ({ navigation }) => {
     updateQuantity,
     removeFromCart,
     clearCart,
+    appliedOffer,
+    discountAmount,
+    discountedSubtotal,
+    eligibleOffers,
+    ineligibleOffers,
+    offers,
+    selectedOfferId,
+    setSelectedOfferId,
+    applyCoupon,
+    removeCoupon,
   } = useCart();
   const { socket, connected } = useSocket();
   const { currentLocation } = useLocation();
 
   const [pairings, setPairings] = useState([]);
 
+  // Coupon search and dropdown state
+  const [couponInput, setCouponInput] = useState('');
+  const [couponFeedback, setCouponFeedback] = useState(null);
+  const [showOffersDropdown, setShowOffersDropdown] = useState(false);
+
+  const handleApplyCoupon = () => {
+    if (!couponInput.trim()) {
+      setCouponFeedback({ type: 'error', message: 'Please enter a coupon code' });
+      return;
+    }
+    const res = applyCoupon(couponInput);
+    if (res.success) {
+      setCouponFeedback({ type: 'success', message: res.message });
+      setCouponInput('');
+      setShowOffersDropdown(false);
+    } else {
+      setCouponFeedback({ type: 'error', message: res.message });
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    removeCoupon();
+    setCouponFeedback({ type: 'success', message: 'Coupon removed' });
+    setTimeout(() => setCouponFeedback(null), 3000);
+  };
+
   const [store, setStore] = useState(null);
-  const [orderType, setOrderType] = useState('takeaway'); // 'takeaway' or 'dine_in'
+  const [orderType, setOrderType] = useState('takeaway'); // 'takeaway', 'dine_in', 'delivery'
+  const [deliveryAddress, setDeliveryAddress] = useState('');
   const [cookingInstructions, setCookingInstructions] = useState('');
   const [isPreOrder, setIsPreOrder] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState('');
@@ -66,6 +104,140 @@ const CartScreen = ({ navigation }) => {
   const [tableNumber, setTableNumber] = useState('');
   const [loading, setLoading] = useState(false);
   const [isKnownCustomer, setIsKnownCustomer] = useState(false);
+
+  const scrollViewRef = useRef(null);
+  const addressInputRef = useRef(null);
+  const nameInputRef = useRef(null);
+  const phoneInputRef = useRef(null);
+
+  const [addressCardY, setAddressCardY] = useState(0);
+  const [detailsCardY, setDetailsCardY] = useState(0);
+
+  const [addressError, setAddressError] = useState(false);
+  const [nameError, setNameError] = useState(false);
+  const [phoneError, setPhoneError] = useState(false);
+  const [detectingLocation, setDetectingLocation] = useState(false);
+  const [detectedCoords, setDetectedCoords] = useState(null);
+
+  const CAMPUS_PRESETS = ['BH-1', 'BH-2', 'BH-3', 'GH-1', 'GH-2', 'Block 34', 'Block 38', 'Library'];
+
+  const cleanFormatAddressParts = (parts) => {
+    const seen = new Set();
+    const filtered = [];
+    for (const raw of parts) {
+      if (!raw) continue;
+      const item = String(raw).trim();
+      if (!item) continue;
+      const lower = item.toLowerCase();
+      if (!seen.has(lower)) {
+        seen.add(lower);
+        filtered.push(item);
+      }
+    }
+    return filtered.join(', ');
+  };
+
+  const handleDetectLocation = async () => {
+    setDetectingLocation(true);
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        setDetectingLocation(false);
+        Alert.alert('Permission Denied', 'Please enable location permissions in your device settings to auto-detect your address.');
+        return;
+      }
+
+      const position = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.High,
+        timeout: 10000,
+      });
+      const { latitude, longitude } = position.coords;
+      setDetectedCoords({ latitude, longitude });
+
+      let resolvedAddress = '';
+
+      // 1. First Priority: Native Device Reverse Geocoding (Google Play Services / iOS CoreLocation)
+      try {
+        const geoResults = await Location.reverseGeocodeAsync({ latitude, longitude });
+        if (geoResults && geoResults.length > 0) {
+          const g = geoResults[0];
+          const parts = [
+            g.name && g.name !== g.street && g.name !== g.city && g.name !== g.subregion && g.name !== g.district ? g.name : null,
+            g.streetNumber ? `${g.streetNumber} ${g.street || ''}`.trim() : g.street,
+            g.district || g.subregion || g.neighborhood,
+            g.city || g.region,
+            g.postalCode
+          ];
+          resolvedAddress = cleanFormatAddressParts(parts);
+        }
+      } catch (nativeErr) {
+        console.log('[GPS Native Geocode] Falling back to online reverse geocoder:', nativeErr?.message);
+      }
+
+      // 2. Secondary Fallback: Detailed Online Reverse Geocoder
+      if (!resolvedAddress || resolvedAddress.length < 5) {
+        try {
+          const bdcRes = await fetch(
+            `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`
+          );
+          const bdcData = await bdcRes.json();
+          if (bdcData) {
+            const bdcParts = [
+              bdcData.locality,
+              bdcData.principalSubdivision,
+              bdcData.city,
+              bdcData.postcode
+            ];
+            resolvedAddress = cleanFormatAddressParts(bdcParts);
+          }
+        } catch (e) {}
+      }
+
+      // 3. Third Fallback: Nominatim OpenStreetMap with full granular components
+      if (!resolvedAddress || resolvedAddress.length < 5) {
+        try {
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`,
+            { headers: { 'User-Agent': 'UniVerse-Campus-Delivery/2.0' } }
+          );
+          const data = await res.json();
+          const a = data.address || {};
+          const detailed = [
+            a.amenity || a.building || a.shop || a.house_number,
+            a.road || a.pedestrian || a.street,
+            a.neighbourhood || a.suburb || a.residential,
+            a.city || a.town || a.county,
+            a.postcode
+          ];
+          resolvedAddress = cleanFormatAddressParts(detailed);
+          if (!resolvedAddress && data.display_name) {
+            resolvedAddress = cleanFormatAddressParts(data.display_name.split(',').slice(0, 4));
+          }
+        } catch (e) {}
+      }
+
+      if (resolvedAddress) {
+        setDeliveryAddress(resolvedAddress);
+        AsyncStorage.setItem('universe_delivery_address', resolvedAddress).catch(() => {});
+        setAddressError(false);
+      } else {
+        setDeliveryAddress('Campus Location (Hostel Block / Academic Area)');
+        setAddressError(false);
+      }
+    } catch (err) {
+      Alert.alert('GPS Location', 'Could not detect your exact GPS coordinates. Please type your room number or hostel block manually.');
+    } finally {
+      setDetectingLocation(false);
+    }
+  };
+
+  useEffect(() => {
+    AsyncStorage.getItem('universe_delivery_address')
+      .then(saved => {
+        if (saved) setDeliveryAddress(saved);
+      })
+      .catch(() => {});
+  }, []);
 
   // External Hub Detection (Matches webapp Cart.jsx: store?.locationId?.type !== 'External')
   const isExternalHub =
@@ -234,8 +406,14 @@ const CartScreen = ({ navigation }) => {
     }
   }, [isPreOrder, selectedSlot, availableSlots]);
 
-  const packagingCharge = orderType === 'takeaway' ? (store?.packagingCharge || 0) : 0;
-  const grandTotal = subtotal + packagingCharge;
+  const packagingCharge = (orderType === 'takeaway' || orderType === 'delivery') ? (store?.packagingCharge || 0) : 0;
+  const rawDeliveryFee = Number(store?.deliveryFee) || 0;
+  const freeThreshold = Number(store?.freeDeliveryThreshold) || 0;
+  const isFreeDelivery = freeThreshold > 0 && subtotal >= freeThreshold;
+  const deliveryFee = orderType === 'delivery' ? (isFreeDelivery ? 0 : rawDeliveryFee) : 0;
+  const platformFee = orderType === 'delivery' ? 5 : 0;
+  const offerDiscount = Number(discountAmount) || 0;
+  const grandTotal = Math.max(0, subtotal - offerDiscount + packagingCharge + deliveryFee + platformFee);
 
   const handleInitiatePayment = async () => {
     if (cart.length === 0) return;
@@ -247,30 +425,56 @@ const CartScreen = ({ navigation }) => {
       Alert.alert('Stall Closed', 'This stall is currently closed and not accepting orders.');
       return;
     }
-    const cleanPhone = customerPhone.replace(/\D/g, '');
-    if (cleanPhone.length < 10) {
-      Alert.alert('Mobile Number Required', 'Please enter a valid 10-digit mobile number for order pickup notifications.');
+    if (orderType === 'delivery') {
+      if (!deliveryAddress.trim()) {
+        setAddressError(true);
+        scrollViewRef.current?.scrollTo({ y: Math.max(0, addressCardY - 20), animated: true });
+        setTimeout(() => addressInputRef.current?.focus(), 250);
+        Alert.alert('Delivery Address Required', 'Please enter your room number or hostel address.');
+        return;
+      }
+      const minOrderVal = Number(store?.minDeliveryOrderValue) || 0;
+      if (minOrderVal > 0 && subtotal < minOrderVal) {
+        Alert.alert('Minimum Order Required', `This stall requires a minimum order of ₹${minOrderVal} for delivery.`);
+        return;
+      }
+    }
+
+    if (!customerName.trim()) {
+      setNameError(true);
+      scrollViewRef.current?.scrollTo({ y: Math.max(0, detailsCardY - 20), animated: true });
+      setTimeout(() => nameInputRef.current?.focus(), 250);
+      Alert.alert('Name Required', 'Please enter your name for order verification.');
       return;
     }
-    if (!customerName.trim()) {
-      Alert.alert('Name Required', 'Please enter your name for counter pickup verification.');
+
+    const cleanPhone = customerPhone.replace(/\D/g, '');
+    if (cleanPhone.length < 10) {
+      setPhoneError(true);
+      scrollViewRef.current?.scrollTo({ y: Math.max(0, detailsCardY - 20), animated: true });
+      setTimeout(() => phoneInputRef.current?.focus(), 250);
+      Alert.alert('Mobile Number Required', 'Please enter a valid 10-digit mobile number for order pickup notifications.');
       return;
     }
 
     setLoading(true);
     try {
       // Save details for next time
-      await Promise.all([
+      const storageSaves = [
         AsyncStorage.setItem('universe_customer_phone', cleanPhone),
         AsyncStorage.setItem('universe_customer_name', customerName.trim()),
         AsyncStorage.setItem('universe_customer_email', customerEmail.trim()),
         AsyncStorage.setItem('universe_customer_spot', tableNumber.trim()),
-      ]);
+      ];
+      if (orderType === 'delivery' && deliveryAddress.trim()) {
+        storageSaves.push(AsyncStorage.setItem('universe_delivery_address', deliveryAddress.trim()));
+      }
+      await Promise.all(storageSaves);
 
       const isPreOrderActive = !isExternalHub && Boolean(isPreOrder);
       const scheduledPickupTime = isPreOrderActive ? (selectedSlot || availableSlots[0]?.value) : null;
 
-      // 1. Create order payload with complete pre-order connectivity
+      // 1. Create order payload with complete pre-order connectivity and applied offers
       const orderPayload = {
         storeId,
         items: cart.map(it => ({
@@ -286,14 +490,24 @@ const CartScreen = ({ navigation }) => {
         customerName: customerName.trim(),
         customerPhone: cleanPhone,
         customerEmail: customerEmail.trim(),
-        tableNumber: orderType === 'dine_in' ? (tableNumber.trim() || 'Dine In') : 'Takeaway',
-        orderType: orderType === 'takeaway' ? 'Take Away' : 'Dine In',
+        tableNumber: orderType === 'dine_in' ? (tableNumber.trim() || 'Dine In') : (orderType === 'delivery' ? 'Delivery' : 'Takeaway'),
+        orderType: orderType === 'delivery' ? 'Delivery' : (orderType === 'takeaway' ? 'Take Away' : 'Dine In'),
+        deliveryAddress: orderType === 'delivery' ? (
+          detectedCoords 
+            ? `${deliveryAddress.trim()} [GPS:${detectedCoords.latitude.toFixed(6)},${detectedCoords.longitude.toFixed(6)}]`
+            : deliveryAddress.trim()
+        ) : null,
+        deliveryFee,
+        platformFee,
         packagingChargeApplied: packagingCharge > 0,
         isPreOrder: isPreOrderActive,
         scheduledTime: scheduledPickupTime || '',
         cookingInstructions: cookingInstructions.trim(),
         preOrderSlot: scheduledPickupTime || 'ASAP',
         packagingCharge,
+        discountAmount: offerDiscount,
+        appliedOffer: appliedOffer || null,
+        selectedOfferId: appliedOffer?.id || null,
         totalAmount: grandTotal,
         paymentMethod: 'Razorpay',
         isQRScan: false,
@@ -430,7 +644,7 @@ const CartScreen = ({ navigation }) => {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={{ flex: 1 }}
       >
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+        <ScrollView ref={scrollViewRef} showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
           {/* Store Info Banner */}
           <View style={styles.card}>
             <View style={styles.storeHeaderRow}>
@@ -444,45 +658,210 @@ const CartScreen = ({ navigation }) => {
             </View>
           </View>
 
-          {/* Order Type Toggle: Takeaway vs Dine In */}
-          <View style={styles.orderTypeCard}>
-            <TouchableOpacity
-              style={[styles.typeOption, orderType === 'takeaway' && styles.typeOptionActive]}
-              onPress={() => setOrderType('takeaway')}
-              activeOpacity={0.8}
-            >
-              <MaterialCommunityIcons
-                name="bag-personal"
-                size={18}
-                color={orderType === 'takeaway' ? THEME.colors.primary : '#64748B'}
-              />
-              <Text style={[styles.typeText, orderType === 'takeaway' && styles.typeTextActive]}>
-                Takeaway
-              </Text>
-            </TouchableOpacity>
+          {/* Order Preference Section */}
+          <View style={styles.orderPreferenceSection}>
+            <View style={styles.preferenceHeaderRow}>
+              <Text style={styles.preferenceSectionTitle}>ORDER PREFERENCE</Text>
+              {orderType === 'delivery' && Boolean(store?.estimatedDeliveryTime) && (
+                <View style={styles.deliveryTimeBadge}>
+                  <Feather name="clock" size={11} color="#EA580C" />
+                  <Text style={styles.deliveryTimeBadgeText}>{store.estimatedDeliveryTime} mins</Text>
+                </View>
+              )}
+            </View>
 
-            <TouchableOpacity
-              style={[styles.typeOption, orderType === 'dine_in' && styles.typeOptionActive]}
-              onPress={() => setOrderType('dine_in')}
-              activeOpacity={0.8}
-            >
-              <Ionicons
-                name="restaurant-outline"
-                size={17}
-                color={orderType === 'dine_in' ? THEME.colors.primary : '#64748B'}
-              />
-              <Text style={[styles.typeText, orderType === 'dine_in' && styles.typeTextActive]}>
-                Dine In
+            <View style={styles.orderTypeCard}>
+              <TouchableOpacity
+                style={[styles.typeOption, orderType === 'takeaway' && styles.typeOptionActive]}
+                onPress={() => setOrderType('takeaway')}
+                activeOpacity={0.8}
+              >
+                <Feather
+                  name="shopping-bag"
+                  size={15}
+                  color={orderType === 'takeaway' ? THEME.colors.primary : '#64748B'}
+                />
+                <Text style={[styles.typeText, orderType === 'takeaway' && styles.typeTextActive]}>
+                  Takeaway
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.typeOption, orderType === 'dine_in' && styles.typeOptionActive]}
+                onPress={() => setOrderType('dine_in')}
+                activeOpacity={0.8}
+              >
+                <Ionicons
+                  name="restaurant-outline"
+                  size={15}
+                  color={orderType === 'dine_in' ? THEME.colors.primary : '#64748B'}
+                />
+                <Text style={[styles.typeText, orderType === 'dine_in' && styles.typeTextActive]}>
+                  Dine In
+                </Text>
+              </TouchableOpacity>
+
+              {Boolean(store?.hasDeliveryService) && (
+                <TouchableOpacity
+                  style={[styles.typeOption, orderType === 'delivery' && styles.typeOptionActive]}
+                  onPress={() => setOrderType('delivery')}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons
+                    name="bicycle-outline"
+                    size={17}
+                    color={orderType === 'delivery' ? THEME.colors.primary : '#64748B'}
+                  />
+                  <Text style={[styles.typeText, orderType === 'delivery' && styles.typeTextActive]}>
+                    Delivery
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            <View style={styles.preferenceSubRow}>
+              <Text style={styles.preferenceSubText}>
+                {orderType === 'takeaway' && 'Pack order to collect directly at stall counter'}
+                {orderType === 'dine_in' && 'Dine in and enjoy your meal at the stall'}
+                {orderType === 'delivery' && `Delivered directly to your hostel block or location by ${store?.name || 'stall'} staff`}
               </Text>
-            </TouchableOpacity>
+            </View>
           </View>
 
-          {/* Dine In Table Number (Optional) */}
-          {orderType === 'dine_in' && (
+          {/* Delivery Address Field */}
+          {orderType === 'delivery' && (
+            <View
+              onLayout={(e) => setAddressCardY(e.nativeEvent.layout.y)}
+              style={[
+                styles.addressCard,
+                addressError && { borderColor: '#EF4444', borderWidth: 1.5, backgroundColor: '#FEF2F2' }
+              ]}
+            >
+              <View style={styles.addressHeaderRow}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Ionicons name="location-outline" size={17} color={addressError ? '#EF4444' : THEME.colors.primary} />
+                  <Text style={[styles.addressCardTitle, addressError && { color: '#B91C1C' }]}>
+                    Delivery Drop-off Address
+                  </Text>
+                </View>
+
+                <TouchableOpacity
+                  onPress={handleDetectLocation}
+                  disabled={detectingLocation}
+                  style={styles.autoDetectBtn}
+                  activeOpacity={0.75}
+                >
+                  {detectingLocation ? (
+                    <ActivityIndicator size="small" color={THEME.colors.primary} />
+                  ) : (
+                    <>
+                      <Ionicons name="navigate-outline" size={13} color={THEME.colors.primary} />
+                      <Text style={styles.autoDetectBtnText}>Auto-detect GPS</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+
+              <TextInput
+                ref={addressInputRef}
+                style={[
+                  styles.addressInputField,
+                  addressError && { borderColor: '#EF4444', backgroundColor: '#FFFFFF' }
+                ]}
+                placeholder="Enter complete address (e.g. Hostel BH-1, Room 304, 3rd Floor)"
+                placeholderTextColor="#94A3B8"
+                multiline
+                numberOfLines={3}
+                value={deliveryAddress}
+                onChangeText={(val) => {
+                  setDeliveryAddress(val);
+                  if (addressError) setAddressError(false);
+                }}
+              />
+
+              {addressError ? (
+                <Text style={{ fontSize: 11, color: '#DC2626', fontWeight: '700', marginTop: 4 }}>
+                  * Delivery address is required to proceed with order.
+                </Text>
+              ) : null}
+
+              <View style={styles.addressFooterRow}>
+                <Feather name="info" size={12} color="#64748B" style={{ marginTop: 2 }} />
+                <Text style={styles.addressFooterText}>
+                  Please ensure room number or landmark is clearly mentioned. 4-digit PIN is required at drop-off.
+                </Text>
+              </View>
+            </View>
+          )}
+
+          {/* Free Delivery Threshold Progress Nudge (Compels students to add more items) */}
+          {orderType === 'delivery' && Boolean(freeThreshold > 0 && rawDeliveryFee > 0) && (
+            <View style={[styles.freeDeliveryCard, isFreeDelivery ? styles.freeDeliveryCardUnlocked : styles.freeDeliveryCardProgress]}>
+              <View style={styles.freeDeliveryTopRow}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
+                  <View style={[styles.freeDeliveryIconBox, isFreeDelivery && { backgroundColor: 'rgba(16, 185, 129, 0.12)' }]}>
+                    <Ionicons
+                      name={isFreeDelivery ? "checkmark-circle" : "bicycle-outline"}
+                      size={18}
+                      color={isFreeDelivery ? "#10B981" : "#EA580C"}
+                    />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.freeDeliveryTitle, isFreeDelivery && { color: '#047857' }]}>
+                      {isFreeDelivery
+                        ? 'FREE DELIVERY UNLOCKED'
+                        : `Add ₹${Math.ceil(freeThreshold - subtotal)} more for Free Delivery`
+                      }
+                    </Text>
+                    <Text style={[styles.freeDeliverySub, isFreeDelivery && { color: '#065F46' }]}>
+                      {isFreeDelivery
+                        ? `You saved ₹${rawDeliveryFee} delivery fee on this order`
+                        : `Orders above ₹${freeThreshold} get free delivery from ${store?.name || 'this stall'}`
+                      }
+                    </Text>
+                  </View>
+                </View>
+
+                {!isFreeDelivery && (
+                  <TouchableOpacity
+                    onPress={() => navigation?.goBack?.()}
+                    activeOpacity={0.7}
+                    style={styles.addMoreBtn}
+                  >
+                    <Text style={styles.addMoreBtnText}>+ Add items</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {!isFreeDelivery && (
+                <View style={styles.progressBarTrack}>
+                  <View
+                    style={[
+                      styles.progressBarFill,
+                      { width: `${Math.min(100, Math.max(8, (subtotal / freeThreshold) * 100))}%` }
+                    ]}
+                  />
+                </View>
+              )}
+            </View>
+          )}
+
+          {/* Minimum Delivery Order Value Notice */}
+          {orderType === 'delivery' && Boolean(store?.minDeliveryOrderValue > 0 && subtotal < store.minDeliveryOrderValue) && (
+            <View style={styles.minOrderNoticeCard}>
+              <Feather name="alert-circle" size={15} color="#D97706" />
+              <Text style={styles.minOrderNoticeText}>
+                Minimum order for delivery is ₹{store.minDeliveryOrderValue}. Add ₹{(store.minDeliveryOrderValue - subtotal).toFixed(0)} more to place a delivery order.
+              </Text>
+            </View>
+          )}
+
+          {/* Dine In Table Number (Only for stalls configured with Table Service / Seating) */}
+          {orderType === 'dine_in' && Boolean(store?.hasTableService) && (
             <View style={styles.card}>
               <Text style={styles.cardLabel}>Table Number or Seating Spot</Text>
               <TextInput
-                style={styles.inputField}
+                style={styles.singleInputField}
                 placeholder="e.g. Table 4 or Counter Area"
                 placeholderTextColor="#94A3B8"
                 value={tableNumber}
@@ -491,8 +870,8 @@ const CartScreen = ({ navigation }) => {
             </View>
           )}
 
-          {/* Advance Pre-Order & Pickup Time Slot Selector (Only for College hubs - hidden for External Hubs matching webapp Cart.jsx line 645) */}
-          {!isExternalHub && (
+          {/* Advance Pre-Order & Pickup Time Slot Selector (Only for Counter Pickup & Takeaway) */}
+          {orderType !== 'delivery' && !isExternalHub && (
             <View style={styles.card}>
               <View style={styles.slotHeaderRow}>
                 <View style={{ flex: 1 }}>
@@ -755,7 +1134,7 @@ const CartScreen = ({ navigation }) => {
           </View>
 
           {/* Student / Your Details Card */}
-          <View style={styles.card}>
+          <View onLayout={(e) => setDetailsCardY(e.nativeEvent.layout.y)} style={styles.card}>
             <View style={styles.studentHeaderRow}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <Feather name="credit-card" size={18} color={THEME.colors.primary} />
@@ -772,32 +1151,50 @@ const CartScreen = ({ navigation }) => {
             {/* Field 1: Name */}
             <View style={styles.inputGroup}>
               <View style={styles.labelRow}>
-                <Feather name="user" size={13} color="#64748B" />
-                <Text style={styles.inputLabelWithIcon}>Name</Text>
+                <Feather name="user" size={13} color={nameError ? '#EF4444' : '#64748B'} />
+                <Text style={[styles.inputLabelWithIcon, nameError && { color: '#B91C1C' }]}>
+                  Name {nameError && <Text style={{ color: '#EF4444' }}>* Required</Text>}
+                </Text>
               </View>
               <TextInput
-                style={styles.detailsInputField}
+                ref={nameInputRef}
+                style={[
+                  styles.detailsInputField,
+                  nameError && { borderColor: '#EF4444', borderWidth: 1.5, backgroundColor: '#FEF2F2' }
+                ]}
                 placeholder="Enter your name"
                 placeholderTextColor="#94A3B8"
                 value={customerName}
-                onChangeText={setCustomerName}
+                onChangeText={(val) => {
+                  setCustomerName(val);
+                  if (nameError) setNameError(false);
+                }}
               />
             </View>
 
             {/* Field 2: Phone Number */}
             <View style={styles.inputGroup}>
               <View style={styles.labelRow}>
-                <Feather name="phone" size={13} color="#64748B" />
-                <Text style={styles.inputLabelWithIcon}>Phone Number</Text>
+                <Feather name="phone" size={13} color={phoneError ? '#EF4444' : '#64748B'} />
+                <Text style={[styles.inputLabelWithIcon, phoneError && { color: '#B91C1C' }]}>
+                  Phone Number {phoneError && <Text style={{ color: '#EF4444' }}>* 10 Digits Required</Text>}
+                </Text>
               </View>
               <TextInput
-                style={styles.detailsInputField}
+                ref={phoneInputRef}
+                style={[
+                  styles.detailsInputField,
+                  phoneError && { borderColor: '#EF4444', borderWidth: 1.5, backgroundColor: '#FEF2F2' }
+                ]}
                 placeholder="Enter 10-digit number"
                 placeholderTextColor="#94A3B8"
                 keyboardType="phone-pad"
                 maxLength={10}
                 value={customerPhone}
-                onChangeText={setCustomerPhone}
+                onChangeText={(val) => {
+                  setCustomerPhone(val);
+                  if (phoneError) setPhoneError(false);
+                }}
               />
             </View>
 
@@ -831,6 +1228,276 @@ const CartScreen = ({ navigation }) => {
             </View>
           </View>
 
+          {/* Zomato/Swiggy-style Search Coupon & Smart Offers Drawer */}
+          {offers && offers.length > 0 && (
+            <View style={styles.offersHubContainer}>
+              <View style={styles.offersHubHeader}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <View style={styles.offersHubIconBox}>
+                    <Ionicons name="pricetag" size={16} color="#EA580C" />
+                  </View>
+                  <View>
+                    <Text style={styles.offersHubTitle}>Coupons & Platform Deals</Text>
+                    <Text style={styles.offersHubSub}>
+                      {offers.filter(o => o && o.isActive !== false).length} exclusive offers available for this cart
+                    </Text>
+                  </View>
+                </View>
+              </View>
+
+              {/* 1. COUPON SEARCH & INPUT BAR */}
+              <View style={{ flexDirection: 'row', gap: 8, marginTop: 10, marginBottom: 8 }}>
+                <View style={{
+                  flex: 1,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  backgroundColor: '#F8FAFC',
+                  borderRadius: 10,
+                  borderWidth: 1.5,
+                  borderColor: '#E2E8F0',
+                  paddingHorizontal: 10
+                }}>
+                  <Ionicons name="pricetag-outline" size={15} color="#94A3B8" style={{ marginRight: 6 }} />
+                  <TextInput
+                    placeholder="Enter coupon (e.g. CAMPUS10)"
+                    placeholderTextColor="#94A3B8"
+                    value={couponInput}
+                    onChangeText={(val) => { setCouponInput(val); setCouponFeedback(null); }}
+                    autoCapitalize="characters"
+                    style={{
+                      flex: 1,
+                      paddingVertical: Platform.OS === 'ios' ? 10 : 7,
+                      fontSize: 13,
+                      fontWeight: '700',
+                      color: '#1E293B',
+                      letterSpacing: 0.5
+                    }}
+                  />
+                </View>
+                <TouchableOpacity
+                  onPress={handleApplyCoupon}
+                  activeOpacity={0.8}
+                  style={{
+                    backgroundColor: THEME.colors.primary,
+                    borderRadius: 10,
+                    paddingHorizontal: 16,
+                    justifyContent: 'center',
+                    alignItems: 'center'
+                  }}
+                >
+                  <Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: '800' }}>APPLY</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Coupon Feedback Toast */}
+              {couponFeedback && (
+                <View style={{
+                  padding: 8,
+                  borderRadius: 8,
+                  marginBottom: 8,
+                  backgroundColor: couponFeedback.type === 'success' ? '#ECFDF5' : '#FEF2F2',
+                  borderWidth: 1,
+                  borderColor: couponFeedback.type === 'success' ? '#A7F3D0' : '#FECACA',
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between'
+                }}>
+                  <Text style={{
+                    fontSize: 12,
+                    fontWeight: '700',
+                    color: couponFeedback.type === 'success' ? '#059669' : '#DC2626',
+                    flex: 1
+                  }}>
+                    {couponFeedback.message}
+                  </Text>
+                  <TouchableOpacity onPress={() => setCouponFeedback(null)}>
+                    <Ionicons name="close" size={14} color="#64748B" />
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              {/* 2. ONLY APPLIED COUPON IS VISIBLE BY DEFAULT */}
+              {appliedOffer ? (
+                <View style={{
+                  backgroundColor: '#F0FDF4',
+                  borderWidth: 1.5,
+                  borderColor: '#10B981',
+                  borderRadius: 12,
+                  padding: 12,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 8,
+                  marginTop: 4
+                }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+                    <View style={{
+                      width: 34,
+                      height: 34,
+                      borderRadius: 10,
+                      backgroundColor: '#10B981',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}>
+                      <Ionicons name="sparkles" size={16} color="#FFFFFF" />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                        <View style={{ backgroundColor: '#059669', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                          <Text style={{ color: '#FFFFFF', fontSize: 11, fontWeight: '900' }}>
+                            {appliedOffer.code || appliedOffer.badgeText}
+                          </Text>
+                        </View>
+                        {appliedOffer.isGlobal && (
+                          <View style={{ backgroundColor: '#E0F2FE', paddingHorizontal: 5, paddingVertical: 2, borderRadius: 4 }}>
+                            <Text style={{ color: '#0369A1', fontSize: 10, fontWeight: '800' }}>CAMPUS DEAL</Text>
+                          </View>
+                        )}
+                      </View>
+                      <Text style={{ fontSize: 12, fontWeight: '800', color: '#065F46', marginTop: 2 }} numberOfLines={1}>
+                        {appliedOffer.title}
+                      </Text>
+                      <Text style={{ fontSize: 11, color: '#047857', fontWeight: '700', marginTop: 1 }}>
+                        🎉 Saved ₹{offerDiscount.toFixed(2)} on this order!
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <TouchableOpacity
+                      onPress={() => setShowOffersDropdown(prev => !prev)}
+                      style={{
+                        backgroundColor: '#FFFFFF',
+                        borderWidth: 1,
+                        borderColor: '#A7F3D0',
+                        borderRadius: 6,
+                        paddingHorizontal: 8,
+                        paddingVertical: 5
+                      }}
+                    >
+                      <Text style={{ fontSize: 11, fontWeight: '800', color: '#047857' }}>
+                        {showOffersDropdown ? 'Hide ▴' : 'Switch ▾'}
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={handleRemoveCoupon}
+                      style={{
+                        backgroundColor: '#FEE2E2',
+                        borderRadius: 6,
+                        paddingHorizontal: 8,
+                        paddingVertical: 5
+                      }}
+                    >
+                      <Text style={{ fontSize: 11, fontWeight: '800', color: '#DC2626' }}>Remove</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ) : (
+                <TouchableOpacity
+                  onPress={() => setShowOffersDropdown(prev => !prev)}
+                  activeOpacity={0.7}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 5, paddingVertical: 4 }}
+                >
+                  <Ionicons name="pricetag" size={13} color="#EA580C" />
+                  <Text style={{ fontSize: 13, fontWeight: '800', color: '#EA580C' }}>
+                    {showOffersDropdown ? 'Hide available offers ▴' : `View available offers (${offers.filter(o => o && o.isActive !== false).length} available) ▾`}
+                  </Text>
+                </TouchableOpacity>
+              )}
+
+              {/* 3. COLLAPSIBLE OFFERS DROPDOWN / LIST */}
+              {showOffersDropdown && (
+                <View style={{ gap: 10, marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#F1F5F9' }}>
+                  {offers.filter(o => o && o.isActive !== false).map((offer) => {
+                    const isEligible = eligibleOffers && eligibleOffers.some(e => String(e.id) === String(offer.id));
+                    const isApplied = appliedOffer && String(appliedOffer.id) === String(offer.id);
+                    const ineligibility = ineligibleOffers && ineligibleOffers.find(ie => String(ie.offer?.id) === String(offer.id) || String(ie.id) === String(offer.id));
+                    const discountLabel = offer.badgeText || (offer.discountType?.includes('PERCENTAGE') ? `${offer.discountValue}% OFF` : `₹${offer.discountValue} OFF`);
+
+                    return (
+                      <View
+                        key={String(offer.id)}
+                        style={[
+                          styles.cleanCouponCard,
+                          isApplied ? styles.cleanCouponCardApplied : isEligible ? styles.cleanCouponCardEligible : styles.cleanCouponCardLocked
+                        ]}
+                      >
+                        {/* Header: Discount Badge + Code + Apply Button */}
+                        <View style={styles.cleanCouponTopRow}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1, flexWrap: 'wrap' }}>
+                            <View style={[styles.cleanDiscountBadge, isApplied && { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' }]}>
+                              <Text style={[styles.cleanDiscountBadgeText, isApplied && { color: '#047857' }]}>
+                                {discountLabel}
+                              </Text>
+                            </View>
+
+                            {offer.code ? (
+                              <View style={styles.cleanCodePill}>
+                                <Text style={styles.cleanCodePillText}>{offer.code}</Text>
+                              </View>
+                            ) : null}
+
+                            {offer.isGlobal ? (
+                              <View style={styles.cleanCampusBadge}>
+                                <Text style={styles.cleanCampusBadgeText}>CAMPUS</Text>
+                              </View>
+                            ) : null}
+                          </View>
+
+                          {isEligible ? (
+                            <TouchableOpacity
+                              onPress={() => {
+                                if (isApplied) {
+                                  handleRemoveCoupon();
+                                } else {
+                                  setSelectedOfferId(offer.id);
+                                  setShowOffersDropdown(false);
+                                  setCouponFeedback({ type: 'success', message: `Coupon "${offer.code || offer.title}" applied!` });
+                                }
+                              }}
+                              activeOpacity={0.8}
+                              style={[
+                                styles.cleanApplyBtn,
+                                isApplied ? styles.cleanApplyBtnActive : styles.cleanApplyBtnNormal
+                              ]}
+                            >
+                              <Text style={[styles.cleanApplyBtnText, isApplied && { color: '#FFFFFF' }]}>
+                                {isApplied ? 'APPLIED ✓' : 'APPLY'}
+                              </Text>
+                            </TouchableOpacity>
+                          ) : null}
+                        </View>
+
+                        {/* Title & Description */}
+                        <Text style={styles.cleanCouponTitle}>{offer.title}</Text>
+                        <Text style={styles.cleanCouponDesc} numberOfLines={2}>
+                          {offer.description || 'Valid on this order'}
+                        </Text>
+
+                        {/* Footer: Requirements & Terms */}
+                        <View style={styles.cleanCouponFooter}>
+                          <Text style={styles.cleanCouponTerms}>
+                            {offer.minOrderValue > 0 ? `Min. order ₹${offer.minOrderValue}` : 'No minimum order'}
+                            {offer.maxDiscountCap > 0 ? ` • Max savings ₹${offer.maxDiscountCap}` : ''}
+                          </Text>
+
+                          {!isEligible && (
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                              <Feather name="lock" size={11} color="#EA580C" />
+                              <Text style={styles.cleanLockedText}>
+                                {ineligibility ? ineligibility.reason : `Add ₹${Math.max(0, (offer.minOrderValue || 0) - subtotal)} more`}
+                              </Text>
+                            </View>
+                          )}
+                        </View>
+                      </View>
+                    );
+                  })}
+                </View>
+              )}
+            </View>
+          )}
+
           {/* Bill Summary */}
           <View style={styles.card}>
             <Text style={styles.cardHeading}>Bill Details</Text>
@@ -840,19 +1507,62 @@ const CartScreen = ({ navigation }) => {
               <Text style={styles.billValue}>₹{subtotal}</Text>
             </View>
 
-            {orderType === 'takeaway' && packagingCharge > 0 && (
+            {offerDiscount > 0 && (
               <View style={styles.billRow}>
-                <Text style={styles.billLabel}>Packaging & Takeaway Fee</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Feather name="tag" size={13} color="#10B981" />
+                  <Text style={[styles.billLabel, { color: '#10B981', fontWeight: '800' }]}>
+                    Stall Offer ({appliedOffer?.badgeText || 'Discount'})
+                  </Text>
+                </View>
+                <Text style={[styles.billValue, { color: '#10B981', fontWeight: '900' }]}>
+                  -₹{offerDiscount.toFixed(2)}
+                </Text>
+              </View>
+            )}
+
+            {(orderType === 'takeaway' || orderType === 'delivery') && packagingCharge > 0 && (
+              <View style={styles.billRow}>
+                <Text style={styles.billLabel}>Packaging Fee</Text>
                 <Text style={styles.billValue}>₹{packagingCharge}</Text>
+              </View>
+            )}
+
+            {orderType === 'delivery' && (
+              <View style={styles.billRow}>
+                <View>
+                  <Text style={styles.billLabel}>Delivery Fee</Text>
+                  {!isFreeDelivery && freeThreshold > 0 && (
+                    <Text style={styles.billSubHelpText}>
+                      Free above ₹{freeThreshold} (Add ₹{Math.ceil(freeThreshold - subtotal)} more)
+                    </Text>
+                  )}
+                </View>
+                {isFreeDelivery ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Text style={[styles.billLabel, { textDecorationLine: 'line-through', color: '#94A3B8' }]}>
+                      ₹{rawDeliveryFee}
+                    </Text>
+                    <Text style={[styles.billValue, { color: '#10B981', fontWeight: '800' }]}>
+                      FREE
+                    </Text>
+                  </View>
+                ) : (
+                  <Text style={styles.billValue}>₹{deliveryFee}</Text>
+                )}
               </View>
             )}
 
             <View style={styles.billRow}>
               <Text style={styles.billLabel}>Platform & Convenience Fee</Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                <Text style={[styles.billLabel, { textDecorationLine: 'line-through' }]}>₹5</Text>
-                <Text style={[styles.billValue, { color: '#10B981', fontWeight: '800' }]}>FREE</Text>
-              </View>
+              {orderType === 'delivery' ? (
+                <Text style={styles.billValue}>₹5</Text>
+              ) : (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <Text style={[styles.billLabel, { textDecorationLine: 'line-through' }]}>₹5</Text>
+                  <Text style={[styles.billValue, { color: '#10B981', fontWeight: '800' }]}>FREE</Text>
+                </View>
+              )}
             </View>
 
             <View style={styles.divider} />
@@ -871,21 +1581,33 @@ const CartScreen = ({ navigation }) => {
       <View style={styles.bottomBar}>
         <View>
           <Text style={styles.bottomTotalLabel}>Total to Pay</Text>
-          <Text style={styles.bottomTotalAmount}>₹{grandTotal}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6 }}>
+            <Text style={styles.bottomTotalAmount}>₹{grandTotal}</Text>
+            {offerDiscount > 0 && (
+              <Text style={{ fontSize: 13, color: '#94A3B8', textDecorationLine: 'line-through', fontWeight: '700' }}>
+                ₹{subtotal + packagingCharge}
+              </Text>
+            )}
+          </View>
         </View>
 
         <TouchableOpacity
-          style={[styles.payButton, loading && styles.payButtonDisabled]}
+          style={[
+            styles.payButton,
+            (loading || (orderType === 'delivery' && Boolean(store?.minDeliveryOrderValue > 0 && subtotal < store.minDeliveryOrderValue))) && styles.payButtonDisabled
+          ]}
           onPress={handleInitiatePayment}
-          disabled={loading}
+          disabled={loading || Boolean(orderType === 'delivery' && store?.minDeliveryOrderValue > 0 && subtotal < store.minDeliveryOrderValue)}
           activeOpacity={0.88}
         >
           {loading ? (
             <ActivityIndicator size="small" color="#FFFFFF" />
           ) : (
             <>
-              <Text style={styles.payButtonText}>Proceed to Pay</Text>
-              <Feather name="arrow-right" size={18} color="#FFFFFF" />
+              <Text style={styles.payButtonText}>
+                {orderType === 'delivery' ? 'Pay & Order Delivery' : 'Proceed to Pay'}
+              </Text>
+              <Feather name="arrow-right" size={17} color="#FFFFFF" />
             </>
           )}
         </TouchableOpacity>
@@ -979,12 +1701,44 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     marginTop: 1,
   },
+  orderPreferenceSection: {
+    marginBottom: 12,
+  },
+  preferenceHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+    paddingHorizontal: 2,
+  },
+  preferenceSectionTitle: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#64748B',
+    letterSpacing: 0.8,
+  },
+  deliveryTimeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(234, 88, 12, 0.08)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  deliveryTimeBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#EA580C',
+  },
   orderTypeCard: {
     flexDirection: 'row',
     backgroundColor: '#F1F5F9',
-    borderRadius: 16,
-    padding: 4,
-    gap: 6,
+    borderRadius: 14,
+    padding: 3,
+    gap: 4,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
   typeOption: {
     flex: 1,
@@ -992,15 +1746,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 10,
-    borderRadius: 12,
+    borderRadius: 11,
     gap: 6,
   },
   typeOptionActive: {
     backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.08)',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
     elevation: 2,
   },
   typeText: {
@@ -1010,7 +1766,174 @@ const styles = StyleSheet.create({
   },
   typeTextActive: {
     color: THEME.colors.primary,
-    fontWeight: '900',
+    fontWeight: '800',
+  },
+  preferenceSubRow: {
+    marginTop: 6,
+    paddingHorizontal: 4,
+  },
+  preferenceSubText: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: '#64748B',
+  },
+  addressCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  addressHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  addressCardTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  requiredBadge: {
+    backgroundColor: 'rgba(239, 65, 35, 0.08)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  requiredBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: THEME.colors.primary,
+    letterSpacing: 0.4,
+  },
+  addressInputField: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    padding: 12,
+    fontSize: 13,
+    color: '#0F172A',
+    fontWeight: '500',
+    minHeight: 68,
+    textAlignVertical: 'top',
+  },
+  singleInputField: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 13,
+    color: '#0F172A',
+    fontWeight: '500',
+  },
+  addressFooterRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 6,
+    marginTop: 8,
+  },
+  addressFooterText: {
+    flex: 1,
+    fontSize: 11,
+    color: '#64748B',
+    lineHeight: 15,
+  },
+  minOrderNoticeCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#FEF3C7',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 12,
+  },
+  minOrderNoticeText: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#92400E',
+  },
+  freeDeliveryCard: {
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+  },
+  freeDeliveryCardProgress: {
+    backgroundColor: '#FFFBF5',
+    borderColor: '#FED7AA',
+  },
+  freeDeliveryCardUnlocked: {
+    backgroundColor: '#ECFDF5',
+    borderColor: '#A7F3D0',
+  },
+  freeDeliveryTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  freeDeliveryIconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: 'rgba(234, 88, 12, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  freeDeliveryTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  freeDeliverySub: {
+    fontSize: 11,
+    color: '#64748B',
+    fontWeight: '500',
+    marginTop: 1,
+  },
+  addMoreBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 6,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  addMoreBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: THEME.colors.primary,
+  },
+  progressBarTrack: {
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: '#E2E8F0',
+    marginTop: 10,
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    borderRadius: 3,
+    backgroundColor: THEME.colors.primary,
+  },
+  billSubHelpText: {
+    fontSize: 10,
+    color: '#EA580C',
+    fontWeight: '700',
+    marginTop: 1,
   },
   cardLabel: {
     fontSize: 13,
@@ -1624,6 +2547,407 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '800',
+  },
+  appliedOfferCard: {
+    backgroundColor: 'rgba(16, 185, 129, 0.08)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(16, 185, 129, 0.35)',
+    borderRadius: 18,
+    padding: 14,
+  },
+  appliedOfferHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  appliedOfferBadge: {
+    backgroundColor: '#10B981',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  appliedOfferBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 0.3,
+  },
+  appliedOfferTitle: {
+    fontSize: 13.5,
+    fontWeight: '800',
+    color: THEME.colors.textPrimary,
+  },
+  appliedOfferSubtitle: {
+    fontSize: 11.5,
+    color: '#059669',
+    fontWeight: '700',
+    marginTop: 2,
+  },
+  ineligibleOfferCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(239, 65, 35, 0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 65, 35, 0.3)',
+    borderStyle: 'dashed',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    gap: 8,
+  },
+  ineligibleOfferText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#C2410C',
+    flex: 1,
+  },
+
+  /* Zomato/Swiggy Offers & Coupons Hub Styles */
+  offersHubContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: '#FED7AA',
+    padding: 16,
+    shadowColor: '#EA580C',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 3,
+  },
+  offersHubHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  offersHubIconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: '#FFEDD5',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  offersHubTitle: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: '#0F172A',
+  },
+  offersHubSub: {
+    fontSize: 11,
+    color: '#64748B',
+    fontWeight: '600',
+    marginTop: 1,
+  },
+  appliedSavingsPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+    paddingHorizontal: 8,
+    paddingVertical: 3.5,
+    borderRadius: 100,
+  },
+  appliedSavingsText: {
+    fontSize: 10.5,
+    fontWeight: '800',
+    color: '#059669',
+  },
+  couponCard: {
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1.5,
+  },
+  couponCardApplied: {
+    borderColor: '#10B981',
+    backgroundColor: '#F0FDF4',
+  },
+  couponCardEligible: {
+    borderColor: '#FED7AA',
+    backgroundColor: '#FFFAF5',
+  },
+  couponCardLocked: {
+    borderColor: '#E2E8F0',
+    backgroundColor: '#F8FAFC',
+    borderStyle: 'dashed',
+    opacity: 0.85,
+  },
+  couponTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  couponBadge: {
+    backgroundColor: '#EA580C',
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  couponBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10.5,
+    fontWeight: '900',
+    letterSpacing: 0.3,
+  },
+  fullCartTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#E0F2FE',
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  fullCartTagText: {
+    color: '#0369A1',
+    fontSize: 9.5,
+    fontWeight: '800',
+  },
+  categoryTag: {
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  categoryTagText: {
+    color: '#B45309',
+    fontSize: 9.5,
+    fontWeight: '800',
+  },
+  couponTitle: {
+    fontSize: 13.5,
+    fontWeight: '800',
+    color: '#0F172A',
+    marginTop: 2,
+  },
+  couponDesc: {
+    fontSize: 11.5,
+    color: '#64748B',
+    lineHeight: 15,
+    marginTop: 2,
+  },
+  couponTermsRow: {
+    marginTop: 4,
+  },
+  couponTermsText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#94A3B8',
+  },
+  couponActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 10,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0,0,0,0.05)',
+  },
+  couponSavingText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#059669',
+  },
+  couponApplyBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  couponApplyBtnActive: {
+    backgroundColor: '#10B981',
+  },
+  couponApplyBtnInactive: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: '#EA580C',
+  },
+  couponApplyBtnText: {
+    fontSize: 11,
+    fontWeight: '900',
+  },
+  couponApplyBtnTextActive: {
+    color: '#FFFFFF',
+  },
+  couponApplyBtnTextInactive: {
+    color: '#EA580C',
+  },
+  couponLockedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    flex: 1,
+  },
+  couponLockedText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#EA580C',
+    flex: 1,
+  },
+  autoDetectBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#FFF7ED',
+    borderWidth: 1,
+    borderColor: '#FED7AA',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  autoDetectBtnText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#EA580C',
+  },
+  presetChipsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginVertical: 8,
+  },
+  presetChipsLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#64748B',
+  },
+  presetChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  presetChipActive: {
+    backgroundColor: '#FFF7ED',
+    borderColor: '#FDBA74',
+  },
+  presetChipText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#475569',
+  },
+  presetChipTextActive: {
+    color: '#C2410C',
+    fontWeight: '800',
+  },
+  cleanCouponCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  cleanCouponCardApplied: {
+    borderColor: '#10B981',
+    backgroundColor: '#F0FDF4',
+  },
+  cleanCouponCardEligible: {
+    borderColor: '#FED7AA',
+  },
+  cleanCouponCardLocked: {
+    opacity: 0.75,
+    backgroundColor: '#F8FAFC',
+  },
+  cleanCouponTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+    marginBottom: 6,
+  },
+  cleanDiscountBadge: {
+    backgroundColor: '#FFF7ED',
+    borderWidth: 1,
+    borderColor: '#FDBA74',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  cleanDiscountBadgeText: {
+    color: '#C2410C',
+    fontSize: 11,
+    fontWeight: '900',
+  },
+  cleanCodePill: {
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  cleanCodePillText: {
+    color: '#1E293B',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+  },
+  cleanCampusBadge: {
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  cleanCampusBadgeText: {
+    color: '#1D4ED8',
+    fontSize: 9.5,
+    fontWeight: '800',
+  },
+  cleanApplyBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  cleanApplyBtnNormal: {
+    backgroundColor: '#FFF7ED',
+    borderWidth: 1,
+    borderColor: '#EA580C',
+  },
+  cleanApplyBtnActive: {
+    backgroundColor: '#10B981',
+  },
+  cleanApplyBtnText: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: '#EA580C',
+  },
+  cleanCouponTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#0F172A',
+    marginTop: 2,
+  },
+  cleanCouponDesc: {
+    fontSize: 11,
+    color: '#64748B',
+    lineHeight: 15,
+    marginTop: 2,
+  },
+  cleanCouponFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 8,
+    paddingTop: 6,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+  },
+  cleanCouponTerms: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#94A3B8',
+  },
+  cleanLockedText: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: '#EA580C',
   },
 });
 

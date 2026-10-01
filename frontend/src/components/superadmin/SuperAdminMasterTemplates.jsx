@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import axios from 'axios';
 import { 
   FileText, 
@@ -35,6 +36,13 @@ const SuperAdminMasterTemplates = ({ token }) => {
   const [selectedChannel, setSelectedChannel] = useState('all'); // 'all' | 'whatsapp' | 'email'
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedTemplateIds, setSelectedTemplateIds] = useState([]);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [topBarTarget, setTopBarTarget] = useState(null);
+
+  useEffect(() => {
+    setTopBarTarget(document.getElementById('superadmin-topbar-actions'));
+  }, []);
   
   // Create / Edit Modal State
   const [modalOpen, setModalOpen] = useState(false);
@@ -367,9 +375,46 @@ const SuperAdminMasterTemplates = ({ token }) => {
     if (!window.confirm('Are you sure you want to archive this master template?')) return;
     try {
       await axios.delete(`${apiUrl}/api/super-admin/master-templates/${id}`, { headers });
+      setSelectedTemplateIds(prev => prev.filter(x => x !== id));
       fetchTemplates();
     } catch (err) {
       alert('Failed to archive template: ' + err.message);
+    }
+  };
+
+  const toggleSelectTemplate = (id) => {
+    setSelectedTemplateIds(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAllTemplates = () => {
+    const pageTemplateIds = templates.map(t => t._id);
+    const allSelected = pageTemplateIds.length > 0 && pageTemplateIds.every(id => selectedTemplateIds.includes(id));
+    if (allSelected) {
+      setSelectedTemplateIds(prev => prev.filter(id => !pageTemplateIds.includes(id)));
+    } else {
+      setSelectedTemplateIds(prev => [...new Set([...prev, ...pageTemplateIds])]);
+    }
+  };
+
+  const handleBulkDeleteTemplates = async () => {
+    if (selectedTemplateIds.length === 0) return;
+    if (!window.confirm(`Are you sure you want to permanently delete / archive ${selectedTemplateIds.length} selected templates? This cannot be undone.`)) return;
+
+    try {
+      setIsDeleting(true);
+      await axios.post(`${apiUrl}/api/super-admin/master-templates/bulk-delete`, 
+        { ids: selectedTemplateIds }, 
+        { headers }
+      );
+      setSelectedTemplateIds([]);
+      fetchTemplates();
+      alert('Selected templates deleted successfully.');
+    } catch (err) {
+      alert('Bulk delete failed: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -427,33 +472,38 @@ const SuperAdminMasterTemplates = ({ token }) => {
 
   return (
     <div style={{ maxWidth: '1440px', margin: '0 auto', paddingBottom: '3rem' }}>
-      {/* Page Header */}
-      <header style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
-        <div>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'rgba(239, 65, 35, 0.1)', color: 'var(--primary)', padding: '4px 12px', borderRadius: '100px', fontSize: '0.8rem', fontWeight: '800', marginBottom: '0.5rem' }}>
-            <Sparkles size={14} /> Approved Marketing Assets
-          </div>
-          <h1 style={{ fontSize: '2.1rem', fontWeight: '900', margin: 0, color: '#0f172a', letterSpacing: '-0.02em' }}>Master Templates Hub</h1>
-          <p style={{ color: 'var(--text-secondary)', marginTop: '0.4rem', fontSize: '1rem' }}>
-            Design high-converting WhatsApp message bubbles with image headers, dynamic tags, and interactive CTA buttons.
-          </p>
-        </div>
-
+      {/* Topbar Action Portal */}
+      {topBarTarget && createPortal(
         <button
           onClick={handleOpenCreate}
           style={{
-            display: 'flex', alignItems: 'center', gap: '8px', padding: '0.85rem 1.6rem',
-            background: 'var(--primary)', color: 'white', border: 'none', borderRadius: '14px',
-            fontWeight: '800', fontSize: '0.95rem', cursor: 'pointer', boxShadow: '0 4px 14px rgba(239, 65, 35, 0.25)',
-            transition: 'all 0.2s'
+            display: 'flex', alignItems: 'center', gap: '6px', padding: '0.45rem 0.9rem',
+            background: 'var(--primary)', color: 'white', border: 'none', borderRadius: '8px',
+            fontWeight: '700', fontSize: '0.78rem', cursor: 'pointer',
+            transition: 'all 0.2s', boxShadow: '0 2px 6px rgba(239, 65, 35, 0.2)'
           }}
         >
-          <Plus size={18} /> Create Master Template
-        </button>
-      </header>
+          <Plus size={14} /> Create Master Template
+        </button>,
+        topBarTarget
+      )}
 
-      {/* Filter Bar */}
-      <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2rem' }}>
+      {/* Filter Bar (Sticky) */}
+      <div style={{
+        position: 'sticky',
+        top: 0,
+        zIndex: 10,
+        background: '#f8fafc',
+        paddingTop: '0.25rem',
+        paddingBottom: '0.75rem',
+        marginBottom: '1rem',
+        display: 'flex',
+        gap: '1rem',
+        flexWrap: 'wrap',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        borderBottom: '1px solid #e2e8f0'
+      }}>
         {/* Channel Filters */}
         <div style={{ display: 'flex', gap: '0.5rem', background: '#f1f5f9', padding: '0.35rem', borderRadius: '14px' }}>
           {[
@@ -520,7 +570,78 @@ const SuperAdminMasterTemplates = ({ token }) => {
           </button>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '2rem' }}>
+        <div>
+          {/* BULK ACTION BAR */}
+          <div style={{
+            marginBottom: '1.25rem',
+            padding: '0.85rem 1.25rem',
+            background: selectedTemplateIds.length > 0 ? '#fff1f2' : '#ffffff',
+            border: selectedTemplateIds.length > 0 ? '1.5px solid #fecdd3' : '1px solid var(--surface-border)',
+            borderRadius: '16px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '0.75rem'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <input 
+                type="checkbox"
+                checked={templates.length > 0 && templates.every(t => selectedTemplateIds.includes(t._id))}
+                onChange={toggleSelectAllTemplates}
+                style={{ cursor: 'pointer', width: '18px', height: '18px', accentColor: 'var(--primary, #ef4123)' }}
+                title="Select All Templates"
+              />
+              <span style={{ fontSize: '0.875rem', fontWeight: '800', color: selectedTemplateIds.length > 0 ? '#e11d48' : 'var(--text-primary)' }}>
+                {selectedTemplateIds.length > 0 
+                  ? `${selectedTemplateIds.length} of ${templates.length} templates selected`
+                  : `Select All (${templates.length} templates)`}
+              </span>
+              {selectedTemplateIds.length > 0 && (
+                <button
+                  onClick={() => setSelectedTemplateIds([])}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#64748b',
+                    fontSize: '0.8rem',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                    textDecoration: 'underline'
+                  }}
+                >
+                  Clear selection
+                </button>
+              )}
+            </div>
+
+            {selectedTemplateIds.length > 0 && (
+              <button
+                onClick={handleBulkDeleteTemplates}
+                disabled={isDeleting}
+                style={{
+                  padding: '0.5rem 1.1rem',
+                  borderRadius: '10px',
+                  border: 'none',
+                  background: '#e11d48',
+                  color: '#ffffff',
+                  fontWeight: '800',
+                  fontSize: '0.85rem',
+                  cursor: isDeleting ? 'not-allowed' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  boxShadow: '0 2px 8px rgba(225, 29, 72, 0.25)',
+                  opacity: isDeleting ? 0.7 : 1
+                }}
+              >
+                <Trash2 size={14} />
+                {isDeleting ? 'Deleting...' : `Delete Selected (${selectedTemplateIds.length})`}
+              </button>
+            )}
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '2rem' }}>
           {templates.map(t => {
             const isWhatsApp = t.channel === 'whatsapp';
 
@@ -528,23 +649,31 @@ const SuperAdminMasterTemplates = ({ token }) => {
               <div 
                 key={t._id}
                 style={{
-                  background: '#ffffff', borderRadius: '24px', border: '1px solid var(--surface-border)',
-                  boxShadow: '0 4px 16px rgba(0,0,0,0.03)', padding: '1.5rem', display: 'flex', flexDirection: 'column',
+                  background: '#ffffff', borderRadius: '24px', border: selectedTemplateIds.includes(t._id) ? '1.5px solid var(--primary, #ef4123)' : '1px solid var(--surface-border)',
+                  boxShadow: selectedTemplateIds.includes(t._id) ? '0 4px 20px rgba(239, 65, 35, 0.12)' : '0 4px 16px rgba(0,0,0,0.03)', padding: '1.5rem', display: 'flex', flexDirection: 'column',
                   justifyContent: 'space-between', position: 'relative'
                 }}
               >
                 <div>
                   {/* Header Row */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                    <span style={{
-                      display: 'inline-flex', alignItems: 'center', gap: '6px',
-                      padding: '4px 10px', borderRadius: '100px', fontSize: '0.75rem', fontWeight: '800',
-                      background: isWhatsApp ? 'rgba(37, 211, 102, 0.12)' : 'rgba(234, 67, 53, 0.12)',
-                      color: isWhatsApp ? '#16a34a' : '#ea4335'
-                    }}>
-                      {isWhatsApp ? <Smartphone size={12} /> : <Mail size={12} />}
-                      {isWhatsApp ? 'WhatsApp Card' : 'Email Template'}
-                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                      <input 
+                        type="checkbox"
+                        checked={selectedTemplateIds.includes(t._id)}
+                        onChange={() => toggleSelectTemplate(t._id)}
+                        style={{ cursor: 'pointer', width: '16px', height: '16px', accentColor: 'var(--primary, #ef4123)' }}
+                      />
+                      <span style={{
+                        display: 'inline-flex', alignItems: 'center', gap: '6px',
+                        padding: '4px 10px', borderRadius: '100px', fontSize: '0.75rem', fontWeight: '800',
+                        background: isWhatsApp ? 'rgba(37, 211, 102, 0.12)' : 'rgba(234, 67, 53, 0.12)',
+                        color: isWhatsApp ? '#16a34a' : '#ea4335'
+                      }}>
+                        {isWhatsApp ? <Smartphone size={12} /> : <Mail size={12} />}
+                        {isWhatsApp ? 'WhatsApp Card' : 'Email Template'}
+                      </span>
+                    </div>
 
                     <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '700', background: '#f1f5f9', padding: '3px 8px', borderRadius: '6px' }}>
                       {t.category || 'Marketing'}
@@ -692,6 +821,7 @@ const SuperAdminMasterTemplates = ({ token }) => {
               </div>
             );
           })}
+          </div>
         </div>
       )}
 

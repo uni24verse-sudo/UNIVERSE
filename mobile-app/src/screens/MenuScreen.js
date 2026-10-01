@@ -73,11 +73,7 @@ export default function MenuScreen({ navigation }) {
   const currentStore = activeStore || store;
   const isVegOnlyLocation = useMemo(() => {
     const loc = currentStore?.location;
-    if (loc?.dietaryType === 'veg') return true;
-    if (currentStore?.dietaryType === 'veg') return true;
-    const locName = (loc?.name || '').toLowerCase();
-    if (locName.includes('lpu') || locName.includes('lovely')) return true;
-    return false;
+    return loc?.dietaryType === 'veg' || currentStore?.dietaryType === 'veg';
   }, [currentStore]);
 
   // Tab bar hiding when any modal/sheet is open
@@ -181,16 +177,24 @@ export default function MenuScreen({ navigation }) {
       }
     };
 
+    const handleOffersUpdate = ({ storeId: updatedStoreId, offers }) => {
+      if (updatedStoreId === storeId && Array.isArray(offers)) {
+        setStore(prev => prev ? { ...prev, offers } : prev);
+      }
+    };
+
     socket.on('store_status_update', handleStoreStatus);
     socket.on('product_availability_update', handleProductAvailability);
     socket.on('store_menu_update', handleStoreMenu);
     socket.on('store_auto_accept_update', handleAutoAcceptUpdate);
+    socket.on('store_offers_update', handleOffersUpdate);
 
     return () => {
       socket.off('store_status_update', handleStoreStatus);
       socket.off('product_availability_update', handleProductAvailability);
       socket.off('store_menu_update', handleStoreMenu);
       socket.off('store_auto_accept_update', handleAutoAcceptUpdate);
+      socket.off('store_offers_update', handleOffersUpdate);
     };
   }, [socket, store?._id, store?.id]);
 
@@ -402,7 +406,8 @@ export default function MenuScreen({ navigation }) {
         }
         result = await ImagePicker.launchCameraAsync({
           mediaTypes: ['images'],
-          quality: 0.8,
+          quality: 0.6,
+          base64: true,
         });
       } else {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -412,14 +417,15 @@ export default function MenuScreen({ navigation }) {
         }
         result = await ImagePicker.launchImageLibraryAsync({
           mediaTypes: ['images'],
-          quality: 0.8,
+          quality: 0.6,
+          base64: true,
         });
       }
 
       if (result.canceled || !result.assets || !result.assets[0]) return;
 
       const asset = result.assets[0];
-      processMenuImage(asset.uri);
+      processMenuImage(asset.uri, asset);
     } catch (err) {
       console.error('Pick menu image error:', err);
       Alert.alert('Error', 'Could not open camera or gallery.');
@@ -427,25 +433,45 @@ export default function MenuScreen({ navigation }) {
   };
 
   // Upload Photo to AI Scanner
-  const processMenuImage = async (imageUri) => {
+  const processMenuImage = async (imageUri, asset = null) => {
     setIsScanningMenu(true);
     try {
-      const formData = new FormData();
-      const filename = imageUri.split('/').pop() || 'menu.jpg';
+      const filename = imageUri ? (imageUri.split('/').pop() || 'menu.jpg') : 'menu.jpg';
       const match = /\.(\w+)$/.exec(filename);
       const fileType = match ? `image/${match[1].toLowerCase()}` : 'image/jpeg';
 
-      formData.append('menuImage', {
-        uri: Platform.OS === 'android' ? imageUri : imageUri.replace('file://', ''),
-        name: filename,
-        type: fileType,
-      });
-
-      const res = await apiClient.post('/scan-menu/scan', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+      let res;
+      // 1. Primary: Direct Base64 JSON (eliminates web browser multipart boundary mismatch)
+      if (asset?.base64) {
+        res = await apiClient.post('/scan-menu/scan', {
+          imageBase64: asset.base64,
+          mimeType: fileType
+        });
+      } else {
+        // 2. Fallback: Multipart FormData
+        const formData = new FormData();
+        if (Platform.OS === 'web') {
+          if (asset?.file) {
+            formData.append('menuImage', asset.file);
+          } else {
+            const blobRes = await fetch(imageUri);
+            const blob = await blobRes.blob();
+            formData.append('menuImage', blob, filename);
+          }
+          res = await apiClient.post('/scan-menu/scan', formData);
+        } else {
+          formData.append('menuImage', {
+            uri: Platform.OS === 'android' ? imageUri : imageUri.replace('file://', ''),
+            name: filename,
+            type: fileType,
+          });
+          res = await apiClient.post('/scan-menu/scan', formData, {
+            headers: {
+              'Content-Type': 'multipart/form-data',
+            },
+          });
+        }
+      }
 
       if (!Array.isArray(res.data) || res.data.length === 0) {
         Alert.alert('No Items Detected', 'The AI could not clearly detect items and prices from this image. Please take a clear, well-lit photo of your menu.');
@@ -628,9 +654,9 @@ export default function MenuScreen({ navigation }) {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={[styles.container, { backgroundColor: '#0F172A' }]}>
       {/* Top Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <View style={{ flex: 1, marginRight: 8 }}>
           <Text style={styles.headerTitle}>Menu Items</Text>
           <Text style={styles.headerSubtitle} numberOfLines={1}>
@@ -673,7 +699,8 @@ export default function MenuScreen({ navigation }) {
         )}
       </View>
 
-      {/* Main Content */}
+      {/* Main Content Body */}
+      <View style={{ flex: 1, backgroundColor: '#F8FAFC' }}>
       <FlatList
         data={filteredProducts}
         keyExtractor={item => item._id || item.id || String(Math.random())}
@@ -713,6 +740,8 @@ export default function MenuScreen({ navigation }) {
                 </View>
               </View>
             )}
+
+
 
             {/* Quick Search Bar */}
             <View style={styles.searchContainer}>
@@ -778,6 +807,7 @@ export default function MenuScreen({ navigation }) {
           </View>
         }
       />
+      </View>
 
       {/* Add Item Modal */}
       <Modal
@@ -1208,20 +1238,20 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingVertical: 14,
-    backgroundColor: '#FFFFFF',
+    paddingBottom: 14,
+    backgroundColor: '#0F172A',
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: '#1E293B',
   },
   headerTitle: {
     fontSize: 22,
     fontWeight: '900',
-    color: '#0F172A',
+    color: '#F8FAFC',
     letterSpacing: -0.5,
   },
   headerSubtitle: {
     fontSize: 12,
-    color: '#64748B',
+    color: '#94A3B8',
     fontWeight: '600',
     marginTop: 2,
   },
@@ -1232,12 +1262,12 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 12,
     borderWidth: 1.5,
-    borderColor: '#FED7AA',
-    backgroundColor: '#FFF7ED',
+    borderColor: '#334155',
+    backgroundColor: '#1E293B',
     gap: 5,
   },
   scanHeaderBtnText: {
-    color: '#EA580C',
+    color: '#F8FAFC',
     fontWeight: '800',
     fontSize: 13,
   },

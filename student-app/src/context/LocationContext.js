@@ -23,13 +23,12 @@ export const LocationProvider = ({ children }) => {
         ]);
 
         if (savedId) {
-          const isLpu = (savedName || '').toLowerCase().includes('lpu') || (savedName || '').toLowerCase().includes('lovely');
           setCurrentLocation({
             _id: savedId,
             id: savedId,
             name: savedName || 'Campus Hub',
             type: savedType || 'College',
-            dietaryType: savedDietary || (isLpu ? 'veg' : 'both'),
+            dietaryType: savedDietary || 'both',
           });
         }
       } catch (err) {
@@ -76,8 +75,7 @@ export const LocationProvider = ({ children }) => {
   const selectLocation = async (location) => {
     try {
       const locId = location._id || location.id;
-      const isLpu = (location.name || '').toLowerCase().includes('lpu') || (location.name || '').toLowerCase().includes('lovely');
-      const dietary = location.dietaryType || (isLpu ? 'veg' : 'both');
+      const dietary = location.dietaryType || 'both';
       const hubType = location.type || 'College';
 
       await Promise.all([

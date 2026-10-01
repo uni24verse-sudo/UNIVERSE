@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import axios from 'axios';
 import { 
   Database, 
@@ -22,7 +23,8 @@ import {
   TrendingUp,
   MapPin,
   Calendar,
-  ExternalLink
+  ExternalLink,
+  Trash2
 } from 'lucide-react';
 
 const SuperAdminMasterData = ({ token }) => {
@@ -34,6 +36,13 @@ const SuperAdminMasterData = ({ token }) => {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
+  const [selectedContactIds, setSelectedContactIds] = useState([]);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [topBarTarget, setTopBarTarget] = useState(null);
+
+  useEffect(() => {
+    setTopBarTarget(document.getElementById('superadmin-topbar-actions'));
+  }, []);
 
   // Summary Metrics
   const [summary, setSummary] = useState({
@@ -119,6 +128,55 @@ const SuperAdminMasterData = ({ token }) => {
     navigator.clipboard.writeText(phone);
     setCopiedPhone(phone);
     setTimeout(() => setCopiedPhone(null), 2000);
+  };
+
+  const toggleSelectContact = (id) => {
+    setSelectedContactIds(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAllContacts = () => {
+    const pageContactIds = contacts.map(c => c.id || c._id);
+    const allSelected = pageContactIds.length > 0 && pageContactIds.every(id => selectedContactIds.includes(id));
+    if (allSelected) {
+      setSelectedContactIds(prev => prev.filter(id => !pageContactIds.includes(id)));
+    } else {
+      setSelectedContactIds(prev => [...new Set([...prev, ...pageContactIds])]);
+    }
+  };
+
+  const handleDeleteSingleContact = async (contactId, name) => {
+    if (!window.confirm(`Are you sure you want to delete contact "${name || contactId}"?`)) return;
+
+    try {
+      await axios.delete(`${apiUrl}/api/super-admin/master-data/contact/${contactId}`, { headers });
+      setSelectedContactIds(prev => prev.filter(id => id !== contactId));
+      fetchMasterData();
+      alert('Contact deleted successfully.');
+    } catch (err) {
+      alert('Failed to delete contact: ' + (err.response?.data?.message || err.message));
+    }
+  };
+
+  const handleBulkDeleteContacts = async () => {
+    if (selectedContactIds.length === 0) return;
+    if (!window.confirm(`Are you sure you want to permanently delete ${selectedContactIds.length} selected contacts? This cannot be undone.`)) return;
+
+    try {
+      setIsDeleting(true);
+      await axios.post(`${apiUrl}/api/super-admin/master-data/bulk-delete`, 
+        { ids: selectedContactIds }, 
+        { headers }
+      );
+      setSelectedContactIds([]);
+      fetchMasterData();
+      alert('Selected contacts deleted successfully.');
+    } catch (err) {
+      alert('Bulk delete failed: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   // Sync Customer 360
@@ -299,108 +357,92 @@ const SuperAdminMasterData = ({ token }) => {
 
   return (
     <div>
-      {/* Header */}
-      <header style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
-        <div>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'rgba(99, 102, 241, 0.08)', color: '#6366f1', padding: '4px 12px', borderRadius: '100px', fontSize: '0.78rem', fontWeight: '800', marginBottom: '0.5rem' }}>
-            <ShieldCheck size={14} /> SuperAdmin Exclusive • De-Duplicated Single Source of Truth
-          </div>
-          <h1 style={{ fontSize: '1.9rem', fontWeight: '900', margin: 0, color: '#0f172a', letterSpacing: '-0.02em' }}>
-            Master Audience & Data Studio
-          </h1>
-          <p style={{ color: 'var(--text-secondary)', marginTop: '0.35rem', fontSize: '0.95rem' }}>
-            Central repository of all campus members, customer 360 profiles, and uploaded audiences. Automatically deduplicated on unique phone numbers.
-          </p>
-        </div>
-
-        {/* Global Actions */}
-        <div style={{ display: 'flex', gap: '0.65rem', flexWrap: 'wrap' }}>
+      {/* Topbar Actions Portal */}
+      {topBarTarget && createPortal(
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'nowrap' }}>
           <button
             onClick={handleSyncCustomer360}
             disabled={syncing}
             style={{
-              padding: '0.65rem 1.1rem',
-              borderRadius: '12px',
-              border: '1.5px solid #e2e8f0',
+              padding: '0.45rem 0.85rem',
+              borderRadius: '8px',
+              border: '1px solid #e2e8f0',
               background: '#ffffff',
               color: '#0f172a',
-              fontWeight: '800',
-              fontSize: '0.85rem',
+              fontWeight: '700',
+              fontSize: '0.78rem',
+              cursor: syncing ? 'not-allowed' : 'pointer',
               display: 'flex',
               alignItems: 'center',
-              gap: '6px',
-              cursor: syncing ? 'not-allowed' : 'pointer',
-              boxShadow: '0 2px 6px rgba(0,0,0,0.02)'
+              gap: '0.35rem'
             }}
           >
-            <RefreshCw size={15} className={syncing ? "spin" : ""} color="#6366f1" />
+            <RefreshCw size={13} className={syncing ? "spin" : ""} color="#6366f1" />
             {syncing ? 'Syncing...' : 'Sync Customer 360'}
           </button>
 
           <button
             onClick={() => setShowUploadModal(true)}
             style={{
-              padding: '0.65rem 1.1rem',
-              borderRadius: '12px',
-              border: '1.5px solid #e2e8f0',
+              padding: '0.45rem 0.85rem',
+              borderRadius: '8px',
+              border: '1px solid #e2e8f0',
               background: '#ffffff',
               color: '#0f172a',
-              fontWeight: '800',
-              fontSize: '0.85rem',
+              fontWeight: '700',
+              fontSize: '0.78rem',
+              cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
-              gap: '6px',
-              cursor: 'pointer',
-              boxShadow: '0 2px 6px rgba(0,0,0,0.02)'
+              gap: '0.35rem'
             }}
           >
-            <Upload size={15} color="#059669" />
-            Upload Document
+            <Upload size={13} color="#059669" /> Upload Document
           </button>
 
           <button
             onClick={handleExportCSV}
             disabled={exporting}
             style={{
-              padding: '0.65rem 1.1rem',
-              borderRadius: '12px',
-              border: '1.5px solid #e2e8f0',
+              padding: '0.45rem 0.85rem',
+              borderRadius: '8px',
+              border: '1px solid #e2e8f0',
               background: '#ffffff',
               color: '#0f172a',
-              fontWeight: '800',
-              fontSize: '0.85rem',
+              fontWeight: '700',
+              fontSize: '0.78rem',
+              cursor: exporting ? 'wait' : 'pointer',
               display: 'flex',
               alignItems: 'center',
-              gap: '6px',
-              cursor: exporting ? 'wait' : 'pointer',
-              boxShadow: '0 2px 6px rgba(0,0,0,0.02)'
+              gap: '0.35rem'
             }}
           >
-            <Download size={15} color="#0284c7" className={exporting ? "spin" : ""} />
+            <Download size={13} color="#0284c7" className={exporting ? "spin" : ""} />
             {exporting ? 'Exporting...' : 'Export CSV'}
           </button>
 
           <button
             onClick={() => setShowAddModal(true)}
             style={{
-              padding: '0.65rem 1.25rem',
-              borderRadius: '12px',
+              padding: '0.45rem 0.95rem',
+              borderRadius: '8px',
               border: 'none',
               background: 'linear-gradient(135deg, #ef4123, #ea580c)',
               color: '#ffffff',
-              fontWeight: '900',
-              fontSize: '0.85rem',
+              fontWeight: '800',
+              fontSize: '0.78rem',
+              cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
-              gap: '6px',
-              cursor: 'pointer',
-              boxShadow: '0 4px 14px rgba(239, 65, 35, 0.25)'
+              gap: '0.35rem',
+              boxShadow: '0 2px 8px rgba(239, 65, 35, 0.25)'
             }}
           >
-            <Plus size={16} /> Add Contact
+            <Plus size={14} /> Add Contact
           </button>
-        </div>
-      </header>
+        </div>,
+        topBarTarget
+      )}
 
       {/* Sync Success Notification */}
       {syncMessage && (
@@ -604,117 +646,218 @@ const SuperAdminMasterData = ({ token }) => {
             </div>
           </div>
         ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
-              <thead>
-                <tr style={{ borderBottom: '1px solid var(--surface-border)', color: '#64748b' }}>
-                  <th style={{ padding: '0.85rem 1rem' }}>Contact Name</th>
-                  <th style={{ padding: '0.85rem 1rem' }}>Phone Number</th>
-                  <th style={{ padding: '0.85rem 1rem' }}>Email Address</th>
-                  <th style={{ padding: '0.85rem 1rem' }}>Campus / Location</th>
-                  <th style={{ padding: '0.85rem 1rem' }}>Source</th>
-                  <th style={{ padding: '0.85rem 1rem' }}>Activity</th>
-                  <th style={{ padding: '0.85rem 1rem' }}>Added Date</th>
-                </tr>
-              </thead>
-              <tbody>
-                {contacts.map((c, idx) => (
-                  <tr key={c.id || idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                    {/* Contact Name */}
-                    <td style={{ padding: '0.9rem 1rem' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <div style={{
-                          width: '34px',
-                          height: '34px',
-                          borderRadius: '10px',
-                          background: 'rgba(99, 102, 241, 0.1)',
-                          color: '#6366f1',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontWeight: '800',
-                          fontSize: '0.85rem'
-                        }}>
-                          {(c.name || 'U').charAt(0).toUpperCase()}
-                        </div>
-                        <div>
-                          <span style={{ fontWeight: '800', color: '#0f172a', display: 'block' }}>{c.name}</span>
-                          <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>ID: {c.phone}</span>
-                        </div>
-                      </div>
-                    </td>
+          <div>
+            {/* BULK ACTION BAR */}
+            {selectedContactIds.length > 0 && (
+              <div style={{
+                marginBottom: '1rem',
+                padding: '0.85rem 1.25rem',
+                background: '#fff1f2',
+                border: '1.5px solid #fecdd3',
+                borderRadius: '16px',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                animation: 'fadeIn 0.2s ease'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <span style={{ fontWeight: '800', color: '#e11d48', fontSize: '0.9rem' }}>
+                    {selectedContactIds.length} contact{selectedContactIds.length > 1 ? 's' : ''} selected
+                  </span>
+                  <button
+                    onClick={() => setSelectedContactIds([])}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#64748b',
+                      fontSize: '0.8rem',
+                      fontWeight: '700',
+                      cursor: 'pointer',
+                      textDecoration: 'underline'
+                    }}
+                  >
+                    Clear selection
+                  </button>
+                </div>
+                <button
+                  onClick={handleBulkDeleteContacts}
+                  disabled={isDeleting}
+                  style={{
+                    padding: '0.5rem 1.1rem',
+                    borderRadius: '10px',
+                    border: 'none',
+                    background: '#e11d48',
+                    color: '#ffffff',
+                    fontWeight: '800',
+                    fontSize: '0.85rem',
+                    cursor: isDeleting ? 'not-allowed' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.4rem',
+                    boxShadow: '0 2px 8px rgba(225, 29, 72, 0.25)',
+                    opacity: isDeleting ? 0.7 : 1
+                  }}
+                >
+                  <Trash2 size={14} />
+                  {isDeleting ? 'Deleting...' : `Delete Selected (${selectedContactIds.length})`}
+                </button>
+              </div>
+            )}
 
-                    {/* Phone Number */}
-                    <td style={{ padding: '0.9rem 1rem' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span style={{ fontFamily: 'monospace', fontWeight: '700', color: '#0f172a' }}>
-                          +91 {c.phone}
-                        </span>
-                        <button
-                          onClick={() => handleCopyPhone(c.phone)}
-                          title="Copy Phone"
-                          style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: '2px', color: copiedPhone === c.phone ? '#10b981' : '#94a3b8' }}
-                        >
-                          {copiedPhone === c.phone ? <Check size={14} /> : <Copy size={14} />}
-                        </button>
-                        <span title="WhatsApp Reachable" style={{ padding: '2px 6px', borderRadius: '4px', background: 'rgba(37, 211, 102, 0.1)', color: '#16a34a', fontSize: '0.65rem', fontWeight: '800' }}>
-                          WA
-                        </span>
-                      </div>
-                    </td>
-
-                    {/* Email Address */}
-                    <td style={{ padding: '0.9rem 1rem' }}>
-                      {c.email ? (
-                        <span style={{ color: '#0284c7', fontWeight: '600' }}>{c.email}</span>
-                      ) : (
-                        <span style={{ color: '#94a3b8', fontStyle: 'italic', fontSize: '0.78rem' }}>No email recorded</span>
-                      )}
-                    </td>
-
-                    {/* Campus */}
-                    <td style={{ padding: '0.9rem 1rem', color: '#475569' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <MapPin size={13} color="#94a3b8" />
-                        <span>{c.campus || 'UniVerse Campus'}</span>
-                      </div>
-                    </td>
-
-                    {/* Source */}
-                    <td style={{ padding: '0.9rem 1rem' }}>
-                      <span style={{
-                        display: 'inline-block',
-                        padding: '3px 8px',
-                        borderRadius: '6px',
-                        fontSize: '0.72rem',
-                        fontWeight: '800',
-                        background: c.source?.includes('Customer 360') ? 'rgba(245, 158, 11, 0.1)' : 'rgba(99, 102, 241, 0.1)',
-                        color: c.source?.includes('Customer 360') ? '#b45309' : '#6366f1'
-                      }}>
-                        {c.source || 'Customer 360'}
-                      </span>
-                    </td>
-
-                    {/* Activity */}
-                    <td style={{ padding: '0.9rem 1rem' }}>
-                      {c.orderCount > 0 ? (
-                        <div>
-                          <span style={{ fontWeight: '800', color: '#10b981' }}>{c.orderCount} Orders</span>
-                          <span style={{ display: 'block', fontSize: '0.72rem', color: '#64748b' }}>₹{Number(c.totalSpent).toFixed(0)} spent</span>
-                        </div>
-                      ) : (
-                        <span style={{ color: '#94a3b8', fontSize: '0.78rem' }}>Prospect / 0 orders</span>
-                      )}
-                    </td>
-
-                    {/* Added Date */}
-                    <td style={{ padding: '0.9rem 1rem', color: '#94a3b8', fontSize: '0.78rem' }}>
-                      {c.createdAt ? new Date(c.createdAt).toLocaleDateString('en-IN') : 'Auto-synced'}
-                    </td>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid var(--surface-border)', color: '#64748b' }}>
+                    <th style={{ width: '48px', padding: '0.85rem 1rem', textAlign: 'center' }}>
+                      <input 
+                        type="checkbox"
+                        checked={contacts.length > 0 && contacts.every(c => selectedContactIds.includes(c.id || c._id))}
+                        onChange={toggleSelectAllContacts}
+                        style={{ cursor: 'pointer', width: '16px', height: '16px', accentColor: 'var(--primary, #ef4123)' }}
+                        title="Select All Contacts on this page"
+                      />
+                    </th>
+                    <th style={{ padding: '0.85rem 1rem' }}>Contact Name</th>
+                    <th style={{ padding: '0.85rem 1rem' }}>Phone Number</th>
+                    <th style={{ padding: '0.85rem 1rem' }}>Email Address</th>
+                    <th style={{ padding: '0.85rem 1rem' }}>Campus / Location</th>
+                    <th style={{ padding: '0.85rem 1rem' }}>Source</th>
+                    <th style={{ padding: '0.85rem 1rem' }}>Activity</th>
+                    <th style={{ padding: '0.85rem 1rem' }}>Added Date</th>
+                    <th style={{ padding: '0.85rem 1rem', textAlign: 'right' }}>Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {contacts.map((c, idx) => (
+                    <tr key={c.id || idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                      {/* Row Checkbox */}
+                      <td style={{ width: '48px', padding: '0.9rem 1rem', textAlign: 'center' }}>
+                        <input 
+                          type="checkbox"
+                          checked={selectedContactIds.includes(c.id || c._id)}
+                          onChange={() => toggleSelectContact(c.id || c._id)}
+                          style={{ cursor: 'pointer', width: '16px', height: '16px', accentColor: 'var(--primary, #ef4123)' }}
+                        />
+                      </td>
+
+                      {/* Contact Name */}
+                      <td style={{ padding: '0.9rem 1rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <div style={{
+                            width: '34px',
+                            height: '34px',
+                            borderRadius: '10px',
+                            background: 'rgba(99, 102, 241, 0.1)',
+                            color: '#6366f1',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontWeight: '800',
+                            fontSize: '0.85rem'
+                          }}>
+                            {(c.name || 'U').charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <span style={{ fontWeight: '800', color: '#0f172a', display: 'block' }}>{c.name}</span>
+                            <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>ID: {c.phone}</span>
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* Phone Number */}
+                      <td style={{ padding: '0.9rem 1rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span style={{ fontFamily: 'monospace', fontWeight: '700', color: '#0f172a' }}>
+                            +91 {c.phone}
+                          </span>
+                          <button
+                            onClick={() => handleCopyPhone(c.phone)}
+                            title="Copy Phone"
+                            style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: '2px', color: copiedPhone === c.phone ? '#10b981' : '#94a3b8' }}
+                          >
+                            {copiedPhone === c.phone ? <Check size={14} /> : <Copy size={14} />}
+                          </button>
+                          <span title="WhatsApp Reachable" style={{ padding: '2px 6px', borderRadius: '4px', background: 'rgba(37, 211, 102, 0.1)', color: '#16a34a', fontSize: '0.65rem', fontWeight: '800' }}>
+                            WA
+                          </span>
+                        </div>
+                      </td>
+
+                      {/* Email Address */}
+                      <td style={{ padding: '0.9rem 1rem' }}>
+                        {c.email ? (
+                          <span style={{ color: '#0284c7', fontWeight: '600' }}>{c.email}</span>
+                        ) : (
+                          <span style={{ color: '#94a3b8', fontStyle: 'italic', fontSize: '0.78rem' }}>No email recorded</span>
+                        )}
+                      </td>
+
+                      {/* Campus */}
+                      <td style={{ padding: '0.9rem 1rem', color: '#475569' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <MapPin size={13} color="#94a3b8" />
+                          <span>{c.campus || 'UniVerse Campus'}</span>
+                        </div>
+                      </td>
+
+                      {/* Source */}
+                      <td style={{ padding: '0.9rem 1rem' }}>
+                        <span style={{
+                          display: 'inline-block',
+                          padding: '3px 8px',
+                          borderRadius: '6px',
+                          fontSize: '0.72rem',
+                          fontWeight: '800',
+                          background: c.source?.includes('Customer 360') ? 'rgba(245, 158, 11, 0.1)' : 'rgba(99, 102, 241, 0.1)',
+                          color: c.source?.includes('Customer 360') ? '#b45309' : '#6366f1'
+                        }}>
+                          {c.source || 'Customer 360'}
+                        </span>
+                      </td>
+
+                      {/* Activity */}
+                      <td style={{ padding: '0.9rem 1rem' }}>
+                        {c.orderCount > 0 ? (
+                          <div>
+                            <span style={{ fontWeight: '800', color: '#10b981' }}>{c.orderCount} Orders</span>
+                            <span style={{ display: 'block', fontSize: '0.72rem', color: '#64748b' }}>₹{Number(c.totalSpent).toFixed(0)} spent</span>
+                          </div>
+                        ) : (
+                          <span style={{ color: '#94a3b8', fontSize: '0.78rem' }}>Prospect / 0 orders</span>
+                        )}
+                      </td>
+
+                      {/* Added Date */}
+                      <td style={{ padding: '0.9rem 1rem', color: '#94a3b8', fontSize: '0.78rem' }}>
+                        {c.createdAt ? new Date(c.createdAt).toLocaleDateString('en-IN') : 'Auto-synced'}
+                      </td>
+
+                      {/* Actions */}
+                      <td style={{ padding: '0.9rem 1rem', textAlign: 'right' }}>
+                        <button
+                          onClick={() => handleDeleteSingleContact(c.id || c._id, c.name)}
+                          style={{
+                            padding: '0.4rem 0.6rem',
+                            borderRadius: '8px',
+                            border: '1px solid rgba(239, 68, 68, 0.25)',
+                            background: 'rgba(239, 68, 68, 0.08)',
+                            color: '#ef4444',
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            transition: 'all 0.15s'
+                          }}
+                          title="Delete Contact"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 

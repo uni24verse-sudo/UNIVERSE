@@ -58,8 +58,9 @@ const RecentOrdersScreen = ({ navigation }) => {
             return o;
           }
         }));
-        setActiveOrders(rehydrated.filter(o => ['Pending', 'Confirmed', 'Cooking', 'Ready'].includes(o.status)));
-        setPastOrders(rehydrated.filter(o => ['Completed', 'Cancelled'].includes(o.status)));
+        const pastStatuses = ['Completed', 'Cancelled', 'Delivered', 'Refunded'];
+        setActiveOrders(rehydrated.filter(o => !pastStatuses.includes(o.status)));
+        setPastOrders(rehydrated.filter(o => pastStatuses.includes(o.status)));
       }
     } catch (err) {
       console.error('Failed to load orders history:', err);
@@ -100,7 +101,7 @@ const RecentOrdersScreen = ({ navigation }) => {
         <View style={styles.cardHeader}>
           <View style={{ flex: 1 }}>
             <Text style={styles.stallName} numberOfLines={1}>{storeName}</Text>
-            <Text style={styles.orderIdText}>Order #{String(order._id || order.id).slice(-6)}</Text>
+            <Text style={styles.orderIdText}>Order #{order.orderNumber || String(order._id || order.id).slice(-6)}</Text>
           </View>
 
           <View style={[styles.statusBadge, isActive ? (isReady ? styles.readyBadge : styles.activeBadge) : styles.completedBadge]}>

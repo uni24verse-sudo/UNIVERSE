@@ -15,6 +15,7 @@ import LiveOrdersScreen from '../screens/LiveOrdersScreen';
 import ScannerScreen from '../screens/ScannerScreen';
 import MenuScreen from '../screens/MenuScreen';
 import AnalyticsScreen from '../screens/AnalyticsScreen';
+import OffersScreen from '../screens/OffersScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -28,30 +29,32 @@ function MainTabNavigator() {
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarStyle: { 
-          backgroundColor: '#FFFFFF', 
-          borderTopColor: '#F1F5F9',
+          backgroundColor: '#0F172A', 
+          borderTopColor: '#1E293B',
           borderTopWidth: 1,
           height: Platform.OS === 'ios' ? 86 : 64,
           paddingBottom: Platform.OS === 'ios' ? 28 : 10,
           paddingTop: 8,
-          shadowColor: '#0F172A',
+          shadowColor: '#000000',
           shadowOffset: { width: 0, height: -3 },
-          shadowOpacity: 0.05,
-          shadowRadius: 6,
-          elevation: 6,
+          shadowOpacity: 0.35,
+          shadowRadius: 8,
+          elevation: 10,
         },
         tabBarLabelStyle: {
           fontSize: 11,
           fontWeight: '700',
         },
         tabBarActiveTintColor: '#EF4123',
-        tabBarInactiveTintColor: '#94A3B8',
+        tabBarInactiveTintColor: '#64748B',
         tabBarIcon: ({ focused, color, size }) => {
           let iconName;
           if (route.name === 'Orders') {
             iconName = focused ? 'receipt' : 'receipt-outline';
           } else if (route.name === 'Menu') {
             iconName = focused ? 'fast-food' : 'fast-food-outline';
+          } else if (route.name === 'Offers') {
+            iconName = focused ? 'pricetag' : 'pricetag-outline';
           } else if (route.name === 'Analytics') {
             iconName = focused ? 'stats-chart' : 'stats-chart-outline';
           } else if (route.name === 'Profile') {
@@ -70,6 +73,11 @@ function MainTabNavigator() {
         name="Menu" 
         component={MenuScreen} 
         options={{ title: 'Menu' }} 
+      />
+      <Tab.Screen 
+        name="Offers" 
+        component={OffersScreen} 
+        options={{ title: 'Offers' }} 
       />
       {!isEmployee && (
         <Tab.Screen 
@@ -133,6 +141,7 @@ export default function AppNavigator() {
           <>
             <Stack.Screen name="Main" component={MainTabNavigator} />
             <Stack.Screen name="Scanner" component={ScannerScreen} options={{ presentation: 'fullScreenModal' }} />
+            <Stack.Screen name="Offers" component={OffersScreen} />
           </>
         ) : (
           <Stack.Screen name="Login" component={LoginScreen} />

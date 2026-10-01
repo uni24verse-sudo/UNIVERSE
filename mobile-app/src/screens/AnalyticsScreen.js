@@ -330,7 +330,7 @@ export default function AnalyticsScreen() {
   }, [financeData, settlementFilter]);
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: '#0F172A' }]} edges={['top']}>
       {/* =================================================== */}
       {/* HEADER SECTION                                      */}
       {/* =================================================== */}
@@ -353,7 +353,7 @@ export default function AnalyticsScreen() {
             <Ionicons
               name="bar-chart"
               size={14}
-              color={mainTab === 'insights' ? '#FFFFFF' : '#64748B'}
+              color={mainTab === 'insights' ? '#FFFFFF' : '#94A3B8'}
               style={{ marginRight: 6 }}
             />
             <Text style={[styles.segmentBtnText, mainTab === 'insights' && styles.segmentBtnTextActive]}>
@@ -369,7 +369,7 @@ export default function AnalyticsScreen() {
             <Ionicons
               name="card"
               size={14}
-              color={mainTab === 'settlements' ? '#FFFFFF' : '#64748B'}
+              color={mainTab === 'settlements' ? '#FFFFFF' : '#94A3B8'}
               style={{ marginRight: 6 }}
             />
             <Text style={[styles.segmentBtnText, mainTab === 'settlements' && styles.segmentBtnTextActive]}>
@@ -404,6 +404,7 @@ export default function AnalyticsScreen() {
         )}
       </View>
 
+      <View style={{ flex: 1, backgroundColor: '#F8FAFC' }}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
@@ -850,30 +851,6 @@ export default function AnalyticsScreen() {
                     )}
                   </View>
 
-                  {/* Card 2: Next Settlement */}
-                  <View style={styles.financeOverviewCard}>
-                    <View style={styles.finCardHeader}>
-                      <View style={[styles.finIconBox, { backgroundColor: 'rgba(59, 130, 246, 0.12)' }]}>
-                        <Ionicons name="time" size={18} color="#2563EB" />
-                      </View>
-                      <View style={{ flex: 1, marginLeft: 8 }}>
-                        <Text style={styles.finCardTitle}>Next settlement</Text>
-                        <Text style={styles.finCardSub}>
-                          {financeData?.nextSettlement?.periodEnd
-                            ? `Pending for period ending ${new Date(financeData.nextSettlement.periodEnd).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })}`
-                            : 'Pending midnight batch'}
-                        </Text>
-                      </View>
-                    </View>
-
-                    <Text style={styles.finCardAmount}>
-                      ₹{financeData?.nextSettlement ? Number(financeData.nextSettlement.netPayable).toFixed(2) : '0.00'}
-                    </Text>
-                    <Text style={styles.finCardHint}>
-                      Automated deposit processed by next business day
-                    </Text>
-                  </View>
-
                   {/* Card 3: Live Unsettled Balance */}
                   <View style={[styles.financeOverviewCard, { borderLeftColor: '#F59E0B', borderLeftWidth: 4 }]}>
                     <View style={styles.finCardHeader}>
@@ -1053,6 +1030,7 @@ export default function AnalyticsScreen() {
           </>
         )}
       </ScrollView>
+      </View>
     </SafeAreaView>
   );
 }
@@ -1063,12 +1041,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8FAFC',
   },
   header: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#0F172A',
     paddingHorizontal: 16,
     paddingTop: 10,
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    borderBottomColor: '#1E293B',
   },
   headerTop: {
     flexDirection: 'row',
@@ -1079,18 +1057,18 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 22,
     fontWeight: '900',
-    color: '#0F172A',
+    color: '#F8FAFC',
     letterSpacing: -0.5,
   },
   storeBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#1E293B',
     paddingVertical: 5,
     paddingHorizontal: 10,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#334155',
   },
   storeRow: {
     flexDirection: 'row',
@@ -1100,7 +1078,7 @@ const styles = StyleSheet.create({
   storeName: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#0F172A',
+    color: '#F1F5F9',
   },
   roleBadge: {
     flexDirection: 'row',
@@ -1131,10 +1109,12 @@ const styles = StyleSheet.create({
   /* Segmented Sub-Tab Switcher */
   segmentContainer: {
     flexDirection: 'row',
-    backgroundColor: '#F1F5F9',
+    backgroundColor: '#1E293B',
     borderRadius: 14,
     padding: 3,
     marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#334155',
   },
   segmentBtn: {
     flex: 1,
@@ -1145,17 +1125,17 @@ const styles = StyleSheet.create({
     borderRadius: 11,
   },
   segmentBtnActive: {
-    backgroundColor: '#0F172A',
+    backgroundColor: '#334155',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.2,
     shadowRadius: 3,
     elevation: 2,
   },
   segmentBtnText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#64748B',
+    color: '#94A3B8',
   },
   segmentBtnTextActive: {
     color: '#FFFFFF',
@@ -1170,9 +1150,9 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 14,
     borderRadius: 20,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: '#1E293B',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#334155',
   },
   rangePillActive: {
     backgroundColor: '#EF4123',
@@ -1181,7 +1161,7 @@ const styles = StyleSheet.create({
   rangePillText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#64748B',
+    color: '#94A3B8',
   },
   rangePillTextActive: {
     color: '#FFFFFF',

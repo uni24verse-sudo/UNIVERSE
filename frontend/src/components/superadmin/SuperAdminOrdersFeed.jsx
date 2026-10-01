@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import axios from 'axios';
 import { 
   Search, 
@@ -29,7 +30,9 @@ import {
   SlidersHorizontal,
   FileSpreadsheet,
   Loader2,
-  CheckCheck
+  CheckCheck,
+  Trash2,
+  PackageCheck
 } from 'lucide-react';
 
 // Premium Custom Dropdown Component (Replaces Ugly Native Browser Selects)
@@ -211,6 +214,7 @@ const SuperAdminOrdersFeed = ({ token, socket, stores = [], locations = [] }) =>
   const [selectedStoreId, setSelectedStoreId] = useState('All');
   const [selectedMarket, setSelectedMarket] = useState('All');
   const [paymentStatus, setPaymentStatus] = useState('All');
+  const [orderTypeFilter, setOrderTypeFilter] = useState('All');
   const [dateFilter, setDateFilter] = useState('all'); // 'all', 'today', 'yesterday', '7days', '30days', 'this_month', 'custom'
   
   // Custom Date Range State
@@ -237,6 +241,13 @@ const SuperAdminOrdersFeed = ({ token, socket, stores = [], locations = [] }) =>
 
   // Detail Modal State
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [selectedOrderIds, setSelectedOrderIds] = useState([]);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [topBarTarget, setTopBarTarget] = useState(null);
+
+  useEffect(() => {
+    setTopBarTarget(document.getElementById('superadmin-topbar-actions'));
+  }, []);
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
   const authConfig = useMemo(() => ({ headers: { Authorization: `Bearer ${token}` } }), [token]);
@@ -283,6 +294,7 @@ const SuperAdminOrdersFeed = ({ token, socket, stores = [], locations = [] }) =>
         storeId: selectedStoreId,
         market: selectedMarket,
         paymentStatus,
+        orderType: orderTypeFilter,
         dateFilter
       };
 
@@ -316,7 +328,7 @@ const SuperAdminOrdersFeed = ({ token, socket, stores = [], locations = [] }) =>
 
   useEffect(() => {
     fetchOrders();
-  }, [page, limit, debouncedSearch, status, selectedStoreId, selectedMarket, paymentStatus, dateFilter, startDate, endDate]);
+  }, [page, limit, debouncedSearch, status, selectedStoreId, selectedMarket, paymentStatus, orderTypeFilter, dateFilter, startDate, endDate]);
 
   // Socket listener for real-time live order updates
   useEffect(() => {
@@ -343,6 +355,7 @@ const SuperAdminOrdersFeed = ({ token, socket, stores = [], locations = [] }) =>
     setSelectedStoreId('All');
     setSelectedMarket('All');
     setPaymentStatus('All');
+    setOrderTypeFilter('All');
     setDateFilter('all');
     setStartDate('');
     setEndDate('');
@@ -350,7 +363,55 @@ const SuperAdminOrdersFeed = ({ token, socket, stores = [], locations = [] }) =>
     setPage(1);
   };
 
-  const hasActiveFilters = search || status !== 'All' || selectedStoreId !== 'All' || selectedMarket !== 'All' || paymentStatus !== 'All' || dateFilter !== 'all' || startDate || endDate;
+  const hasActiveFilters = search || status !== 'All' || selectedStoreId !== 'All' || selectedMarket !== 'All' || paymentStatus !== 'All' || orderTypeFilter !== 'All' || dateFilter !== 'all' || startDate || endDate;
+
+  const toggleSelectOrder = (id) => {
+    setSelectedOrderIds(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAllOrders = () => {
+    const pageOrderIds = orders.map(o => o._id || o.id);
+    const allSelected = pageOrderIds.length > 0 && pageOrderIds.every(id => selectedOrderIds.includes(id));
+    if (allSelected) {
+      setSelectedOrderIds(prev => prev.filter(id => !pageOrderIds.includes(id)));
+    } else {
+      setSelectedOrderIds(prev => [...new Set([...prev, ...pageOrderIds])]);
+    }
+  };
+
+  const handleDeleteSingleOrder = async (orderId, orderNum) => {
+    if (!window.confirm(`Are you sure you want to permanently delete order #${orderNum || orderId}? This cannot be undone.`)) return;
+
+    try {
+      await axios.delete(`${API_URL}/api/super-admin/order/${orderId}`, authConfig);
+      setSelectedOrderIds(prev => prev.filter(id => id !== orderId));
+      fetchOrders();
+    } catch (err) {
+      alert('Failed to delete order: ' + (err.response?.data?.message || err.message));
+    }
+  };
+
+  const handleBulkDeleteOrders = async () => {
+    if (selectedOrderIds.length === 0) return;
+    if (!window.confirm(`Are you sure you want to permanently delete ${selectedOrderIds.length} selected orders? This cannot be undone.`)) return;
+
+    try {
+      setIsDeleting(true);
+      await axios.post(`${API_URL}/api/super-admin/orders/bulk-delete`, 
+        { ids: selectedOrderIds }, 
+        authConfig
+      );
+      setSelectedOrderIds([]);
+      fetchOrders();
+      alert('Selected orders deleted successfully.');
+    } catch (err) {
+      alert('Bulk delete failed: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   // Comprehensive Export to CSV (Downloads ALL records matching current date range & filters)
   const handleExportCSV = async () => {
@@ -507,98 +568,98 @@ const SuperAdminOrdersFeed = ({ token, socket, stores = [], locations = [] }) =>
 
   return (
     <div>
-      {/* Top Header & Overview KPI Cards */}
-      <div style={{ marginBottom: '2rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.5rem' }}>
-          <div>
-            <h1 style={{ fontSize: '2rem', fontWeight: '900', margin: '0 0 0.25rem 0', letterSpacing: '-0.02em', color: '#0f172a' }}>
-              Global Orders Control Feed
-            </h1>
-            <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
-              Real-time platform ledger with live telemetry, custom date ranges, and full ledger export.
-            </p>
-          </div>
+      {/* Topbar Action Portal */}
+      {topBarTarget && createPortal(
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <button
+            onClick={handleExportCSV}
+            disabled={exporting}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.4rem',
+              padding: '0.45rem 0.85rem',
+              borderRadius: '8px',
+              border: '1.5px solid rgba(16, 185, 129, 0.4)',
+              background: 'linear-gradient(135deg, #ffffff 0%, rgba(16, 185, 129, 0.05) 100%)',
+              color: '#059669',
+              fontWeight: '700',
+              fontSize: '0.78rem',
+              cursor: exporting ? 'not-allowed' : 'pointer',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            {exporting ? (
+              <>
+                <Loader2 size={13} className="animate-spin" /> Exporting...
+              </>
+            ) : (
+              <>
+                <FileSpreadsheet size={14} color="#10b981" /> Export CSV ({totalOrders.toLocaleString()})
+              </>
+            )}
+          </button>
+          <button
+            onClick={fetchOrders}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.4rem',
+              padding: '0.45rem 0.85rem',
+              borderRadius: '8px',
+              border: 'none',
+              background: 'var(--primary, #ef4123)',
+              color: '#ffffff',
+              fontWeight: '700',
+              fontSize: '0.78rem',
+              cursor: 'pointer',
+              boxShadow: '0 2px 6px rgba(239, 65, 35, 0.25)'
+            }}
+          >
+            <RotateCcw size={13} /> Refresh
+          </button>
+        </div>,
+        topBarTarget
+      )}
 
-          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
-            <button
-              onClick={handleExportCSV}
-              disabled={exporting}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                padding: '0.7rem 1.4rem',
-                borderRadius: '14px',
-                border: '1.5px solid rgba(16, 185, 129, 0.4)',
-                background: 'linear-gradient(135deg, #ffffff 0%, rgba(16, 185, 129, 0.05) 100%)',
-                color: '#059669',
-                fontWeight: '800',
-                fontSize: '0.85rem',
-                cursor: exporting ? 'not-allowed' : 'pointer',
-                boxShadow: '0 2px 8px rgba(16, 185, 129, 0.08)',
-                transition: 'all 0.15s ease'
-              }}
-            >
-              {exporting ? (
-                <>
-                  <Loader2 size={16} className="animate-spin" /> Exporting All...
-                </>
-              ) : (
-                <>
-                  <FileSpreadsheet size={16} color="#10b981" /> Download All ({totalOrders.toLocaleString()})
-                </>
-              )}
-            </button>
-            <button
-              onClick={fetchOrders}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                padding: '0.7rem 1.25rem',
-                borderRadius: '14px',
-                border: 'none',
-                background: 'var(--primary, #ef4123)',
-                color: '#ffffff',
-                fontWeight: '800',
-                fontSize: '0.85rem',
-                cursor: 'pointer',
-                boxShadow: '0 4px 14px rgba(239, 65, 35, 0.25)'
-              }}
-            >
-              <RotateCcw size={16} /> Refresh Feed
-            </button>
-          </div>
-        </div>
-
-        {/* Financial Metrics Cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
-          <div style={{ background: '#ffffff', padding: '1.25rem', borderRadius: '18px', border: '1px solid var(--surface-border)', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
-            <span style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Filtered Transactions</span>
-            <div style={{ fontSize: '1.75rem', fontWeight: '900', color: 'var(--text-primary)', marginTop: '0.25rem' }}>{totalOrders.toLocaleString()}</div>
-            <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '600' }}>
+      {/* Sticky Financial Metrics Cards Strip */}
+      <div style={{
+        position: 'sticky',
+        top: 0,
+        zIndex: 10,
+        background: '#f8fafc',
+        paddingTop: '0.25rem',
+        paddingBottom: '0.75rem',
+        marginBottom: '1rem',
+        borderBottom: '1px solid #e2e8f0'
+      }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+          <div style={{ background: '#ffffff', padding: '0.9rem 1.1rem', borderRadius: '14px', border: '1px solid var(--surface-border)', boxShadow: '0 2px 6px rgba(0,0,0,0.02)' }}>
+            <span style={{ fontSize: '0.72rem', fontWeight: '800', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Filtered Transactions</span>
+            <div style={{ fontSize: '1.4rem', fontWeight: '900', color: 'var(--text-primary)', marginTop: '0.15rem' }}>{totalOrders.toLocaleString()}</div>
+            <span style={{ fontSize: '0.68rem', color: '#64748b', fontWeight: '600' }}>
               {dateFilter === 'custom' && startDate && endDate ? `${startDate} to ${endDate}` : 'Matching active range'}
             </span>
           </div>
 
-          <div style={{ background: '#ffffff', padding: '1.25rem', borderRadius: '18px', border: '1px solid var(--surface-border)', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
-            <span style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Gross Volume</span>
-            <div style={{ fontSize: '1.75rem', fontWeight: '900', color: '#10b981', marginTop: '0.25rem' }}>₹{metrics.totalRevenue.toLocaleString()}</div>
-            <span style={{ fontSize: '0.75rem', color: '#059669', fontWeight: '700' }}>{metrics.completedOrders} Completed Orders</span>
+          <div style={{ background: '#ffffff', padding: '0.9rem 1.1rem', borderRadius: '14px', border: '1px solid var(--surface-border)', boxShadow: '0 2px 6px rgba(0,0,0,0.02)' }}>
+            <span style={{ fontSize: '0.72rem', fontWeight: '800', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Gross Volume</span>
+            <div style={{ fontSize: '1.4rem', fontWeight: '900', color: '#10b981', marginTop: '0.15rem' }}>₹{metrics.totalRevenue.toLocaleString()}</div>
+            <span style={{ fontSize: '0.68rem', color: '#059669', fontWeight: '700' }}>{metrics.completedOrders} Completed</span>
           </div>
 
-          <div style={{ background: '#ffffff', padding: '1.25rem', borderRadius: '18px', border: '1px solid var(--surface-border)', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
-            <span style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Average Order Value</span>
-            <div style={{ fontSize: '1.75rem', fontWeight: '900', color: '#6366f1', marginTop: '0.25rem' }}>₹{metrics.aov}</div>
-            <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '600' }}>Per completed order</span>
+          <div style={{ background: '#ffffff', padding: '0.9rem 1.1rem', borderRadius: '14px', border: '1px solid var(--surface-border)', boxShadow: '0 2px 6px rgba(0,0,0,0.02)' }}>
+            <span style={{ fontSize: '0.72rem', fontWeight: '800', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Average Order Value</span>
+            <div style={{ fontSize: '1.4rem', fontWeight: '900', color: '#6366f1', marginTop: '0.15rem' }}>₹{metrics.aov}</div>
+            <span style={{ fontSize: '0.68rem', color: '#64748b', fontWeight: '600' }}>Per completed order</span>
           </div>
 
-          <div style={{ background: '#ffffff', padding: '1.25rem', borderRadius: '18px', border: '1px solid var(--surface-border)', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
-            <span style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Pagination View</span>
-            <div style={{ fontSize: '1.75rem', fontWeight: '900', color: '#f59e0b', marginTop: '0.25rem' }}>
-              Page {page} <span style={{ fontSize: '1rem', fontWeight: '600', color: 'var(--text-secondary)' }}>/ {totalPages}</span>
+          <div style={{ background: '#ffffff', padding: '0.9rem 1.1rem', borderRadius: '14px', border: '1px solid var(--surface-border)', boxShadow: '0 2px 6px rgba(0,0,0,0.02)' }}>
+            <span style={{ fontSize: '0.72rem', fontWeight: '800', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Pagination View</span>
+            <div style={{ fontSize: '1.4rem', fontWeight: '900', color: '#f59e0b', marginTop: '0.15rem' }}>
+              Page {page} <span style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-secondary)' }}>/ {totalPages}</span>
             </div>
-            <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '600' }}>{limit} orders per view</span>
+            <span style={{ fontSize: '0.68rem', color: '#64748b', fontWeight: '600' }}>{limit} orders per view</span>
           </div>
         </div>
       </div>
@@ -862,6 +923,21 @@ const SuperAdminOrdersFeed = ({ token, socket, stores = [], locations = [] }) =>
             minWidth="200px"
           />
 
+          {/* Order Type Filter */}
+          <PremiumDropdown 
+            icon={PackageCheck}
+            label="All Order Types"
+            value={orderTypeFilter}
+            options={[
+              { value: 'All', label: 'All Order Types' },
+              { value: 'Dine In', label: '🍽️ Dine In' },
+              { value: 'Take Away', label: '🛍️ Take Away' },
+              { value: 'Delivery', label: '🛵 Delivery' }
+            ]}
+            onChange={handleFilterChange(setOrderTypeFilter)}
+            minWidth="180px"
+          />
+
           {/* Reset Filters Button */}
           {hasActiveFilters && (
             <button
@@ -933,6 +1009,63 @@ const SuperAdminOrdersFeed = ({ token, socket, stores = [], locations = [] }) =>
         })}
       </div>
 
+      {/* BULK ACTION BAR */}
+      {selectedOrderIds.length > 0 && (
+        <div style={{
+          marginBottom: '1rem',
+          padding: '0.85rem 1.25rem',
+          background: '#fff1f2',
+          border: '1.5px solid #fecdd3',
+          borderRadius: '16px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          animation: 'fadeIn 0.2s ease'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <span style={{ fontWeight: '800', color: '#e11d48', fontSize: '0.9rem' }}>
+              {selectedOrderIds.length} order{selectedOrderIds.length > 1 ? 's' : ''} selected
+            </span>
+            <button
+              onClick={() => setSelectedOrderIds([])}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: '#64748b',
+                fontSize: '0.8rem',
+                fontWeight: '700',
+                cursor: 'pointer',
+                textDecoration: 'underline'
+              }}
+            >
+              Clear selection
+            </button>
+          </div>
+          <button
+            onClick={handleBulkDeleteOrders}
+            disabled={isDeleting}
+            style={{
+              padding: '0.5rem 1.1rem',
+              borderRadius: '10px',
+              border: 'none',
+              background: '#e11d48',
+              color: '#ffffff',
+              fontWeight: '800',
+              fontSize: '0.85rem',
+              cursor: isDeleting ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.4rem',
+              boxShadow: '0 2px 8px rgba(225, 29, 72, 0.25)',
+              opacity: isDeleting ? 0.7 : 1
+            }}
+          >
+            <Trash2 size={14} />
+            {isDeleting ? 'Deleting...' : `Delete Selected (${selectedOrderIds.length})`}
+          </button>
+        </div>
+      )}
+
       {/* ORDERS TABLE CARD */}
       <div style={{
         background: '#ffffff',
@@ -979,6 +1112,15 @@ const SuperAdminOrdersFeed = ({ token, socket, stores = [], locations = [] }) =>
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
               <thead>
                 <tr style={{ background: '#f8fafc', borderBottom: '1px solid var(--surface-border)' }}>
+                  <th style={{ width: '48px', padding: '1rem 1.25rem', textAlign: 'center' }}>
+                    <input 
+                      type="checkbox"
+                      checked={orders.length > 0 && orders.every(o => selectedOrderIds.includes(o._id || o.id))}
+                      onChange={toggleSelectAllOrders}
+                      style={{ cursor: 'pointer', width: '16px', height: '16px', accentColor: 'var(--primary, #ef4123)' }}
+                      title="Select All Orders on this page"
+                    />
+                  </th>
                   <th style={{ padding: '1rem 1.25rem', color: 'var(--text-secondary)', fontWeight: '700', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Order ID & Time</th>
                   <th style={{ padding: '1rem 1.25rem', color: 'var(--text-secondary)', fontWeight: '700', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Customer</th>
                   <th style={{ padding: '1rem 1.25rem', color: 'var(--text-secondary)', fontWeight: '700', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Stall & Location</th>
@@ -1004,6 +1146,16 @@ const SuperAdminOrdersFeed = ({ token, socket, stores = [], locations = [] }) =>
                       onMouseEnter={(e) => e.currentTarget.style.background = '#f8fafc'}
                       onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                     >
+                      {/* Row Checkbox */}
+                      <td style={{ width: '48px', padding: '1rem 1.25rem', textAlign: 'center' }}>
+                        <input 
+                          type="checkbox"
+                          checked={selectedOrderIds.includes(o._id || o.id)}
+                          onChange={() => toggleSelectOrder(o._id || o.id)}
+                          style={{ cursor: 'pointer', width: '16px', height: '16px', accentColor: 'var(--primary, #ef4123)' }}
+                        />
+                      </td>
+
                       {/* Order ID & Time */}
                       <td style={{ padding: '1rem 1.25rem' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
@@ -1047,6 +1199,40 @@ const SuperAdminOrdersFeed = ({ token, socket, stores = [], locations = [] }) =>
                         <div style={{ display: 'inline-block', fontSize: '0.7rem', color: '#64748b', background: 'rgba(0,0,0,0.04)', padding: '0.15rem 0.5rem', borderRadius: '4px', marginTop: '0.25rem', fontWeight: '600' }}>
                           {o.store?.market || 'Campus Stall'}
                         </div>
+                        {o.orderType === 'Delivery' ? (
+                          <div style={{ marginTop: '0.35rem' }}>
+                            <span style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.25rem',
+                              background: 'rgba(249, 115, 22, 0.12)',
+                              border: '1px solid rgba(249, 115, 22, 0.3)',
+                              color: '#ea580c',
+                              fontSize: '0.68rem',
+                              fontWeight: '800',
+                              padding: '0.15rem 0.45rem',
+                              borderRadius: '6px'
+                            }}>
+                              🛵 Delivery
+                            </span>
+                            {o.riderName && (
+                              <div style={{ fontSize: '0.72rem', color: '#0f172a', fontWeight: '700', marginTop: '0.15rem' }}>
+                                Rider: {o.riderName} ({o.riderPhone})
+                              </div>
+                            )}
+                            {o.deliveryAddress && (
+                              <div style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: '600' }}>
+                                📍 {o.deliveryAddress}
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <div style={{ marginTop: '0.25rem' }}>
+                            <span style={{ fontSize: '0.68rem', color: '#64748b', background: '#f1f5f9', padding: '0.15rem 0.4rem', borderRadius: '4px', fontWeight: '600' }}>
+                              {o.orderType || 'Dine In'}{o.tableNumber ? ` • T-${o.tableNumber}` : ''}
+                            </span>
+                          </div>
+                        )}
                       </td>
 
                       {/* Items & Quantity */}
@@ -1148,6 +1334,24 @@ const SuperAdminOrdersFeed = ({ token, socket, stores = [], locations = [] }) =>
                               Abort
                             </button>
                           )}
+
+                          <button
+                            onClick={() => handleDeleteSingleOrder(o._id || o.id, o.orderNumber)}
+                            style={{
+                              padding: '0.4rem 0.55rem',
+                              borderRadius: '8px',
+                              background: 'rgba(239, 68, 68, 0.08)',
+                              border: '1px solid rgba(239, 68, 68, 0.2)',
+                              color: '#ef4444',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center'
+                            }}
+                            title="Delete Order Permanently"
+                          >
+                            <Trash2 size={13} />
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -1353,9 +1557,48 @@ const SuperAdminOrdersFeed = ({ token, socket, stores = [], locations = [] }) =>
                 <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: '800', textTransform: 'uppercase' }}>Stall & Location</span>
                 <div style={{ fontWeight: '800', fontSize: '0.95rem', color: 'var(--primary)', marginTop: '0.25rem' }}>{selectedOrder.store?.name || 'Stall'}</div>
                 <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: '600', marginTop: '0.15rem' }}>📍 {selectedOrder.store?.market || 'Campus'}</div>
-                <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Order Type: {selectedOrder.orderType || 'Take Away'}</div>
+                <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                  Order Type: {selectedOrder.orderType || 'Take Away'}{selectedOrder.tableNumber ? ` • Table: ${selectedOrder.tableNumber}` : ''}
+                </div>
               </div>
             </div>
+
+            {/* Delivery & Rider Audit Box */}
+            {selectedOrder.orderType === 'Delivery' && (
+              <div style={{ marginBottom: '1.5rem', background: '#eff6ff', border: '1.5px solid #3b82f6', borderRadius: '16px', padding: '1rem 1.25rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                  <span style={{ fontSize: '0.72rem', color: '#1d4ed8', fontWeight: '900', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    🛵 Universal Delivery & Rider Assignment
+                  </span>
+                  {selectedOrder.deliveryOtp && (
+                    <span style={{ fontSize: '0.75rem', fontWeight: '800', background: '#dbeafe', color: '#1e40af', padding: '0.15rem 0.5rem', borderRadius: '6px' }}>
+                      PIN: {selectedOrder.deliveryOtp}
+                    </span>
+                  )}
+                </div>
+                <div style={{ fontSize: '0.9rem', color: '#1e293b', fontWeight: '800', marginBottom: '0.35rem' }}>
+                  📍 Drop Address: {selectedOrder.deliveryAddress || 'Not specified'}
+                </div>
+                <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', fontSize: '0.8rem', color: '#475569' }}>
+                  <span>👤 Assigned Rider: <strong style={{ color: '#0f172a' }}>{selectedOrder.riderName || 'Unassigned'}</strong></span>
+                  {selectedOrder.riderPhone && <span>📞 Rider Phone: <strong style={{ color: '#0f172a' }}>{selectedOrder.riderPhone}</strong></span>}
+                  {selectedOrder.dispatchedAt && <span>🚀 Dispatched: <strong>{new Date(selectedOrder.dispatchedAt).toLocaleTimeString()}</strong></span>}
+                  {selectedOrder.deliveredAt && <span>✅ Delivered: <strong style={{ color: '#16a34a' }}>{new Date(selectedOrder.deliveredAt).toLocaleTimeString()}</strong></span>}
+                </div>
+              </div>
+            )}
+
+            {/* Special Cooking Request Banner */}
+            {selectedOrder.cookingInstructions && (
+              <div style={{ marginBottom: '1.5rem', background: '#fef3c7', border: '1.5px solid #f59e0b', borderRadius: '14px', padding: '0.85rem 1rem' }}>
+                <span style={{ fontSize: '0.7rem', color: '#92400e', fontWeight: '900', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  🍳 Special Cooking Request / Chef Note
+                </span>
+                <div style={{ fontSize: '0.85rem', color: '#78350f', fontWeight: '700', marginTop: '0.25rem' }}>
+                  "{selectedOrder.cookingInstructions}"
+                </div>
+              </div>
+            )}
 
             {/* Dissected Dish Items List */}
             <div style={{ marginBottom: '1.5rem' }}>

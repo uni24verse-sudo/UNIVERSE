@@ -3,6 +3,10 @@
  * Safe, idempotent DDL updates for Multi-Campus, Markets, and Hero Banners
  * Run with: node backend/scripts/deploy-migrations.js
  */
+const dns = require('dns');
+if (typeof dns.setDefaultResultOrder === 'function') {
+  dns.setDefaultResultOrder('ipv4first');
+}
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
@@ -162,6 +166,58 @@ async function migrate() {
     }
   } catch (err) {
     console.log('  ℹ️ Email ChannelAccount update note:', err.message);
+  }
+
+  // 7. Universal Delivery: Add columns to stores, orders, and create vendor_delivery_staff
+  console.log('📦 Updating database for Universal Self-Delivery & Tracking...');
+  try {
+    await prisma.$executeRawUnsafe(`ALTER TABLE "stores" ADD COLUMN IF NOT EXISTS "hasDeliveryService" BOOLEAN DEFAULT false;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "stores" ADD COLUMN IF NOT EXISTS "hasTableService" BOOLEAN DEFAULT false;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "stores" ADD COLUMN IF NOT EXISTS "deliveryFee" DOUBLE PRECISION DEFAULT 0;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "stores" ADD COLUMN IF NOT EXISTS "freeDeliveryThreshold" DOUBLE PRECISION DEFAULT 0;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "stores" ADD COLUMN IF NOT EXISTS "minDeliveryOrderValue" DOUBLE PRECISION DEFAULT 0;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "stores" ADD COLUMN IF NOT EXISTS "estimatedDeliveryTime" INT DEFAULT 30;`);
+    console.log('  ✅ Updated "stores" with delivery and table settings.');
+  } catch (err) {
+    console.log('  ℹ️ Stores delivery columns note:', err.message);
+  }
+
+  try {
+    await prisma.$executeRawUnsafe(`ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "deliveryAddress" TEXT DEFAULT '';`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "tableNumber" TEXT DEFAULT '';`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "cookingInstructions" TEXT DEFAULT '';`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "platformFee" DOUBLE PRECISION DEFAULT 0;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "deliveryFee" DOUBLE PRECISION DEFAULT 0;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "riderName" TEXT DEFAULT '';`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "riderPhone" TEXT DEFAULT '';`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "deliveryOtp" TEXT DEFAULT '';`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "dispatchedAt" TIMESTAMP WITH TIME ZONE;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "deliveredAt" TIMESTAMP WITH TIME ZONE;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "deliveryBatchId" TEXT DEFAULT '';`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "batchStopSequence" INT DEFAULT 1;`);
+    console.log('  ✅ Updated "orders" with delivery and order instructions.');
+  } catch (err) {
+    console.log('  ℹ️ Orders delivery columns note:', err.message);
+  }
+
+  try {
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS vendor_delivery_staff (
+        id TEXT PRIMARY KEY,
+        "storeId" TEXT NOT NULL REFERENCES "stores"("id") ON DELETE CASCADE,
+        name TEXT NOT NULL,
+        phone TEXT NOT NULL,
+        "vehicleNo" TEXT DEFAULT '',
+        "isActive" BOOLEAN DEFAULT true,
+        "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      );
+    `);
+    await prisma.$executeRawUnsafe(`
+      CREATE INDEX IF NOT EXISTS idx_vendor_delivery_staff_store ON vendor_delivery_staff("storeId");
+    `);
+    console.log('  ✅ Created "vendor_delivery_staff" table and index.');
+  } catch (err) {
+    console.log('  ℹ️ vendor_delivery_staff table note:', err.message);
   }
 
   console.log('✅ Database migration completed successfully! All tables & columns are in sync.');

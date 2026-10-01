@@ -9,6 +9,8 @@ const telegramService = require('../services/telegramService');
 const journeyEngineService = require('../services/journeyEngineService');
 const auditService = require('../services/auditService');
 const pushService = require('../services/pushService');
+const pricingEngine = require('../utils/pricingEngine');
+const globalOfferRepository = require('../repositories/globalOfferRepository');
 
 // Helper to obtain active Razorpay instance
 const getRazorpay = () => new Razorpay({
@@ -83,7 +85,7 @@ router.post('/razorpay/verify', async (req, res) => {
     }
 
     // Payment verified - NOW Create the Order in PostgreSQL
-    const { storeId, items, totalAmount, paymentMethod, customerPhone, customerName, orderType, packagingChargeApplied, isPreOrder, scheduledTime, isQRScan } = orderData;
+    const { storeId, items, totalAmount, paymentMethod, customerPhone, customerName, orderType, tableNumber, cookingInstructions, packagingChargeApplied, isPreOrder, scheduledTime, isQRScan, deliveryAddress } = orderData;
 
     const store = await prisma.store.findUnique({
       where: { id: String(storeId) },
@@ -108,6 +110,16 @@ router.post('/razorpay/verify', async (req, res) => {
       campus: campusName
     });
 
+    const globalOffers = await globalOfferRepository.getActive(orderData.storeId).catch(() => []);
+
+    const pricing = pricingEngine.calculateCartPricing(store, items, {
+      orderType: orderType || 'Dine In',
+      selectedOfferId: orderData.selectedOfferId,
+      couponCode: orderData.couponCode,
+      removeOffer: orderData.removeOffer,
+      globalOffers
+    });
+
     // Capture payer UPI ID / VPA if payment was made via UPI
     let payerUpiId = '';
     try {
@@ -130,14 +142,22 @@ router.post('/razorpay/verify', async (req, res) => {
         storeId: String(storeId),
         orderNumber,
         items: Array.isArray(items) ? items : [],
-        totalAmount: Number(totalAmount) || 0,
+        totalAmount: pricing.finalTotal > 0 ? pricing.finalTotal : (Number(totalAmount) || 0),
+        discountAmount: pricing.discountAmount || 0,
+        appliedOffer: pricing.appliedOffer || {},
         paymentMethod: paymentMethod || 'Razorpay',
         userId: customer ? customer.userId : '',
         customerPhone: String(customerPhone || ''),
         customerName: customerName || 'UniVerse Student',
         customerEmail: orderData.customerEmail || (customer?.email || ''),
         orderType: orderType || 'Dine In',
-        packagingChargeApplied: Number(packagingChargeApplied) || 0,
+        tableNumber: String(tableNumber || orderData.tableNumber || ''),
+        cookingInstructions: String(cookingInstructions || orderData.cookingInstructions || ''),
+        packagingChargeApplied: pricing.packagingFee,
+        deliveryAddress: String(deliveryAddress || orderData.deliveryAddress || ''),
+        platformFee: pricing.platformFee || 0,
+        deliveryFee: pricing.deliveryFee || 0,
+        deliveryOtp: (orderType === 'Delivery' ? Math.floor(1000 + Math.random() * 9000).toString() : ''),
         paymentStatus: 'Confirmed',
         status: initialStatus,
         transactionId: razorpay_payment_id,

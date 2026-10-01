@@ -180,7 +180,12 @@ class StoreRepository {
     if (details.autoAcceptOrders !== undefined) data.autoAcceptOrders = Boolean(details.autoAcceptOrders);
     if (details.accentColor !== undefined) data.accentColor = details.accentColor;
     if (details.image) data.image = details.image;
-    if (details.isOpen !== undefined) data.isOpen = Boolean(details.isOpen);
+    if (details.hasTableService !== undefined) data.hasTableService = Boolean(details.hasTableService);
+    if (details.hasDeliveryService !== undefined) data.hasDeliveryService = Boolean(details.hasDeliveryService);
+    if (details.deliveryFee !== undefined) data.deliveryFee = Number(details.deliveryFee) || 0;
+    if (details.freeDeliveryThreshold !== undefined) data.freeDeliveryThreshold = Number(details.freeDeliveryThreshold) || 0;
+    if (details.minDeliveryOrderValue !== undefined) data.minDeliveryOrderValue = Number(details.minDeliveryOrderValue) || 0;
+    if (details.estimatedDeliveryTime !== undefined) data.estimatedDeliveryTime = parseInt(details.estimatedDeliveryTime, 10) || 30;
 
     const updated = await prisma.store.update({
       where: { id: storeId },
@@ -453,6 +458,12 @@ class StoreRepository {
     if (details.telegramBotToken !== undefined) updateData.telegramBotToken = details.telegramBotToken;
     if (details.accentColor !== undefined) updateData.accentColor = details.accentColor;
     if (details.storeType !== undefined) updateData.storeType = details.storeType;
+    if (details.hasTableService !== undefined) updateData.hasTableService = Boolean(details.hasTableService);
+    if (details.hasDeliveryService !== undefined) updateData.hasDeliveryService = Boolean(details.hasDeliveryService);
+    if (details.deliveryFee !== undefined) updateData.deliveryFee = Number(details.deliveryFee) || 0;
+    if (details.freeDeliveryThreshold !== undefined) updateData.freeDeliveryThreshold = Number(details.freeDeliveryThreshold) || 0;
+    if (details.minDeliveryOrderValue !== undefined) updateData.minDeliveryOrderValue = Number(details.minDeliveryOrderValue) || 0;
+    if (details.estimatedDeliveryTime !== undefined) updateData.estimatedDeliveryTime = parseInt(details.estimatedDeliveryTime, 10) || 30;
 
     const updated = await prisma.store.update({
       where: { id: storeId },
@@ -464,6 +475,166 @@ class StoreRepository {
     });
 
     return normalizeStore(updated);
+  }
+
+  // ===================== STORE OFFERS & PROMOTIONS =====================
+  async getStoreOffers(storeId) {
+    const store = await prisma.store.findUnique({
+      where: { id: storeId },
+      select: { id: true, offers: true, name: true }
+    });
+    if (!store) return [];
+    return Array.isArray(store.offers) ? store.offers : [];
+  }
+
+  async createStoreOffer(storeId, adminId, offerData) {
+    const where = { id: storeId };
+    if (adminId) {
+      const admin = await prisma.admin.findUnique({ where: { id: adminId } });
+      if (admin && admin.role !== 'superadmin') {
+        where.adminId = adminId;
+      }
+    }
+
+    const store = await prisma.store.findFirst({ where });
+    if (!store) return null;
+
+    const offers = Array.isArray(store.offers) ? [...store.offers] : [];
+    const newOffer = {
+      id: crypto.randomUUID ? crypto.randomUUID() : generateId(),
+      title: offerData.title || 'Special Promotion',
+      description: offerData.description || '',
+      badgeText: offerData.badgeText || '',
+      discountType: offerData.discountType || 'PERCENTAGE_CART',
+      discountValue: Number(offerData.discountValue) || 0,
+      targetCategories: Array.isArray(offerData.targetCategories) ? offerData.targetCategories : [],
+      targetProductIds: Array.isArray(offerData.targetProductIds) ? offerData.targetProductIds : [],
+      minOrderValue: Number(offerData.minOrderValue) || 0,
+      maxDiscountCap: Number(offerData.maxDiscountCap) || 0,
+      isActive: offerData.isActive !== false,
+      startDate: offerData.startDate || null,
+      endDate: offerData.endDate || null,
+      usageCount: 0,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    offers.unshift(newOffer);
+
+    const updated = await prisma.store.update({
+      where: { id: storeId },
+      data: { offers }
+    });
+
+    return {
+      store: normalizeStore(updated),
+      offer: newOffer,
+      offers
+    };
+  }
+
+  async updateStoreOffer(storeId, adminId, offerId, offerData) {
+    const where = { id: storeId };
+    if (adminId) {
+      const admin = await prisma.admin.findUnique({ where: { id: adminId } });
+      if (admin && admin.role !== 'superadmin') {
+        where.adminId = adminId;
+      }
+    }
+
+    const store = await prisma.store.findFirst({ where });
+    if (!store) return null;
+
+    const offers = Array.isArray(store.offers) ? [...store.offers] : [];
+    const idx = offers.findIndex(o => String(o.id) === String(offerId));
+    if (idx === -1) return null;
+
+    const existing = offers[idx];
+    offers[idx] = {
+      ...existing,
+      ...(offerData.title !== undefined ? { title: offerData.title } : {}),
+      ...(offerData.description !== undefined ? { description: offerData.description } : {}),
+      ...(offerData.badgeText !== undefined ? { badgeText: offerData.badgeText } : {}),
+      ...(offerData.discountType !== undefined ? { discountType: offerData.discountType } : {}),
+      ...(offerData.discountValue !== undefined ? { discountValue: Number(offerData.discountValue) } : {}),
+      ...(offerData.targetCategories !== undefined ? { targetCategories: Array.isArray(offerData.targetCategories) ? offerData.targetCategories : [] } : {}),
+      ...(offerData.targetProductIds !== undefined ? { targetProductIds: Array.isArray(offerData.targetProductIds) ? offerData.targetProductIds : [] } : {}),
+      ...(offerData.minOrderValue !== undefined ? { minOrderValue: Number(offerData.minOrderValue) } : {}),
+      ...(offerData.maxDiscountCap !== undefined ? { maxDiscountCap: Number(offerData.maxDiscountCap) } : {}),
+      ...(offerData.isActive !== undefined ? { isActive: Boolean(offerData.isActive) } : {}),
+      ...(offerData.startDate !== undefined ? { startDate: offerData.startDate } : {}),
+      ...(offerData.endDate !== undefined ? { endDate: offerData.endDate } : {}),
+      updatedAt: new Date().toISOString()
+    };
+
+    const updated = await prisma.store.update({
+      where: { id: storeId },
+      data: { offers }
+    });
+
+    return {
+      store: normalizeStore(updated),
+      offer: offers[idx],
+      offers
+    };
+  }
+
+  async toggleStoreOffer(storeId, adminId, offerId) {
+    const where = { id: storeId };
+    if (adminId) {
+      const admin = await prisma.admin.findUnique({ where: { id: adminId } });
+      if (admin && admin.role !== 'superadmin') {
+        where.adminId = adminId;
+      }
+    }
+
+    const store = await prisma.store.findFirst({ where });
+    if (!store) return null;
+
+    const offers = Array.isArray(store.offers) ? [...store.offers] : [];
+    const idx = offers.findIndex(o => String(o.id) === String(offerId));
+    if (idx === -1) return null;
+
+    offers[idx].isActive = !offers[idx].isActive;
+    offers[idx].updatedAt = new Date().toISOString();
+
+    const updated = await prisma.store.update({
+      where: { id: storeId },
+      data: { offers }
+    });
+
+    return {
+      store: normalizeStore(updated),
+      offer: offers[idx],
+      offers
+    };
+  }
+
+  async deleteStoreOffer(storeId, adminId, offerId) {
+    const where = { id: storeId };
+    if (adminId) {
+      const admin = await prisma.admin.findUnique({ where: { id: adminId } });
+      if (admin && admin.role !== 'superadmin') {
+        where.adminId = adminId;
+      }
+    }
+
+    const store = await prisma.store.findFirst({ where });
+    if (!store) return null;
+
+    const offers = (Array.isArray(store.offers) ? store.offers : []).filter(
+      o => String(o.id) !== String(offerId)
+    );
+
+    const updated = await prisma.store.update({
+      where: { id: storeId },
+      data: { offers }
+    });
+
+    return {
+      store: normalizeStore(updated),
+      offers
+    };
   }
 }
 

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import axios from 'axios';
 import { 
   Smartphone, 
@@ -24,6 +25,11 @@ const SuperAdminChannelSettings = ({ token, socket }) => {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState({ whatsapp: { maxSlots: 5, slots: [] }, email: { accounts: [] } });
   const [activeTab, setActiveTab] = useState('whatsapp'); // 'whatsapp' | 'email'
+  const [topBarTarget, setTopBarTarget] = useState(null);
+
+  useEffect(() => {
+    setTopBarTarget(document.getElementById('superadmin-topbar-actions'));
+  }, []);
   
   // WhatsApp QR Modal State
   const [qrModal, setQrModal] = useState({ open: false, slotIndex: null, qrBase64: null, loading: false, error: '' });
@@ -268,59 +274,94 @@ const SuperAdminChannelSettings = ({ token, socket }) => {
 
   return (
     <div style={{ maxWidth: '1400px', margin: '0 auto', paddingBottom: '4rem' }}>
-      {/* HEADER BAR */}
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '2.5rem', flexWrap: 'wrap', gap: '1.5rem' }}>
-        <div>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 10px', borderRadius: '100px', background: 'rgba(239, 65, 35, 0.08)', color: 'var(--primary)', fontWeight: '800', fontSize: '0.75rem', marginBottom: '0.5rem' }}>
-            <ShieldCheck size={14} /> SuperAdmin Exclusive Gateway Hub
+      {/* Topbar Action Portal */}
+      {topBarTarget && createPortal(
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{ display: 'flex', gap: '3px', background: '#f1f5f9', padding: '3px', borderRadius: '10px' }}>
+            <button
+              onClick={() => setActiveTab('whatsapp')}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '6px', padding: '0.4rem 0.8rem',
+                borderRadius: '7px', border: 'none', fontWeight: '700', fontSize: '0.78rem', cursor: 'pointer',
+                background: activeTab === 'whatsapp' ? '#ffffff' : 'transparent',
+                color: activeTab === 'whatsapp' ? '#0f172a' : '#64748b',
+                boxShadow: activeTab === 'whatsapp' ? '0 1px 4px rgba(0,0,0,0.06)' : 'none'
+              }}
+            >
+              <Smartphone size={14} color="#25D366" />
+              WhatsApp ({uniqueWhatsappSlots.filter(s => s.status === 'connected').length}/5)
+            </button>
+            <button
+              onClick={() => setActiveTab('email')}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '6px', padding: '0.4rem 0.8rem',
+                borderRadius: '7px', border: 'none', fontWeight: '700', fontSize: '0.78rem', cursor: 'pointer',
+                background: activeTab === 'email' ? '#ffffff' : 'transparent',
+                color: activeTab === 'email' ? '#0f172a' : '#64748b',
+                boxShadow: activeTab === 'email' ? '0 1px 4px rgba(0,0,0,0.06)' : 'none'
+              }}
+            >
+              <Mail size={14} color="#ea4335" />
+              Gmail ({data.email.accounts.length})
+            </button>
           </div>
-          <h1 style={{ margin: 0, fontSize: '2.2rem', fontWeight: '900', letterSpacing: '-0.03em', color: '#0f172a' }}>
-            Channels & Multi-Device Hub
-          </h1>
-          <p style={{ margin: '0.35rem 0 0 0', color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
-            Manage up to 5 WhatsApp Baileys accounts and multiple Gmail SMTP senders with dedicated isolation.
-          </p>
-        </div>
 
-        {/* TABS */}
-        <div style={{ display: 'flex', gap: '0.5rem', background: '#f1f5f9', padding: '4px', borderRadius: '16px' }}>
+          {activeTab === 'email' && (
+            <button
+              onClick={() => setEmailModal(true)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '5px', padding: '0.45rem 0.85rem',
+                background: 'var(--primary)', color: 'white', border: 'none', borderRadius: '8px',
+                fontWeight: '700', fontSize: '0.78rem', cursor: 'pointer',
+                boxShadow: '0 2px 6px rgba(239, 65, 35, 0.2)'
+              }}
+            >
+              <Plus size={14} /> Add Sender
+            </button>
+          )}
+
+          <button
+            onClick={fetchSummary}
+            title="Refresh Status"
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              width: '32px', height: '32px', borderRadius: '8px', border: '1px solid #cbd5e1',
+              background: '#ffffff', color: '#475569', cursor: 'pointer'
+            }}
+          >
+            <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
+          </button>
+        </div>,
+        topBarTarget
+      )}
+
+      {/* Fallback tabs if portal not mounted */}
+      {!topBarTarget && (
+        <div style={{ display: 'flex', gap: '0.5rem', background: '#f1f5f9', padding: '4px', borderRadius: '16px', marginBottom: '1.5rem', width: 'fit-content' }}>
           <button
             onClick={() => setActiveTab('whatsapp')}
             style={{
               display: 'flex', alignItems: 'center', gap: '8px', padding: '0.6rem 1.2rem',
               borderRadius: '12px', border: 'none', fontWeight: '800', fontSize: '0.9rem', cursor: 'pointer',
               background: activeTab === 'whatsapp' ? '#ffffff' : 'transparent',
-              color: activeTab === 'whatsapp' ? '#0f172a' : '#64748b',
-              boxShadow: activeTab === 'whatsapp' ? '0 2px 8px rgba(0,0,0,0.06)' : 'none',
-              transition: 'all 0.2s'
+              color: activeTab === 'whatsapp' ? '#0f172a' : '#64748b'
             }}
           >
-            <Smartphone size={18} color="#25D366" />
-            WhatsApp Hub (Max 5)
-            <span style={{ fontSize: '0.75rem', padding: '2px 8px', borderRadius: '100px', background: activeTab === 'whatsapp' ? 'rgba(37, 211, 102, 0.15)' : '#e2e8f0', color: activeTab === 'whatsapp' ? '#16a34a' : '#64748b' }}>
-              {uniqueWhatsappSlots.filter(s => s.status === 'connected').length}/5 Active
-            </span>
+            <Smartphone size={18} color="#25D366" /> WhatsApp Hub
           </button>
-
           <button
             onClick={() => setActiveTab('email')}
             style={{
               display: 'flex', alignItems: 'center', gap: '8px', padding: '0.6rem 1.2rem',
               borderRadius: '12px', border: 'none', fontWeight: '800', fontSize: '0.9rem', cursor: 'pointer',
               background: activeTab === 'email' ? '#ffffff' : 'transparent',
-              color: activeTab === 'email' ? '#0f172a' : '#64748b',
-              boxShadow: activeTab === 'email' ? '0 2px 8px rgba(0,0,0,0.06)' : 'none',
-              transition: 'all 0.2s'
+              color: activeTab === 'email' ? '#0f172a' : '#64748b'
             }}
           >
-            <Mail size={18} color="#ea4335" />
-            Gmail SMTP Senders
-            <span style={{ fontSize: '0.75rem', padding: '2px 8px', borderRadius: '100px', background: activeTab === 'email' ? 'rgba(234, 67, 53, 0.15)' : '#e2e8f0', color: activeTab === 'email' ? '#ea4335' : '#64748b' }}>
-              {data.email.accounts.length}
-            </span>
+            <Mail size={18} color="#ea4335" /> Gmail SMTP
           </button>
         </div>
-      </header>
+      )}
 
       {/* WHATSAPP 5-SLOT GRID */}
       {activeTab === 'whatsapp' && (

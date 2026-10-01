@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import axios from 'axios';
 import { QRCodeSVG } from 'qrcode.react';
 import { 
@@ -20,7 +21,8 @@ import {
   Sparkles, 
   Zap,
   TrendingUp,
-  CreditCard
+  CreditCard,
+  Trash2
 } from 'lucide-react';
 
 const SuperAdminRefunds = ({ token, socket }) => {
@@ -52,8 +54,68 @@ const SuperAdminRefunds = ({ token, socket }) => {
   // Copy Feedback Tracking
   const [copiedId, setCopiedId] = useState(null);
 
+  // Bulk / Single Delete State
+  const [selectedRefundIds, setSelectedRefundIds] = useState([]);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [topBarTarget, setTopBarTarget] = useState(null);
+
+  useEffect(() => {
+    setTopBarTarget(document.getElementById('superadmin-topbar-actions'));
+  }, []);
+
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
   const authConfig = { headers: { Authorization: `Bearer ${token}` } };
+
+  const toggleSelectRefund = (id) => {
+    setSelectedRefundIds(prev => 
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAllRefunds = (items) => {
+    const allIds = items.map(r => r._id || r.id);
+    const allSelected = allIds.length > 0 && allIds.every(id => selectedRefundIds.includes(id));
+    if (allSelected) {
+      setSelectedRefundIds(prev => prev.filter(id => !allIds.includes(id)));
+    } else {
+      setSelectedRefundIds(prev => [...new Set([...prev, ...allIds])]);
+    }
+  };
+
+  const handleDeleteSingleRefund = async (refundId, label = 'this refund') => {
+    if (!window.confirm(`Are you sure you want to permanently delete refund entry (${label})? This cannot be undone.`)) return;
+
+    try {
+      await axios.delete(`${API_URL}/api/super-admin/refunds/${refundId}`, authConfig);
+      setSelectedRefundIds(prev => prev.filter(id => id !== refundId));
+      fetchPendingRefunds(true);
+      fetchRefundHistory(true);
+      alert('Refund entry deleted successfully.');
+    } catch (err) {
+      alert('Failed to delete refund: ' + (err.response?.data?.message || err.message));
+    }
+  };
+
+  const handleBulkDeleteRefunds = async () => {
+    if (selectedRefundIds.length === 0) return;
+    if (!window.confirm(`Are you sure you want to permanently delete ${selectedRefundIds.length} selected refund entries? This cannot be undone.`)) return;
+
+    try {
+      setIsDeleting(true);
+      await axios.post(`${API_URL}/api/super-admin/refunds/bulk-delete`, 
+        { ids: selectedRefundIds }, 
+        authConfig
+      );
+      setSelectedRefundIds([]);
+      fetchPendingRefunds(true);
+      fetchRefundHistory(true);
+      alert('Selected refund entries deleted successfully.');
+    } catch (err) {
+      alert('Bulk delete failed: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   // Fetch pending refunds, history count, and alert config on mount
   useEffect(() => {
@@ -220,43 +282,33 @@ const SuperAdminRefunds = ({ token, socket }) => {
 
   return (
     <div>
-      {/* Header & Controls */}
-      <header style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: 'linear-gradient(135deg, #ef4444, #dc2626)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ffffff', boxShadow: '0 4px 14px rgba(239, 68, 68, 0.3)' }}>
-              <RotateCcw size={22} />
-            </div>
-            <div>
-              <h1 style={{ fontSize: '1.75rem', fontWeight: '900', margin: 0, color: 'var(--text-primary)' }}>Instant Direct Refunds</h1>
-              <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Direct UPI fulfillment desk with 1-tap mobile payment & WhatsApp alerts</p>
-            </div>
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+      {/* Topbar Actions Portal */}
+      {topBarTarget && createPortal(
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
           <button 
             onClick={openConfigModal}
             style={{
-              display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.65rem 1.25rem',
-              borderRadius: '12px', background: '#ffffff', border: '1px solid var(--surface-border)',
-              color: 'var(--text-primary)', fontWeight: '700', fontSize: '0.85rem', cursor: 'pointer',
-              boxShadow: '0 2px 6px rgba(0,0,0,0.03)'
+              display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.45rem 0.85rem',
+              borderRadius: '8px', background: '#ffffff', border: '1px solid #e2e8f0',
+              color: '#0f172a', fontWeight: '700', fontSize: '0.8rem', cursor: 'pointer',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
             }}
           >
-            <Settings size={16} color="var(--primary)" /> Team Alert Settings
+            <Settings size={14} color="var(--primary)" /> Team Alert Settings
           </button>
           <button 
             onClick={() => { fetchPendingRefunds(); if (activeSubTab === 'history') fetchRefundHistory(); }}
             style={{
-              padding: '0.65rem 1rem', borderRadius: '12px', background: '#ffffff',
-              border: '1px solid var(--surface-border)', cursor: 'pointer', fontWeight: '700', fontSize: '0.85rem'
+              padding: '0.45rem 0.85rem', borderRadius: '8px', background: '#ffffff',
+              border: '1px solid #e2e8f0', cursor: 'pointer', fontWeight: '700', fontSize: '0.8rem',
+              color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.35rem'
             }}
           >
-            🔄 Refresh
+            <RotateCcw size={13} /> Refresh
           </button>
-        </div>
-      </header>
+        </div>,
+        topBarTarget
+      )}
 
       {/* Metrics Row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1.25rem', marginBottom: '2rem' }}>
@@ -354,37 +406,121 @@ const SuperAdminRefunds = ({ token, socket }) => {
               </p>
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: '1.5rem' }}>
-              {pendingRefunds.map(refund => {
-                const order = refund.orderId || {};
-                const upiId = refund.customerUpiId || order.customerUpiId || order.payerUpiId || '';
-                const deepLink = getUpiDeepLink(refund);
+            <div>
+              {/* BULK ACTION BAR */}
+              {selectedRefundIds.length > 0 && (
+                <div style={{
+                  marginBottom: '1.25rem',
+                  padding: '0.85rem 1.25rem',
+                  background: '#fff1f2',
+                  border: '1.5px solid #fecdd3',
+                  borderRadius: '16px',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  animation: 'fadeIn 0.2s ease'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <span style={{ fontWeight: '800', color: '#e11d48', fontSize: '0.9rem' }}>
+                      {selectedRefundIds.length} refund{selectedRefundIds.length > 1 ? 's' : ''} selected
+                    </span>
+                    <button
+                      onClick={() => setSelectedRefundIds([])}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#64748b',
+                        fontSize: '0.8rem',
+                        fontWeight: '700',
+                        cursor: 'pointer',
+                        textDecoration: 'underline'
+                      }}
+                    >
+                      Clear selection
+                    </button>
+                  </div>
+                  <button
+                    onClick={handleBulkDeleteRefunds}
+                    disabled={isDeleting}
+                    style={{
+                      padding: '0.5rem 1.1rem',
+                      borderRadius: '10px',
+                      border: 'none',
+                      background: '#e11d48',
+                      color: '#ffffff',
+                      fontWeight: '800',
+                      fontSize: '0.85rem',
+                      cursor: isDeleting ? 'not-allowed' : 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      boxShadow: '0 2px 8px rgba(225, 29, 72, 0.25)'
+                    }}
+                  >
+                    <Trash2 size={15} />
+                    {isDeleting ? 'Deleting...' : `Delete Selected (${selectedRefundIds.length})`}
+                  </button>
+                </div>
+              )}
 
-                return (
-                  <div key={refund._id} style={{
-                    background: '#ffffff', borderRadius: '24px', border: '1.5px solid rgba(239, 68, 68, 0.25)',
-                    padding: '1.5rem', boxShadow: '0 8px 24px rgba(0,0,0,0.04)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between'
-                  }}>
-                    <div>
-                      {/* Card Header */}
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
-                        <div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <span style={{ fontSize: '1.15rem', fontWeight: '900', color: 'var(--text-primary)' }}>Order #{order.orderNumber || 'N/A'}</span>
-                            <span style={{ fontSize: '0.7rem', padding: '0.15rem 0.5rem', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', borderRadius: '6px', fontWeight: '800' }}>
-                              PENDING
-                            </span>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: '1.5rem' }}>
+                {pendingRefunds.map(refund => {
+                  const order = refund.orderId || {};
+                  const upiId = refund.customerUpiId || order.customerUpiId || order.payerUpiId || '';
+                  const deepLink = getUpiDeepLink(refund);
+                  const isSelected = selectedRefundIds.includes(refund._id);
+
+                  return (
+                    <div key={refund._id} style={{
+                      background: isSelected ? 'rgba(254, 242, 242, 0.6)' : '#ffffff',
+                      borderRadius: '24px', border: isSelected ? '2px solid #e11d48' : '1.5px solid rgba(239, 68, 68, 0.25)',
+                      padding: '1.5rem', boxShadow: '0 8px 24px rgba(0,0,0,0.04)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between'
+                    }}>
+                      <div>
+                        {/* Card Header */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+                          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => toggleSelectRefund(refund._id)}
+                              style={{ width: '18px', height: '18px', marginTop: '3px', cursor: 'pointer', accentColor: '#e11d48' }}
+                            />
+                            <div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <span style={{ fontSize: '1.15rem', fontWeight: '900', color: 'var(--text-primary)' }}>Order #{order.orderNumber || 'N/A'}</span>
+                                <span style={{ fontSize: '0.7rem', padding: '0.15rem 0.5rem', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', borderRadius: '6px', fontWeight: '800' }}>
+                                  PENDING
+                                </span>
+                              </div>
+                              <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                                {order.store?.name || 'Counter'} • {new Date(refund.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                              </p>
+                            </div>
                           </div>
-                          <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                            {order.store?.name || 'Counter'} • {new Date(refund.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
-                          </p>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                            <span style={{ fontSize: '1.6rem', fontWeight: '900', color: 'var(--secondary)' }}>
+                              ₹{(refund.amount || order.totalAmount || 0).toFixed(2)}
+                            </span>
+                            <button
+                              onClick={() => handleDeleteSingleRefund(refund._id, `Order #${order.orderNumber || refund._id}`)}
+                              title="Delete refund entry"
+                              style={{
+                                background: '#fff1f2',
+                                border: '1px solid #fecdd3',
+                                color: '#e11d48',
+                                padding: '6px 8px',
+                                borderRadius: '8px',
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                              }}
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
                         </div>
-                        <div style={{ textAlign: 'right' }}>
-                          <span style={{ fontSize: '1.6rem', fontWeight: '900', color: 'var(--secondary)' }}>
-                            ₹{(refund.amount || order.totalAmount || 0).toFixed(2)}
-                          </span>
-                        </div>
-                      </div>
 
                       {/* Customer Details */}
                       <div style={{ background: '#f8fafc', borderRadius: '16px', padding: '0.85rem', marginBottom: '1rem', border: '1px solid var(--surface-border)' }}>
@@ -527,13 +663,70 @@ const SuperAdminRefunds = ({ token, socket }) => {
                 );
               })}
             </div>
-          )}
+          </div>
+        )}
         </div>
       )}
 
       {/* TAB 2: SETTLED REFUND HISTORY */}
       {activeSubTab === 'history' && (
         <div>
+          {/* BULK ACTION BAR */}
+          {selectedRefundIds.length > 0 && (
+            <div style={{
+              marginBottom: '1.25rem',
+              padding: '0.85rem 1.25rem',
+              background: '#fff1f2',
+              border: '1.5px solid #fecdd3',
+              borderRadius: '16px',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              animation: 'fadeIn 0.2s ease'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <span style={{ fontWeight: '800', color: '#e11d48', fontSize: '0.9rem' }}>
+                  {selectedRefundIds.length} refund{selectedRefundIds.length > 1 ? 's' : ''} selected
+                </span>
+                <button
+                  onClick={() => setSelectedRefundIds([])}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#64748b',
+                    fontSize: '0.8rem',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                    textDecoration: 'underline'
+                  }}
+                >
+                  Clear selection
+                </button>
+              </div>
+              <button
+                onClick={handleBulkDeleteRefunds}
+                disabled={isDeleting}
+                style={{
+                  padding: '0.5rem 1.1rem',
+                  borderRadius: '10px',
+                  border: 'none',
+                  background: '#e11d48',
+                  color: '#ffffff',
+                  fontWeight: '800',
+                  fontSize: '0.85rem',
+                  cursor: isDeleting ? 'not-allowed' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  boxShadow: '0 2px 8px rgba(225, 29, 72, 0.25)'
+                }}
+              >
+                <Trash2 size={15} />
+                {isDeleting ? 'Deleting...' : `Delete Selected (${selectedRefundIds.length})`}
+              </button>
+            </div>
+          )}
+
           {/* Search Header */}
           <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem' }}>
             <div style={{ flex: 1, position: 'relative' }}>
@@ -562,6 +755,14 @@ const SuperAdminRefunds = ({ token, socket }) => {
                 <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
                   <thead>
                     <tr style={{ background: '#f8fafc', borderBottom: '1px solid var(--surface-border)', color: 'var(--text-secondary)' }}>
+                      <th style={{ width: '48px', padding: '1rem 1.25rem', textAlign: 'center' }}>
+                        <input
+                          type="checkbox"
+                          checked={historyRefunds.length > 0 && historyRefunds.every(r => selectedRefundIds.includes(r._id))}
+                          onChange={() => toggleSelectAllRefunds(historyRefunds)}
+                          style={{ width: '16px', height: '16px', cursor: 'pointer', accentColor: '#e11d48' }}
+                        />
+                      </th>
                       <th style={{ padding: '1rem 1.25rem', fontWeight: '700' }}>Order Details</th>
                       <th style={{ padding: '1rem 1.25rem', fontWeight: '700' }}>Student & UPI</th>
                       <th style={{ padding: '1rem 1.25rem', fontWeight: '700' }}>Amount</th>
@@ -573,8 +774,17 @@ const SuperAdminRefunds = ({ token, socket }) => {
                   <tbody>
                     {historyRefunds.map(refund => {
                       const order = refund.orderId || {};
+                      const isSelected = selectedRefundIds.includes(refund._id);
                       return (
-                        <tr key={refund._id} style={{ borderBottom: '1px solid var(--surface-border)' }}>
+                        <tr key={refund._id} style={{ borderBottom: '1px solid var(--surface-border)', background: isSelected ? 'rgba(254, 242, 242, 0.6)' : 'transparent' }}>
+                          <td style={{ width: '48px', padding: '1rem 1.25rem', textAlign: 'center' }}>
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => toggleSelectRefund(refund._id)}
+                              style={{ width: '16px', height: '16px', cursor: 'pointer', accentColor: '#e11d48' }}
+                            />
+                          </td>
                           <td style={{ padding: '1rem 1.25rem' }}>
                             <div style={{ fontWeight: '800', color: 'var(--text-primary)' }}>Order #{order.orderNumber || 'N/A'}</div>
                             <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{order.store?.name || 'Counter'}</div>
@@ -615,24 +825,43 @@ const SuperAdminRefunds = ({ token, socket }) => {
                             <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>By: {refund.settledBy || 'Super Admin'}</div>
                           </td>
                           <td style={{ padding: '1rem 1.25rem', textAlign: 'right' }}>
-                            <button
-                              onClick={() => {
-                                setEditUtrModal({
-                                  refundId: refund._id,
-                                  orderNumber: order.orderNumber,
-                                  currentUtr: refund.utr || ''
-                                });
-                                setEditUtrValue(refund.utr || '');
-                              }}
-                              style={{
-                                background: '#ffffff', border: '1px solid var(--surface-border)',
-                                color: 'var(--primary)', padding: '0.4rem 0.8rem', borderRadius: '8px',
-                                fontSize: '0.75rem', fontWeight: '800', cursor: 'pointer', display: 'inline-flex',
-                                alignItems: 'center', gap: '0.3rem'
-                              }}
-                            >
-                              <Edit3 size={12} /> {refund.utr ? 'Edit UTR' : 'Add UTR'}
-                            </button>
+                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
+                              <button
+                                onClick={() => {
+                                  setEditUtrModal({
+                                    refundId: refund._id,
+                                    orderNumber: order.orderNumber,
+                                    currentUtr: refund.utr || ''
+                                  });
+                                  setEditUtrValue(refund.utr || '');
+                                }}
+                                style={{
+                                  background: '#ffffff', border: '1px solid var(--surface-border)',
+                                  color: 'var(--primary)', padding: '0.4rem 0.8rem', borderRadius: '8px',
+                                  fontSize: '0.75rem', fontWeight: '800', cursor: 'pointer', display: 'inline-flex',
+                                  alignItems: 'center', gap: '0.3rem'
+                                }}
+                              >
+                                <Edit3 size={12} /> {refund.utr ? 'Edit UTR' : 'Add UTR'}
+                              </button>
+                              <button
+                                onClick={() => handleDeleteSingleRefund(refund._id, `Order #${order.orderNumber || refund._id}`)}
+                                title="Delete settled refund record"
+                                style={{
+                                  background: '#fff1f2',
+                                  border: '1px solid #fecdd3',
+                                  color: '#e11d48',
+                                  padding: '0.4rem 0.6rem',
+                                  borderRadius: '8px',
+                                  cursor: 'pointer',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center'
+                                }}
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       );
