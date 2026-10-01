@@ -308,14 +308,8 @@ export const CartProvider = ({ children }) => {
     }
 
     let selectedEvaluation = null;
-    if (selectedOfferId === 'NONE') {
-      selectedEvaluation = null;
-    } else if (selectedOfferId) {
+    if (selectedOfferId && selectedOfferId !== 'NONE') {
       selectedEvaluation = eligibleOffers.find(e => String(e.id) === String(selectedOfferId));
-    }
-
-    if (!selectedEvaluation && selectedOfferId !== 'NONE' && eligibleOffers.length > 0) {
-      selectedEvaluation = eligibleOffers.reduce((best, curr) => curr.potentialDiscount > best.potentialDiscount ? curr : best);
     }
 
     const discountAmount = selectedEvaluation ? selectedEvaluation.potentialDiscount : 0;

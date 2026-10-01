@@ -36,22 +36,31 @@ async function runComprehensiveProfitAudit() {
     { productId: 'p2', name: 'Fries', price: 100, quantity: 1 }   // 100 -> subtotal = 400
   ];
 
-  // 1A. Dine In
-  const dineInPricing = calculateCartPricing(mockStore, sampleItems, { orderType: 'Dine In' });
-  console.log('1A. Dine In Order (Subtotal: ₹400, 10% offer):');
-  console.log(`    Original Subtotal: ₹${dineInPricing.originalSubtotal}`);
-  console.log(`    Discount (10%):   -₹${dineInPricing.discountAmount}`);
-  console.log(`    Packaging Fee:     ₹${dineInPricing.packagingFee} (Expected: 0)`);
-  console.log(`    Delivery Fee:      ₹${dineInPricing.deliveryFee} (Expected: 0)`);
-  console.log(`    Platform Fee:      ₹${dineInPricing.platformFee} (Expected: 0)`);
-  console.log(`    Final Grand Total: ₹${dineInPricing.finalTotal} (Expected: 360)`);
-  if (dineInPricing.finalTotal !== 360 || dineInPricing.packagingFee !== 0 || dineInPricing.platformFee !== 0) {
-    throw new Error('Dine In pricing calculation mismatch');
+  // 1A. Dine In without offer (No auto-apply, full price)
+  const dineInNoOffer = calculateCartPricing(mockStore, sampleItems, { orderType: 'Dine In' });
+  console.log('1A. Dine In Order without offer (Subtotal: ₹400):');
+  console.log(`    Original Subtotal: ₹${dineInNoOffer.originalSubtotal}`);
+  console.log(`    Discount:          -₹${dineInNoOffer.discountAmount} (Expected: 0 - no auto-apply)`);
+  console.log(`    Packaging Fee:     ₹${dineInNoOffer.packagingFee} (Expected: 0)`);
+  console.log(`    Delivery Fee:      ₹${dineInNoOffer.deliveryFee} (Expected: 0)`);
+  console.log(`    Platform Fee:      ₹${dineInNoOffer.platformFee} (Expected: 0)`);
+  console.log(`    Final Grand Total: ₹${dineInNoOffer.finalTotal} (Expected: 400)`);
+  if (dineInNoOffer.finalTotal !== 400 || dineInNoOffer.discountAmount !== 0) {
+    throw new Error('No-offer pricing calculation mismatch');
   }
 
-  // 1B. Takeaway (Packaging Fee applies, Platform Fee = 0)
-  const takeawayPricing = calculateCartPricing(mockStore, sampleItems, { orderType: 'Take Away' });
-  console.log('\n1B. Takeaway Order (Subtotal: ₹400, Packaging: ₹10):');
+  // 1B. Dine In with explicit offer selection
+  const dineInWithOffer = calculateCartPricing(mockStore, sampleItems, { orderType: 'Dine In', selectedOfferId: 'OFFER10' });
+  console.log('\n1B. Dine In Order with explicit offer (Subtotal: ₹400, 10% offer):');
+  console.log(`    Discount (10%):   -₹${dineInWithOffer.discountAmount}`);
+  console.log(`    Final Grand Total: ₹${dineInWithOffer.finalTotal} (Expected: 360)`);
+  if (dineInWithOffer.finalTotal !== 360 || dineInWithOffer.discountAmount !== 40) {
+    throw new Error('Explicit offer pricing calculation mismatch');
+  }
+
+  // 1C. Takeaway (Packaging Fee applies, Platform Fee = 0)
+  const takeawayPricing = calculateCartPricing(mockStore, sampleItems, { orderType: 'Take Away', selectedOfferId: 'OFFER10' });
+  console.log('\n1C. Takeaway Order (Subtotal: ₹400, Packaging: ₹10):');
   console.log(`    Discounted Subtotal: ₹${takeawayPricing.discountedSubtotal}`);
   console.log(`    Packaging Fee:       ₹${takeawayPricing.packagingFee} (Expected: 10)`);
   console.log(`    Platform Fee:        ₹${takeawayPricing.platformFee} (Expected: 0)`);
@@ -60,9 +69,9 @@ async function runComprehensiveProfitAudit() {
     throw new Error('Takeaway pricing calculation mismatch');
   }
 
-  // 1C. Delivery (Below Free Threshold: Packaging + Delivery + Platform Fee ₹5)
-  const deliveryPricing = calculateCartPricing(mockStore, sampleItems, { orderType: 'Delivery' });
-  console.log('\n1C. Delivery Order (Subtotal: ₹400, Delivery: ₹20, Platform: ₹5, Packaging: ₹10):');
+  // 1D. Delivery (Below Free Threshold: Packaging + Delivery + Platform Fee ₹5)
+  const deliveryPricing = calculateCartPricing(mockStore, sampleItems, { orderType: 'Delivery', selectedOfferId: 'OFFER10' });
+  console.log('\n1D. Delivery Order (Subtotal: ₹400, Delivery: ₹20, Platform: ₹5, Packaging: ₹10):');
   console.log(`    Discounted Subtotal: ₹${deliveryPricing.discountedSubtotal}`);
   console.log(`    Packaging Fee:       ₹${deliveryPricing.packagingFee} (Expected: 10)`);
   console.log(`    Delivery Fee:        ₹${deliveryPricing.deliveryFee} (Expected: 20)`);
@@ -72,10 +81,10 @@ async function runComprehensiveProfitAudit() {
     throw new Error('Delivery pricing calculation mismatch');
   }
 
-  // 1D. Delivery Above Free Threshold (Subtotal: ₹600 -> Free delivery, Platform fee ₹5 still applies)
+  // 1E. Delivery Above Free Threshold (Subtotal: ₹600 -> Free delivery, Platform fee ₹5 still applies)
   const largeItems = [{ productId: 'p1', name: 'Platter', price: 600, quantity: 1 }];
-  const freeDeliveryPricing = calculateCartPricing(mockStore, largeItems, { orderType: 'Delivery' });
-  console.log('\n1D. Delivery Above Free Threshold (Subtotal: ₹600, Free Delivery):');
+  const freeDeliveryPricing = calculateCartPricing(mockStore, largeItems, { orderType: 'Delivery', selectedOfferId: 'OFFER10' });
+  console.log('\n1E. Delivery Above Free Threshold (Subtotal: ₹600, Free Delivery):');
   console.log(`    Discount (10%):      -₹${freeDeliveryPricing.discountAmount} (540 subtotal)`);
   console.log(`    Delivery Fee:        ₹${freeDeliveryPricing.deliveryFee} (Expected: 0 - free delivery)`);
   console.log(`    Platform Fee:        ₹${freeDeliveryPricing.platformFee} (Expected: 5 - convenience fee)`);

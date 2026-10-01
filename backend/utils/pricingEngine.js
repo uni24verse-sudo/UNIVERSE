@@ -236,19 +236,13 @@ function calculateCartPricing(store, cartItems = [], options = {}) {
         };
       }
     }
-  } else if (selectedOfferId) {
+  } else if (selectedOfferId && selectedOfferId !== 'NONE') {
     selectedEvaluation = eligibleOffers.find(
       (e) => String(e.offer.id) === String(selectedOfferId)
     );
   }
 
-  // Auto-apply highest discount if no explicit eligible selection and not explicitly removed
-  if (!selectedEvaluation && !couponCode && selectedOfferId !== 'NONE' && options.removeOffer !== true && eligibleOffers.length > 0) {
-    selectedEvaluation = eligibleOffers.reduce((best, curr) =>
-      curr.discountAmount > best.discountAmount ? curr : best
-    );
-  }
-
+  // Only apply discount if explicitly selected or entered via valid coupon code
   const discountAmount = selectedEvaluation ? selectedEvaluation.discountAmount : 0;
   const discountedSubtotal = Math.max(0, originalSubtotal - discountAmount);
   const finalTotal = Math.max(0, Math.round((discountedSubtotal + packagingFee + deliveryFee + platformFee) * 100) / 100);
