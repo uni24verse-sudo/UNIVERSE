@@ -273,10 +273,19 @@ const PrivacyPolicy = () => {
                   All payments are processed securely through Razorpay (RBI-authorized payment aggregator). UniVerse does not store your card numbers, UPI PINs, or banking credentials. Only payment confirmation status and transaction references are retained for order fulfillment.
                 </p>
               </div>
+
+              <div style={{ background: '#f8fafc', padding: '1.5rem', borderRadius: '16px', border: '1px solid var(--surface-border)' }}>
+                <h4 style={{ color: 'var(--text-primary)', fontSize: '1.05rem', fontWeight: '700', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <Smartphone size={18} color="var(--primary)" /> Precise Location (GPS)
+                </h4>
+                <p style={{ fontSize: '0.9rem', margin: 0 }}>
+                  When you use the "Auto-detect GPS" button for delivery orders, the app requests foreground location access. This data is used solely to determine your delivery drop-off point and provide accurate navigation to delivery riders. Background location is never collected or tracked.
+                </p>
+              </div>
             </div>
 
             <p style={{ fontSize: '0.9rem', fontStyle: 'italic', color: 'var(--text-secondary)' }}>
-              The UniVerse Food app does <strong style={{ color: 'var(--text-primary)' }}>not</strong> collect location data (GPS), contact lists, browsing history, photos, login credentials, or any biometric data. You may clear all locally stored data by clearing the app's data from your device settings or by uninstalling the app.
+              The UniVerse Food app does <strong style={{ color: 'var(--text-primary)' }}>not</strong> collect contact lists, browsing history, personal photos, or any biometric data. You may clear all locally stored data by clearing the app's data from your device settings or by uninstalling the app.
             </p>
           </div>
 
