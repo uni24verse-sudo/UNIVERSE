@@ -136,12 +136,12 @@ router.post('/razorpay/verify', async (req, res) => {
     const orderNumber = generateOrderNumber();
     const handoverToken = generateHandoverToken();
 
-    const deliveryHouseNo = String(orderData.deliveryHouseNo || deliveryHouseNo || '');
-    const deliveryLandmark = String(orderData.deliveryLandmark || deliveryLandmark || '');
-    const deliveryArea = String(orderData.deliveryArea || deliveryArea || '');
-    const deliveryCoordinates = orderData.deliveryCoordinates || deliveryCoordinates || { lat: 0, lng: 0 };
+    const deliveryHouseNo = String(orderData?.deliveryHouseNo || '');
+    const deliveryLandmark = String(orderData?.deliveryLandmark || '');
+    const deliveryArea = String(orderData?.deliveryArea || '');
+    const deliveryCoordinates = orderData?.deliveryCoordinates || { lat: 0, lng: 0 };
 
-    let formattedDeliveryAddress = String(deliveryAddress || orderData.deliveryAddress || '').trim();
+    let formattedDeliveryAddress = String(orderData?.deliveryAddress || '').trim();
     if (!formattedDeliveryAddress && (deliveryHouseNo || deliveryArea || deliveryLandmark)) {
       formattedDeliveryAddress = [deliveryHouseNo, deliveryArea, deliveryLandmark ? `Near ${deliveryLandmark}` : ''].filter(Boolean).join(', ');
     }

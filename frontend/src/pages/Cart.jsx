@@ -1296,69 +1296,36 @@ const Cart = () => {
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
                   <div>
-                    <label style={{ fontSize: '0.75rem', fontWeight: '700', color: '#475569', marginBottom: '0.25rem', display: 'block' }}>
-                      House / Flat / Room / Hostel No. <span style={{ color: '#ef4444' }}>*</span>
-                    </label>
-                    <input
+                    <textarea
                       ref={addressRef}
-                      type="text"
-                      placeholder="e.g. House 10A/59 or Room 304, BH-1"
-                      value={deliveryHouseNo}
+                      rows={2}
+                      placeholder="e.g. 10A/59 Vrindavan Yojna or Hostel BH-1, Room 304"
+                      value={deliveryAddress}
                       onChange={(e) => {
-                        setDeliveryHouseNo(e.target.value);
-                        localStorage.setItem('universe_delivery_house', e.target.value);
+                        setDeliveryAddress(e.target.value);
+                        localStorage.setItem('universe_delivery_address', e.target.value);
                         setFieldErrors(prev => ({ ...prev, address: false }));
                         if (validationError) setValidationError('');
                       }}
                       style={{
                         width: '100%',
-                        padding: '0.65rem 0.85rem',
-                        borderRadius: '10px',
-                        border: fieldErrors.address && !deliveryHouseNo.trim() ? '2px solid #ef4444' : '1.5px solid #cbd5e1',
+                        padding: '0.75rem 1rem',
+                        borderRadius: '12px',
+                        border: fieldErrors.address && !deliveryAddress.trim() && !deliveryHouseNo.trim() ? '2px solid #ef4444' : '1.5px solid #cbd5e1',
                         background: '#f8fafc',
-                        fontSize: '0.875rem',
-                        fontWeight: '600',
+                        fontSize: '0.9rem',
+                        fontWeight: '500',
                         outline: 'none',
-                        boxSizing: 'border-box'
+                        boxSizing: 'border-box',
+                        resize: 'none'
                       }}
                     />
                   </div>
 
                   <div>
-                    <label style={{ fontSize: '0.75rem', fontWeight: '700', color: '#475569', marginBottom: '0.25rem', display: 'block' }}>
-                      Area / Colony / Street <span style={{ color: '#ef4444' }}>*</span>
-                    </label>
                     <input
                       type="text"
-                      placeholder="e.g. Vrindavan Yojna, Sector 10"
-                      value={deliveryArea}
-                      onChange={(e) => {
-                        setDeliveryArea(e.target.value);
-                        localStorage.setItem('universe_delivery_area', e.target.value);
-                        setFieldErrors(prev => ({ ...prev, address: false }));
-                        if (validationError) setValidationError('');
-                      }}
-                      style={{
-                        width: '100%',
-                        padding: '0.65rem 0.85rem',
-                        borderRadius: '10px',
-                        border: fieldErrors.address && !deliveryArea.trim() ? '2px solid #ef4444' : '1.5px solid #cbd5e1',
-                        background: '#f8fafc',
-                        fontSize: '0.875rem',
-                        fontWeight: '600',
-                        outline: 'none',
-                        boxSizing: 'border-box'
-                      }}
-                    />
-                  </div>
-
-                  <div>
-                    <label style={{ fontSize: '0.75rem', fontWeight: '700', color: '#475569', marginBottom: '0.25rem', display: 'block' }}>
-                      Nearby Landmark (Optional)
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Opposite Water Tank / Near Gate 2"
+                      placeholder="Nearby Landmark / Flat / Gate (Optional)"
                       value={deliveryLandmark}
                       onChange={(e) => {
                         setDeliveryLandmark(e.target.value);
@@ -1366,12 +1333,12 @@ const Cart = () => {
                       }}
                       style={{
                         width: '100%',
-                        padding: '0.65rem 0.85rem',
+                        padding: '0.55rem 0.85rem',
                         borderRadius: '10px',
-                        border: '1.5px solid #cbd5e1',
+                        border: '1.5px solid #e2e8f0',
                         background: '#f8fafc',
-                        fontSize: '0.875rem',
-                        fontWeight: '600',
+                        fontSize: '0.82rem',
+                        fontWeight: '500',
                         outline: 'none',
                         boxSizing: 'border-box'
                       }}
@@ -1380,7 +1347,7 @@ const Cart = () => {
                 </div>
 
                 <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.73rem', color: fieldErrors.address ? '#dc2626' : '#64748b', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                  <AlertCircle size={12} /> {fieldErrors.address ? 'Please enter your house/room number and area.' : 'Exact GPS coordinates & landmark will guide the rider directly to your door.'}
+                  <AlertCircle size={12} /> {fieldErrors.address ? 'Please tap Auto-Detect or enter your delivery address.' : 'GPS coordinates & address will guide the rider directly to your door.'}
                 </p>
               </div>
             )}

@@ -793,60 +793,34 @@ const CartScreen = ({ navigation }) => {
                 </View>
               )}
 
-              {/* 1. House / Room / Flat / Hostel Block */}
+              {/* Main Address Input (Filled automatically by GPS or typed manually) */}
               <View style={{ marginBottom: 8 }}>
-                <Text style={{ fontSize: 11, fontWeight: '700', color: '#475569', marginBottom: 4 }}>
-                  House / Room / Flat No. <Text style={{ color: '#EF4444' }}>*</Text>
-                </Text>
                 <TextInput
                   ref={addressInputRef}
                   style={[
                     styles.addressInputField,
-                    { height: 42, paddingVertical: 8 },
-                    addressError && !deliveryHouseNo.trim() && { borderColor: '#EF4444', backgroundColor: '#FFFFFF' }
+                    addressError && !deliveryAddress.trim() && !deliveryHouseNo.trim() && { borderColor: '#EF4444', backgroundColor: '#FFFFFF' }
                   ]}
-                  placeholder="e.g. House 10A/59 or Room 304, BH-1"
+                  placeholder="e.g. 10A/59 Vrindavan Yojna or Hostel BH-1, Room 304"
                   placeholderTextColor="#94A3B8"
-                  value={deliveryHouseNo}
+                  multiline
+                  numberOfLines={2}
+                  value={deliveryAddress}
                   onChangeText={(val) => {
-                    setDeliveryHouseNo(val);
+                    setDeliveryAddress(val);
                     if (addressError) setAddressError(false);
                   }}
                 />
               </View>
 
-              {/* 2. Area / Colony / Street */}
-              <View style={{ marginBottom: 8 }}>
-                <Text style={{ fontSize: 11, fontWeight: '700', color: '#475569', marginBottom: 4 }}>
-                  Area / Colony / Street <Text style={{ color: '#EF4444' }}>*</Text>
-                </Text>
-                <TextInput
-                  style={[
-                    styles.addressInputField,
-                    { height: 42, paddingVertical: 8 },
-                    addressError && !deliveryArea.trim() && { borderColor: '#EF4444', backgroundColor: '#FFFFFF' }
-                  ]}
-                  placeholder="e.g. Vrindavan Yojna, Sector 10"
-                  placeholderTextColor="#94A3B8"
-                  value={deliveryArea}
-                  onChangeText={(val) => {
-                    setDeliveryArea(val);
-                    if (addressError) setAddressError(false);
-                  }}
-                />
-              </View>
-
-              {/* 3. Nearby Landmark */}
+              {/* Optional Landmark / Floor helper */}
               <View style={{ marginBottom: 4 }}>
-                <Text style={{ fontSize: 11, fontWeight: '700', color: '#475569', marginBottom: 4 }}>
-                  Nearby Landmark (Optional)
-                </Text>
                 <TextInput
                   style={[
                     styles.addressInputField,
-                    { height: 42, paddingVertical: 8 }
+                    { height: 38, paddingVertical: 6, fontSize: 12, backgroundColor: '#F8FAFC' }
                   ]}
-                  placeholder="e.g. Opposite Water Tank / Near Gate 2"
+                  placeholder="Nearby Landmark / Flat / Gate (Optional)"
                   placeholderTextColor="#94A3B8"
                   value={deliveryLandmark}
                   onChangeText={(val) => setDeliveryLandmark(val)}
@@ -855,9 +829,16 @@ const CartScreen = ({ navigation }) => {
 
               {addressError ? (
                 <Text style={{ fontSize: 11, color: '#DC2626', fontWeight: '700', marginTop: 4 }}>
-                  * Please provide your house/room number and area.
+                  * Please tap Auto-detect GPS or type your delivery address.
                 </Text>
               ) : null}
+
+              <View style={styles.addressFooterRow}>
+                <Feather name="info" size={12} color="#64748B" style={{ marginTop: 2 }} />
+                <Text style={styles.addressFooterText}>
+                  GPS pin & address will guide the rider directly to you.
+                </Text>
+              </View>
 
               <View style={styles.addressFooterRow}>
                 <Feather name="info" size={12} color="#64748B" style={{ marginTop: 2 }} />
