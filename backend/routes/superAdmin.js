@@ -245,22 +245,19 @@ router.get('/realtime-analytics', async (req, res) => {
     const liveDeliveryPlatformFees = unsettledCompleted.reduce((sum, o) => sum + (o.platformFee || 0), 0);
     const livePackagingCharges = unsettledCompleted.reduce((sum, o) => sum + (o.packagingCharge || 0), 0);
     const liveDeliveryCharges = unsettledCompleted.reduce((sum, o) => sum + (o.deliveryFee || 0), 0);
-    const liveFoodSubtotal = Math.max(0, liveCompletedVolume - liveDeliveryPlatformFees - livePackagingCharges - liveDeliveryCharges);
-    const liveCancelledVolume = unsettledCancelled.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
-
-    const projectedGateway = liveFoodSubtotal * 0.02;
-    const projectedCommission = liveFoodSubtotal * 0.03;
+    const projectedGateway = liveFoodSubtotal * 0.0236; // 2.36% (2% PG base + 18% GST) on food
+    const projectedCommission = liveFoodSubtotal * 0.03; // 3% UniVerse Platform Take
     const projectedPlatformProfit = projectedCommission + liveDeliveryPlatformFees;
     const projectedCancellationPenalty = liveCancelledVolume * 0.04;
 
     const rawCancellation = settledCancellationPenalty + projectedCancellationPenalty;
     const totalCancellationPenalty = parseFloat(rawCancellation.toFixed(2));
-    const cancellationGatewayFee = parseFloat((rawCancellation * 0.5).toFixed(2)); // 2% Razorpay fee on cancellations
-    const netCancellationPenalty = parseFloat((totalCancellationPenalty - cancellationGatewayFee).toFixed(2)); // 2% UniVerse Net Penalty
+    const cancellationGatewayFee = parseFloat((rawCancellation * 0.5).toFixed(2)); // PG fee on cancellations
+    const netCancellationPenalty = parseFloat((totalCancellationPenalty - cancellationGatewayFee).toFixed(2)); // UniVerse Net Penalty
 
-    const totalGatewayFee = parseFloat((settledGateway + projectedGateway + cancellationGatewayFee).toFixed(2)); // All 2% PG fees (completed + cancelled)
+    const totalGatewayFee = parseFloat((settledGateway + projectedGateway + cancellationGatewayFee).toFixed(2)); // All PG fees with GST
     const totalPlatformCommission = parseFloat((settledPlatformProfit + projectedPlatformProfit).toFixed(2));
-    // UniVerse Net Take = 3% Commission + Delivery Platform Fees + 2% Net Penalty (excludes all 2% Razorpay fees)
+    // UniVerse Net Take = 3% Commission + Delivery Platform Fees + Net Penalty (excludes all PG fees)
     const totalPlatformProfit = parseFloat((totalPlatformCommission + netCancellationPenalty).toFixed(2));
     const totalPlatformDeductions = parseFloat((totalGatewayFee + totalPlatformProfit).toFixed(2));
 
@@ -507,7 +504,7 @@ router.get('/realtime-analytics', async (req, res) => {
     }).sort((a, b) => b.totalRevenue - a.totalRevenue);
 
     // Financial Flow Breakdown (100% Balanced Ledger)
-    const pgGatewayFee = Math.round(totalRevenue * 0.02);
+    const pgGatewayFee = Math.round(totalGatewayFee);
     const platformCommission = Math.round(totalPlatformProfit);
     const vendorShare = Math.max(0, totalRevenue - pgGatewayFee - platformCommission);
     const netPlatformMargin = Math.max(0, platformCommission);

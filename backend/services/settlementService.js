@@ -79,8 +79,10 @@ const generateSettlements = async (date = null, specificStoreId = null) => {
             const dailyVendorSales = Math.max(0, dailyRevenue - dailyPlatformFees);
             const dailyCancelledVolume = cancelledOrders.reduce((sum, order) => sum + (order.totalAmount || 0), 0);
 
-            // 5% total deduction (3% UniVerse commission + 2% PG fee) is charged ONLY on food items
-            const gatewayRate = 0.02;  // 2% PG fee on food items subtotal
+            // Option B Settlement: 5.36% total deduction on food items (3% UniVerse commission + 2.36% Razorpay PG with 18% GST)
+            // 100% Delivery Platform Fees (retained by UniVerse)
+            // 100% of Packaging & Delivery charges passed directly to vendor
+            const gatewayRate = 0.0236; // 2% PG fee base + 18% GST (0.36%) = 2.36% on food items subtotal
             const profitRate = 0.03;   // 3% UniVerse platform commission on food items subtotal
             const penaltyRate = 0.04;  // 4% penalty on cancelled volume
 
@@ -89,7 +91,7 @@ const generateSettlements = async (date = null, specificStoreId = null) => {
             const cancellationPenalty = dailyCancelledVolume * penaltyRate;
             const totalPlatformProfit = platformCommission + dailyPlatformFees;
 
-            // Total deductions from Gross = 2% PG on food + 3% Commission on food + 100% Delivery Platform Fees + cancellation penalty
+            // Total deductions from Gross = 2.36% PG on food + 3% Commission on food + 100% Delivery Platform Fees + cancellation penalty
             const totalDeductions = gatewayFee + platformCommission + dailyPlatformFees + cancellationPenalty;
             const netPayable = dailyRevenue - totalDeductions;
 
@@ -98,7 +100,7 @@ const generateSettlements = async (date = null, specificStoreId = null) => {
 
             let finalSettlementId;
 
-            // T+1 Daily Settlement — standard commission on food + 100% packaging/delivery to vendor + delivery platform fees to platform
+            // T+1 Daily Settlement — 3% commission + 2.36% PG on food + 100% packaging/delivery to vendor + delivery platform fees to platform
             const dailySettlement = await prisma.settlement.create({
                 data: {
                     id: crypto.randomUUID(),
@@ -120,6 +122,7 @@ const generateSettlements = async (date = null, specificStoreId = null) => {
                         packagingChargesPassed: Number(dailyPackagingCharges.toFixed(2)),
                         deliveryChargesPassed: Number(dailyDeliveryCharges.toFixed(2)),
                         gatewayFee: Number(gatewayFee.toFixed(2)),
+                        gatewayRateApplied: '2.36% (2% + 18% GST)',
                         commissionRate3Pct: Number(platformCommission.toFixed(2)),
                         deliveryPlatformFees: Number(dailyPlatformFees.toFixed(2)),
                         platformProfit: Number(totalPlatformProfit.toFixed(2)),

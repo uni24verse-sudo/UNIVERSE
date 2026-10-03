@@ -684,16 +684,20 @@ const Dashboard = () => {
     const completed = periodOrders.filter(o => o.status === 'Completed');
     const cancelled = periodOrders.filter(o => o.status === 'Cancelled' && o.paymentStatus === 'Confirmed');
     
-    const gross = completed.reduce((acc, curr) => acc + curr.totalAmount, 0);
-    const cancelledVolume = cancelled.reduce((acc, curr) => acc + curr.totalAmount, 0);
+    const gross = completed.reduce((acc, curr) => acc + (curr.totalAmount || 0), 0);
+    const platformFees = completed.reduce((acc, curr) => acc + (curr.platformFee || 0), 0);
+    const packagingCharges = completed.reduce((acc, curr) => acc + (curr.packagingCharge || 0), 0);
+    const deliveryCharges = completed.reduce((acc, curr) => acc + (curr.deliveryFee || 0), 0);
+    const foodSubtotal = Math.max(0, gross - platformFees - packagingCharges - deliveryCharges);
+    const cancelledVolume = cancelled.reduce((acc, curr) => acc + (curr.totalAmount || 0), 0);
 
-    // Standard rates — 3% UniVerse platform commission + 2% payment gateway
-    const gatewayFee = gross * gatewayRate;
-    const platformCommission = gross * platformRate;
+    // Option B rates — 3% UniVerse platform commission + 2.36% Razorpay (2% base + 18% GST) on food subtotal
+    const gatewayFee = foodSubtotal * 0.0236;
+    const platformCommission = foodSubtotal * 0.03;
     const cancellationPenalty = cancelledVolume * penaltyRate;
 
-    const deductions = gatewayFee + platformCommission + cancellationPenalty;
-    return { gross, net: gross - deductions };
+    const deductions = gatewayFee + platformCommission + platformFees + cancellationPenalty;
+    return { gross, net: Math.max(0, gross - deductions) };
   };
 
   const { gross: todayRevenue, net: todayNet } = calculateFinanceForPeriod(todayOrders);

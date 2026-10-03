@@ -44,10 +44,15 @@ router.get('/my-settlements/:storeId', async (req, res) => {
         });
 
         const liveUnsettledRevenue = unsettledOrders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+        const livePlatformFees = unsettledOrders.reduce((sum, o) => sum + (o.platformFee || 0), 0);
+        const livePackagingCharges = unsettledOrders.reduce((sum, o) => sum + (o.packagingCharge || 0), 0);
+        const liveDeliveryCharges = unsettledOrders.reduce((sum, o) => sum + (o.deliveryFee || 0), 0);
+        const liveFoodSubtotal = Math.max(0, liveUnsettledRevenue - livePlatformFees - livePackagingCharges - liveDeliveryCharges);
         
-        // Apply 5% fee assumption for live display (2% gateway + 3% platform), or 2% in trial
-        const liveFeeRate = 0.05; // Standard 5% deduction (3% platform + 2% gateway)
-        const liveUnsettledNet = liveUnsettledRevenue * (1 - liveFeeRate);
+        // Option B: 5.36% deduction on food (3% UniVerse platform + 2.36% Razorpay PG with 18% GST) + 100% Delivery Platform Fees
+        const liveFoodDeductions = liveFoodSubtotal * 0.0536;
+        const liveTotalDeductions = liveFoodDeductions + livePlatformFees;
+        const liveUnsettledNet = Math.max(0, liveUnsettledRevenue - liveTotalDeductions);
 
         // Find Next Settlement (oldest pending)
         const nextSettlement = pendingSettlements.length > 0 
@@ -62,14 +67,14 @@ router.get('/my-settlements/:storeId', async (req, res) => {
 
         res.json({
             settlements,
-            availableBalance,
-            liveUnsettledBalance: liveUnsettledNet,
-            liveUnsettledRevenue,
+            availableBalance: Number(availableBalance.toFixed(2)),
+            liveUnsettledBalance: Number(liveUnsettledNet.toFixed(2)),
+            liveUnsettledRevenue: Number(liveUnsettledRevenue.toFixed(2)),
             nextSettlement,
             previousSettlement,
             isTrialActive,
             storeSettings: {
-                commissionRate: 5
+                commissionRate: 5.36
             }
         });
 
