@@ -2377,7 +2377,7 @@ const SuperAdminPanel = () => {
                               <div style={{ fontWeight: '700', color: 'var(--text-primary)' }}>{f.storeName}</div>
                               <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>{f.ownerName}</div>
                               <div style={{ color: '#3b82f6', fontSize: '0.75rem', fontWeight: '700', marginTop: '0.25rem', background: 'rgba(59, 130, 246, 0.1)', padding: '0.1rem 0.4rem', borderRadius: '4px', display: 'inline-block' }}>{f.upiId}</div>
-                              <div style={{ marginTop: '0.25rem', display: 'block', fontSize: '0.65rem', color: '#6366f1', fontWeight: '700' }}>• Standard (3% Platform + 2% PG)</div>
+                              <div style={{ marginTop: '0.25rem', display: 'block', fontSize: '0.65rem', color: '#6366f1', fontWeight: '700' }}>• Standard (3% Platform + 2.36% PG with GST)</div>
                             </td>
                             <td style={{ padding: '1.25rem' }}>
                               <div style={{ fontWeight: '600' }}>₹{f.totalRevenue.toLocaleString()}</div>
