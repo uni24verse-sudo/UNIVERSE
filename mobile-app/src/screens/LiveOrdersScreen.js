@@ -1474,6 +1474,15 @@ export default function LiveOrdersScreen({ navigation }) {
                   {cartItem.name || cartItem.menuItem?.name || 'Item'}
                   {cartItem.variant ? <Text style={styles.variantText}> ({cartItem.variant})</Text> : null}
                 </Text>
+                {Array.isArray(cartItem.addOns) && cartItem.addOns.length > 0 && (
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginVertical: 2 }}>
+                    {cartItem.addOns.map((ao, aIdx) => (
+                      <View key={aIdx} style={{ backgroundColor: '#EFF6FF', borderColor: '#BFDBFE', borderWidth: 1, borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1 }}>
+                        <Text style={{ fontSize: 11, color: '#1D4ED8', fontWeight: '700' }}>+ {ao.name} (₹{ao.price})</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
                 {cartItem.comboItems?.map((ci, cidx) => (
                   <Text key={cidx} style={styles.subItemText}>• {ci.quantity} {ci.name}</Text>
                 ))}

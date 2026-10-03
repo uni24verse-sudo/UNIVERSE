@@ -6,6 +6,15 @@
     "orientation": "portrait",
     "icon": "./assets/logo-symbol.png",
     "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0F172A"
+    },
+    "notification": {
+      "icon": "./assets/logo-symbol.png",
+      "color": "#10B981"
+    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.universe.vendor",

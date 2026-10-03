@@ -490,14 +490,14 @@ const StoreMenu = () => {
   // Performance Optimization: Memoize handlers
   const handleVariantClick = useCallback((product) => {
     setSelectedProduct(product);
-    setSelectedVariant(product.variants[0]);
+    setSelectedVariant(product.variants && product.variants.length > 0 ? product.variants[0] : null);
     setShowVariantModal(true);
   }, []);
 
   const handleAddToCartClick = useCallback((product) => {
     if (storeClosed) return;
     if (product.isAvailable === false) return;
-    if (product.variants && product.variants.length > 0) {
+    if ((product.variants && product.variants.length > 0) || (product.addOns && product.addOns.length > 0)) {
       handleVariantClick(product);
     } else {
       addToCart(product, id);

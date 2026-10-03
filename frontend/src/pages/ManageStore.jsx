@@ -62,8 +62,9 @@ const ManageStore = () => {
   const [scanError, setScanError] = useState('');
 
   // New/Edit product form
-  const [productForm, setProductForm] = useState({ _id: null, name: '', description: '', price: '', category: '', dietaryPreference: 'none', image: '', imageFile: null, variants: [], comboItems: [], freeItems: [] });
+  const [productForm, setProductForm] = useState({ _id: null, name: '', description: '', price: '', category: '', dietaryPreference: 'none', image: '', imageFile: null, variants: [], addOns: [], comboItems: [], freeItems: [] });
   const [hasVariants, setHasVariants] = useState(false);
+  const [hasAddOns, setHasAddOns] = useState(false);
   const [isComboDeal, setIsComboDeal] = useState(false);
   const [savingProduct, setSavingProduct] = useState(false);
   const formRef = useRef(null);
@@ -206,6 +207,11 @@ const ManageStore = () => {
       } else {
         formData.append('variants', JSON.stringify([]));
       }
+      if (hasAddOns && productForm.addOns && productForm.addOns.length > 0) {
+        formData.append('addOns', JSON.stringify(productForm.addOns));
+      } else {
+        formData.append('addOns', JSON.stringify([]));
+      }
       formData.append('isCombo', isComboDeal);
       if (isComboDeal) {
         formData.append('comboItems', JSON.stringify(productForm.comboItems || []));
@@ -251,18 +257,21 @@ const ManageStore = () => {
       image: product.image || '', 
       imageFile: null,
       variants: product.variants || [],
+      addOns: product.addOns || [],
       comboItems: product.comboItems || [],
       freeItems: product.freeItems || []
     });
     setHasVariants(product.variants && product.variants.length > 0);
+    setHasAddOns(product.addOns && product.addOns.length > 0);
     setIsComboDeal(product.isCombo || false);
     if (fileInputRef.current) fileInputRef.current.value = "";
     if (formRef.current) formRef.current.scrollIntoView({ behavior: 'smooth' });
   };
 
   const cancelEdit = () => {
-    setProductForm({ _id: null, name: '', description: '', price: '', category: '', dietaryPreference: 'none', image: '', imageFile: null, variants: [], comboItems: [], freeItems: [] });
+    setProductForm({ _id: null, name: '', description: '', price: '', category: '', dietaryPreference: 'none', image: '', imageFile: null, variants: [], addOns: [], comboItems: [], freeItems: [] });
     setHasVariants(false);
+    setHasAddOns(false);
     setIsComboDeal(false);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
@@ -666,6 +675,24 @@ const ManageStore = () => {
       setStore(res.data);
     } catch (err) {
       alert('Failed to delete product: ' + (err.response?.data?.message || err.message));
+    }
+  };
+
+  const handleDeleteCategory = async (categoryName) => {
+    const matchingCount = (store.products || []).filter(p => (p.category || '').toLowerCase().trim() === categoryName.toLowerCase().trim()).length;
+    if (!window.confirm(`Are you sure you want to delete the category "${categoryName}" and all ${matchingCount} dishes inside it? This cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      const res = await axios.delete(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/store/${store._id}/category/${encodeURIComponent(categoryName)}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setStore(res.data);
+      alert(`Category "${categoryName}" and its dishes have been deleted successfully.`);
+    } catch (err) {
+      console.error('Delete Category Error:', err);
+      alert('Failed to delete category: ' + (err.response?.data?.message || err.message));
     }
   };
 
@@ -1252,12 +1279,16 @@ const ManageStore = () => {
                       <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Category</p>
                       <p style={{ fontWeight: '700' }}>{store.category || 'General'}</p>
                     </div>
-                    {localStorage.getItem('universe_location_type') !== 'External' && (
-                      <div style={{ textAlign: 'right' }}>
-                        <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Market Location</p>
-                        <p style={{ fontWeight: '700' }}>{store.market || 'BH1 Market'}</p>
-                      </div>
-                    )}
+                    <div style={{ textAlign: 'right' }}>
+                      <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>
+                        {(storeLocation?.type === 'EXTERNAL' || store?.location?.type === 'EXTERNAL' || (storeLocation?.name && !storeLocation?.name?.toLowerCase().includes('lpu'))) ? 'Location / City' : 'Market Location'}
+                      </p>
+                      <p style={{ fontWeight: '700' }}>
+                        {(storeLocation?.type === 'EXTERNAL' || store?.location?.type === 'EXTERNAL' || (storeLocation?.name && !storeLocation?.name?.toLowerCase().includes('lpu')))
+                          ? (storeLocation?.name || store?.location?.name || store.market || 'External')
+                          : (store.market || 'BH1 Market')}
+                      </p>
+                    </div>
                   </div>
                   <div style={{ padding: '1rem', background: '#f8fafc', borderRadius: '14px', display: 'flex', gap: '1rem' }}>
                     <div style={{ flex: 1 }}>
@@ -1644,7 +1675,7 @@ const ManageStore = () => {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                       {productForm.variants.map((v, i) => (
                         <div key={i} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                          <input type="text" placeholder="Size (e.g., Small)" value={v.name} onChange={e => {
+                          <input type="text" placeholder="Size (e.g., Regular, Medium, Large)" value={v.name} onChange={e => {
                             const newV = [...productForm.variants];
                             newV[i].name = e.target.value;
                             setProductForm({...productForm, variants: newV});
@@ -1660,7 +1691,121 @@ const ManageStore = () => {
                         </div>
                       ))}
                       <button type="button" onClick={() => setProductForm({...productForm, variants: [...productForm.variants, { name: '', price: '' }]})} style={{ alignSelf: 'flex-start', background: 'transparent', border: 'none', color: 'var(--primary)', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.5rem' }}>
-                        <Plus size={16} /> Add Variant
+                        <Plus size={16} /> Add Variant Size
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* ADD-ONS & MATRIX CUSTOMIZATIONS */}
+                <div style={{ gridColumn: '1 / span 2', background: '#f8fafc', padding: '1rem', borderRadius: '14px', border: '1px solid var(--surface-border)' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', marginBottom: hasAddOns ? '1rem' : '0' }}>
+                    <input type="checkbox" checked={hasAddOns} onChange={(e) => setHasAddOns(e.target.checked)} style={{ width: '20px', height: '20px', accentColor: 'var(--primary)' }} />
+                    <span style={{ fontWeight: '700' }}>🧀 Extra Add-ons & Customizations (e.g. Extra Cheese, Toppings)</span>
+                  </label>
+                  
+                  {hasAddOns && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                      <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                        {hasVariants && productForm.variants.length > 0 
+                          ? 'Size-linked Matrix: Set customized add-on prices for each size (e.g. Regular vs Medium vs Large).'
+                          : 'Set flat add-on prices for this item.'}
+                      </p>
+
+                      {(productForm.addOns || []).map((addon, aIdx) => (
+                        <div key={aIdx} style={{ background: '#ffffff', padding: '0.85rem 1rem', borderRadius: '12px', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                            <input 
+                              type="text" 
+                              placeholder="Add-on Name (e.g., Extra Cheese, Toppings)" 
+                              value={addon.name} 
+                              onChange={e => {
+                                const newAddOns = [...(productForm.addOns || [])];
+                                newAddOns[aIdx].name = e.target.value;
+                                setProductForm({...productForm, addOns: newAddOns});
+                              }} 
+                              className="form-input" 
+                              style={{ flex: 2, height: '40px' }} 
+                              required 
+                            />
+                            <button 
+                              type="button" 
+                              onClick={() => {
+                                const newAddOns = productForm.addOns.filter((_, idx) => idx !== aIdx);
+                                setProductForm({...productForm, addOns: newAddOns});
+                              }} 
+                              style={{ background: 'rgba(239, 68, 68, 0.1)', color: 'var(--error)', border: 'none', borderRadius: '10px', height: '40px', width: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+
+                          {/* Dynamic Size Matrix Inputs */}
+                          {hasVariants && productForm.variants.length > 0 ? (
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', marginTop: '0.25rem', background: '#f8fafc', padding: '0.5rem 0.75rem', borderRadius: '8px' }}>
+                              {productForm.variants.map((v, vIdx) => {
+                                if (!v.name) return null;
+                                const currentVal = addon.variantPrices ? addon.variantPrices[v.name] : '';
+                                return (
+                                  <div key={vIdx} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                    <span style={{ fontSize: '0.8rem', fontWeight: '700', color: '#64748b' }}>{v.name}:</span>
+                                    <input 
+                                      type="number" 
+                                      placeholder="₹" 
+                                      value={currentVal !== undefined ? currentVal : ''} 
+                                      onChange={e => {
+                                        const newAddOns = [...(productForm.addOns || [])];
+                                        const variantPrices = { ...(newAddOns[aIdx].variantPrices || {}) };
+                                        variantPrices[v.name] = Number(e.target.value) || 0;
+                                        newAddOns[aIdx].variantPrices = variantPrices;
+                                        newAddOns[aIdx].price = variantPrices[productForm.variants[0]?.name] || Number(e.target.value) || 0;
+                                        setProductForm({...productForm, addOns: newAddOns});
+                                      }} 
+                                      className="form-input" 
+                                      style={{ width: '80px', height: '34px', fontSize: '0.85rem' }} 
+                                      min="0" 
+                                    />
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              <span style={{ fontSize: '0.8rem', fontWeight: '700', color: '#64748b' }}>Price:</span>
+                              <input 
+                                type="number" 
+                                placeholder="Price (₹)" 
+                                value={addon.price !== undefined ? addon.price : ''} 
+                                onChange={e => {
+                                  const newAddOns = [...(productForm.addOns || [])];
+                                  newAddOns[aIdx].price = Number(e.target.value) || 0;
+                                  setProductForm({...productForm, addOns: newAddOns});
+                                }} 
+                                className="form-input" 
+                                style={{ width: '120px', height: '34px' }} 
+                                min="0" 
+                                required 
+                              />
+                            </div>
+                          )}
+                        </div>
+                      ))}
+
+                      <button 
+                        type="button" 
+                        onClick={() => {
+                          const initVariantPrices = {};
+                          if (hasVariants && productForm.variants.length > 0) {
+                            productForm.variants.forEach(v => { if (v.name) initVariantPrices[v.name] = 0; });
+                          }
+                          setProductForm({
+                            ...productForm, 
+                            addOns: [...(productForm.addOns || []), { name: '', price: 0, variantPrices: initVariantPrices }]
+                          });
+                        }} 
+                        style={{ alignSelf: 'flex-start', background: 'transparent', border: 'none', color: 'var(--primary)', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.5rem' }}
+                      >
+                        <Plus size={16} /> Add Extra Add-on (e.g. Cheese, Topping)
                       </button>
                     </div>
                   )}
@@ -1794,6 +1939,17 @@ const ManageStore = () => {
                               onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
                             >
                               <LucideLink size={14} style={{ marginRight: '0.25rem' }} /> Link
+                            </button>
+                            <button 
+                              type="button"
+                              onClick={() => handleDeleteCategory(cat)}
+                              style={{ 
+                                display: 'inline-flex', alignItems: 'center', padding: '0.4rem 0.8rem', background: '#fee2e2', border: '1px solid #fca5a5', color: '#ef4444', borderRadius: '100px', fontSize: '0.75rem', fontWeight: '700', cursor: 'pointer', transition: 'transform 0.2s'
+                              }}
+                              onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
+                              onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
+                            >
+                              <Trash2 size={14} style={{ marginRight: '0.25rem' }} /> Delete
                             </button>
                           </div>
                         </div>

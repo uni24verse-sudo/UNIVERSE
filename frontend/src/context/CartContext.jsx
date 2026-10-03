@@ -131,19 +131,29 @@ export const CartProvider = ({ children }) => {
     };
   }, [socket, connected, storeId]);
 
-  const addToCart = (product, currentStoreId, variant = null, storeLocationId = null) => {
+  const addToCart = (product, currentStoreId, variant = null, storeLocationId = null, selectedAddOns = []) => {
     const activeLocId = storeLocationId || localStorage.getItem('universe_location_id');
     
+    // Sort addOns by name to generate a deterministic cartItemId
+    const sortedAddOns = Array.isArray(selectedAddOns) ? [...selectedAddOns].sort((a, b) => a.name.localeCompare(b.name)) : [];
+    const addOnsKey = sortedAddOns.length > 0 ? sortedAddOns.map(a => `${a.name}:${a.price}`).join('+') : '';
+    const addOnsPriceTotal = sortedAddOns.reduce((sum, a) => sum + (Number(a.price) || 0), 0);
+    const basePrice = variant ? Number(variant.price) : Number(product.price);
+    const unitPrice = basePrice + addOnsPriceTotal;
+
+    const targetId = `${product._id}${variant ? '-' + variant.name : ''}${addOnsKey ? '-' + addOnsKey : ''}`;
+
     // If adding from a different store or different campus location, prompt to clear cart
     if (storeId && (String(storeId) !== String(currentStoreId) || (cartLocationId && activeLocId && String(cartLocationId) !== String(activeLocId)))) {
       if (window.confirm("Adding items from another store or campus will clear your current cart. Continue?")) {
-        const newCartItemId = `${product._id}${variant ? '-' + variant.name : ''}`;
         setCart([{ 
           ...product, 
           quantity: 1, 
           variant: variant?.name, 
-          price: variant ? variant.price : product.price, 
-          cartItemId: newCartItemId,
+          addOns: sortedAddOns,
+          basePrice: basePrice,
+          price: unitPrice, 
+          cartItemId: targetId,
           isAvailable: product.isAvailable !== false 
         }]);
         setStoreId(currentStoreId);
@@ -156,18 +166,19 @@ export const CartProvider = ({ children }) => {
     if (activeLocId) setCartLocationId(activeLocId);
 
     setCart((prev) => {
-      const targetId = `${product._id}${variant ? '-' + variant.name : ''}`;
-      const existing = prev.find(item => (item.cartItemId || item._id) === targetId || (item._id === product._id && !item.variant && !variant));
+      const existing = prev.find(item => (item.cartItemId || item._id) === targetId);
       
       if (existing) {
-        return prev.map(item => ((item.cartItemId || item._id) === targetId || (item._id === product._id && !item.variant && !variant))
+        return prev.map(item => ((item.cartItemId || item._id) === targetId)
           ? { ...item, quantity: item.quantity + 1, isAvailable: product.isAvailable !== false } : item);
       }
       return [...prev, { 
         ...product, 
         quantity: 1, 
         variant: variant?.name, 
-        price: variant ? variant.price : product.price, 
+        addOns: sortedAddOns,
+        basePrice: basePrice,
+        price: unitPrice, 
         cartItemId: targetId,
         isAvailable: product.isAvailable !== false 
       }];

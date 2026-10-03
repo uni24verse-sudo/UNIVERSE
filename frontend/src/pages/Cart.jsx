@@ -386,6 +386,7 @@ const Cart = () => {
           price: item.price,
           quantity: item.quantity,
           variant: item.variant,
+          addOns: item.addOns,
           isCombo: item.isCombo,
           comboItems: item.comboItems,
           freeItems: item.freeItems
@@ -624,6 +625,17 @@ const Cart = () => {
                             </span>
                           )}
                         </h4>
+
+                        {item.addOns && item.addOns.length > 0 && (
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', marginBottom: '0.4rem' }}>
+                            {item.addOns.map((ao, aIdx) => (
+                              <span key={aIdx} style={{ fontSize: '0.75rem', background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', borderRadius: '6px', padding: '0.1rem 0.45rem', fontWeight: '600' }}>
+                                + {ao.name} (₹{ao.price})
+                              </span>
+                            ))}
+                          </div>
+                        )}
+
                         <p style={{ fontSize: '0.95rem', fontWeight: '700', color: isItemSoldOut ? '#94a3b8' : 'var(--secondary)', marginBottom: item.isCombo ? '0.5rem' : '0' }}>₹{item.price * item.quantity}</p>
 
                         {item.isCombo && (

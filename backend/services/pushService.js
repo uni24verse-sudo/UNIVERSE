@@ -36,11 +36,13 @@ const sendStoreNotification = async (storeId, title, body, data = {}, categoryId
       // Construct the message exactly as Expo expects via REST API
       let pushMessage = {
         to: token,
-        sound: 'default', // Ignored on Android when channelId is provided
+        sound: 'default',
         title: title,
         body: body,
         data: data,
-        channelId: channelId,
+        channelId: channelId || 'orders_alarm',
+        priority: 'high',
+        _displayInForeground: true,
       };
       
       if (badgeCount !== undefined) pushMessage.badge = badgeCount;

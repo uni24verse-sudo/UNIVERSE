@@ -23,9 +23,6 @@ const QuantitySelector = ({
       >
         <Text style={styles.addText}>ADD</Text>
         <Feather name="plus" size={14} color={THEME.colors.primary} />
-        {customizable && (
-          <View style={styles.customizableDot} />
-        )}
       </TouchableOpacity>
     );
   }
@@ -73,15 +70,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginRight: 4,
     letterSpacing: 0.5,
-  },
-  customizableDot: {
-    position: 'absolute',
-    bottom: -6,
-    alignSelf: 'center',
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: THEME.colors.primary,
   },
   stepperContainer: {
     backgroundColor: THEME.colors.primary,

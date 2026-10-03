@@ -245,6 +245,7 @@ class StoreRepository {
       image: productData.image || '',
       dietaryPreference: productData.dietaryPreference || 'none',
       variants: productData.variants || [],
+      addOns: productData.addOns || [],
       isCombo: Boolean(productData.isCombo),
       comboItems: productData.comboItems || [],
       freeItems: productData.freeItems || [],
@@ -276,6 +277,7 @@ class StoreRepository {
       image: item.image || '',
       dietaryPreference: item.dietaryPreference || 'none',
       variants: item.variants || [],
+      addOns: item.addOns || [],
       isCombo: Boolean(item.isCombo),
       comboItems: item.comboItems || [],
       freeItems: item.freeItems || [],
@@ -307,7 +309,8 @@ class StoreRepository {
     if (productData.price !== undefined) target.price = Number(productData.price);
     if (productData.category) target.category = productData.category;
     if (productData.dietaryPreference) target.dietaryPreference = productData.dietaryPreference;
-    if (productData.variants) target.variants = productData.variants;
+    if (productData.variants !== undefined) target.variants = productData.variants;
+    if (productData.addOns !== undefined) target.addOns = productData.addOns;
     if (productData.isCombo !== undefined) target.isCombo = Boolean(productData.isCombo);
     if (productData.comboItems) target.comboItems = productData.comboItems;
     if (productData.freeItems) target.freeItems = productData.freeItems;

@@ -59,7 +59,17 @@ export default function MenuScreen({ navigation }) {
     price: '',
     category: 'Snacks',
     dietaryPreference: 'veg',
-    description: ''
+    description: '',
+    hasVariants: false,
+    variants: [
+      { name: 'Regular', price: '' },
+      { name: 'Medium', price: '' },
+      { name: 'Large', price: '' }
+    ],
+    hasAddOns: false,
+    addOns: [
+      { name: 'Extra Cheese', price: '', variantPrices: { Regular: '', Medium: '', Large: '' } }
+    ]
   });
 
   // AI Menu Scan States
@@ -349,10 +359,44 @@ export default function MenuScreen({ navigation }) {
       Alert.alert('Validation Error', 'Please enter an item name.');
       return;
     }
-    const parsedPrice = parseFloat(newItem.price);
-    if (!newItem.price || isNaN(parsedPrice) || parsedPrice <= 0) {
-      Alert.alert('Validation Error', 'Please enter a valid price greater than 0.');
-      return;
+
+    let validVariants = [];
+    if (newItem.hasVariants) {
+      validVariants = newItem.variants
+        .filter(v => v.name.trim() && !isNaN(parseFloat(v.price)) && parseFloat(v.price) > 0)
+        .map(v => ({ name: v.name.trim(), price: parseFloat(v.price) }));
+      
+      if (validVariants.length === 0) {
+        Alert.alert('Validation Error', 'Please enter at least one valid variant with name and price.');
+        return;
+      }
+    } else {
+      const parsedPrice = parseFloat(newItem.price);
+      if (!newItem.price || isNaN(parsedPrice) || parsedPrice <= 0) {
+        Alert.alert('Validation Error', 'Please enter a valid base price greater than 0.');
+        return;
+      }
+    }
+
+    let validAddOns = [];
+    if (newItem.hasAddOns) {
+      validAddOns = newItem.addOns
+        .filter(a => a.name.trim())
+        .map(a => {
+          const vPrices = {};
+          if (newItem.hasVariants && a.variantPrices) {
+            Object.keys(a.variantPrices).forEach(vKey => {
+              const val = parseFloat(a.variantPrices[vKey]);
+              if (!isNaN(val)) vPrices[vKey] = val;
+            });
+          }
+          return {
+            name: a.name.trim(),
+            pricingType: newItem.hasVariants ? 'size_matrix' : 'flat',
+            price: parseFloat(a.price) || 0,
+            variantPrices: Object.keys(vPrices).length > 0 ? vPrices : undefined
+          };
+        });
     }
 
     if (isVegOnlyLocation && (newItem.dietaryPreference === 'non-veg' || (newItem.name && /(chicken|mutton|beef|pork|fish|prawn|meat)/i.test(newItem.name)))) {
@@ -363,13 +407,17 @@ export default function MenuScreen({ navigation }) {
     setAddingProduct(true);
     const storeId = store._id || store.id;
 
+    const basePrice = validVariants.length > 0 ? validVariants[0].price : parseFloat(newItem.price);
+
     try {
       const res = await apiClient.post(`/store/${storeId}/product`, {
         name: newItem.name.trim(),
-        price: parsedPrice,
+        price: basePrice,
         category: newItem.category.trim() || 'General',
         dietaryPreference: newItem.dietaryPreference || 'veg',
-        description: newItem.description.trim()
+        description: newItem.description.trim(),
+        variants: validVariants.length > 0 ? validVariants : undefined,
+        addOns: validAddOns.length > 0 ? validAddOns : undefined
       });
 
       if (res.data) {
@@ -382,7 +430,17 @@ export default function MenuScreen({ navigation }) {
         price: '',
         category: 'Snacks',
         dietaryPreference: 'veg',
-        description: ''
+        description: '',
+        hasVariants: false,
+        variants: [
+          { name: 'Regular', price: '' },
+          { name: 'Medium', price: '' },
+          { name: 'Large', price: '' }
+        ],
+        hasAddOns: false,
+        addOns: [
+          { name: 'Extra Cheese', price: '', variantPrices: { Regular: '', Medium: '', Large: '' } }
+        ]
       });
       Alert.alert('Success', 'New item added to your stall menu!');
     } catch (error) {
@@ -607,11 +665,33 @@ export default function MenuScreen({ navigation }) {
           </View>
 
           <View style={styles.productMetaRow}>
-            <Text style={styles.productPrice}>₹{item.price}</Text>
+            <Text style={styles.productPrice}>
+              ₹{item.variants && item.variants.length > 0 ? Math.min(...item.variants.map(v => v.price)) : item.price}
+            </Text>
             <View style={styles.categoryPill}>
               <Text style={styles.categoryPillText}>{item.category || 'General'}</Text>
             </View>
           </View>
+
+          {Array.isArray(item.variants) && item.variants.length > 0 && (
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginVertical: 3 }}>
+              {item.variants.map((v, vidx) => (
+                <View key={vidx} style={{ backgroundColor: '#F1F5F9', borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1, borderWidth: 1, borderColor: '#CBD5E1' }}>
+                  <Text style={{ fontSize: 10, color: '#475569', fontWeight: '700' }}>{v.name}: ₹{v.price}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {Array.isArray(item.addOns) && item.addOns.length > 0 && (
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginBottom: 3 }}>
+              {item.addOns.map((ao, aoidx) => (
+                <View key={aoidx} style={{ backgroundColor: '#EFF6FF', borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1, borderWidth: 1, borderColor: '#BFDBFE' }}>
+                  <Text style={{ fontSize: 10, color: '#1D4ED8', fontWeight: '700' }}>+ {ao.name}</Text>
+                </View>
+              ))}
+            </View>
+          )}
 
           {item.description ? (
             <Text style={styles.productDescription} numberOfLines={2}>{item.description}</Text>
@@ -847,16 +927,255 @@ export default function MenuScreen({ navigation }) {
                 onChangeText={txt => setNewItem(prev => ({ ...prev, name: txt }))}
               />
 
-              {/* Item Price */}
-              <Text style={styles.inputLabel}>Price (₹) *</Text>
-              <TextInput
-                style={styles.modalInput}
-                placeholder="e.g. 60"
-                placeholderTextColor="#94A3B8"
-                keyboardType="numeric"
-                value={newItem.price}
-                onChangeText={txt => setNewItem(prev => ({ ...prev, price: txt }))}
-              />
+              {/* Size Variants Switch Card */}
+              <View style={{ backgroundColor: '#F8FAFC', borderRadius: 12, padding: 12, marginVertical: 10, borderWidth: 1, borderColor: '#E2E8F0' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <View style={{ flex: 1, marginRight: 10 }}>
+                    <Text style={{ fontSize: 13, fontWeight: '800', color: '#0F172A' }}>Has Multiple Sizes / Portions?</Text>
+                    <Text style={{ fontSize: 11, color: '#64748B', marginTop: 2 }}>e.g. Regular / Medium / Large, Half / Full</Text>
+                  </View>
+                  <Switch
+                    value={newItem.hasVariants}
+                    onValueChange={val => setNewItem(prev => ({ ...prev, hasVariants: val }))}
+                    trackColor={{ false: '#CBD5E1', true: '#BFDBFE' }}
+                    thumbColor={newItem.hasVariants ? '#3B82F6' : '#F1F5F9'}
+                  />
+                </View>
+
+                {newItem.hasVariants ? (
+                  <View style={{ marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#E2E8F0' }}>
+                    {/* Quick Presets */}
+                    <Text style={{ fontSize: 11, fontWeight: '700', color: '#64748B', marginBottom: 6 }}>QUICK SIZE PRESETS</Text>
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
+                      <TouchableOpacity
+                        style={{ backgroundColor: '#EFF6FF', borderColor: '#BFDBFE', borderWidth: 1, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4 }}
+                        onPress={() => setNewItem(prev => ({
+                          ...prev,
+                          variants: [
+                            { name: 'Regular', price: '' },
+                            { name: 'Medium', price: '' },
+                            { name: 'Large', price: '' }
+                          ]
+                        }))}
+                      >
+                        <Text style={{ fontSize: 11, fontWeight: '700', color: '#1D4ED8' }}>🍕 Pizza (Reg, Med, Lrg)</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={{ backgroundColor: '#EFF6FF', borderColor: '#BFDBFE', borderWidth: 1, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4 }}
+                        onPress={() => setNewItem(prev => ({
+                          ...prev,
+                          variants: [
+                            { name: 'Half', price: '' },
+                            { name: 'Full', price: '' }
+                          ]
+                        }))}
+                      >
+                        <Text style={{ fontSize: 11, fontWeight: '700', color: '#1D4ED8' }}>🍛 Half / Full</Text>
+                      </TouchableOpacity>
+                    </View>
+
+                    {/* Variants Inputs */}
+                    {newItem.variants.map((v, vidx) => (
+                      <View key={vidx} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                        <TextInput
+                          style={[styles.modalInput, { flex: 1.2, marginBottom: 0, paddingVertical: 8, fontSize: 13 }]}
+                          placeholder="Size (e.g. Medium)"
+                          placeholderTextColor="#94A3B8"
+                          value={v.name}
+                          onChangeText={txt => {
+                            setNewItem(prev => {
+                              const updated = [...prev.variants];
+                              updated[vidx] = { ...updated[vidx], name: txt };
+                              return { ...prev, variants: updated };
+                            });
+                          }}
+                        />
+                        <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#CBD5E1', borderRadius: 10, paddingHorizontal: 10 }}>
+                          <Text style={{ fontSize: 13, fontWeight: '800', color: '#64748B', marginRight: 4 }}>₹</Text>
+                          <TextInput
+                            style={{ flex: 1, height: 42, fontSize: 13, fontWeight: '700', color: '#0F172A' }}
+                            placeholder="Price"
+                            placeholderTextColor="#94A3B8"
+                            keyboardType="numeric"
+                            value={String(v.price)}
+                            onChangeText={txt => {
+                              setNewItem(prev => {
+                                const updated = [...prev.variants];
+                                updated[vidx] = { ...updated[vidx], price: txt };
+                                return { ...prev, variants: updated };
+                              });
+                            }}
+                          />
+                        </View>
+                        {newItem.variants.length > 1 && (
+                          <TouchableOpacity
+                            onPress={() => {
+                              setNewItem(prev => ({
+                                ...prev,
+                                variants: prev.variants.filter((_, idx) => idx !== vidx)
+                              }));
+                            }}
+                            style={{ padding: 6 }}
+                          >
+                            <Ionicons name="trash-outline" size={18} color="#EF4444" />
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    ))}
+
+                    <TouchableOpacity
+                      onPress={() => {
+                        setNewItem(prev => ({
+                          ...prev,
+                          variants: [...prev.variants, { name: '', price: '' }]
+                        }));
+                      }}
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}
+                    >
+                      <Ionicons name="add-circle-outline" size={16} color="#2563EB" />
+                      <Text style={{ fontSize: 12, fontWeight: '700', color: '#2563EB' }}>+ Add Size Variant</Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <View style={{ marginTop: 10 }}>
+                    <Text style={[styles.inputLabel, { marginTop: 0 }]}>Base Price (₹) *</Text>
+                    <TextInput
+                      style={[styles.modalInput, { marginBottom: 0 }]}
+                      placeholder="e.g. 60"
+                      placeholderTextColor="#94A3B8"
+                      keyboardType="numeric"
+                      value={newItem.price}
+                      onChangeText={txt => setNewItem(prev => ({ ...prev, price: txt }))}
+                    />
+                  </View>
+                )}
+              </View>
+
+              {/* Extra Add-ons & Customizations Matrix Card */}
+              <View style={{ backgroundColor: '#F8FAFC', borderRadius: 12, padding: 12, marginBottom: 12, borderWidth: 1, borderColor: '#E2E8F0' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <View style={{ flex: 1, marginRight: 10 }}>
+                    <Text style={{ fontSize: 13, fontWeight: '800', color: '#0F172A' }}>🧀 Extra Add-ons & Customizations</Text>
+                    <Text style={{ fontSize: 11, color: '#64748B', marginTop: 2 }}>e.g. Extra Cheese, Extra Toppings, Dips</Text>
+                  </View>
+                  <Switch
+                    value={newItem.hasAddOns}
+                    onValueChange={val => setNewItem(prev => ({ ...prev, hasAddOns: val }))}
+                    trackColor={{ false: '#CBD5E1', true: '#BFDBFE' }}
+                    thumbColor={newItem.hasAddOns ? '#3B82F6' : '#F1F5F9'}
+                  />
+                </View>
+
+                {newItem.hasAddOns && (
+                  <View style={{ marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#E2E8F0' }}>
+                    {newItem.addOns.map((addon, aIdx) => (
+                      <View key={aIdx} style={{ backgroundColor: '#FFFFFF', borderRadius: 10, padding: 10, marginBottom: 10, borderWidth: 1, borderColor: '#E2E8F0' }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                          <TextInput
+                            style={[styles.modalInput, { flex: 1, marginBottom: 0, paddingVertical: 6, fontSize: 13, fontWeight: '700' }]}
+                            placeholder="Add-on Name (e.g. Extra Cheese)"
+                            placeholderTextColor="#94A3B8"
+                            value={addon.name}
+                            onChangeText={txt => {
+                              setNewItem(prev => {
+                                const updated = [...prev.addOns];
+                                updated[aIdx] = { ...updated[aIdx], name: txt };
+                                return { ...prev, addOns: updated };
+                              });
+                            }}
+                          />
+                          {newItem.addOns.length > 1 && (
+                            <TouchableOpacity
+                              onPress={() => {
+                                setNewItem(prev => ({
+                                  ...prev,
+                                  addOns: prev.addOns.filter((_, idx) => idx !== aIdx)
+                                }));
+                              }}
+                              style={{ padding: 6, marginLeft: 6 }}
+                            >
+                              <Ionicons name="trash-outline" size={18} color="#EF4444" />
+                            </TouchableOpacity>
+                          )}
+                        </View>
+
+                        {/* Size Matrix pricing if variants active */}
+                        {newItem.hasVariants && newItem.variants.length > 0 ? (
+                          <View style={{ backgroundColor: '#F8FAFC', borderRadius: 8, padding: 8 }}>
+                            <Text style={{ fontSize: 10, fontWeight: '800', color: '#64748B', marginBottom: 6 }}>
+                              SET EXTRA PRICE FOR EACH SIZE:
+                            </Text>
+                            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                              {newItem.variants.map((v, vIdx) => {
+                                const vName = v.name.trim() || `Size ${vIdx + 1}`;
+                                const curVal = addon.variantPrices?.[vName] !== undefined ? addon.variantPrices[vName] : '';
+                                return (
+                                  <View key={vIdx} style={{ flex: 1, minWidth: 90, backgroundColor: '#FFFFFF', borderRadius: 6, borderWidth: 1, borderColor: '#CBD5E1', padding: 6 }}>
+                                    <Text style={{ fontSize: 10, fontWeight: '700', color: '#475569', marginBottom: 2 }}>{vName}</Text>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                      <Text style={{ fontSize: 11, fontWeight: '800', color: '#64748B', marginRight: 2 }}>+₹</Text>
+                                      <TextInput
+                                        style={{ flex: 1, height: 28, fontSize: 12, fontWeight: '700', color: '#0F172A', padding: 0 }}
+                                        placeholder="0"
+                                        placeholderTextColor="#94A3B8"
+                                        keyboardType="numeric"
+                                        value={String(curVal)}
+                                        onChangeText={txt => {
+                                          setNewItem(prev => {
+                                            const updated = [...prev.addOns];
+                                            const currentVp = updated[aIdx].variantPrices || {};
+                                            updated[aIdx] = {
+                                              ...updated[aIdx],
+                                              variantPrices: { ...currentVp, [vName]: txt }
+                                            };
+                                            return { ...prev, addOns: updated };
+                                          });
+                                        }}
+                                      />
+                                    </View>
+                                  </View>
+                                );
+                              })}
+                            </View>
+                          </View>
+                        ) : (
+                          <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAFC', borderRadius: 8, paddingHorizontal: 10, borderWidth: 1, borderColor: '#CBD5E1' }}>
+                            <Text style={{ fontSize: 12, fontWeight: '800', color: '#64748B', marginRight: 4 }}>Price: +₹</Text>
+                            <TextInput
+                              style={{ flex: 1, height: 38, fontSize: 13, fontWeight: '700', color: '#0F172A' }}
+                              placeholder="e.g. 30"
+                              placeholderTextColor="#94A3B8"
+                              keyboardType="numeric"
+                              value={String(addon.price || '')}
+                              onChangeText={txt => {
+                                setNewItem(prev => {
+                                  const updated = [...prev.addOns];
+                                  updated[aIdx] = { ...updated[aIdx], price: txt };
+                                  return { ...prev, addOns: updated };
+                                });
+                              }}
+                            />
+                          </View>
+                        )}
+                      </View>
+                    ))}
+
+                    <TouchableOpacity
+                      onPress={() => {
+                        setNewItem(prev => ({
+                          ...prev,
+                          addOns: [...prev.addOns, { name: '', price: '', variantPrices: {} }]
+                        }));
+                      }}
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}
+                    >
+                      <Ionicons name="add-circle-outline" size={16} color="#2563EB" />
+                      <Text style={{ fontSize: 12, fontWeight: '700', color: '#2563EB' }}>+ Add Another Customization</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
 
               {/* Dietary Preference */}
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, marginBottom: 4 }}>

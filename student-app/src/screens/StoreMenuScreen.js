@@ -249,8 +249,8 @@ const StoreMenuScreen = ({ route, navigation }) => {
     setShowVariantModal(true);
   };
 
-  const handleAddToCartWithVariant = (product, variant) => {
-    addToCart(product, store._id || store.id, store.name, variant, store.locationId?._id || store.locationId);
+  const handleAddToCartWithVariant = (product, variant, selectedAddOns = []) => {
+    addToCart(product, store._id || store.id, store.name, variant, store.locationId?._id || store.locationId, selectedAddOns);
   };
 
   if (loading) {

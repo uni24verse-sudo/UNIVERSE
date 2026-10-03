@@ -395,21 +395,57 @@ router.put('/:storeId/category-image', auth, upload.single('imageFile'), async (
   }
 });
 
+// Delete a Category and its Products
+router.delete('/:storeId/category/:categoryName', auth, async (req, res) => {
+  try {
+    const store = await getAuthorizedStore(req.params.storeId, req.admin);
+    if (!store) return res.status(404).json({ message: 'Store not found or unauthorized' });
+
+    const categoryName = decodeURIComponent(req.params.categoryName || '').trim();
+    if (!categoryName) {
+      return res.status(400).json({ message: 'Category name is required' });
+    }
+
+    const currentProducts = Array.isArray(store.products) ? store.products : [];
+    const remainingProducts = currentProducts.filter(p => (p.category || '').toLowerCase().trim() !== categoryName.toLowerCase());
+
+    const categoryImages = Array.isArray(store.categoryImages) 
+      ? store.categoryImages.filter(c => (c.categoryName || '').toLowerCase().trim() !== categoryName.toLowerCase())
+      : [];
+
+    const updated = await prisma.store.update({
+      where: { id: store.id },
+      data: { 
+        products: remainingProducts,
+        categoryImages 
+      }
+    });
+
+    res.json(normalizeStore(updated));
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 // Add a Product to Store
 router.post('/:storeId/product', auth, upload.single('imageFile'), async (req, res) => {
   try {
-    const { name, description, price, category, image, variants, isCombo, comboItems, freeItems, dietaryPreference } = req.body;
+    const { name, description, price, category, image, variants, addOns, isCombo, comboItems, freeItems, dietaryPreference } = req.body;
     let parsedVariants = [];
     if (variants) {
-      try { parsedVariants = JSON.parse(variants); } catch (e) {}
+      try { parsedVariants = typeof variants === 'string' ? JSON.parse(variants) : variants; } catch (e) {}
+    }
+    let parsedAddOns = [];
+    if (addOns) {
+      try { parsedAddOns = typeof addOns === 'string' ? JSON.parse(addOns) : addOns; } catch (e) {}
     }
     let parsedComboItems = [];
     if (comboItems) {
-      try { parsedComboItems = JSON.parse(comboItems); } catch(e) {}
+      try { parsedComboItems = typeof comboItems === 'string' ? JSON.parse(comboItems) : comboItems; } catch(e) {}
     }
     let parsedFreeItems = [];
     if (freeItems) {
-      try { parsedFreeItems = JSON.parse(freeItems); } catch(e) {}
+      try { parsedFreeItems = typeof freeItems === 'string' ? JSON.parse(freeItems) : freeItems; } catch(e) {}
     }
     
     let finalImage = image;
@@ -450,6 +486,7 @@ router.post('/:storeId/product', auth, upload.single('imageFile'), async (req, r
       image: finalImage,
       dietaryPreference: dietaryPreference || 'none',
       variants: parsedVariants,
+      addOns: parsedAddOns,
       isCombo: isCombo === 'true' || isCombo === true,
       comboItems: parsedComboItems,
       freeItems: parsedFreeItems
@@ -573,15 +610,18 @@ router.put('/:storeId/product/:productId/toggle', auth, async (req, res) => {
 // Edit a Product in Store
 router.put('/:storeId/product/:productId', auth, upload.single('imageFile'), async (req, res) => {
   try {
-    const { name, description, price, category, image, variants, isCombo, comboItems, freeItems, dietaryPreference } = req.body;
+    const { name, description, price, category, image, variants, addOns, isCombo, comboItems, freeItems, dietaryPreference } = req.body;
     const updateData = {};
     if (name) updateData.name = name;
     if (description !== undefined) updateData.description = description;
     if (price !== undefined) updateData.price = Number(price);
     if (category) updateData.category = category;
     if (dietaryPreference) updateData.dietaryPreference = dietaryPreference;
-    if (variants) {
-      try { updateData.variants = JSON.parse(variants); } catch (e) {}
+    if (variants !== undefined) {
+      try { updateData.variants = typeof variants === 'string' ? JSON.parse(variants) : variants; } catch (e) {}
+    }
+    if (addOns !== undefined) {
+      try { updateData.addOns = typeof addOns === 'string' ? JSON.parse(addOns) : addOns; } catch (e) {}
     }
     if (isCombo !== undefined) {
       updateData.isCombo = isCombo === 'true' || isCombo === true;

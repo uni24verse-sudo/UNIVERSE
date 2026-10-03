@@ -1465,6 +1465,15 @@ const Dashboard = () => {
                               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.1rem', fontWeight: '700' }}>
                                 <span>{item.quantity}x {item.name} {item.variant && <span style={{fontSize:'0.8rem', color:'var(--text-secondary)'}}>({item.variant})</span>}</span>
                               </div>
+                              {Array.isArray(item.addOns) && item.addOns.length > 0 && (
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem', margin: '0.3rem 0 0.4rem 0' }}>
+                                  {item.addOns.map((ao, aIdx) => (
+                                    <span key={aIdx} style={{ fontSize: '0.75rem', background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', borderRadius: '6px', padding: '0.1rem 0.4rem', fontWeight: '600' }}>
+                                      + {ao.name} (₹{ao.price})
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
                               {item.isCombo && (
                                 <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', paddingLeft: '1rem', marginTop: '0.4rem', borderLeft: '2px solid var(--surface-border)', marginLeft: '0.25rem' }}>
                                   {item.comboItems?.map((ci, cidx) => (
@@ -1909,6 +1918,15 @@ const Dashboard = () => {
                                 <span style={{ fontWeight: '700' }}>{item.quantity}x {item.name} {item.variant && `(${item.variant})`}</span>
                                 <span style={{ color: 'var(--text-secondary)' }}>₹{item.price * item.quantity}</span>
                               </div>
+                              {Array.isArray(item.addOns) && item.addOns.length > 0 && (
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem', margin: '0.2rem 0' }}>
+                                  {item.addOns.map((ao, aIdx) => (
+                                    <span key={aIdx} style={{ fontSize: '0.7rem', background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', borderRadius: '4px', padding: '0.05rem 0.35rem', fontWeight: '600' }}>
+                                      + {ao.name} (₹{ao.price})
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
                               {item.isCombo && (
                                 <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', paddingLeft: '1rem', marginTop: '0.2rem', borderLeft: '2px solid var(--surface-border)', marginLeft: '0.25rem' }}>
                                   {item.comboItems?.map((ci, cidx) => (

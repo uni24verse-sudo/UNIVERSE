@@ -93,7 +93,7 @@ const StoreSubHeader = ({
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'center', fontSize: '0.725rem', color: 'var(--text-secondary)', marginTop: '0.15rem', fontWeight: '600' }}>
               <span><Clock size={11} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '3px' }} />20-30 mins</span>
               <span style={{ opacity: 0.3 }}>•</span>
-              <span style={{ color: 'var(--primary)', fontWeight: '800' }}>{store.market || 'BH1 Market'}</span>
+              <span style={{ color: 'var(--primary)', fontWeight: '800' }}>{store.location?.name || store.market || 'Campus'}</span>
             </div>
           </div>
           
@@ -108,8 +108,8 @@ const StoreSubHeader = ({
               cursor: 'pointer', 
               boxShadow: '0 2px 8px rgba(239, 65, 35, 0.1)', 
               display: 'flex', 
-              alignItems: 'center',
-              justifyContent: 'center'
+              alignItems: 'center', 
+              justifyContent: 'center' 
             }}
             aria-label="Share Stall"
             title="Share Stall"
@@ -143,7 +143,7 @@ const StoreSubHeader = ({
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '0.35rem', flexWrap: 'wrap' }}>
                 <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                  <MapPin size={12} color="var(--primary)" /> {store.market || 'BH1 Market'}
+                  <MapPin size={12} color="var(--primary)" /> {store.location?.name || store.market || 'Campus'}
                 </span>
                 <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
                   <Clock size={12} color="var(--primary)" /> 20-30 mins

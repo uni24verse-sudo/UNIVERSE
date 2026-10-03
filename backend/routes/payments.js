@@ -275,6 +275,9 @@ router.post('/razorpay/verify', async (req, res) => {
       if (item.variant) {
         itemStr += ` (${item.variant})`;
       }
+      if (Array.isArray(item.addOns) && item.addOns.length > 0) {
+        itemStr += ` [+${item.addOns.map(a => a.name).join(', ')}]`;
+      }
       
       if (item.isCombo) {
         const subItems = [];
