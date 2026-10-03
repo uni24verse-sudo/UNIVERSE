@@ -245,6 +245,9 @@ router.get('/realtime-analytics', async (req, res) => {
     const liveDeliveryPlatformFees = unsettledCompleted.reduce((sum, o) => sum + (o.platformFee || 0), 0);
     const livePackagingCharges = unsettledCompleted.reduce((sum, o) => sum + (o.packagingCharge || 0), 0);
     const liveDeliveryCharges = unsettledCompleted.reduce((sum, o) => sum + (o.deliveryFee || 0), 0);
+    const liveFoodSubtotal = Math.max(0, liveCompletedVolume - liveDeliveryPlatformFees - livePackagingCharges - liveDeliveryCharges);
+    const liveCancelledVolume = unsettledCancelled.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+
     const projectedGateway = liveFoodSubtotal * 0.0236; // 2.36% (2% PG base + 18% GST) on food
     const projectedCommission = liveFoodSubtotal * 0.03; // 3% UniVerse Platform Take
     const projectedPlatformProfit = projectedCommission + liveDeliveryPlatformFees;
