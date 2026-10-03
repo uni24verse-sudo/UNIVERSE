@@ -16,17 +16,19 @@ const QuantitySelector = ({
 
   if (quantity === 0) {
     return (
-      <TouchableOpacity
-        style={styles.addButton}
-        activeOpacity={0.8}
-        onPress={onIncrement}
-      >
-        <Text style={styles.addText}>ADD</Text>
-        <Feather name="plus" size={14} color={THEME.colors.primary} />
+      <View style={{ alignItems: 'center' }}>
+        <TouchableOpacity
+          style={styles.addButton}
+          activeOpacity={0.8}
+          onPress={onIncrement}
+        >
+          <Text style={styles.addText}>ADD</Text>
+          <Feather name="plus" size={14} color={THEME.colors.primary} />
+        </TouchableOpacity>
         {customizable && (
-          <View style={styles.customizableDot} />
+          <Text style={styles.customizableSubText}>customisable</Text>
         )}
-      </TouchableOpacity>
+      </View>
     );
   }
 
@@ -74,14 +76,13 @@ const styles = StyleSheet.create({
     marginRight: 4,
     letterSpacing: 0.5,
   },
-  customizableDot: {
-    position: 'absolute',
-    bottom: -6,
-    alignSelf: 'center',
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: THEME.colors.primary,
+  customizableSubText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: THEME.colors.textSecondary,
+    marginTop: 2,
+    textTransform: 'lowercase',
+    textAlign: 'center',
   },
   stepperContainer: {
     backgroundColor: THEME.colors.primary,

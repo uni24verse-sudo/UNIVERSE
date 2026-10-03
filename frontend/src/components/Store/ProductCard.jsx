@@ -154,7 +154,7 @@ const ProductCard = ({
                 </span>
               </>
             )}
-            {hasVariants && <span style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-secondary)' }}>+</span>}
+            
           </div>
 
           {/* Description */}
@@ -339,7 +339,7 @@ const ProductCard = ({
               </span>
             </>
           )}
-          {hasVariants && <span style={{ fontSize: '0.75rem', marginLeft: '2px', color: 'var(--text-secondary)' }}>+</span>}
+          
         </div>
       </div>
     </div>

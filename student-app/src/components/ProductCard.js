@@ -164,7 +164,7 @@ const ProductCard = ({
             </View>
           ) : (
             <Text style={styles.gridPrice}>
-              {hasVariants ? `From ₹${minPrice}` : `₹${product.price}`}
+              ₹{minPrice}
             </Text>
           )}
         </View>
@@ -219,7 +219,7 @@ const ProductCard = ({
           </View>
         ) : (
           <Text style={styles.price}>
-            {hasVariants ? `From ₹${minPrice}` : `₹${product.price}`}
+            ₹{minPrice}
           </Text>
         )}
 

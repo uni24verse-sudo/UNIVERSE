@@ -6,16 +6,15 @@ const QuantitySelector = ({ product, storeId, onVariantClick, storeClosed }) => 
   const { cart, addToCart, updateQuantity, removeFromCart } = useContext(CartContext);
 
   // Find all items in cart belonging to this product
-  // This handles items with and without variants
   const cartItems = cart.filter(item => item._id === product._id);
   const totalQuantity = cartItems.reduce((acc, item) => acc + item.quantity, 0);
 
-  const hasVariants = product.variants && product.variants.length > 0;
+  const hasCustomizations = (product.variants && product.variants.length > 0) || (product.addOns && product.addOns.length > 0);
 
   const handleIncrement = () => {
     if (storeClosed) return;
-    if (hasVariants) {
-      // If has variants, open modal to let user choose which variant to add
+    if (hasCustomizations) {
+      // If has variants or add-ons, open modal to let user customize
       onVariantClick(product);
     } else {
       addToCart(product, storeId);
@@ -25,8 +24,6 @@ const QuantitySelector = ({ product, storeId, onVariantClick, storeClosed }) => 
   const handleDecrement = () => {
     if (storeClosed || totalQuantity === 0) return;
     
-    // For variants, we decrement the last item in the cartItems list for this product
-    // For simple items, it's just the one item
     const lastItem = cartItems[cartItems.length - 1];
     const targetId = lastItem.cartItemId || lastItem._id;
 
@@ -43,7 +40,6 @@ const QuantitySelector = ({ product, storeId, onVariantClick, storeClosed }) => 
     return null;
   }
 
-
   if (isUnavailable) {
     return (
       <button className="btn btn-primary quantity-btn-disabled" disabled>
@@ -54,13 +50,30 @@ const QuantitySelector = ({ product, storeId, onVariantClick, storeClosed }) => 
 
   if (totalQuantity === 0) {
     return (
-      <button 
-        className="quantity-selector-add"
-        onClick={handleIncrement}
-      >
-        <span className="add-text">ADD</span>
-        <Plus size={14} className="add-plus" strokeWidth={3} />
-      </button>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
+        <button 
+          className="quantity-selector-add"
+          onClick={handleIncrement}
+        >
+          <span className="add-text">ADD</span>
+          <Plus size={14} className="add-plus" strokeWidth={3} />
+        </button>
+        {hasCustomizations && (
+          <span style={{ 
+            fontSize: '0.625rem', 
+            fontWeight: '700', 
+            color: 'var(--text-secondary, #64748b)', 
+            marginTop: '3px', 
+            letterSpacing: '0.02em', 
+            textTransform: 'lowercase',
+            display: 'block',
+            textAlign: 'center',
+            lineHeight: 1
+          }}>
+            customisable
+          </span>
+        )}
+      </div>
     );
   }
 
