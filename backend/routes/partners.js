@@ -70,10 +70,14 @@ async function calculateAuthoritativePlatformProfit() {
   });
 
   const liveCompletedVolume = unsettledCompleted.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+  const liveDeliveryPlatformFees = unsettledCompleted.reduce((sum, o) => sum + (o.platformFee || 0), 0);
+  const livePackagingCharges = unsettledCompleted.reduce((sum, o) => sum + (o.packagingCharge || 0), 0);
+  const liveDeliveryCharges = unsettledCompleted.reduce((sum, o) => sum + (o.deliveryFee || 0), 0);
+  const liveFoodSubtotal = Math.max(0, liveCompletedVolume - liveDeliveryPlatformFees - livePackagingCharges - liveDeliveryCharges);
   const liveCancelledVolume = unsettledCancelled.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
 
-  const projectedGatewayFee = parseFloat((liveCompletedVolume * 0.02).toFixed(2));
-  const projectedPlatformProfit = parseFloat((liveCompletedVolume * 0.03).toFixed(2));
+  const projectedGatewayFee = parseFloat((liveFoodSubtotal * 0.0236).toFixed(2));
+  const projectedPlatformProfit = parseFloat((liveFoodSubtotal * 0.03 + liveDeliveryPlatformFees).toFixed(2));
   const projectedCancellationPenalty = parseFloat((liveCancelledVolume * 0.04).toFixed(2));
 
   const rawCancellation = settledCancellationPenalty + projectedCancellationPenalty;
