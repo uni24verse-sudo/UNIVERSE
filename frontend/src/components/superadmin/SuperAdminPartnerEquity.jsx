@@ -519,7 +519,7 @@ const SuperAdminPartnerEquity = ({ token }) => {
               ₹{availablePoolAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </h2>
             <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: '600' }}>
-              Net Platform Profit (3% Take + 2% Net Penalty)
+              3% Food Take + Delivery Fees + Net Penalty
             </p>
           </div>
 
@@ -532,7 +532,7 @@ const SuperAdminPartnerEquity = ({ token }) => {
               ₹{(poolInfo?.totalPlatformDeductions || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </h2>
             <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: '600' }}>
-              2.36% PG + 3% Take + 2% Net Penalty
+              2.36% PG (with GST) + 3% Take + 1.64% Net Penalty
             </p>
           </div>
 
