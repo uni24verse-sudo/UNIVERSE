@@ -171,9 +171,9 @@ const SuperAdmin3DAnalytics = ({ token }) => {
     : (timeframe === 'monthly' ? chartMonthlyData : (timeframe === 'all' ? chartAllTimeData : chartWeeklyData));
 
   const pieFinancialData = [
-    { name: 'Vendor Payouts (97%)', value: financeDistribution?.vendorShare || 0, color: '#10b981' },
+    { name: 'Vendor Payouts (~95%)', value: financeDistribution?.vendorShare || 0, color: '#10b981' },
     { name: 'UniVerse Take (3%)', value: financeDistribution?.platformCommission || 0, color: '#ef4123' },
-    { name: 'Payment Gateway (~2%)', value: financeDistribution?.pgGatewayFee || 0, color: '#3b82f6' }
+    { name: 'Payment Gateway (2.36%)', value: financeDistribution?.pgGatewayFee || 0, color: '#3b82f6' }
   ];
 
   // Multi-campus simulator calculations (Conservative ₹120 / order baseline)
@@ -456,15 +456,21 @@ const SuperAdmin3DAnalytics = ({ token }) => {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <div style={{ padding: '1.25rem', background: 'var(--background)', borderRadius: '12px', border: '1px solid var(--surface-border)' }}>
-                <span style={{ fontSize: '0.75rem', color: '#10b981', fontWeight: '800', textTransform: 'uppercase' }}>Vendor Payout Share (97%)</span>
+                <span style={{ fontSize: '0.75rem', color: '#10b981', fontWeight: '800', textTransform: 'uppercase' }}>Vendor Payout Share (~95%)</span>
                 <h4 style={{ margin: '0.2rem 0', fontSize: '1.3rem', fontWeight: '900' }}>₹{(financeDistribution?.vendorShare || 0).toLocaleString()}</h4>
-                <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Disbursed automatically to onboarded vendors on regular payout cycles.</p>
+                <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>94.64% Net on food subtotal + 100% of packaging and delivery charges passed directly to vendors.</p>
               </div>
 
               <div style={{ padding: '1.25rem', background: 'rgba(239, 65, 35, 0.05)', borderRadius: '12px', border: '1px solid rgba(239, 65, 35, 0.2)' }}>
-                <span style={{ fontSize: '0.75rem', color: '#ef4123', fontWeight: '800', textTransform: 'uppercase' }}>UniVerse Platform Revenue (3%)</span>
+                <span style={{ fontSize: '0.75rem', color: '#ef4123', fontWeight: '800', textTransform: 'uppercase' }}>UniVerse Net Take (3% + Platform Fees)</span>
                 <h4 style={{ margin: '0.2rem 0', fontSize: '1.3rem', fontWeight: '900', color: '#ef4123' }}>₹{(financeDistribution?.platformCommission || 0).toLocaleString()}</h4>
-                <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Pure software take rate with near-zero marginal server cost (₹0.07/order).</p>
+                <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>3.00% platform commission on food + 100% of ₹5 delivery convenience fees.</p>
+              </div>
+
+              <div style={{ padding: '1.25rem', background: 'rgba(59, 130, 246, 0.05)', borderRadius: '12px', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
+                <span style={{ fontSize: '0.75rem', color: '#3b82f6', fontWeight: '800', textTransform: 'uppercase' }}>Payment Gateway & GST (2.36%)</span>
+                <h4 style={{ margin: '0.2rem 0', fontSize: '1.3rem', fontWeight: '900', color: '#3b82f6' }}>₹{(financeDistribution?.pgGatewayFee || 0).toLocaleString()}</h4>
+                <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>2.00% Razorpay processing fee + 18% GST on gateway fee (ITC claimable).</p>
               </div>
             </div>
           </div>
