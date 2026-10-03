@@ -678,6 +678,24 @@ const ManageStore = () => {
     }
   };
 
+  const handleDeleteCategory = async (categoryName) => {
+    const matchingCount = (store.products || []).filter(p => (p.category || '').toLowerCase().trim() === categoryName.toLowerCase().trim()).length;
+    if (!window.confirm(`Are you sure you want to delete the category "${categoryName}" and all ${matchingCount} dishes inside it? This cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      const res = await axios.delete(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/store/${store._id}/category/${encodeURIComponent(categoryName)}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setStore(res.data);
+      alert(`Category "${categoryName}" and its dishes have been deleted successfully.`);
+    } catch (err) {
+      console.error('Delete Category Error:', err);
+      alert('Failed to delete category: ' + (err.response?.data?.message || err.message));
+    }
+  };
+
   const handleTestNotification = async () => {
     setTestingFCM(true);
     try {
@@ -1921,6 +1939,17 @@ const ManageStore = () => {
                               onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
                             >
                               <LucideLink size={14} style={{ marginRight: '0.25rem' }} /> Link
+                            </button>
+                            <button 
+                              type="button"
+                              onClick={() => handleDeleteCategory(cat)}
+                              style={{ 
+                                display: 'inline-flex', alignItems: 'center', padding: '0.4rem 0.8rem', background: '#fee2e2', border: '1px solid #fca5a5', color: '#ef4444', borderRadius: '100px', fontSize: '0.75rem', fontWeight: '700', cursor: 'pointer', transition: 'transform 0.2s'
+                              }}
+                              onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
+                              onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
+                            >
+                              <Trash2 size={14} style={{ marginRight: '0.25rem' }} /> Delete
                             </button>
                           </div>
                         </div>
