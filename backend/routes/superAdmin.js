@@ -1299,15 +1299,24 @@ router.get(['/finance', '/finance/summary'], async (req, res) => {
 
       const storeUnsettledOrders = allUnsettledOrders.filter(o => o.storeId === store.id);
       const liveUnsettledRevenue = storeUnsettledOrders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+      const livePlatformFees = storeUnsettledOrders.reduce((sum, o) => sum + (o.platformFee || 0), 0);
+      const livePackagingCharges = storeUnsettledOrders.reduce((sum, o) => sum + (o.packagingCharge || 0), 0);
+      const liveDeliveryCharges = storeUnsettledOrders.reduce((sum, o) => sum + (o.deliveryFee || 0), 0);
+      const liveFoodSubtotal = Math.max(0, liveUnsettledRevenue - livePlatformFees - livePackagingCharges - liveDeliveryCharges);
 
       const storeUnsettledCancelled = allUnsettledCancelled.filter(o => o.storeId === store.id);
       const liveCancelledVolume = storeUnsettledCancelled.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
 
-      // Projected fees on live (unsettled) volume — standard rates + cancellation penalty if any
-      const projectedGatewayFee = parseFloat((liveUnsettledRevenue * 0.02).toFixed(2));
-      const projectedPlatformProfit = parseFloat((liveUnsettledRevenue * 0.03).toFixed(2));
+      // Projected fees on live (unsettled) volume — Option B standard rates:
+      // 3.00% UniVerse platform commission on food items + 100% delivery platform fees
+      // 2.36% Razorpay PG fee (2% Base + 18% GST) on food items
+      // 4.00% Cancellation penalty on cancelled volume
+      const projectedCommission = parseFloat((liveFoodSubtotal * 0.03).toFixed(2));
+      const projectedPlatformProfit = parseFloat((projectedCommission + livePlatformFees).toFixed(2));
+      const projectedGatewayFee = parseFloat((liveFoodSubtotal * 0.0236).toFixed(2));
       const projectedCancellationPenalty = parseFloat((liveCancelledVolume * 0.04).toFixed(2));
-      const projectedNetPayable = parseFloat((liveUnsettledRevenue - projectedGatewayFee - projectedPlatformProfit - projectedCancellationPenalty).toFixed(2));
+      const projectedTotalDeductions = parseFloat((projectedPlatformProfit + projectedGatewayFee + projectedCancellationPenalty).toFixed(2));
+      const projectedNetPayable = Math.max(0, parseFloat((liveUnsettledRevenue - projectedTotalDeductions).toFixed(2)));
 
       let relevantSettlements = pendingSettlements;
       if (pendingSettlements.length === 0 && latestSettlement) {
@@ -1386,6 +1395,64 @@ router.get('/finance/history', async (req, res) => {
     });
 
     res.json(settlements.map(normalizeSettlement));
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 9c. Finance: Recalculate All Pending Settlements (Exact 2.36% PG + 3% Commission)
+router.post('/finance/recalculate-pending', async (req, res) => {
+  try {
+    const pendingSettlements = await prisma.settlement.findMany({
+      where: { status: 'pending' }
+    });
+
+    let updatedCount = 0;
+    for (const s of pendingSettlements) {
+      const orders = await prisma.order.findMany({
+        where: {
+          storeId: s.storeId,
+          status: 'Completed',
+          createdAt: {
+            gte: s.periodStart,
+            lte: s.periodEnd
+          }
+        }
+      });
+
+      const totalRevenue = orders.length > 0 ? orders.reduce((sum, o) => sum + (o.totalAmount || 0), 0) : s.totalRevenue;
+      const platformFees = orders.reduce((sum, o) => sum + (o.platformFee || 0), 0);
+      const packagingCharges = orders.reduce((sum, o) => sum + (o.packagingCharge || 0), 0);
+      const deliveryCharges = orders.reduce((sum, o) => sum + (o.deliveryFee || 0), 0);
+      const foodSubtotal = Math.max(0, totalRevenue - platformFees - packagingCharges - deliveryCharges);
+
+      const gatewayFee = parseFloat((foodSubtotal * 0.0236).toFixed(2));
+      const platformCommission = parseFloat((foodSubtotal * 0.03).toFixed(2));
+      const totalPlatformProfit = parseFloat((platformCommission + platformFees).toFixed(2));
+      const cancellationPenalty = parseFloat((Number(s.cancellationPenalties || 0)).toFixed(2));
+      const totalDeductions = parseFloat((gatewayFee + totalPlatformProfit + cancellationPenalty).toFixed(2));
+      const netPayable = Math.max(0, parseFloat((totalRevenue - totalDeductions).toFixed(2)));
+
+      await prisma.settlement.update({
+        where: { id: s.id },
+        data: {
+          gatewayFee,
+          platformCommission: totalPlatformProfit,
+          netPayable,
+          feesBreakdown: {
+            ...(s.feesBreakdown && typeof s.feesBreakdown === 'object' ? s.feesBreakdown : {}),
+            gatewayFee,
+            gatewayRate: 0.0236,
+            platformProfit: totalPlatformProfit,
+            foodSubtotal,
+            platformCommissionRate: 0.03
+          }
+        }
+      });
+      updatedCount++;
+    }
+
+    res.json({ message: `Successfully recalculated ${updatedCount} pending settlements`, updatedCount });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
