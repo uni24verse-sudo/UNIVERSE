@@ -333,9 +333,13 @@ export default function AnalyticsScreen() {
       fulfillmentRate,
       grossRevenue,
       netPayout,
+      totalDeductions,
+      totalFoodSubtotal,
+      platformCommission,
       platformFee: totalPlatformFee,
       totalPlatformFee,
       pgFee,
+      cancellationPenalty,
       aov,
       topItems,
       chartBars,
@@ -465,7 +469,7 @@ export default function AnalyticsScreen() {
                       <View>
                         <Text style={styles.heroLabel}>ESTIMATED NET PAYOUT</Text>
                         <Text style={styles.heroAmount}>
-                          ₹{stats.netPayout.toLocaleString('en-IN', { minimumFractionDigits: stats.netPayout % 1 !== 0 ? 2 : 0, maximumFractionDigits: 2 })}
+                          ₹{(stats.netPayout || 0).toLocaleString('en-IN', { minimumFractionDigits: (stats.netPayout || 0) % 1 !== 0 ? 2 : 0, maximumFractionDigits: 2 })}
                         </Text>
                       </View>
                       <View style={styles.deductionBadge}>
@@ -479,17 +483,17 @@ export default function AnalyticsScreen() {
                       <View style={styles.heroMetricCol}>
                         <Text style={styles.heroMetricLabel}>Gross Sales</Text>
                         <Text style={styles.heroMetricValue}>
-                          ₹{stats.grossRevenue.toLocaleString('en-IN', { minimumFractionDigits: stats.grossRevenue % 1 !== 0 ? 2 : 0, maximumFractionDigits: 2 })}
+                          ₹{(stats.grossRevenue || 0).toLocaleString('en-IN', { minimumFractionDigits: (stats.grossRevenue || 0) % 1 !== 0 ? 2 : 0, maximumFractionDigits: 2 })}
                         </Text>
                       </View>
                       <View style={styles.heroMetricCol}>
                         <Text style={styles.heroMetricLabel}>Avg Ticket (AOV)</Text>
-                        <Text style={styles.heroMetricValue}>₹{stats.aov}</Text>
+                        <Text style={styles.heroMetricValue}>₹{stats.aov || 0}</Text>
                       </View>
                       <View style={styles.heroMetricCol}>
                         <Text style={styles.heroMetricLabel}>Platform + PG (5.36%)</Text>
                         <Text style={[styles.heroMetricValue, { color: '#F87171' }]}>
-                          -₹{stats.totalDeductions.toLocaleString('en-IN', { minimumFractionDigits: stats.totalDeductions % 1 !== 0 ? 2 : 0, maximumFractionDigits: 2 })}
+                          -₹{(stats.totalDeductions || 0).toLocaleString('en-IN', { minimumFractionDigits: (stats.totalDeductions || 0) % 1 !== 0 ? 2 : 0, maximumFractionDigits: 2 })}
                         </Text>
                       </View>
                     </View>
@@ -612,8 +616,8 @@ export default function AnalyticsScreen() {
                       </View>
                       <Text style={styles.peakCalloutMetric}>
                         {isEmployee
-                          ? `${stats.peakSlot.orders} dishes`
-                          : `₹${stats.peakSlot.revenue.toLocaleString()} • ${stats.peakSlot.orders} orders`}
+                          ? `${stats.peakSlot.orders || 0} dishes`
+                          : `₹${(stats.peakSlot.revenue || 0).toLocaleString('en-IN')} • ${stats.peakSlot.orders || 0} orders`}
                       </Text>
                     </View>
                   ) : null}
@@ -725,7 +729,7 @@ export default function AnalyticsScreen() {
 
                           {!isEmployee && (
                             <Text style={styles.itemRevenue}>
-                              ₹{item.revenue.toLocaleString('en-IN')}
+                              ₹{(item.revenue || 0).toLocaleString('en-IN')}
                             </Text>
                           )}
                         </View>
