@@ -255,12 +255,12 @@ router.get('/realtime-analytics', async (req, res) => {
 
     const rawCancellation = settledCancellationPenalty + projectedCancellationPenalty;
     const totalCancellationPenalty = parseFloat(rawCancellation.toFixed(2));
-    const cancellationGatewayFee = parseFloat((rawCancellation * 0.5).toFixed(2)); // PG fee on cancellations
-    const netCancellationPenalty = parseFloat((totalCancellationPenalty - cancellationGatewayFee).toFixed(2)); // UniVerse Net Penalty
+    const cancellationGatewayFee = parseFloat((rawCancellation * (0.0236 / 0.04)).toFixed(2)); // 2.36% Razorpay PG fee on cancellations
+    const netCancellationPenalty = parseFloat((totalCancellationPenalty - cancellationGatewayFee).toFixed(2)); // 1.64% UniVerse Net Penalty take
 
     const totalGatewayFee = parseFloat((settledGateway + projectedGateway + cancellationGatewayFee).toFixed(2)); // All PG fees with GST
     const totalPlatformCommission = parseFloat((settledPlatformProfit + projectedPlatformProfit).toFixed(2));
-    // UniVerse Net Take = 3% Commission + Delivery Platform Fees + Net Penalty (excludes all PG fees)
+    // UniVerse Net Take = 3% Commission on Food + Delivery Platform Fees + Net Cancellation Penalty (excludes all PG fees)
     const totalPlatformProfit = parseFloat((totalPlatformCommission + netCancellationPenalty).toFixed(2));
     const totalPlatformDeductions = parseFloat((totalGatewayFee + totalPlatformProfit).toFixed(2));
 

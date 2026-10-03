@@ -297,7 +297,7 @@ const SuperAdmin3DAnalytics = ({ token }) => {
           <div style={{ padding: '1.25rem', background: '#ffffff', borderRadius: '16px', border: '1px solid var(--surface-border)', boxShadow: '0 2px 6px rgba(0,0,0,0.02)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
               <span style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
-                UniVerse Net Take (3%)
+                UniVerse Net Platform Profit
               </span>
               <TrendingUp size={16} color="#ef4123" />
             </div>
@@ -305,7 +305,7 @@ const SuperAdmin3DAnalytics = ({ token }) => {
               ₹{(metrics?.totalProfit || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </h2>
             <span style={{ fontSize: '0.75rem', color: '#10b981', fontWeight: '700' }}>
-              3% Take Rate + 4% Protection
+              3% Food Take + Delivery Fees + Penalty
             </span>
           </div>
         </div>

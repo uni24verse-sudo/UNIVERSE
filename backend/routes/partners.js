@@ -82,14 +82,14 @@ async function calculateAuthoritativePlatformProfit() {
 
   const rawCancellation = settledCancellationPenalty + projectedCancellationPenalty;
   const totalCancellationPenalty = parseFloat(rawCancellation.toFixed(2)); // 4% total vendor cancellation penalty
-  const cancellationGatewayFee = parseFloat((rawCancellation * 0.5).toFixed(2)); // 2% Razorpay gateway fee on cancelled orders
-  const netCancellationPenalty = parseFloat((totalCancellationPenalty - cancellationGatewayFee).toFixed(2)); // 2% UniVerse net penalty take
+  const cancellationGatewayFee = parseFloat((rawCancellation * (0.0236 / 0.04)).toFixed(2)); // 2.36% Razorpay gateway fee on cancelled orders
+  const netCancellationPenalty = parseFloat((totalCancellationPenalty - cancellationGatewayFee).toFixed(2)); // 1.64% UniVerse net penalty take
 
-  // Total Gateway fee includes 2% on completed orders + 2% on cancelled orders
+  // Total Gateway fee includes 2.36% on completed orders + 2.36% on cancelled orders
   const totalGatewayFee = parseFloat((settledGatewayFee + projectedGatewayFee + cancellationGatewayFee).toFixed(2));
-  const totalPlatformProfit = parseFloat((settledPlatformProfit + projectedPlatformProfit).toFixed(2)); // 3% commission
+  const totalPlatformProfit = parseFloat((settledPlatformProfit + projectedPlatformProfit).toFixed(2)); // 3% commission on food + delivery convenience fees
   
-  // UniVerse Real Net Take = 3% commission + 2% net cancellation penalty (excludes all 2% PG fees)
+  // UniVerse Real Net Take = 3% commission on food + 100% delivery convenience fees + 1.64% net cancellation penalty
   const totalUniVerseProfit = parseFloat((totalPlatformProfit + netCancellationPenalty).toFixed(2));
   const totalPlatformDeductions = parseFloat((totalGatewayFee + totalUniVerseProfit).toFixed(2));
 
