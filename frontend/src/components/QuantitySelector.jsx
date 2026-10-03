@@ -50,40 +50,24 @@ const QuantitySelector = ({ product, storeId, onVariantClick, storeClosed }) => 
 
   if (totalQuantity === 0) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
-        <button 
-          className="quantity-selector-add"
-          onClick={handleIncrement}
-        >
-          <span className="add-text">ADD</span>
-          <Plus size={14} className="add-plus" strokeWidth={3} />
-        </button>
-        {hasCustomizations && (
-          <span style={{ 
-            fontSize: '0.625rem', 
-            fontWeight: '700', 
-            color: 'var(--text-secondary, #64748b)', 
-            marginTop: '3px', 
-            letterSpacing: '0.02em', 
-            textTransform: 'lowercase',
-            display: 'block',
-            textAlign: 'center',
-            lineHeight: 1
-          }}>
-            customisable
-          </span>
-        )}
-      </div>
+      <button 
+        className="quantity-selector-add"
+        onClick={handleIncrement}
+        aria-label={`Add ${product.name} to cart`}
+      >
+        <span className="add-text">ADD</span>
+        <Plus size={14} className="add-plus" strokeWidth={3} />
+      </button>
     );
   }
 
   return (
     <div className="quantity-selector-active">
-      <button className="qty-ctrl-btn" onClick={handleDecrement}>
+      <button className="qty-ctrl-btn" onClick={handleDecrement} aria-label="Decrease quantity">
         <Minus size={16} strokeWidth={3} />
       </button>
       <span className="qty-display">{totalQuantity}</span>
-      <button className="qty-ctrl-btn" onClick={handleIncrement}>
+      <button className="qty-ctrl-btn" onClick={handleIncrement} aria-label="Increase quantity">
         <Plus size={16} strokeWidth={3} />
       </button>
     </div>
