@@ -223,14 +223,28 @@ export default function AnalyticsScreen() {
       hourlyMap[s.bucketKey] = { label: s.label, orders: 0, revenue: 0 };
     });
 
+    let totalFoodSubtotal = 0;
+    let totalPlatformFees = 0;
+    let totalPackagingCharges = 0;
+    let totalDeliveryCharges = 0;
+    let totalCancelledVolume = 0;
+
     filteredOrders.forEach((o) => {
       const isCompleted = o.status === 'Completed';
       const isCancelled = o.status === 'Cancelled';
       const amt = Number(o.totalAmount) || 0;
+      const pFee = Number(o.platformFee) || 0;
+      const packCharge = Number(o.packagingCharge) || 0;
+      const delCharge = Number(o.deliveryFee) || 0;
+      const foodSub = Math.max(0, amt - pFee - packCharge - delCharge);
 
       if (isCompleted) {
         completedCount += 1;
         grossRevenue += amt;
+        totalFoodSubtotal += foodSub;
+        totalPlatformFees += pFee;
+        totalPackagingCharges += packCharge;
+        totalDeliveryCharges += delCharge;
 
         const orderDate = new Date(o.createdAt);
         const hour = orderDate.getHours();
@@ -264,14 +278,24 @@ export default function AnalyticsScreen() {
         }
       } else if (isCancelled) {
         cancelledCount += 1;
+        totalCancelledVolume += (Number(o.totalAmount) || 0);
       }
     });
 
     const totalOrders = completedCount + cancelledCount;
     const fulfillmentRate = totalOrders > 0 ? Math.round((completedCount / totalOrders) * 100) : 100;
-    const netPayout = Math.round(grossRevenue * 0.95); // 5% total deduction (3% platform + 2% PG)
-    const platformFee = Math.round(grossRevenue * 0.03);
-    const pgFee = Math.round(grossRevenue * 0.02);
+    
+    // Exact Option B Settlement Math:
+    // 3.00% UniVerse Commission + 2.36% Razorpay PG Fee (2% Base + 18% GST) on food subtotal
+    // 100% Delivery Platform Fees (retained by UniVerse)
+    // 4.00% Penalty on cancelled orders
+    // 100% of Packaging & Delivery charges passed to Vendor
+    const platformCommission = Number((totalFoodSubtotal * 0.03).toFixed(2));
+    const totalPlatformFee = Number((platformCommission + totalPlatformFees).toFixed(2));
+    const pgFee = Number((totalFoodSubtotal * 0.0236).toFixed(2));
+    const cancellationPenalty = Number((totalCancelledVolume * 0.04).toFixed(2));
+    const totalDeductions = Number((totalPlatformFee + pgFee + cancellationPenalty).toFixed(2));
+    const netPayout = Math.max(0, Number((grossRevenue - totalDeductions).toFixed(2)));
     const aov = completedCount > 0 ? Math.round(grossRevenue / completedCount) : 0;
 
     // Top 5 selling items sorted by quantity
@@ -439,10 +463,12 @@ export default function AnalyticsScreen() {
                     <View style={styles.heroTopRow}>
                       <View>
                         <Text style={styles.heroLabel}>ESTIMATED NET PAYOUT</Text>
-                        <Text style={styles.heroAmount}>₹{stats.netPayout.toLocaleString('en-IN')}</Text>
+                        <Text style={styles.heroAmount}>
+                          ₹{stats.netPayout.toLocaleString('en-IN', { minimumFractionDigits: stats.netPayout % 1 !== 0 ? 2 : 0, maximumFractionDigits: 2 })}
+                        </Text>
                       </View>
                       <View style={styles.deductionBadge}>
-                        <Text style={styles.deductionBadgeText}>95% Net</Text>
+                        <Text style={styles.deductionBadgeText}>94.64% Net</Text>
                       </View>
                     </View>
 
@@ -451,16 +477,18 @@ export default function AnalyticsScreen() {
                     <View style={styles.heroBreakdownRow}>
                       <View style={styles.heroMetricCol}>
                         <Text style={styles.heroMetricLabel}>Gross Sales</Text>
-                        <Text style={styles.heroMetricValue}>₹{stats.grossRevenue.toLocaleString('en-IN')}</Text>
+                        <Text style={styles.heroMetricValue}>
+                          ₹{stats.grossRevenue.toLocaleString('en-IN', { minimumFractionDigits: stats.grossRevenue % 1 !== 0 ? 2 : 0, maximumFractionDigits: 2 })}
+                        </Text>
                       </View>
                       <View style={styles.heroMetricCol}>
                         <Text style={styles.heroMetricLabel}>Avg Ticket (AOV)</Text>
                         <Text style={styles.heroMetricValue}>₹{stats.aov}</Text>
                       </View>
                       <View style={styles.heroMetricCol}>
-                        <Text style={styles.heroMetricLabel}>Platform + PG (5%)</Text>
+                        <Text style={styles.heroMetricLabel}>Platform + PG (5.36%)</Text>
                         <Text style={[styles.heroMetricValue, { color: '#F87171' }]}>
-                          -₹{(stats.platformFee + stats.pgFee).toLocaleString('en-IN')}
+                          -₹{stats.totalDeductions.toLocaleString('en-IN', { minimumFractionDigits: stats.totalDeductions % 1 !== 0 ? 2 : 0, maximumFractionDigits: 2 })}
                         </Text>
                       </View>
                     </View>
@@ -718,18 +746,22 @@ export default function AnalyticsScreen() {
                     </View>
                     <View style={styles.settlementRow}>
                       <Text style={styles.settlementLabel}>UniVerse Platform Fee</Text>
-                      <Text style={styles.settlementValue}>3.0%</Text>
+                      <Text style={styles.settlementValue}>3.00% (Food subtotal)</Text>
                     </View>
                     <View style={styles.settlementRow}>
                       <Text style={styles.settlementLabel}>Payment Gateway Fee</Text>
-                      <Text style={styles.settlementValue}>2.0%</Text>
+                      <Text style={styles.settlementValue}>2.36% (2% + 18% GST)</Text>
+                    </View>
+                    <View style={styles.settlementRow}>
+                      <Text style={styles.settlementLabel}>Packaging & Delivery Fee</Text>
+                      <Text style={[styles.settlementValue, { color: '#10B981' }]}>100% to Vendor (0% Fee)</Text>
                     </View>
                     <View style={[styles.settlementRow, { borderBottomWidth: 0 }]}>
                       <Text style={[styles.settlementLabel, { fontWeight: '800', color: '#0F172A' }]}>
                         Total Net Vendor Settlement
                       </Text>
                       <Text style={[styles.settlementValue, { color: '#10B981', fontWeight: '900' }]}>
-                        95.0%
+                        94.64% (on food)
                       </Text>
                     </View>
 

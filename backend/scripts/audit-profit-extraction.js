@@ -107,29 +107,30 @@ async function runComprehensiveProfitAudit() {
   const platformConvFee = 5;     // ₹5 (100% to UniVerse)
   const totalCustomerPaid = foodSubtotal + packCharge + deliveryCharge + platformConvFee; // ₹240
 
-  // 5% Total deduction ONLY on food items
-  const foodPgFee = Number((foodSubtotal * 0.02).toFixed(2));        // ₹3.60 (2% on food)
+  // 5.36% Total deduction ONLY on food items (3.00% UniVerse + 2.36% Razorpay with 18% GST)
+  const foodPgFee = Number((foodSubtotal * 0.0236).toFixed(2));        // ₹4.25 (2.36% on food)
   const foodPlatformComm = Number((foodSubtotal * 0.03).toFixed(2)); // ₹5.40 (3% on food)
-  const totalFoodDeduction = foodPgFee + foodPlatformComm;           // ₹9.00 (5% on food)
+  const totalFoodDeduction = Number((foodPgFee + foodPlatformComm).toFixed(2)); // ₹9.65 (5.36% on food)
 
-  const vendorNetPayout = Number((totalCustomerPaid - totalFoodDeduction - platformConvFee).toFixed(2)); // ₹226.00
+  const vendorNetPayout = Number((totalCustomerPaid - totalFoodDeduction - platformConvFee).toFixed(2)); // ₹225.35
   const universeNetTake = Number((foodPlatformComm + platformConvFee).toFixed(2)); // ₹10.40
+  const totalPlatformAndPgTake = Number((universeNetTake + foodPgFee).toFixed(2)); // ₹14.65
 
   console.log(`Customer Paid (Total):             ₹${totalCustomerPaid}`);
   console.log(`Food Items Subtotal (Product1+2):  ₹${foodSubtotal}`);
-  console.log(`5% Deduction on Food Items:        ₹${totalFoodDeduction} (2% PG: ₹${foodPgFee} + 3% UniVerse: ₹${foodPlatformComm})`);
+  console.log(`5.36% Deduction on Food Items:     ₹${totalFoodDeduction} (2.36% PG: ₹${foodPgFee} + 3% UniVerse: ₹${foodPlatformComm})`);
   console.log(`Packing Charges (Passed to Vendor): ₹${packCharge}`);
   console.log(`Delivery Charges (Passed to Vendor):₹${deliveryCharge}`);
   console.log(`Platform Fee (Retained by UniVerse):₹${platformConvFee}`);
-  console.log(`🎯 Net Settlement to Vendor:        ₹${vendorNetPayout} (Expected: 226.00)`);
+  console.log(`🎯 Net Settlement to Vendor:        ₹${vendorNetPayout} (Expected: 225.35)`);
   console.log(`🎯 UniVerse Net Platform Take:      ₹${universeNetTake} (Expected: 10.40)`);
-  console.log(`🎯 Razorpay Gateway Fee:            ₹${foodPgFee} (Expected: 3.60)`);
-  console.log(`Ledger Balance Check:              ${vendorNetPayout} + ${universeNetTake} + ${foodPgFee} === ₹${vendorNetPayout + universeNetTake + foodPgFee}`);
+  console.log(`🎯 Razorpay Gateway Fee (with GST): ₹${foodPgFee} (Expected: 4.25)`);
+  console.log(`Ledger Balance Check:              ${vendorNetPayout} + ${universeNetTake} + ${foodPgFee} === ₹${Number((vendorNetPayout + universeNetTake + foodPgFee).toFixed(2))}`);
 
-  if (vendorNetPayout !== 226.00 || universeNetTake !== 10.40 || foodPgFee !== 3.60) {
-    throw new Error(`Vendor settlement mismatch! Expected 226.00 but got ${vendorNetPayout}`);
+  if (vendorNetPayout !== 225.35 || universeNetTake !== 10.40 || foodPgFee !== 4.25) {
+    throw new Error(`Vendor settlement mismatch! Expected 225.35 but got ${vendorNetPayout}`);
   }
-  console.log('✅ TEST 2 PASSED: Exact ₹226.00 vendor payout and ₹10.40 UniVerse net take verified!\n');
+  console.log('✅ TEST 2 PASSED: Exact ₹225.35 vendor payout and ₹10.40 UniVerse net take verified!\n');
 
   // -------------------------------------------------------------
   // TEST 3: Cancellation Penalties & Refund Integrity
