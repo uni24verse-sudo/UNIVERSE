@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, Modal, TouchableOpacity, StyleSheet, FlatList } from 'react-native';
+import React, { useState, useEffect, useMemo } from 'react';
+import { View, Text, Modal, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { THEME } from '../constants/theme';
 import DietaryBadge from './DietaryBadge';
@@ -13,6 +13,7 @@ const VariantModal = ({
   isUnavailable = false,
 }) => {
   const [selectedVariant, setSelectedVariant] = useState(null);
+  const [selectedAddOns, setSelectedAddOns] = useState([]);
 
   useEffect(() => {
     if (product?.variants && product.variants.length > 0) {
@@ -20,15 +21,49 @@ const VariantModal = ({
     } else {
       setSelectedVariant(null);
     }
-  }, [product]);
+    setSelectedAddOns([]);
+  }, [product, visible]);
 
   if (!product) return null;
 
+  const hasVariants = product.variants && product.variants.length > 0;
+  const hasAddOns = product.addOns && product.addOns.length > 0;
+
+  // Dynamic add-on price based on currently selected variant size
+  const getAddOnPrice = (addon) => {
+    if (addon.variantPrices && selectedVariant?.name && addon.variantPrices[selectedVariant.name] !== undefined) {
+      return Number(addon.variantPrices[selectedVariant.name]) || 0;
+    }
+    return Number(addon.price) || 0;
+  };
+
+  const toggleAddOn = (addon) => {
+    const isAlreadySelected = selectedAddOns.some(a => a.name === addon.name);
+    if (isAlreadySelected) {
+      setSelectedAddOns(prev => prev.filter(a => a.name !== addon.name));
+    } else {
+      setSelectedAddOns(prev => [...prev, { name: addon.name, rawAddon: addon }]);
+    }
+  };
+
+  const addOnsTotal = useMemo(() => {
+    return selectedAddOns.reduce((sum, item) => {
+      const livePrice = getAddOnPrice(item.rawAddon);
+      return sum + livePrice;
+    }, 0);
+  }, [selectedAddOns, selectedVariant]);
+
+  const basePrice = selectedVariant ? Number(selectedVariant.price) : Number(product.price || 0);
+  const totalLivePrice = basePrice + addOnsTotal;
+
   const handleConfirm = () => {
     if (storeClosed || isUnavailable) return;
-    if (selectedVariant) {
-      onAddToCart(product, selectedVariant);
-    }
+    const finalAddOnsPayload = selectedAddOns.map(item => ({
+      name: item.name,
+      price: getAddOnPrice(item.rawAddon)
+    }));
+
+    onAddToCart(product, selectedVariant, finalAddOnsPayload);
     onClose();
   };
 
@@ -54,43 +89,77 @@ const VariantModal = ({
             </TouchableOpacity>
           </View>
 
-          <Text style={styles.subhead}>Customization Options</Text>
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+            {/* 1. Size Selection */}
+            {hasVariants && (
+              <View style={styles.section}>
+                <Text style={styles.subhead}>CHOOSE SIZE</Text>
+                {product.variants.map((item, index) => {
+                  const isSelected = selectedVariant?.name === item.name;
+                  return (
+                    <TouchableOpacity
+                      key={index}
+                      style={[styles.optionCard, isSelected && styles.selectedOptionCard]}
+                      onPress={() => setSelectedVariant(item)}
+                      activeOpacity={0.8}
+                    >
+                      <View style={styles.radioRow}>
+                        <Ionicons
+                          name={isSelected ? "radio-button-on" : "radio-button-off"}
+                          size={20}
+                          color={isSelected ? THEME.colors.primary : THEME.colors.textMuted}
+                        />
+                        <Text style={[styles.optionName, isSelected && styles.selectedOptionName]}>
+                          {item.name}
+                        </Text>
+                      </View>
+                      <Text style={[styles.optionPrice, isSelected && styles.selectedOptionPrice]}>₹{item.price}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )}
 
-          {/* Variant Selection List */}
-          <FlatList
-            data={product.variants || []}
-            keyExtractor={(item, index) => item.name + index}
-            renderItem={({ item }) => {
-              const isSelected = selectedVariant?.name === item.name;
-              return (
-                <TouchableOpacity
-                  style={[styles.variantCard, isSelected && styles.selectedVariantCard]}
-                  onPress={() => setSelectedVariant(item)}
-                  activeOpacity={0.8}
-                >
-                  <View style={styles.radioRow}>
-                    <Ionicons
-                      name={isSelected ? "radio-button-on" : "radio-button-off"}
-                      size={20}
-                      color={isSelected ? THEME.colors.primary : THEME.colors.textMuted}
-                    />
-                    <Text style={[styles.variantName, isSelected && styles.selectedVariantName]}>
-                      {item.name}
-                    </Text>
-                  </View>
-                  <Text style={styles.variantPrice}>₹{item.price}</Text>
-                </TouchableOpacity>
-              );
-            }}
-            contentContainerStyle={styles.listContainer}
-          />
+            {/* 2. Dynamic Add-ons Matrix */}
+            {hasAddOns && (
+              <View style={styles.section}>
+                <Text style={styles.subhead}>
+                  ADD-ONS & EXTRAS {selectedVariant ? `(${selectedVariant.name})` : ''}
+                </Text>
+                {product.addOns.map((addon, index) => {
+                  const isSelected = selectedAddOns.some(a => a.name === addon.name);
+                  const livePrice = getAddOnPrice(addon);
+                  return (
+                    <TouchableOpacity
+                      key={index}
+                      style={[styles.optionCard, isSelected && styles.selectedAddOnCard]}
+                      onPress={() => toggleAddOn(addon)}
+                      activeOpacity={0.8}
+                    >
+                      <View style={styles.radioRow}>
+                        <Ionicons
+                          name={isSelected ? "checkbox" : "square-outline"}
+                          size={20}
+                          color={isSelected ? THEME.colors.primary : THEME.colors.textMuted}
+                        />
+                        <Text style={[styles.optionName, isSelected && styles.selectedAddOnName]}>
+                          {addon.name}
+                        </Text>
+                      </View>
+                      <Text style={[styles.optionPrice, isSelected && styles.selectedAddOnPrice]}>+₹{livePrice}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )}
+          </ScrollView>
 
           {/* Bottom Action Bar */}
           <View style={styles.footer}>
             <View>
               <Text style={styles.footerTotalLabel}>Total Price</Text>
               <Text style={styles.footerPrice}>
-                ₹{selectedVariant ? selectedVariant.price : product.price}
+                ₹{totalLivePrice}
               </Text>
             </View>
 
@@ -133,7 +202,7 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     paddingHorizontal: 20,
     paddingBottom: 34,
-    maxHeight: '75%',
+    maxHeight: '80%',
     ...THEME.shadows.floating,
   },
   header: {
@@ -159,58 +228,76 @@ const styles = StyleSheet.create({
   closeBtn: {
     padding: 6,
   },
+  scrollContent: {
+    paddingVertical: 10,
+  },
+  section: {
+    marginBottom: 16,
+  },
   subhead: {
-    fontSize: 13,
-    fontWeight: '700',
+    fontSize: 12,
+    fontWeight: '800',
     color: THEME.colors.textSecondary,
-    marginTop: 14,
-    marginBottom: 8,
+    marginBottom: 10,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 0.6,
   },
-  listContainer: {
-    paddingVertical: 6,
-  },
-  variantCard: {
+  optionCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 14,
+    paddingVertical: 13,
     paddingHorizontal: 16,
     borderRadius: THEME.borderRadius.md,
     backgroundColor: THEME.colors.surfaceSubtle,
     borderWidth: 1.5,
-    borderColor: 'transparent',
-    marginBottom: 10,
+    borderColor: '#E2E8F0',
+    marginBottom: 8,
   },
-  selectedVariantCard: {
+  selectedOptionCard: {
     borderColor: THEME.colors.primary,
     backgroundColor: THEME.colors.primarySoft,
+  },
+  selectedAddOnCard: {
+    borderColor: '#3B82F6',
+    backgroundColor: '#EFF6FF',
   },
   radioRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
   },
-  variantName: {
+  optionName: {
     fontSize: 15,
     fontWeight: '600',
     color: THEME.colors.textPrimary,
   },
-  selectedVariantName: {
+  selectedOptionName: {
     color: THEME.colors.primary,
     fontWeight: '800',
   },
-  variantPrice: {
+  selectedAddOnName: {
+    color: '#1E40AF',
+    fontWeight: '800',
+  },
+  optionPrice: {
     fontSize: 15,
     fontWeight: '800',
     color: THEME.colors.textPrimary,
+  },
+  selectedOptionPrice: {
+    color: THEME.colors.primary,
+    fontWeight: '800',
+  },
+  selectedAddOnPrice: {
+    color: '#1E40AF',
+    fontWeight: '800',
   },
   footer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 16,
+    marginTop: 10,
     paddingTop: 14,
     borderTopWidth: 1,
     borderTopColor: THEME.colors.surfaceBorder,

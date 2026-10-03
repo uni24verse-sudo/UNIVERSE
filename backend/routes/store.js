@@ -398,18 +398,22 @@ router.put('/:storeId/category-image', auth, upload.single('imageFile'), async (
 // Add a Product to Store
 router.post('/:storeId/product', auth, upload.single('imageFile'), async (req, res) => {
   try {
-    const { name, description, price, category, image, variants, isCombo, comboItems, freeItems, dietaryPreference } = req.body;
+    const { name, description, price, category, image, variants, addOns, isCombo, comboItems, freeItems, dietaryPreference } = req.body;
     let parsedVariants = [];
     if (variants) {
-      try { parsedVariants = JSON.parse(variants); } catch (e) {}
+      try { parsedVariants = typeof variants === 'string' ? JSON.parse(variants) : variants; } catch (e) {}
+    }
+    let parsedAddOns = [];
+    if (addOns) {
+      try { parsedAddOns = typeof addOns === 'string' ? JSON.parse(addOns) : addOns; } catch (e) {}
     }
     let parsedComboItems = [];
     if (comboItems) {
-      try { parsedComboItems = JSON.parse(comboItems); } catch(e) {}
+      try { parsedComboItems = typeof comboItems === 'string' ? JSON.parse(comboItems) : comboItems; } catch(e) {}
     }
     let parsedFreeItems = [];
     if (freeItems) {
-      try { parsedFreeItems = JSON.parse(freeItems); } catch(e) {}
+      try { parsedFreeItems = typeof freeItems === 'string' ? JSON.parse(freeItems) : freeItems; } catch(e) {}
     }
     
     let finalImage = image;
@@ -450,6 +454,7 @@ router.post('/:storeId/product', auth, upload.single('imageFile'), async (req, r
       image: finalImage,
       dietaryPreference: dietaryPreference || 'none',
       variants: parsedVariants,
+      addOns: parsedAddOns,
       isCombo: isCombo === 'true' || isCombo === true,
       comboItems: parsedComboItems,
       freeItems: parsedFreeItems
@@ -573,15 +578,18 @@ router.put('/:storeId/product/:productId/toggle', auth, async (req, res) => {
 // Edit a Product in Store
 router.put('/:storeId/product/:productId', auth, upload.single('imageFile'), async (req, res) => {
   try {
-    const { name, description, price, category, image, variants, isCombo, comboItems, freeItems, dietaryPreference } = req.body;
+    const { name, description, price, category, image, variants, addOns, isCombo, comboItems, freeItems, dietaryPreference } = req.body;
     const updateData = {};
     if (name) updateData.name = name;
     if (description !== undefined) updateData.description = description;
     if (price !== undefined) updateData.price = Number(price);
     if (category) updateData.category = category;
     if (dietaryPreference) updateData.dietaryPreference = dietaryPreference;
-    if (variants) {
-      try { updateData.variants = JSON.parse(variants); } catch (e) {}
+    if (variants !== undefined) {
+      try { updateData.variants = typeof variants === 'string' ? JSON.parse(variants) : variants; } catch (e) {}
+    }
+    if (addOns !== undefined) {
+      try { updateData.addOns = typeof addOns === 'string' ? JSON.parse(addOns) : addOns; } catch (e) {}
     }
     if (isCombo !== undefined) {
       updateData.isCombo = isCombo === 'true' || isCombo === true;

@@ -157,8 +157,15 @@ export const CartProvider = ({ children }) => {
     };
   }, [socket, connected, storeId]);
 
-  const addToCart = (product, currentStoreId, currentStoreName = '', variant = null, storeLocationId = null) => {
-    const targetId = `${product._id || product.id}${variant ? '-' + variant.name : ''}`;
+  const addToCart = (product, currentStoreId, currentStoreName = '', variant = null, storeLocationId = null, selectedAddOns = []) => {
+    // Sort addOns by name to generate a deterministic cartItemId
+    const sortedAddOns = Array.isArray(selectedAddOns) ? [...selectedAddOns].sort((a, b) => a.name.localeCompare(b.name)) : [];
+    const addOnsKey = sortedAddOns.length > 0 ? sortedAddOns.map(a => `${a.name}:${a.price}`).join('+') : '';
+    const addOnsPriceTotal = sortedAddOns.reduce((sum, a) => sum + (Number(a.price) || 0), 0);
+    const basePrice = variant ? Number(variant.price) : Number(product.price);
+    const unitPrice = basePrice + addOnsPriceTotal;
+
+    const targetId = `${product._id || product.id}${variant ? '-' + variant.name : ''}${addOnsKey ? '-' + addOnsKey : ''}`;
 
     // Prompt if adding from different store or campus
     if (storeId && String(storeId) !== String(currentStoreId)) {
@@ -176,7 +183,9 @@ export const CartProvider = ({ children }) => {
                 _id: product._id || product.id,
                 quantity: 1,
                 variant: variant?.name || null,
-                price: variant ? variant.price : product.price,
+                addOns: sortedAddOns,
+                basePrice: basePrice,
+                price: unitPrice,
                 dietaryPreference: product.dietaryPreference || 'veg',
                 cartItemId: targetId,
                 isAvailable: product.isAvailable !== false,
@@ -208,7 +217,9 @@ export const CartProvider = ({ children }) => {
         _id: product._id || product.id,
         quantity: 1,
         variant: variant?.name || null,
-        price: variant ? variant.price : product.price,
+        addOns: sortedAddOns,
+        basePrice: basePrice,
+        price: unitPrice,
         dietaryPreference: product.dietaryPreference || 'veg',
         cartItemId: targetId,
         isAvailable: product.isAvailable !== false,

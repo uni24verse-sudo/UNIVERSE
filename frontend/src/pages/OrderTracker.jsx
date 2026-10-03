@@ -952,6 +952,15 @@ const OrderTracker = () => {
                    </span>
                    <span style={{ fontWeight: '800', color: 'var(--text-primary)' }}>₹{item.price * item.quantity}</span>
                  </div>
+                  {Array.isArray(item.addOns) && item.addOns.length > 0 && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem', margin: '0.25rem 0' }}>
+                      {item.addOns.map((ao, aIdx) => (
+                        <span key={aIdx} style={{ fontSize: '0.75rem', background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', borderRadius: '6px', padding: '0.1rem 0.45rem', fontWeight: '600' }}>
+                          + {ao.name} (₹{ao.price})
+                        </span>
+                      ))}
+                    </div>
+                  )}
                  
                  {item.isCombo && (
                    <div style={{ marginTop: '0.4rem', paddingLeft: '1.25rem', borderLeft: '2px solid var(--surface-border)' }}>

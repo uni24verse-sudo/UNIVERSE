@@ -505,6 +505,7 @@ const CartScreen = ({ navigation }) => {
           price: it.price,
           quantity: it.quantity,
           variant: it.variant || null,
+          addOns: it.addOns || null,
           isCombo: Boolean(it.isCombo),
           comboItems: it.comboItems || null,
           freeItems: it.freeItems || null,
@@ -1076,6 +1077,15 @@ const CartScreen = ({ navigation }) => {
                     </View>
                     {item.variant && (
                       <Text style={styles.itemVariant}>Variant: {item.variant}</Text>
+                    )}
+                    {Array.isArray(item.addOns) && item.addOns.length > 0 && (
+                      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginVertical: 3 }}>
+                        {item.addOns.map((ao, aIdx) => (
+                          <View key={aIdx} style={{ backgroundColor: '#EFF6FF', borderColor: '#BFDBFE', borderWidth: 1, borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1 }}>
+                            <Text style={{ fontSize: 11, color: '#1D4ED8', fontWeight: '600' }}>+ {ao.name} (₹{ao.price})</Text>
+                          </View>
+                        ))}
+                      </View>
                     )}
                     <Text style={[styles.itemPrice, isItemSoldOut && { color: '#94A3B8' }]}>
                       ₹{item.price * item.quantity}

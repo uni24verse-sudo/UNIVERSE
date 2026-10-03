@@ -28,8 +28,8 @@ const ProductCard = ({
   activeOffers = [],
 }) => {
   const [imageError, setImageError] = useState(false);
-  const hasVariants = product.variants && product.variants.length > 0;
-  const minPrice = hasVariants ? Math.min(...product.variants.map(v => v.price)) : product.price;
+  const hasVariants = (product.variants && product.variants.length > 0) || (product.addOns && product.addOns.length > 0);
+  const minPrice = product.variants && product.variants.length > 0 ? Math.min(...product.variants.map(v => v.price)) : product.price;
   const isUnavailable = product.isAvailable === false;
   const imageUrl = getDishImageUrl(product.image);
 
