@@ -2318,7 +2318,7 @@ const SuperAdminPanel = () => {
                       ₹{financeTotals.totalDeductions.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </h3>
                     <p style={{ margin: '0.35rem 0 0 0', fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: '600' }}>
-                      2% PG (₹{financeTotals.gateway.toFixed(2)}) + 3% Profit (₹{financeTotals.platform.toFixed(2)}) + 4% Penalty (₹{financeTotals.cancel.toFixed(2)})
+                      2.36% PG (₹{financeTotals.gateway.toFixed(2)}) + 3% Profit (₹{financeTotals.platform.toFixed(2)}) + 4% Penalty (₹{financeTotals.cancel.toFixed(2)})
                     </p>
                   </div>
 
@@ -2340,7 +2340,7 @@ const SuperAdminPanel = () => {
                         <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Stall & UPI</th>
                         <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Monthly Gross</th>
                         <th style={{ padding: '1.25rem', color: '#10b981', fontWeight: '800', fontSize: '0.875rem' }}>Live Volume</th>
-                        <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Gateway Fee (2%)</th>
+                        <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Gateway Fee (2.36%)</th>
                         <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Platform Profit (3%)</th>
                         <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Cancel Penalty (4%)</th>
                         <th style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '0.875rem' }}>Transfer Amount</th>

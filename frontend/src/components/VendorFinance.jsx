@@ -85,7 +85,7 @@ const VendorFinance = ({ storeId }) => {
                     {showPreviousBreakup && previousSettlement && (
                         <div style={{ marginTop: '0.75rem', fontSize: '0.75rem', color: 'var(--text-secondary)', background: 'rgba(0,0,0,0.02)', padding: '0.75rem', borderRadius: '12px', border: '1px solid var(--surface-border)' }}>
                             <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem'}}><span>Gross Sales:</span> <span style={{fontWeight: '600', color: 'var(--text-primary)'}}>₹{previousSettlement.totalRevenue.toFixed(2)}</span></div>
-                            <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem'}}><span>Gateway Fee (2%):</span> <span style={{color: '#ef4444'}}>-₹{previousSettlement.feesBreakdown.gatewayFee.toFixed(2)}</span></div>
+                            <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem'}}><span>Gateway Fee (2.36% with GST):</span> <span style={{color: '#ef4444'}}>-₹{previousSettlement.feesBreakdown.gatewayFee.toFixed(2)}</span></div>
                             <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem'}}><span>Platform Fee:</span> <span style={{color: '#ef4444'}}>-₹{previousSettlement.feesBreakdown.platformProfit.toFixed(2)}</span></div>
                             {previousSettlement.feesBreakdown.cancellationPenalty > 0 && (
                                 <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem'}}><span>Cancellation Penalty (4%):</span> <span style={{color: '#ef4444'}}>-₹{previousSettlement.feesBreakdown.cancellationPenalty.toFixed(2)}</span></div>
